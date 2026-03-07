@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -17,6 +18,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Setter(AccessLevel.NONE)
     private Long id;
 
     @Column(name = "username", length = 30, nullable = false)
@@ -35,9 +37,19 @@ public class User {
     private boolean enabled;
 
     @Column(name="created_at", nullable = false)
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
     @ManyToOne
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
+
+    public User(String username, String password, String fullName, String email, Role role) {
+        this.username = username;
+        this.password = password;
+        this.fullName = fullName;
+        this.email = email;
+        this.enabled = true;
+        this.role = role;
+    }
 }
