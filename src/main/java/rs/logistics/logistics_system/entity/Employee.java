@@ -64,6 +64,12 @@ public class Employee {
     @OneToMany(mappedBy = "employee")
     private List<Shift> shifts = new ArrayList<>();
 
+    @OneToMany(mappedBy = "assignedEmployee")
+    private List<TransportOrder> transportOrders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "assignedEmployee")
+    private List<Task> tasks = new ArrayList<>();
+
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;

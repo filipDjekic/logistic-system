@@ -60,6 +60,9 @@ public class Product {
     @OneToMany(mappedBy = "product")
     private List<StockMovement> stockMovements = new ArrayList<>();
 
+    @OneToMany(mappedBy = "vehicle")
+    private List<TransportOrder> transportOrders = new ArrayList<>();
+
     public Product(String name, String description, String sku, ProductUnit unit, BigDecimal price) {
         this.name = name;
         this.description = description;

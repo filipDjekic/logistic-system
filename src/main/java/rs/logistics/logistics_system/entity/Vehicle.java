@@ -10,6 +10,8 @@ import rs.logistics.logistics_system.enums.VehicleStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "VEHICLES")
@@ -54,6 +56,9 @@ public class Vehicle {
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "vehicle")
+    private List<TransportOrder> transportOrders = new ArrayList<>();
 
     public Vehicle(String registrationNumber,
                    String brand,

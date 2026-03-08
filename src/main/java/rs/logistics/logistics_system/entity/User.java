@@ -10,6 +10,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import rs.logistics.logistics_system.enums.UserStatus;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "USERS")
@@ -53,6 +55,21 @@ public class User {
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<StockMovement> stockMovements = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<TransportOrder> createdTransportOrders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    private List<Notification> notifications = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    private List<ActivityLog> activityLogs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "changedBy")
+    private List<ChangeHistory> changeHistories = new ArrayList<>();
 
     public User(String username, String password, String fullName, String email, Role role) {
         this.username = username;
