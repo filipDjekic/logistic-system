@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "VEHICLES")
 @Getter
@@ -31,8 +33,8 @@ public class Vehicle {
     @Column(name = "type", length = 20, nullable = false)
     private String type;
 
-    @Column(name = "capacity", nullable = false)
-    private Double capacity;
+    @Column(name = "capacity", nullable = false, precision = 12, scale = 2)
+    private BigDecimal capacity;
 
     @Column(name = "fuel_type", nullable = false)
     private String fuelType;
