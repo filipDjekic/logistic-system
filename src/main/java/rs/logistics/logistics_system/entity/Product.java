@@ -8,6 +8,8 @@ import lombok.Setter;
 import rs.logistics.logistics_system.enums.ProductUnit;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "PRODUCTS")
@@ -39,6 +41,12 @@ public class Product {
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
+
+    @OneToMany(mappedBy = "product")
+    private List<WarehouseInventory> inventoryItems = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product")
+    private List<StockMovement> stockMovements = new ArrayList<>();
 
     public Product(String name, String description, String sku, ProductUnit unit, BigDecimal price) {
         this.name = name;

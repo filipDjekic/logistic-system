@@ -8,6 +8,8 @@ import lombok.Setter;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "WAREHOUSES")
@@ -43,6 +45,12 @@ public class Warehouse {
     @ManyToOne
     @JoinColumn(name = "manager_id")
     private Employee manager;
+
+    @OneToMany(mappedBy = "warehouse")
+    private List<WarehouseInventory> inventoryItems = new ArrayList<>();
+
+    @OneToMany(mappedBy = "warehouse")
+    private List<StockMovement> stockMovements = new ArrayList<>();
 
     public Warehouse(String name,
                      String address,
