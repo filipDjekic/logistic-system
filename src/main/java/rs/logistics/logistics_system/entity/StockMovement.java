@@ -48,4 +48,12 @@ public class StockMovement {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_user_id", nullable = false)
     private User createdBy;
+
+    public StockMovement(StockMovementType movementType,
+                         BigDecimal quantity,
+                         String referenceNote) {
+        this.movementType = movementType;
+        this.quantity = quantity;
+        this.referenceNote = referenceNote;
+    }
 }

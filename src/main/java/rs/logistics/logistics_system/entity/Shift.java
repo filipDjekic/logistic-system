@@ -38,4 +38,11 @@ public class Shift {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
+    public Shift(LocalDateTime startTime, LocalDateTime endTime, ShiftStatus status, String notes, String fullName, Employee employee) {
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.status = status;
+        this.notes = notes;
+    }
+
 }

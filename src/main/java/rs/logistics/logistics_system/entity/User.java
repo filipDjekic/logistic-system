@@ -71,11 +71,17 @@ public class User {
     @OneToMany(mappedBy = "changedBy")
     private List<ChangeHistory> changeHistories = new ArrayList<>();
 
-    public User(String username, String password, String fullName, String email, Role role) {
+    public User(String username,
+                String password,
+                String fullName,
+                String email,
+                UserStatus status,
+                Role role) {
         this.username = username;
         this.password = password;
         this.fullName = fullName;
         this.email = email;
+        this.status = status;
         this.enabled = true;
         this.role = role;
     }

@@ -56,4 +56,16 @@ public class Task {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "transport_order_id")
     private TransportOrder transportOrder;
+
+    public Task(String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskStatus status, Employee assignedEmployee, TransportOrder transportOrder) {
+        this.title = title;
+        this.description = description;
+        this.dueDate = dueDate;
+        this.priority = priority;
+        this.status = status;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        this.assignedEmployee = assignedEmployee;
+        this.transportOrder = transportOrder;
+    }
 }

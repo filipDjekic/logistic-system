@@ -47,4 +47,16 @@ public class WarehouseInventory {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
+
+    public WarehouseInventory(Warehouse warehouse,
+                              Product product,
+                              BigDecimal quantity,
+                              BigDecimal reservedQuantity,
+                              BigDecimal minStockLevel) {
+        this.warehouse = warehouse;
+        this.product = product;
+        this.quantity = quantity;
+        this.reservedQuantity = reservedQuantity;
+        this.minStockLevel = minStockLevel;
+    }
 }

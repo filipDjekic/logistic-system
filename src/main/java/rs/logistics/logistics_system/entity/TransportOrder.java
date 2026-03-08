@@ -88,4 +88,36 @@ public class TransportOrder {
 
     @OneToMany(mappedBy = "transportOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TransportOrderItem> transportOrderItems;
+
+    public TransportOrder(
+            String orderNumber,
+            String description,
+            LocalDateTime orderDate,
+            LocalDateTime departureTime,
+            LocalDateTime plannedArrivalTime,
+            TransportOrderStatus status,
+            PriorityLevel priority,
+            BigDecimal totalWeight,
+            String notes,
+            Warehouse sourceWarehouse,
+            Warehouse destinationWarehouse,
+            Vehicle vehicle,
+            Employee assignedEmployee,
+            User createdBy
+    ) {
+        this.orderNumber = orderNumber;
+        this.description = description;
+        this.orderDate = orderDate;
+        this.departureTime = departureTime;
+        this.plannedArrivalTime = plannedArrivalTime;
+        this.status = status;
+        this.priority = priority;
+        this.totalWeight = totalWeight;
+        this.notes = notes;
+        this.sourceWarehouse = sourceWarehouse;
+        this.destinationWarehouse = destinationWarehouse;
+        this.vehicle = vehicle;
+        this.assignedEmployee = assignedEmployee;
+        this.createdBy = createdBy;
+    }
 }

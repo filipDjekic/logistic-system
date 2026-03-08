@@ -63,12 +63,18 @@ public class Product {
     @OneToMany(mappedBy = "vehicle")
     private List<TransportOrder> transportOrders = new ArrayList<>();
 
-    public Product(String name, String description, String sku, ProductUnit unit, BigDecimal price) {
+    public Product(String name,
+                   String description,
+                   String sku,
+                   ProductUnit unit,
+                   BigDecimal price,
+                   Boolean fragile) {
         this.name = name;
         this.description = description;
         this.sku = sku;
         this.unit = unit;
         this.price = price;
+        this.fragile = fragile;
         this.active = true;
     }
 }
