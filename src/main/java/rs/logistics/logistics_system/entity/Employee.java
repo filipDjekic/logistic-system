@@ -57,6 +57,11 @@ public class Employee {
     @Column(name = "active", nullable = false)
     private boolean active;
 
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
+    //relations
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", unique = true)
     private User user;
@@ -70,9 +75,8 @@ public class Employee {
     @OneToMany(mappedBy = "assignedEmployee")
     private List<Task> tasks = new ArrayList<>();
 
-    @Column(name = "updated_at")
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @OneToMany(mappedBy = "manager")
+    private List<Warehouse> managedWarehouses = new ArrayList<>();
 
     public Employee(String firstName,
                     String lastName,

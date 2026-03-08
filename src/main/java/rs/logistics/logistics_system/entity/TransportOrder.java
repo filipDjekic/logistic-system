@@ -12,6 +12,7 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -61,11 +62,11 @@ public class TransportOrder {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // relations
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // relations
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_warehouse_id", nullable = false)
     private Warehouse sourceWarehouse;
@@ -87,7 +88,10 @@ public class TransportOrder {
     private User createdBy;
 
     @OneToMany(mappedBy = "transportOrder", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<TransportOrderItem> transportOrderItems;
+    private List<TransportOrderItem> transportOrderItems = new ArrayList<>();
+
+    @OneToMany(mappedBy = "transportOrder")
+    private List<Task> tasks = new ArrayList<>();
 
     public TransportOrder(
             String orderNumber,

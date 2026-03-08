@@ -57,6 +57,7 @@ public class Vehicle {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    //relations
     @OneToMany(mappedBy = "vehicle")
     private List<TransportOrder> transportOrders = new ArrayList<>();
 

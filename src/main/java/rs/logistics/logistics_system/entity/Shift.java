@@ -34,6 +34,7 @@ public class Shift {
     @Column(name = "notes", length = 255)
     private String notes;
 
+    //relations
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;

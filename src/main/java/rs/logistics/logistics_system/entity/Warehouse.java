@@ -48,6 +48,7 @@ public class Warehouse {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    //relations
     @ManyToOne
     @JoinColumn(name = "manager_id")
     private Employee manager;

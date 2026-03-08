@@ -48,13 +48,17 @@ public class User {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
+    //relations
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-    @Column(name = "updated_at")
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @OneToOne(mappedBy = "user")
+    private Employee employee;
 
     @OneToMany(mappedBy = "createdBy")
     private List<StockMovement> stockMovements = new ArrayList<>();

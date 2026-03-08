@@ -54,14 +54,15 @@ public class Product {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    //relations
     @OneToMany(mappedBy = "product")
     private List<WarehouseInventory> inventoryItems = new ArrayList<>();
 
     @OneToMany(mappedBy = "product")
     private List<StockMovement> stockMovements = new ArrayList<>();
 
-    @OneToMany(mappedBy = "vehicle")
-    private List<TransportOrder> transportOrders = new ArrayList<>();
+    @OneToMany(mappedBy = "product")
+    private List<TransportOrderItem> transportOrderItems = new ArrayList<>();
 
     public Product(String name,
                    String description,

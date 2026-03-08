@@ -40,6 +40,7 @@ public class WarehouseInventory {
     @Column(name = "last_updated")
     private LocalDateTime lastUpdated;
 
+    //relations
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;
