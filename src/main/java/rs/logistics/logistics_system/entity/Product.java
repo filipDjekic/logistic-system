@@ -69,13 +69,15 @@ public class Product {
                    String sku,
                    ProductUnit unit,
                    BigDecimal price,
-                   Boolean fragile) {
+                   Boolean fragile,
+                   BigDecimal weight) {
         this.name = name;
         this.description = description;
         this.sku = sku;
         this.unit = unit;
         this.price = price;
         this.fragile = fragile;
+        this.weight = weight;
         this.active = true;
     }
 }

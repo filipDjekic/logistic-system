@@ -10,7 +10,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "ACITIVITY_LOGS")
+@Table(name = "ACTIVITY_LOGS")
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
