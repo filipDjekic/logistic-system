@@ -23,6 +23,9 @@ public class TransportOrderItem {
     @Column(name = "quantity", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantity;
 
+    @Column(name = "weight", nullable = false, precision = 12, scale = 2)
+    private BigDecimal weight;
+
     @Column(name = "note", length = 255)
     private String note;
 

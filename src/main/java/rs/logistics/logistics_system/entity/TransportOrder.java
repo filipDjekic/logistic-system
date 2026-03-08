@@ -6,8 +6,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import rs.logistics.logistics_system.enums.PriorityLevel;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,19 +28,35 @@ public class TransportOrder {
     @Column(name = "order_number", nullable = false, unique = true, length = 50)
     private String orderNumber;
 
+    @Column(name = "description", nullable = false, length = 500)
+    private String description;
+
+    @Column(name = "order_date", nullable = false)
+    private LocalDateTime orderDate;
+
     @Column(name = "departure_time")
     private LocalDateTime departureTime;
 
-    @Column(name = "arrival_time")
-    private LocalDateTime arrivalTime;
+    @Column(name = "actual_arrival_time")
+    private LocalDateTime actualArrivalTime;
+
+    @Column(name = "planned_arrival_time")
+    private LocalDateTime plannedArrivalTime;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private TransportOrderStatus status;
 
+    @Column(name = "priority", nullable = false)
+    private PriorityLevel priority;
+
+    @Column(name = "total_weight", nullable = false, precision = 12, scale = 2)
+    private BigDecimal totalWeight;
+
     @Column(name = "notes", length = 255)
     private String notes;
 
+    // relations
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

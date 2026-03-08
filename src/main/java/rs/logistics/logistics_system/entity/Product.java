@@ -39,6 +39,12 @@ public class Product {
     @Column(name = "price", nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "fragile", nullable = false)
+    private Boolean fragile;
+
+    @Column(name = "weight", nullable = false, precision = 12, scale = 2)
+    private BigDecimal weight;
+
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
