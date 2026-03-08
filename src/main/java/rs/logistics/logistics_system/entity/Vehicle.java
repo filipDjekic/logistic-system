@@ -5,9 +5,11 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.UpdateTimestamp;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "VEHICLES")
@@ -48,6 +50,10 @@ public class Vehicle {
 
     @Column(name = "active", nullable = false)
     private Boolean active;
+
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 
     public Vehicle(String registrationNumber,
                    String brand,
