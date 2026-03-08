@@ -24,6 +24,7 @@ public class WarehouseInventory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Setter(AccessLevel.NONE)
     private Long id;
 
     @Column(name = "quantity", nullable = false, precision = 12, scale = 2)

@@ -20,6 +20,7 @@ public class TransportOrder {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Setter(AccessLevel.NONE)
     private Long id;
 
     @Column(name = "order_number", nullable = false, unique = true, length = 50)
