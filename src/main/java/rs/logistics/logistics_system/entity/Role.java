@@ -5,7 +5,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import rs.logistics.logistics_system.enums.RoleName;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "ROLES")
@@ -19,11 +21,17 @@ public class Role {
     @Setter(AccessLevel.NONE)
     private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(unique = true, nullable = false)
-    private RoleName name;
+    @Column(name = "name",unique = true, nullable = false)
+    private String name;
 
-    public Role(RoleName name){
+    @Column(name = "description")
+    private String description;
+
+    @OneToMany(mappedBy = "role")
+    private List<User> users = new ArrayList<>();
+
+    public Role(String name, String description) {
         this.name = name;
+        this.description = description;
     }
 }

@@ -1,6 +1,6 @@
 package rs.logistics.logistics_system.enums;
 
-public enum PriorityLevel {
+public enum TaskPriority {
     LOW,
     MEDIUM,
     HIGH,

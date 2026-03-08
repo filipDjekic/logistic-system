@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import rs.logistics.logistics_system.enums.UserStatus;
 
 import java.time.LocalDateTime;
 
@@ -21,7 +22,7 @@ public class User {
     @Setter(AccessLevel.NONE)
     private Long id;
 
-    @Column(name = "username", length = 30, nullable = false)
+    @Column(name = "username", length = 30, nullable = false, unique = true)
     private String username;
 
     @Column(name = "password", length = 30, nullable = false)
@@ -30,17 +31,21 @@ public class User {
     @Column(name = "full_name", length = 60, nullable = false)
     private String fullName;
 
-    @Column(name="email", length = 50, unique = true, nullable = false)
+    @Column(name="email", length = 50, nullable = false, unique = true)
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private UserStatus status;
+
     @Column(name="enabled")
-    private boolean enabled;
+    private Boolean enabled;
 
     @Column(name="created_at", nullable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
