@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "SHIFTS")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class Shift {
 
     @Id

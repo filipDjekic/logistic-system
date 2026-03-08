@@ -19,7 +19,7 @@ import java.util.List;
 @Table(name = "TRANSPORT_ORDERS")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class TransportOrder {
 
     @Id

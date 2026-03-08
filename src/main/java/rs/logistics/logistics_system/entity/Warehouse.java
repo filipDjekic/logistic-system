@@ -17,7 +17,7 @@ import java.util.List;
 @Table(name = "WAREHOUSES")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class Warehouse {
 
     @Id

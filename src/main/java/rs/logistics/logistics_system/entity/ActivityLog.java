@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "ACTIVITY_LOGS")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class ActivityLog {
 
     @Id

@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Table(name = "NOTIFICATIONS")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class Notification {
 
     @Id

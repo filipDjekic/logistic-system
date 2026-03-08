@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 @Table(name = "TRANSPORT_ORDER_ITEMS")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class TransportOrderItem {
 
     @Id

@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "CHANGE_HISTORY")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class ChangeHistory {
 
     @Id

@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @Table(name = "TASKS")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class Task {
 
     @Id

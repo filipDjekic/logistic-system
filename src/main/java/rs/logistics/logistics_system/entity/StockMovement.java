@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Table(name = "STOCK_MOVEMENTS")
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class StockMovement {
 
     @Id
