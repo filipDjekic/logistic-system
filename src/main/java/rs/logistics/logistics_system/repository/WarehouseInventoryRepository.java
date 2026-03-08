@@ -11,6 +11,6 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
     List<WarehouseInventory> findByWarehouseId(Long warehouseId);
 
     List<WarehouseInventory> findByProductId(Long productId);
-    
+
     List<WarehouseInventory> findByWarehouseAndProductId(Warehouse warehouse, Long product_id);
 }
