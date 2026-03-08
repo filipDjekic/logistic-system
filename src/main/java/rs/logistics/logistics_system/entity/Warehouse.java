@@ -5,6 +5,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import rs.logistics.logistics_system.enums.WarehouseStatus;
+
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "WAREHOUSES")
@@ -28,10 +31,11 @@ public class Warehouse {
     private String city;
 
     @Column(name = "capacity", nullable = false)
-    private Integer capacity;
+    private BigDecimal capacity;
 
-    @Column(name = "current_occupancy", nullable = false)
-    private Integer currentOccupancy;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private WarehouseStatus status;
 
     @Column(name = "active", nullable = false)
     private Boolean active;
@@ -40,12 +44,18 @@ public class Warehouse {
     @JoinColumn(name = "manager_id")
     private Employee manager;
 
-    public Warehouse(String name, String address, String city, Integer capacity, Integer currentOccupancy, Employee manager) {
+    public Warehouse(String name,
+                     String address,
+                     String city,
+                     BigDecimal capacity,
+                     WarehouseStatus status,
+                     Employee manager) {
         this.name = name;
         this.address = address;
         this.city = city;
         this.capacity = capacity;
-        this.currentOccupancy = currentOccupancy;
+        this.status = status;
         this.manager = manager;
+        this.active = true;
     }
 }
