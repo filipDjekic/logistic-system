@@ -4,6 +4,7 @@ import rs.logistics.logistics_system.enums.UserStatus;
 
 public class UserUpdate {
 
+    private String password;
     private String firstName;
     private String lastName;
     private String email;
@@ -14,7 +15,8 @@ public class UserUpdate {
     public UserUpdate() {
     }
 
-    public UserUpdate(String firstName, String lastName, String email, Long roleId, Boolean enabled, UserStatus status) {
+    public UserUpdate(String password, String firstName, String lastName, String email, Long roleId, Boolean enabled, UserStatus status) {
+        this.password = password;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
@@ -69,5 +71,12 @@ public class UserUpdate {
 
     public void setStatus(UserStatus status) {
         this.status = status;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+    public String getPassword() {
+        return password;
     }
 }

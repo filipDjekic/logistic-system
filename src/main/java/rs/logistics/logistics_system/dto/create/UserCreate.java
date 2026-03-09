@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.dto.create;
 
+import rs.logistics.logistics_system.enums.UserStatus;
+
 public class UserCreate {
 
     private String username;
@@ -9,11 +11,12 @@ public class UserCreate {
     private String email;
     private Long roleId;
     private Boolean enabled;
+    private UserStatus status;
 
     public UserCreate() {
     }
 
-    public UserCreate(String username, String password, String firstName, String lastName, String email, Long roleId, Boolean enabled) {
+    public UserCreate(String username, String password, String firstName, String lastName, String email, Long roleId, Boolean enabled, UserStatus status) {
         this.username = username;
         this.password = password;
         this.firstName = firstName;
@@ -21,6 +24,7 @@ public class UserCreate {
         this.email = email;
         this.roleId = roleId;
         this.enabled = enabled;
+        this.status = status;
     }
 
     public String getUsername() {
@@ -79,4 +83,10 @@ public class UserCreate {
         this.enabled = enabled;
     }
 
+    public UserStatus getStatus() {
+        return status;
+    }
+    public void setStatus(UserStatus status) {
+        this.status = status;
+    }
 }

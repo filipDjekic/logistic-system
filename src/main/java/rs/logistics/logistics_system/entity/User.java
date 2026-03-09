@@ -32,7 +32,7 @@ public class User {
     private String password;
 
     @Column(name = "first_name", length = 60, nullable = false)
-    private String fullName;
+    private String firstName;
 
     @Column(name = "last_name", length = 60, nullable = false)
     private String lastName;
@@ -80,13 +80,15 @@ public class User {
 
     public User(String username,
                 String password,
-                String fullName,
+                String firstName,
+                String lastName,
                 String email,
                 UserStatus status,
                 Role role) {
         this.username = username;
         this.password = password;
-        this.fullName = fullName;
+        this.firstName = firstName;
+        this.lastName = lastName;
         this.email = email;
         this.status = status;
         this.enabled = true;
