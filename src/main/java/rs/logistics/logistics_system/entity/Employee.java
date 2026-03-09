@@ -52,7 +52,7 @@ public class Employee {
     private BigDecimal salary;
 
     @Column(name = "active", nullable = false)
-    private boolean active;
+    private Boolean active;
 
     @Column(name = "updated_at")
     @UpdateTimestamp
@@ -82,7 +82,8 @@ public class Employee {
                     String email,
                     EmployeePosition position,
                     LocalDate employmentDate,
-                    BigDecimal salary) {
+                    BigDecimal salary,
+                    User user) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.jmbg = jmbg;
