@@ -63,8 +63,6 @@ public class Task {
         this.dueDate = dueDate;
         this.priority = priority;
         this.status = status;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
         this.assignedEmployee = assignedEmployee;
         this.transportOrder = transportOrder;
     }
