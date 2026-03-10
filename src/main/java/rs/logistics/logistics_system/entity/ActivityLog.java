@@ -40,4 +40,18 @@ public class ActivityLog {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    public ActivityLog(String action,
+                       String entityName,
+                       Long entityId,
+                       String description,
+                       LocalDateTime createdAt,
+                       User user) {
+        this.action = action;
+        this.entityName = entityName;
+        this.entityId = entityId;
+        this.description = description;
+        this.createdAt = createdAt;
+        this.user = user;
+    }
 }
