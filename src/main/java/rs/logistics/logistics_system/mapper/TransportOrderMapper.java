@@ -1,0 +1,70 @@
+package rs.logistics.logistics_system.mapper;
+
+import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
+import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
+import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
+import rs.logistics.logistics_system.entity.*;
+
+public class TransportOrderMapper {
+
+    public static TransportOrder toEntity(TransportOrderCreate dto, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicleSource, Vehicle vehicle, Employee assignedEmployee, User createdBy) {
+        TransportOrder transportOrder = new TransportOrder(
+                dto.getOrderNumber(),
+                dto.getDescription(),
+                dto.getOrderDate(),
+                dto.getDepartureTime(),
+                dto.getPlannedArrivalTime(),
+                dto.getStatus(),
+                dto.getPriority(),
+                dto.getTotalWeight(),
+                dto.getNotes(),
+                warehouseSource,
+                warehouseDestination,
+                vehicle,
+                assignedEmployee,
+                createdBy
+        );
+        return  transportOrder;
+    }
+
+    public static void updateEntity(TransportOrderUpdate dto, TransportOrder transportOrder, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicleSource, Vehicle vehicle, Employee assignedEmployee, User createdBy) {
+        transportOrder.setOrderNumber(dto.getOrderNumber());
+        transportOrder.setDescription(dto.getDescription());
+        transportOrder.setOrderDate(dto.getOrderDate());
+        transportOrder.setDepartureTime(dto.getDepartureTime());
+        transportOrder.setPlannedArrivalTime(dto.getPlannedArrivalTime());
+        transportOrder.setActualArrivalTime(dto.getActualArrivalTime());
+        transportOrder.setStatus(dto.getStatus());
+        transportOrder.setPriority(dto.getPriority());
+        transportOrder.setTotalWeight(dto.getTotalWeight());
+        transportOrder.setNotes(dto.getNotes());
+        transportOrder.setSourceWarehouse(warehouseSource);
+        transportOrder.setDestinationWarehouse(warehouseDestination);
+        transportOrder.setVehicle(vehicle);
+        transportOrder.setAssignedEmployee(assignedEmployee);
+        transportOrder.setCreatedBy(createdBy);
+    }
+
+    public static TransportOrderResponse toResponse(TransportOrder transportOrder) {
+        TransportOrderResponse response = new TransportOrderResponse(
+                transportOrder.getId(),
+                transportOrder.getOrderNumber(),
+                transportOrder.getDescription(),
+                transportOrder.getOrderDate(),
+                transportOrder.getDepartureTime(),
+                transportOrder.getPlannedArrivalTime(),
+                transportOrder.getActualArrivalTime(),
+                transportOrder.getStatus(),
+                transportOrder.getPriority(),
+                transportOrder.getTotalWeight(),
+                transportOrder.getNotes(),
+                transportOrder.getSourceWarehouse().getId(),
+                transportOrder.getDestinationWarehouse().getId(),
+                transportOrder.getVehicle().getId(),
+                transportOrder.getAssignedEmployee().getId(),
+                transportOrder.getCreatedBy().getId()
+        );
+
+        return response;
+    }
+}
