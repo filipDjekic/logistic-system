@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import rs.logistics.logistics_system.enums.ProductUnit;
 import rs.logistics.logistics_system.enums.StockMovementType;
 
 import java.math.BigDecimal;
@@ -52,9 +53,15 @@ public class StockMovement {
 
     public StockMovement(StockMovementType movementType,
                          BigDecimal quantity,
-                         String referenceNote) {
+                         String referenceNote,
+                         Warehouse warehouse,
+                         Product product,
+                         User createdBy) {
         this.movementType = movementType;
         this.quantity = quantity;
         this.referenceNote = referenceNote;
+        this.warehouse = warehouse;
+        this.product = product;
+        this.createdBy = createdBy;
     }
 }
