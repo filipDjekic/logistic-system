@@ -65,6 +65,7 @@ public class Vehicle {
                    String brand,
                    String model,
                    String type,
+                   BigDecimal capacity,
                    String fuelType,
                    Integer yearOfProduction,
                    VehicleStatus status ) {
@@ -72,6 +73,7 @@ public class Vehicle {
         this.brand = brand;
         this.model = model;
         this.type = type;
+        this.capacity = capacity;
         this.fuelType = fuelType;
         this.yearOfProduction = yearOfProduction;
         this.status = status;
