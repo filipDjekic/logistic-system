@@ -48,4 +48,14 @@ public class ChangeHistory {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "changed_by_user_id", nullable = false)
     private User changedBy;
+
+    public ChangeHistory(String entityName, Long entityId,ChangeType changeType, String fieldName, String oldValue, String newValue, User changedBy) {
+        this.entityName = entityName;
+        this.entityId = entityId;
+        this.changeType = changeType;
+        this.fieldName = fieldName;
+        this.oldValue = oldValue;
+        this.newValue = newValue;
+        this.changedBy = changedBy;
+    }
 }
