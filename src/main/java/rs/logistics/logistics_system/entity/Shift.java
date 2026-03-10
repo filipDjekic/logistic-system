@@ -50,5 +50,4 @@ public class Shift {
         this.notes = notes;
         this.employee = employee;
     }
-
 }
