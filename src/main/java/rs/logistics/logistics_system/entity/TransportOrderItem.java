@@ -37,7 +37,11 @@ public class TransportOrderItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    public TransportOrderItem(BigDecimal quantity, String note,TransportOrder transportOrder, Product product, BigDecimal weight) {
+    public TransportOrderItem(BigDecimal quantity,
+                              BigDecimal weight,
+                              String note,
+                              TransportOrder transportOrder,
+                              Product product) {
         this.transportOrder = transportOrder;
         this.product = product;
         this.quantity = quantity;
