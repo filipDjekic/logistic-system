@@ -11,21 +11,24 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(
-        name = "WAREHOUSE_INTVENTORY",
-        uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"warehouse_id", "product_id"})
-        }
-)
+@Table(name = "WAREHOUSE_INTVENTORY")
 @Getter
 @Setter
 @NoArgsConstructor
 public class WarehouseInventory {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Setter(AccessLevel.NONE)
-    private Long id;
+    @EmbeddedId
+    private WarehouseInventoryId id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @MapsId("warehouseId")
+    @JoinColumn(name = "warehouseId", nullable = false)
+    private Warehouse warehouse;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @MapsId("productId")
+    @JoinColumn(name = "productId", nullable = false)
+    private Product product;
 
     @Column(name = "quantity", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantity;
@@ -40,20 +43,12 @@ public class WarehouseInventory {
     @Column(name = "last_updated")
     private LocalDateTime lastUpdated;
 
-    //relations
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "warehouse_id", nullable = false)
-    private Warehouse warehouse;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
-
     public WarehouseInventory(Warehouse warehouse,
                               Product product,
                               BigDecimal quantity,
                               BigDecimal reservedQuantity,
                               BigDecimal minStockLevel) {
+        this.id = new WarehouseInventoryId(warehouse.getId(), product.getId());
         this.warehouse = warehouse;
         this.product = product;
         this.quantity = quantity;
