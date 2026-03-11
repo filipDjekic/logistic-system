@@ -38,6 +38,16 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, String username) {
-        return extractUsername(token).equals(username);
+        return extractUsername(token).equals(username) && !isTokenExpired(token);
+    }
+
+    public boolean isTokenExpired(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getExpiration()
+                .before(new Date());
     }
 }
