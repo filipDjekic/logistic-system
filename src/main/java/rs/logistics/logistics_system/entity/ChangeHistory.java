@@ -45,7 +45,7 @@ public class ChangeHistory {
     @Column(name = "changed_at", nullable = false, updatable = false)
     private LocalDateTime changedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "changed_by_user_id", nullable = false)
     private User changedBy;
 

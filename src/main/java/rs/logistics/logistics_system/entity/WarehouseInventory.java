@@ -20,12 +20,12 @@ public class WarehouseInventory {
     @EmbeddedId
     private WarehouseInventoryId id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @MapsId("warehouseId")
     @JoinColumn(name = "warehouseId", nullable = false)
     private Warehouse warehouse;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @MapsId("productId")
     @JoinColumn(name = "productId", nullable = false)
     private Product product;

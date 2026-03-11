@@ -59,7 +59,7 @@ public class Employee {
     private LocalDateTime updatedAt;
 
     //relations
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", unique = true)
     private User user;
 

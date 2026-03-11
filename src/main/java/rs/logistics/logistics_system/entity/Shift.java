@@ -35,7 +35,7 @@ public class Shift {
     private String notes;
 
     //relations
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
