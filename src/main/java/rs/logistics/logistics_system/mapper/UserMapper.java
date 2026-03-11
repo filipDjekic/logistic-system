@@ -29,7 +29,7 @@ public class UserMapper {
         user.setEnabled(dto.getEnabled());
     }
 
-    public static UserResponse toResponse(User user, Role role){
+    public static UserResponse toResponse(User user){
         UserResponse userResponse = new UserResponse(user.getId(),
                 user.getUsername(),
                 user.getFirstName(),

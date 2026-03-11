@@ -18,7 +18,7 @@ public class RoleService implements RoleServiceDefinition {
     private final RoleRepository _roleRepository;
 
     public RoleService(RoleRepository roleRepository) {
-        this._roleRepository = roleRepository;
+        _roleRepository = roleRepository;
     }
 
     @Override
