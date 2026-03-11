@@ -1,10 +1,16 @@
 package rs.logistics.logistics_system.dto.create;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import rs.logistics.logistics_system.enums.ShiftStatus;
 
 import java.time.LocalDateTime;
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
+@NoArgsConstructor
 public class ShiftCreate {
 
     private LocalDateTime startTime;
@@ -13,8 +19,6 @@ public class ShiftCreate {
     private String notes;
 
     private Long employeeId;
-
-    public ShiftCreate() {}
 
     public ShiftCreate(LocalDateTime startTime,
                        LocalDateTime endTime,
@@ -25,37 +29,6 @@ public class ShiftCreate {
         this.endTime = endTime;
         this.status = status;
         this.notes = notes;
-        this.employeeId = employeeId;
-    }
-
-    public LocalDateTime getStartTime() {
-        return startTime;
-    }
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
-    }
-    public LocalDateTime getEndTime() {
-        return endTime;
-    }
-    public void setEndTime(LocalDateTime endTime) {
-        this.endTime = endTime;
-    }
-    public ShiftStatus getStatus() {
-        return status;
-    }
-    public void setStatus(ShiftStatus status) {
-        this.status = status;
-    }
-    public String getNotes() {
-        return notes;
-    }
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-    public Long getEmployeeId() {
-        return employeeId;
-    }
-    public void setEmployeeId(Long employeeId) {
         this.employeeId = employeeId;
     }
 }

@@ -1,9 +1,15 @@
 package rs.logistics.logistics_system.dto.create;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 
 import java.math.BigDecimal;
 
+@Getter
+@Setter
+@NoArgsConstructor
 public class WarehouseCreate {
 
     private String name;
@@ -14,51 +20,12 @@ public class WarehouseCreate {
 
     private Long employeeId;
 
-    public WarehouseCreate() {}
-
     public WarehouseCreate(String name, String address, String city, BigDecimal capacity, WarehouseStatus status, Long employeeId) {
         this.name  = name;
         this.address = address;
         this.city = city;
         this.capacity = capacity;
         this.status = status;
-        this.employeeId = employeeId;
-    }
-
-    public String getName() {
-        return name;
-    }
-    public void setName(String name) {
-        this.name = name;
-    }
-    public String getAddress() {
-        return address;
-    }
-    public void setAddress(String address) {
-        this.address = address;
-    }
-    public String getCity() {
-        return city;
-    }
-    public void setCity(String city) {
-        this.city = city;
-    }
-    public BigDecimal getCapacity() {
-        return capacity;
-    }
-    public void setCapacity(BigDecimal capacity) {
-        this.capacity = capacity;
-    }
-    public WarehouseStatus getStatus() {
-        return status;
-    }
-    public void setStatus(WarehouseStatus status) {
-        this.status = status;
-    }
-    public Long getEmployeeId() {
-        return employeeId;
-    }
-    public void setEmployeeId(Long employeeId) {
         this.employeeId = employeeId;
     }
 }

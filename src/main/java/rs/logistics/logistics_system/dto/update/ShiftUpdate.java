@@ -1,9 +1,15 @@
 package rs.logistics.logistics_system.dto.update;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import rs.logistics.logistics_system.enums.ShiftStatus;
 
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
+@NoArgsConstructor
 public class ShiftUpdate {
 
     private Long id;
@@ -15,51 +21,12 @@ public class ShiftUpdate {
 
     private Long employeeId;
 
-    public ShiftUpdate() {}
-
     public ShiftUpdate(Long id, LocalDateTime startTime, LocalDateTime endTime, ShiftStatus status, String notes, Long employeeId) {
         this.id = id;
         this.startTime = startTime;
         this.endTime = endTime;
         this.status = status;
         this.notes = notes;
-        this.employeeId = employeeId;
-    }
-
-    public Long getId() {
-        return id;
-    }
-    public void setId(Long id) {
-        this.id = id;
-    }
-    public LocalDateTime getStartTime() {
-        return startTime;
-    }
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
-    }
-    public LocalDateTime getEndTime() {
-        return endTime;
-    }
-    public void setEndTime(LocalDateTime endTime) {
-        this.endTime = endTime;
-    }
-    public ShiftStatus getStatus() {
-        return status;
-    }
-    public void setStatus(ShiftStatus status) {
-        this.status = status;
-    }
-    public String getNotes() {
-        return notes;
-    }
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-    public Long getEmployeeId() {
-        return employeeId;
-    }
-    public void setEmployeeId(Long employeeId) {
         this.employeeId = employeeId;
     }
 }

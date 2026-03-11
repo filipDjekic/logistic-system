@@ -1,7 +1,13 @@
 package rs.logistics.logistics_system.dto.update;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import rs.logistics.logistics_system.enums.UserStatus;
 
+@Getter
+@Setter
+@NoArgsConstructor
 public class UserUpdate {
 
     private String password;
@@ -12,9 +18,6 @@ public class UserUpdate {
     private Boolean enabled;
     private UserStatus status;
 
-    public UserUpdate() {
-    }
-
     public UserUpdate(String password, String firstName, String lastName, String email, Long roleId, Boolean enabled, UserStatus status) {
         this.password = password;
         this.firstName = firstName;
@@ -23,60 +26,5 @@ public class UserUpdate {
         this.roleId = roleId;
         this.enabled = enabled;
         this.status = status;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Long getRoleId() {
-        return roleId;
-    }
-
-    public void setRoleId(Long roleId) {
-        this.roleId = roleId;
-    }
-
-    public Boolean getEnabled() {
-        return enabled;
-    }
-
-    public void setEnabled(Boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    public UserStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(UserStatus status) {
-        this.status = status;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-    public String getPassword() {
-        return password;
     }
 }

@@ -1,11 +1,17 @@
 package rs.logistics.logistics_system.dto.update;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import rs.logistics.logistics_system.enums.PriorityLevel;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
+@NoArgsConstructor
 public class TransportOrderUpdate {
     private Long id;
 
@@ -25,8 +31,6 @@ public class TransportOrderUpdate {
     private Long vehicleId;
     private Long assignedEmployeeId;
     private Long createdById;
-
-    public TransportOrderUpdate() {}
 
     public TransportOrderUpdate(Long id,String orderNumber,
                                   String description,
@@ -60,102 +64,4 @@ public class TransportOrderUpdate {
         this.assignedEmployeeId = assignedEmployeeId;
         this.createdById = createdById;
     }
-
-    public Long getId() {
-        return id;
-    }
-    public void setId(Long id) {
-        this.id = id;
-    }
-    public String getOrderNumber() {
-        return orderNumber;
-    }
-    public void setOrderNumber(String orderNumber) {
-        this.orderNumber = orderNumber;
-    }
-    public String getDescription() {
-        return description;
-    }
-    public void setDescription(String description) {
-        this.description = description;
-    }
-    public LocalDateTime getOrderDate() {
-        return orderDate;
-    }
-    public void setOrderDate(LocalDateTime orderDate) {
-        this.orderDate = orderDate;
-    }
-    public LocalDateTime getDepartureTime() {
-        return departureTime;
-    }
-    public void setDepartureTime(LocalDateTime departureTime) {
-        this.departureTime = departureTime;
-    }
-    public LocalDateTime getPlannedArrivalTime() {
-        return plannedArrivalTime;
-    }
-    public void setPlannedArrivalTime(LocalDateTime plannedArrivalTime) {
-        this.plannedArrivalTime = plannedArrivalTime;
-    }
-    public LocalDateTime getActualArrivalTime() {
-        return actualArrivalTime;
-    }
-    public void setActualArrivalTime(LocalDateTime actualArrivalTime) {
-        this.actualArrivalTime = actualArrivalTime;
-    }
-    public TransportOrderStatus getStatus() {
-        return status;
-    }
-    public void setStatus(TransportOrderStatus status) {
-        this.status = status;
-    }
-    public PriorityLevel getPriority() {
-        return priority;
-    }
-    public void setPriority(PriorityLevel priority) {
-        this.priority = priority;
-    }
-    public BigDecimal getTotalWeight() {
-        return totalWeight;
-    }
-    public void setTotalWeight(BigDecimal totalWeight) {
-        this.totalWeight = totalWeight;
-    }
-    public String getNotes() {
-        return notes;
-    }
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-    public Long getSourceWarehouseId() {
-        return sourceWarehouseId;
-    }
-    public void setSourceWarehouseId(Long sourceWarehouseId) {
-        this.sourceWarehouseId = sourceWarehouseId;
-    }
-    public Long getDestinationWarehouseId() {
-        return destinationWarehouseId;
-    }
-    public void setDestinationWarehouseId(Long destinationWarehouseId) {
-        this.destinationWarehouseId = destinationWarehouseId;
-    }
-    public Long getVehicleId() {
-        return vehicleId;
-    }
-    public void setVehicleId(Long vehicleId) {
-        this.vehicleId = vehicleId;
-    }
-    public Long getAssignedEmployeeId() {
-        return assignedEmployeeId;
-    }
-    public void setAssignedEmployeeId(Long assignedEmployeeId) {
-        this.assignedEmployeeId = assignedEmployeeId;
-    }
-    public Long getCreatedById() {
-        return createdById;
-    }
-    public void setCreatedById(Long createdById) {
-        this.createdById = createdById;
-    }
-
 }

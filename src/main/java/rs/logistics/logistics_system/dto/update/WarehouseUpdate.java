@@ -1,9 +1,15 @@
 package rs.logistics.logistics_system.dto.update;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 
 import java.math.BigDecimal;
 
+@Getter
+@Setter
+@NoArgsConstructor
 public class WarehouseUpdate {
 
     private Long id;
@@ -16,8 +22,6 @@ public class WarehouseUpdate {
 
     private Long employeeId;
 
-    public WarehouseUpdate() {}
-
     public WarehouseUpdate(Long id, String name, String address, String city, BigDecimal capacity, WarehouseStatus status, Long employeeId) {
         this.id = id;
         this.name = name;
@@ -25,49 +29,6 @@ public class WarehouseUpdate {
         this.city = city;
         this.capacity = capacity;
         this.status = status;
-        this.employeeId = employeeId;
-    }
-
-    public Long getId() {
-        return id;
-    }
-    public void setId(Long id) {
-        this.id = id;
-    }
-    public String getName() {
-        return name;
-    }
-    public void setName(String name) {
-        this.name = name;
-    }
-    public String getAddress() {
-        return address;
-    }
-    public void setAddress(String address) {
-        this.address = address;
-    }
-    public String getCity() {
-        return city;
-    }
-    public void setCity(String city) {
-        this.city = city;
-    }
-    public BigDecimal getCapacity() {
-        return capacity;
-    }
-    public void setCapacity(BigDecimal capacity) {
-        this.capacity = capacity;
-    }
-    public WarehouseStatus getStatus() {
-        return status;
-    }
-    public void setStatus(WarehouseStatus status) {
-        this.status = status;
-    }
-    public Long getEmployeeId() {
-        return employeeId;
-    }
-    public void setEmployeeId(Long employeeId) {
         this.employeeId = employeeId;
     }
 }
