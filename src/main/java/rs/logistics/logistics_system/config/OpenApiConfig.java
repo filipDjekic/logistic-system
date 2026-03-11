@@ -1,4 +1,4 @@
-package rs.logistics.logistics_system.security;
+package rs.logistics.logistics_system.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;

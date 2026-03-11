@@ -3,6 +3,7 @@ package rs.logistics.logistics_system.controller;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import rs.logistics.logistics_system.dto.create.RoleCreate;
 import rs.logistics.logistics_system.dto.response.RoleResponse;
@@ -12,6 +13,7 @@ import rs.logistics.logistics_system.service.implementation.RoleService;
 
 import java.util.List;
 
+@PreAuthorize("hasRole('ADMIN')")
 @RestController
 @RequestMapping("/api/roles")
 public class RoleController {

@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.service.implementation;
 
+import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
@@ -12,6 +13,7 @@ import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Service
 public class UserService implements UserServiceDefinition {
 
     private final UserRepository _userRepository;
