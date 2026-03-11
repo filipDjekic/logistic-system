@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.service.implementation;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
@@ -14,14 +15,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class UserService implements UserServiceDefinition {
 
     private final UserRepository _userRepository;
-
-
-    public UserService(UserRepository userRepository) {
-        _userRepository = userRepository;
-    }
 
     @Override
     public UserResponse create(UserCreate dto, Role role) {

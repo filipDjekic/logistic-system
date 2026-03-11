@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.mapper;
 
 import rs.logistics.logistics_system.dto.create.EmployeeCreate;
 import rs.logistics.logistics_system.dto.response.EmployeeResponse;
+import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.User;
 
@@ -22,7 +23,7 @@ public class EmployeeMapper {
         return employee;
     }
 
-    public static void updateEntity(EmployeeCreate dto, Employee entity, User user) {
+    public static void updateEntity(EmployeeUpdate dto, Employee entity, User user) {
         entity.setFirstName(dto.getFirstName());
         entity.setLastName(dto.getLastName());
         entity.setJmbg(dto.getJmbg());
@@ -34,7 +35,7 @@ public class EmployeeMapper {
         entity.setUser(user);
     }
 
-    public static EmployeeResponse toResponse(Employee employee, User user) {
+    public static EmployeeResponse toResponse(Employee employee) {
         EmployeeResponse employeeResponse = new EmployeeResponse(
                 employee.getId(),
                 employee.getFirstName(),

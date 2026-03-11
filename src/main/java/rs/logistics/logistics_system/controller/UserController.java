@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,13 +16,10 @@ import java.util.List;
 @PreAuthorize("hasRole('ADMIN')")
 @RestController
 @RequestMapping("/api/users")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserServiceDefinition userService;
-
-    public UserController(UserServiceDefinition userService) {
-        this.userService = userService;
-    }
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@RequestBody UserCreate dto, @RequestBody Role role) {

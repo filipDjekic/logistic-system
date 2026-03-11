@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.mapper;
 
 import rs.logistics.logistics_system.dto.create.ShiftCreate;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
+import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Shift;
 
@@ -17,7 +18,7 @@ public class ShiftMapper {
         return shift;
     }
 
-    public static void updateEntity(Shift shift, ShiftCreate dto, Employee employee) {
+    public static void updateEntity(Shift shift, ShiftUpdate dto, Employee employee) {
         shift.setStartTime(dto.getStartTime());
         shift.setEndTime(dto.getEndTime());
         shift.setStatus(dto.getStatus());
