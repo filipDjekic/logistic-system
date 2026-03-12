@@ -9,9 +9,9 @@ import java.util.List;
 
 public interface ShiftServiceDefinition {
 
-    ShiftResponse create(ShiftCreate dto, Employee employee);
+    ShiftResponse create(ShiftCreate dto);
 
-    ShiftResponse update(Long id, ShiftUpdate dto, Employee employee);
+    ShiftResponse update(Long id, ShiftUpdate dto);
 
     ShiftResponse getById(Long id);
 

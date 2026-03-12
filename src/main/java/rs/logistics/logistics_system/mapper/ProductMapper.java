@@ -20,7 +20,7 @@ public class ProductMapper {
         return product;
     }
 
-    public static void upgradeEntity(ProductUpdate dto, Product product) {
+    public static void updateEntity(ProductUpdate dto, Product product) {
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setSku(dto.getSku());

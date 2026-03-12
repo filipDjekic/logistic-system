@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.mapper;
 
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
+import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.dto.update.StockMovementUpdate;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.StockMovement;
@@ -30,8 +31,8 @@ public class StockMovementMapper {
         stockMovement.setCreatedBy(user);
     }
 
-    public static StockMovementUpdate toResponse(StockMovement stockMovement) {
-        StockMovementUpdate stockMovementUpdate = new StockMovementUpdate(
+    public static StockMovementResponse toResponse(StockMovement stockMovement) {
+        StockMovementResponse response = new StockMovementResponse(
                 stockMovement.getId(),
                 stockMovement.getMovementType(),
                 stockMovement.getQuantity(),
@@ -40,6 +41,6 @@ public class StockMovementMapper {
                 stockMovement.getProduct().getId(),
                 stockMovement.getCreatedBy().getId()
         );
-        return stockMovementUpdate;
+        return response;
     }
 }

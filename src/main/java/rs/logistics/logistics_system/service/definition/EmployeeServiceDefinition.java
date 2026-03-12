@@ -10,9 +10,9 @@ import java.util.List;
 
 public interface EmployeeServiceDefinition {
 
-    EmployeeResponse create(EmployeeCreate dto, User user);
+    EmployeeResponse create(EmployeeCreate dto);
 
-    EmployeeResponse update(Long id, EmployeeUpdate dto, User user);
+    EmployeeResponse update(Long id, EmployeeUpdate dto);
 
     EmployeeResponse getById(Long id);
 

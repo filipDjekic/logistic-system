@@ -24,13 +24,13 @@ public class ShiftController {
 
     @PostMapping
     public ResponseEntity<ShiftResponse> createShift(@RequestBody ShiftCreate dto, @RequestBody Employee employee){
-        ShiftResponse shiftResponse = shiftService.create(dto, employee);
+        ShiftResponse shiftResponse = shiftService.create(dto);
         return new  ResponseEntity<>(shiftResponse, HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ShiftResponse> updateShift(@PathVariable Long id, @RequestBody ShiftUpdate dto, @RequestBody Employee employee){
-        ShiftResponse shiftResponse = shiftService.update(id, dto, employee);
+        ShiftResponse shiftResponse = shiftService.update(id, dto);
         return ResponseEntity.ok(shiftResponse);
     }
 

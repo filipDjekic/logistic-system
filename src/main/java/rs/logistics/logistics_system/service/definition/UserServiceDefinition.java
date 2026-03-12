@@ -9,9 +9,9 @@ import java.util.List;
 
 public interface UserServiceDefinition {
 
-    UserResponse create(UserCreate dto, Role role);
+    UserResponse create(UserCreate dto);
 
-    UserResponse update(Long id, UserUpdate dto, Role role);
+    UserResponse update(Long id, UserUpdate dto);
 
     UserResponse getById(Long id);
 

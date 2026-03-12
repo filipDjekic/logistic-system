@@ -23,13 +23,13 @@ public class EmployeeController {
 
     @PostMapping
     public ResponseEntity<EmployeeResponse> createUser(@RequestBody EmployeeCreate dto, @RequestBody User user){
-        EmployeeResponse response = employeeService.create(dto, user);
+        EmployeeResponse response = employeeService.create(dto);
         return new  ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<EmployeeResponse> update(@PathVariable Long id, @RequestBody EmployeeUpdate dto, @RequestBody User user) {
-        EmployeeResponse response = employeeService.update(id, dto, user);
+        EmployeeResponse response = employeeService.update(id, dto);
         return new  ResponseEntity<>(response, HttpStatus.OK);
     }
 

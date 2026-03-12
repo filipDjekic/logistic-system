@@ -8,6 +8,7 @@ import rs.logistics.logistics_system.dto.update.UserUpdate;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.mapper.UserMapper;
+import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
@@ -19,16 +20,19 @@ import java.util.stream.Collectors;
 public class UserService implements UserServiceDefinition {
 
     private final UserRepository _userRepository;
+    private final RoleRepository _roleRepository;
 
     @Override
-    public UserResponse create(UserCreate dto, Role role) {
+    public UserResponse create(UserCreate dto) {
+        Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new RuntimeException("Role Not Found"));
         User user = UserMapper.toEntity(dto, role);
         User savedUser = _userRepository.save(user);
         return UserMapper.toResponse(savedUser);
     }
 
     @Override
-    public UserResponse update(Long id, UserUpdate dto, Role role) {
+    public UserResponse update(Long id, UserUpdate dto) {
+        Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new RuntimeException("Role Not Found"));
         User user = _userRepository.findById(id).orElseThrow(() -> new RuntimeException("User with id not found"));
         UserMapper.updateEntity(user, dto, role);
         User updatedUser = _userRepository.save(user);

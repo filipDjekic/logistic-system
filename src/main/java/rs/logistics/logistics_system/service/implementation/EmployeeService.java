@@ -9,6 +9,7 @@ import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.mapper.EmployeeMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 
 import java.util.List;
@@ -19,16 +20,19 @@ import java.util.stream.Collectors;
 public class EmployeeService implements EmployeeServiceDefinition {
 
     private final EmployeeRepository _employeeRepository;
+    private final UserRepository _userRepository;
 
     @Override
-    public EmployeeResponse create(EmployeeCreate dto, User user) {
+    public EmployeeResponse create(EmployeeCreate dto) {
+        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() ->  new RuntimeException("User not found"));
         Employee employee = EmployeeMapper.toEntity(dto, user);
         Employee saved = _employeeRepository.save(employee);
         return EmployeeMapper.toResponse(saved);
     }
 
     @Override
-    public EmployeeResponse update(Long id, EmployeeUpdate dto, User user) {
+    public EmployeeResponse update(Long id, EmployeeUpdate dto) {
+        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() ->  new RuntimeException("User not found"));
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new RuntimeException("Employee not found"));
         EmployeeMapper.updateEntity(dto, employee, user);
         Employee updated = _employeeRepository.save(employee);
