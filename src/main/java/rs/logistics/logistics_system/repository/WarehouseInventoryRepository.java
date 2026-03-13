@@ -9,11 +9,13 @@ import java.util.List;
 import java.util.Optional;
 
 public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInventory, WarehouseInventoryId> {
-    List<WarehouseInventory> findByWarehouseId(Long warehouseId);
 
-    List<WarehouseInventory> findByProductId(Long productId);
 
-    Optional<WarehouseInventory> findByWarehouseAndProductId(Long warehouseId, Long productId);
+    List<WarehouseInventory> findByWarehouse_Id(Long warehouseId);
 
-    boolean existsByWarehouseIdAndProductId(Long warehouseId, Long productId);
+    List<WarehouseInventory> findByProduct_Id(Long productId);
+
+    Optional<WarehouseInventory> findByWarehouse_IdAndProduct_Id(Long warehouseId, Long productId);
+
+    boolean existsByWarehouse_IdAndProduct_Id(Long warehouseId, Long productId);
 }
