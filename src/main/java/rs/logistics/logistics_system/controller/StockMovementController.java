@@ -47,8 +47,8 @@ public class StockMovementController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<StockMovementResponse> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         stockMovementService.delete(id);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return ResponseEntity.noContent().build();
     }
 }

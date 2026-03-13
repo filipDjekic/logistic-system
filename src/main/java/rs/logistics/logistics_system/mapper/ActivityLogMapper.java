@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.mapper;
 
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
+import rs.logistics.logistics_system.dto.update.ActivityLogUpdate;
 import rs.logistics.logistics_system.entity.ActivityLog;
 import rs.logistics.logistics_system.entity.User;
 
@@ -19,7 +20,7 @@ public class ActivityLogMapper {
         return activityLog;
     }
 
-    public static void updateEntity(ActivityLogCreate dto, User user, ActivityLog activityLog){
+    public static void updateEntity(ActivityLogUpdate dto, User user, ActivityLog activityLog){
         activityLog.setAction(dto.getAction());
         activityLog.setEntityName(dto.getEntityName());
         activityLog.setEntityId(dto.getEntityId());

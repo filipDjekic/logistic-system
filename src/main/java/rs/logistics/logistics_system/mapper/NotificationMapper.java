@@ -27,14 +27,14 @@ public class NotificationMapper {
         notification.setUser(user);
     }
 
-    public static NotificationResponse NotificationResponse(Notification notification, User user){
+    public static NotificationResponse toResponse(Notification notification){
         NotificationResponse notificationResponse = new NotificationResponse(
                 notification.getId(),
                 notification.getTitle(),
                 notification.getMessage(),
                 notification.getType(),
                 notification.getStatus(),
-                user.getId()
+                notification.getUser().getId()
         );
         return notificationResponse;
     }

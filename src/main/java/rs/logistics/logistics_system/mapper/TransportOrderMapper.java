@@ -7,7 +7,7 @@ import rs.logistics.logistics_system.entity.*;
 
 public class TransportOrderMapper {
 
-    public static TransportOrder toEntity(TransportOrderCreate dto, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicleSource, Vehicle vehicle, Employee assignedEmployee, User createdBy) {
+    public static TransportOrder toEntity(TransportOrderCreate dto, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicle, Employee assignedEmployee, User createdBy) {
         TransportOrder transportOrder = new TransportOrder(
                 dto.getOrderNumber(),
                 dto.getDescription(),
@@ -27,7 +27,7 @@ public class TransportOrderMapper {
         return  transportOrder;
     }
 
-    public static void updateEntity(TransportOrderUpdate dto, TransportOrder transportOrder, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicleSource, Vehicle vehicle, Employee assignedEmployee, User createdBy) {
+    public static void updateEntity(TransportOrderUpdate dto, TransportOrder transportOrder, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicle, Employee assignedEmployee, User createdBy) {
         transportOrder.setOrderNumber(dto.getOrderNumber());
         transportOrder.setDescription(dto.getDescription());
         transportOrder.setOrderDate(dto.getOrderDate());

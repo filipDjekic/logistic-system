@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.mapper;
 
 import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
+import rs.logistics.logistics_system.dto.update.ChangeHistoryUpdate;
 import rs.logistics.logistics_system.entity.ChangeHistory;
 import rs.logistics.logistics_system.entity.User;
 
@@ -20,7 +21,7 @@ public class ChangeHistoryMapper {
         return changeHistory;
     }
 
-    public static void updateEntity(ChangeHistory changeHistory, ChangeHistoryCreate dto, User user){
+    public static void updateEntity(ChangeHistory changeHistory, ChangeHistoryUpdate dto, User user){
         changeHistory.setEntityName(dto.getEntityName());
         changeHistory.setEntityId(dto.getEntityId());
         changeHistory.setChangeType(dto.getChangeType());
@@ -30,7 +31,7 @@ public class ChangeHistoryMapper {
         changeHistory.setChangedBy(user);
     }
 
-    public static ChangeHistoryResponse toResponse(ChangeHistory changeHistory, User user){
+    public static ChangeHistoryResponse toResponse(ChangeHistory changeHistory){
         ChangeHistoryResponse changeHistoryResponse = new ChangeHistoryResponse(
                 changeHistory.getId(),
                 changeHistory.getEntityName(),

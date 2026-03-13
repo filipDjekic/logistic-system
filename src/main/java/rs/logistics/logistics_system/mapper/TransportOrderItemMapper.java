@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.mapper;
 
 import rs.logistics.logistics_system.dto.create.TransportOrderItemCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderItemResponse;
+import rs.logistics.logistics_system.dto.update.TransportOrderItemUpdate;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.TransportOrderItem;
@@ -19,7 +20,7 @@ public class TransportOrderItemMapper {
         return transportOrderItem;
     }
 
-    public static void updateEntity(TransportOrderItemCreate dto, TransportOrderItem transportOrderItem, TransportOrder transportOrder, Product product) {
+    public static void updateEntity(TransportOrderItemUpdate dto, TransportOrderItem transportOrderItem, TransportOrder transportOrder, Product product) {
         transportOrderItem.setQuantity(dto.getQuantity());
         transportOrderItem.setWeight(dto.getWeight());
         transportOrderItem.setNote(dto.getNote());
