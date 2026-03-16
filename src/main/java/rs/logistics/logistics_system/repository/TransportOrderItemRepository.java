@@ -10,4 +10,6 @@ public interface TransportOrderItemRepository extends JpaRepository<TransportOrd
     List<TransportOrderItem> findByTransportOrderId(Long transportOrderId);
 
     List<TransportOrderItem> findByProductId(Long productId);
+
+    boolean existsByTransportOrderIdAndProductId(Long transportOrderId, Long productId);
 }
