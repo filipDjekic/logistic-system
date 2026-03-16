@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class TaskController {
     private final TaskServiceDefinition taskService;
 
     @PostMapping
-    public ResponseEntity<TaskResponse> create(@RequestBody TaskCreate dto) {
+    public ResponseEntity<TaskResponse> create(@Valid @RequestBody TaskCreate dto) {
         TaskResponse response = taskService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }

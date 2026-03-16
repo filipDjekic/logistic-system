@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
@@ -23,7 +24,7 @@ public class ShiftController {
     private final ShiftServiceDefinition shiftService;
 
     @PostMapping
-    public ResponseEntity<ShiftResponse> createShift(@RequestBody ShiftCreate dto, @RequestBody Employee employee){
+    public ResponseEntity<ShiftResponse> createShift(@Valid @RequestBody ShiftCreate dto, @RequestBody Employee employee){
         ShiftResponse shiftResponse = shiftService.create(dto);
         return new  ResponseEntity<>(shiftResponse, HttpStatus.CREATED);
     }

@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class NotificationController {
     private final NotificationServiceDefinition notificationService;
 
     @PostMapping
-    public ResponseEntity<NotificationResponse> create(@RequestBody NotificationCreate dto) {
+    public ResponseEntity<NotificationResponse> create(@Valid @RequestBody NotificationCreate dto) {
         NotificationResponse response = notificationService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }

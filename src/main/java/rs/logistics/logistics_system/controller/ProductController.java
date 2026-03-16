@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class ProductController {
     private final ProductServiceDefinition productService;
 
     @PostMapping
-    public ResponseEntity<ProductResponse> createProduct(@RequestBody ProductCreate dto) {
+    public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody ProductCreate dto) {
         ProductResponse response = productService.create(dto);
         return new  ResponseEntity<>(response, HttpStatus.CREATED);
     }

@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class ActivityLogController {
     private final ActivityLogServiceDefinition activityLogService;
 
     @PostMapping
-    public ResponseEntity<ActivityLogResponse> create(@RequestBody ActivityLogCreate dto){
+    public ResponseEntity<ActivityLogResponse> create(@Valid @RequestBody ActivityLogCreate dto){
         ActivityLogResponse response = activityLogService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }

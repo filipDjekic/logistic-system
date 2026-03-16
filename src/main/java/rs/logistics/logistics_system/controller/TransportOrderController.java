@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ public class TransportOrderController {
     private final TransportOrderServiceDefinition transportOrderService;
 
     @PostMapping
-    public ResponseEntity<TransportOrderResponse> create(@RequestBody TransportOrderCreate dto){
+    public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody TransportOrderCreate dto){
         TransportOrderResponse response = transportOrderService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }

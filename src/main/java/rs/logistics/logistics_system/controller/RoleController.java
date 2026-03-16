@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,7 @@ public class RoleController {
     }
 
     @PostMapping
-    public ResponseEntity<RoleResponse> create(@RequestBody RoleCreate dto) {
+    public ResponseEntity<RoleResponse> create(@Valid @RequestBody RoleCreate dto) {
         RoleResponse response = roleService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }

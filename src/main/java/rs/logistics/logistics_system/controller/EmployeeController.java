@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ public class EmployeeController {
     private final EmployeeServiceDefinition employeeService;
 
     @PostMapping
-    public ResponseEntity<EmployeeResponse> createUser(@RequestBody EmployeeCreate dto, @RequestBody User user){
+    public ResponseEntity<EmployeeResponse> createUser(@Valid @RequestBody EmployeeCreate dto, @RequestBody User user){
         EmployeeResponse response = employeeService.create(dto);
         return new  ResponseEntity<>(response, HttpStatus.CREATED);
     }

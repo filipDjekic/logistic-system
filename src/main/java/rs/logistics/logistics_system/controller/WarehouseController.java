@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +24,7 @@ public class WarehouseController {
     private final WarehouseServiceDefinition warehouseService;
 
     @PostMapping
-    public ResponseEntity<WarehouseResponse> createWarehouse(@RequestBody WarehouseCreate dto) {
+    public ResponseEntity<WarehouseResponse> createWarehouse(@Valid @RequestBody WarehouseCreate dto) {
         WarehouseResponse warehouseResponse = warehouseService.create(dto);
         return new ResponseEntity<>(warehouseResponse, HttpStatus.CREATED);
     }

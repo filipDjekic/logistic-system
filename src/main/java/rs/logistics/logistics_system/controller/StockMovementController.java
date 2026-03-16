@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +24,7 @@ public class StockMovementController {
     private final StockMovementServiceDefinition stockMovementService;
 
     @PostMapping
-    public ResponseEntity<StockMovementResponse> addStockMovement(@RequestBody StockMovementCreate dto) {
+    public ResponseEntity<StockMovementResponse> addStockMovement(@Valid @RequestBody StockMovementCreate dto) {
         StockMovementResponse response = stockMovementService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }

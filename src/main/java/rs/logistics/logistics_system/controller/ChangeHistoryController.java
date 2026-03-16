@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ public class ChangeHistoryController {
     private final ChangeHistoryServiceDefinition changeHistoryService;
 
     @PostMapping
-    public ResponseEntity<ChangeHistoryResponse> save(@RequestBody ChangeHistoryCreate dto){
+    public ResponseEntity<ChangeHistoryResponse> save(@Valid @RequestBody ChangeHistoryCreate dto){
         ChangeHistoryResponse response = changeHistoryService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
