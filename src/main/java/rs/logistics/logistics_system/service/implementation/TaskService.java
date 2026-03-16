@@ -8,6 +8,9 @@ import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.enums.TaskStatus;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
+import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
@@ -15,6 +18,7 @@ import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,10 +34,15 @@ public class TaskService implements TaskServiceDefinition {
     @Override
     public TaskResponse create(TaskCreate dto) {
 
+        if(dto.getDueDate().isBefore(LocalDateTime.now())){
+            throw new BadRequestException("Due Date is invalid");
+        }
+
         Employee employee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
 
         Task task = TaskMapper.toEntity(dto, employee, transportOrder);
+        task.setStatus(TaskStatus.NEW);
         Task saved =  _taskRepository.save(task);
         return TaskMapper.toResponse(saved);
     }
@@ -64,5 +73,36 @@ public class TaskService implements TaskServiceDefinition {
     public void delete(Long id) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
         _taskRepository.delete(task);
+    }
+
+    @Override
+    public TaskResponse changeStatus(Long id, TaskStatus status) {
+        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        TaskStatus current = task.getStatus();
+
+        switch (current) {
+            case NEW:
+                if(status.equals(TaskStatus.IN_PROGRESS) ||  status.equals(TaskStatus.CANCELLED)) {
+                    task.setStatus(status);
+                }
+                else{
+                    throw new BadRequestException("Task is already in progress");
+                }
+                break;
+            case IN_PROGRESS:
+                if(status.equals(TaskStatus.COMPLETED) ||  status.equals(TaskStatus.CANCELLED)) {
+                    task.setStatus(status);
+                }
+                else {
+                    throw new BadRequestException("Task is already in progress");
+                }
+            case CANCELLED:
+                throw new BadRequestException("Task is already cancelled");
+            case COMPLETED:
+                throw new BadRequestException("Task is already completed");
+        }
+
+        Task saved = _taskRepository.save(task);
+        return TaskMapper.toResponse(saved);
     }
 }

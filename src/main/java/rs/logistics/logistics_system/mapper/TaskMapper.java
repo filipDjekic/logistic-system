@@ -15,7 +15,6 @@ public class TaskMapper {
                 dto.getDescription(),
                 dto.getDueDate(),
                 dto.getPriority(),
-                dto.getStatus(),
                 employee,
                 transportOrder
         );

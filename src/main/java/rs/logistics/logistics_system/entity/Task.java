@@ -57,12 +57,11 @@ public class Task {
     @JoinColumn(name = "transport_order_id")
     private TransportOrder transportOrder;
 
-    public Task(String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskStatus status, Employee assignedEmployee, TransportOrder transportOrder) {
+    public Task(String title, String description, LocalDateTime dueDate, TaskPriority priority, Employee assignedEmployee, TransportOrder transportOrder) {
         this.title = title;
         this.description = description;
         this.dueDate = dueDate;
         this.priority = priority;
-        this.status = status;
         this.assignedEmployee = assignedEmployee;
         this.transportOrder = transportOrder;
     }

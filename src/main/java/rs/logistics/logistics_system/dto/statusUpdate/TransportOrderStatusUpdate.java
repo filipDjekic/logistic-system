@@ -1,4 +1,4 @@
-package rs.logistics.logistics_system.dto.additional;
+package rs.logistics.logistics_system.dto.statusUpdate;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

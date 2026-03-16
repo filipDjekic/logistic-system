@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
+import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 
 import java.util.List;
@@ -49,5 +50,11 @@ public class TaskController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         taskService.delete(id);
         return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<TaskResponse> updateStatus(@PathVariable Long id, @RequestBody TaskStatus dto) {
+        TaskResponse response = taskService.changeStatus(id, dto);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }
