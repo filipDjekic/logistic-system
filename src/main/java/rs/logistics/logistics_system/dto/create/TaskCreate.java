@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,13 +15,28 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class TaskCreate {
 
+    @NotNull
+    @Size(min = 1, max = 100)
     private String title;
+
+    @Size(min = 1, max = 500)
     private String description;
+
+    @NotNull
     private LocalDateTime dueDate;
-    private TaskPriority priority;;
+
+    @NotNull
+    @Size(min = 1, max = 20)
+    private TaskPriority priority;
+
+    @NotNull
+    @Size(min = 1, max = 20)
     private TaskStatus status;
 
+    @NotNull
     private Long assignedEmployeeId;
+
+    @NotNull
     private Long transportOrderId;
 
     public TaskCreate(String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskStatus status, Long assignedEmployeeId, Long transportOrderId) {

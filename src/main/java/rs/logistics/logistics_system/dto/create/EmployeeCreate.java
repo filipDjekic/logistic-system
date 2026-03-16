@@ -1,5 +1,9 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,15 +18,37 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class EmployeeCreate {
 
+    @NotBlank
+    @Size(min = 1, max = 30)
     private String firstName;
+
+    @NotBlank
+    @Size(min = 1, max = 30)
     private String lastName;
+
+    @NotBlank
+    @Size(min = 1, max = 13)
     private String jmbg;
+
+    @NotBlank
+    @Size(min = 1, max = 20)
     private String phoneNumber;
+
+    @NotBlank
+    @Size(min = 1, max = 30)
     private String email;
+
+    @NotNull
     private EmployeePosition position;
+
+    @NotNull
     private LocalDate employmentDate;
+
+    @NotNull
+    @Positive
     private BigDecimal salary;
 
+    @NotNull
     private Long userId;
 
     public EmployeeCreate(String firstName,

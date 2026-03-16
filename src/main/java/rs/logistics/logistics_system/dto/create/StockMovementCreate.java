@@ -1,5 +1,9 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,12 +16,25 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class StockMovementCreate {
 
+    @NotNull
+    @Size(min = 1, max = 30)
     private StockMovementType movementType;
+
+    @NotNull
+    @PositiveOrZero
     private BigDecimal quantity;
+
+    @NotNull
+    @Size(min = 1, max = 255)
     private String referenceNote;
 
+    @NotNull
     private Long warehouseId;
+
+    @NotNull
     private Long productId;
+
+    @NotNull
     private Long createdById;
 
     public StockMovementCreate(StockMovementType movementType,

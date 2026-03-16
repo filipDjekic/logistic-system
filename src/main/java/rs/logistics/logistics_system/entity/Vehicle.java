@@ -40,7 +40,7 @@ public class Vehicle {
     @Column(name = "capacity", nullable = false, precision = 12, scale = 2)
     private BigDecimal capacity;
 
-    @Column(name = "fuel_type", nullable = false)
+    @Column(name = "fuel_type", length = 20, nullable = false)
     private String fuelType;
 
     @Column(name = "year_of_production", nullable = false)

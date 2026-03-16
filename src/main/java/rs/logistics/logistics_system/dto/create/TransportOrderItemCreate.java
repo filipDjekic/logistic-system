@@ -1,5 +1,8 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -11,11 +14,21 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class TransportOrderItemCreate {
 
+    @NotNull
+    @Positive
     private BigDecimal quantity;
+
+    @NotNull
+    @Positive
     private BigDecimal weight;
+
+    @Size(min = 1, max = 255)
     private String note;
 
+    @NotNull
     private Long transportOrderId;
+
+    @NotNull
     private Long productId;
 
     public TransportOrderItemCreate(BigDecimal quantity, BigDecimal weight, String note, Long transportOrderId, Long productId) {

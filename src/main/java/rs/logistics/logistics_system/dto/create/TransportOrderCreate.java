@@ -1,5 +1,9 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -18,20 +22,50 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class TransportOrderCreate {
 
+    @NotBlank
+    @Size(min = 1, max = 50)
     private String orderNumber;
+
+    @NotBlank
+    @Size(min = 1, max = 500)
     private String description;
+
+    @NotNull
     private LocalDateTime orderDate;
+
+    @NotNull
     private LocalDateTime departureTime;
+
+    @NotNull
     private LocalDateTime plannedArrivalTime;
+
+    @NotNull
+    @Size(min = 1, max = 30)
     private TransportOrderStatus status;
+
+    @NotNull
     private PriorityLevel priority;
+
+    @NotNull
+    @Positive
     private BigDecimal totalWeight;
+
+    @Size(min = 1, max = 255)
     private String notes;
 
+    @NotNull
     private Long sourceWarehouseId;
+
+    @NotNull
     private Long destinationWarehouseId;
+
+    @NotNull
     private Long vehicleId;
+
+    @NotNull
     private Long assignedEmployeeId;
+
+    @NotNull
     private Long createdById;
 
     public TransportOrderCreate(String orderNumber,

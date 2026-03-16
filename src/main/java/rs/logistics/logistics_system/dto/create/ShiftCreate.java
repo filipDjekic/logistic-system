@@ -1,5 +1,8 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,11 +16,20 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class ShiftCreate {
 
+    @NotNull
     private LocalDateTime startTime;
+
+    @NotNull
     private LocalDateTime endTime;
+
+    @NotNull
     private ShiftStatus status;
+
+    @NotBlank
+    @Size(min = 1, max = 255)
     private String notes;
 
+    @NotNull
     private Long employeeId;
 
     public ShiftCreate(LocalDateTime startTime,

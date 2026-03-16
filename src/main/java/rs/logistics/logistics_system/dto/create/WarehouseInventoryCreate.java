@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,11 +14,22 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class WarehouseInventoryCreate {
 
+    @NotNull
     private Long warehouseId;
+
+    @NotNull
     private Long productId;
 
+    @NotNull
+    @PositiveOrZero
     private BigDecimal quantity;
+
+    @NotNull
+    @PositiveOrZero
     private BigDecimal reservedQuantity;
+
+    @NotNull
+    @PositiveOrZero
     private BigDecimal minStockLevel;
 
 
