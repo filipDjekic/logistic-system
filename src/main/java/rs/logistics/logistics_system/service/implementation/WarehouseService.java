@@ -8,6 +8,7 @@ import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.VehicleMapper;
 import rs.logistics.logistics_system.mapper.WarehouseMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
@@ -27,7 +28,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public WarehouseResponse create(WarehouseCreate dto) {
-        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new RuntimeException("Employee not found"));
+        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         Warehouse warehouse = WarehouseMapper.toEntity(dto, employee);
         Warehouse saved = _warehouseRepository.save(warehouse);
         return WarehouseMapper.toResponse(saved);
@@ -35,8 +36,8 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public WarehouseResponse update(Long id, WarehouseUpdate dto) {
-        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new RuntimeException("Employee not found"));
-        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new RuntimeException("Warehouse not found"));
+        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         WarehouseMapper.updateEntity(warehouse, dto, employee);
         Warehouse saved = _warehouseRepository.save(warehouse);
         return WarehouseMapper.toResponse(saved);
@@ -44,7 +45,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public WarehouseResponse getById(Long id) {
-        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new RuntimeException("Warehouse not found"));
+        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         return WarehouseMapper.toResponse(warehouse);
     }
 
@@ -55,7 +56,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new RuntimeException("Warehouse not found"));
+        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         _warehouseRepository.delete(warehouse);
     }
 }

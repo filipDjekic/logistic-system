@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.dto.response.EmployeeResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.EmployeeMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
@@ -24,7 +25,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public EmployeeResponse create(EmployeeCreate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() ->  new RuntimeException("User not found"));
+        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() ->  new ResourceNotFoundException("User not found"));
         Employee employee = EmployeeMapper.toEntity(dto, user);
         Employee saved = _employeeRepository.save(employee);
         return EmployeeMapper.toResponse(saved);
@@ -32,8 +33,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public EmployeeResponse update(Long id, EmployeeUpdate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() ->  new RuntimeException("User not found"));
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new RuntimeException("Employee not found"));
+        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() ->  new ResourceNotFoundException("User not found"));
+        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         EmployeeMapper.updateEntity(dto, employee, user);
         Employee updated = _employeeRepository.save(employee);
         return EmployeeMapper.toResponse(updated);
@@ -41,7 +42,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public EmployeeResponse getById(Long id) {
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new RuntimeException("Employee not found"));
+        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         return EmployeeMapper.toResponse(employee);
     }
 
@@ -52,7 +53,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new RuntimeException("Employee not found"));
+        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         _employeeRepository.delete(employee);
     }
 }

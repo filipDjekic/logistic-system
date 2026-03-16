@@ -9,6 +9,7 @@ import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.StockMovementMapper;
 import rs.logistics.logistics_system.repository.*;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
@@ -28,9 +29,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public StockMovementResponse create(StockMovementCreate dto) {
-        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new RuntimeException("Warehouse not found"));
-        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new RuntimeException("Product not found"));
-        User user = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new RuntimeException("User not found"));
+        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        User user = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         StockMovement stockMovement = StockMovementMapper.toEntity(dto, warehouse, product, user);
         StockMovement saved = _stockMovementRepository.save(stockMovement);
@@ -39,10 +40,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public StockMovementResponse update(Long id, StockMovementUpdate dto) {
-        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new RuntimeException("Warehouse not found"));
-        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new RuntimeException("Product not found"));
-        User user = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new RuntimeException("User not found"));
-        StockMovement stockMovement = _stockMovementRepository.findById(id).orElseThrow(() -> new RuntimeException("StockMovement not found"));
+        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        User user = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        StockMovement stockMovement = _stockMovementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
 
         StockMovementMapper.updateEntity(stockMovement, dto, warehouse, product, user);
         StockMovement saved = _stockMovementRepository.save(stockMovement);
@@ -53,7 +54,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public StockMovementResponse getById(Long id) {
-        StockMovement stockMovement =  _stockMovementRepository.findById(id).orElseThrow(() -> new RuntimeException("StockMovement not found"));
+        StockMovement stockMovement =  _stockMovementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
         return StockMovementMapper.toResponse(stockMovement);
     }
 
@@ -64,7 +65,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        StockMovement stockMovement = _stockMovementRepository.findById(id).orElseThrow(() -> new RuntimeException("StockMovement not found"));
+        StockMovement stockMovement = _stockMovementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
         _stockMovementRepository.delete(stockMovement);
     }
 }

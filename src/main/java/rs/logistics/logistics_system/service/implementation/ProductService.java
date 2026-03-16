@@ -6,6 +6,7 @@ import rs.logistics.logistics_system.dto.create.ProductCreate;
 import rs.logistics.logistics_system.dto.response.ProductResponse;
 import rs.logistics.logistics_system.dto.update.ProductUpdate;
 import rs.logistics.logistics_system.entity.Product;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ProductMapper;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
@@ -28,7 +29,7 @@ public class ProductService implements ProductServiceDefinition {
 
     @Override
     public ProductResponse update(Long id, ProductUpdate dto) {
-        Product product = _productRepository.findById(id).orElseThrow(() ->  new RuntimeException("Product not found"));
+        Product product = _productRepository.findById(id).orElseThrow(() ->  new ResourceNotFoundException("Product not found"));
         ProductMapper.updateEntity(dto, product);
         Product saved = _productRepository.save(product);
         return ProductMapper.toResponse(saved);
@@ -36,7 +37,7 @@ public class ProductService implements ProductServiceDefinition {
 
     @Override
     public ProductResponse getById(Long id) {
-        Product saved = _productRepository.findById(id).orElseThrow(() ->  new RuntimeException("Product not found"));
+        Product saved = _productRepository.findById(id).orElseThrow(() ->  new ResourceNotFoundException("Product not found"));
         return ProductMapper.toResponse(saved);
     }
 
@@ -47,7 +48,7 @@ public class ProductService implements ProductServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        Product product = _productRepository.findById(id).orElseThrow(() ->  new RuntimeException("Product not found"));
+        Product product = _productRepository.findById(id).orElseThrow(() ->  new ResourceNotFoundException("Product not found"));
         _productRepository.delete(product);
     }
 }

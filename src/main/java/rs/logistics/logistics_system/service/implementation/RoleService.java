@@ -5,6 +5,7 @@ import rs.logistics.logistics_system.dto.create.RoleCreate;
 import rs.logistics.logistics_system.dto.response.RoleResponse;
 import rs.logistics.logistics_system.dto.update.RoleUpdate;
 import rs.logistics.logistics_system.entity.Role;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.RoleMapper;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.service.definition.RoleServiceDefinition;
@@ -31,7 +32,7 @@ public class RoleService implements RoleServiceDefinition {
     @Override
     public RoleResponse update(Long id, RoleUpdate dto) {
         Role role = _roleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Role with id not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Role with id not found"));
 
         RoleMapper.updateEntity(role, dto);
         Role updatedRole = _roleRepository.save(role);
@@ -41,7 +42,7 @@ public class RoleService implements RoleServiceDefinition {
     @Override
     public RoleResponse getById(Long id) {
         Role role = _roleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Role with id not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Role with id not found"));
 
         return RoleMapper.toResponse(role);
     }
@@ -54,7 +55,7 @@ public class RoleService implements RoleServiceDefinition {
     @Override
     public void delete(Long id) {
         Role role = _roleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Role with id not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Role with id not found"));
 
         _roleRepository.delete(role);
     }

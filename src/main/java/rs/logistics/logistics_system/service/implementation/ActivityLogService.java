@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
 import rs.logistics.logistics_system.dto.update.ActivityLogUpdate;
 import rs.logistics.logistics_system.entity.ActivityLog;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ActivityLogMapper;
 import rs.logistics.logistics_system.repository.ActivityLogRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
@@ -25,7 +26,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
 
     @Override
     public ActivityLogResponse create(ActivityLogCreate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         ActivityLog activityLog = ActivityLogMapper.toEntity(dto, user);
         ActivityLog saved = _activityLogRepository.save(activityLog);
@@ -34,8 +35,8 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
 
     @Override
     public ActivityLogResponse update(Long id, ActivityLogUpdate dto) {
-        User user  = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
-        ActivityLog activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new RuntimeException("ActivityLog not found"));
+        User user  = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        ActivityLog activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ActivityLog not found"));
 
         ActivityLogMapper.updateEntity(dto, user, activityLog);
         ActivityLog updated = _activityLogRepository.save(activityLog);
@@ -44,7 +45,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
 
     @Override
     public ActivityLogResponse getById(Long id) {
-        ActivityLog  activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new RuntimeException("ActivityLog not found"));
+        ActivityLog  activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ActivityLog not found"));
         return ActivityLogMapper.toResponse(activityLog);
     }
 
@@ -55,7 +56,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        ActivityLog  activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new RuntimeException("ActivityLog not found"));
+        ActivityLog  activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ActivityLog not found"));
         _activityLogRepository.delete(activityLog);
     }
 }

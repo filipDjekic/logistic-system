@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
 import rs.logistics.logistics_system.dto.update.ChangeHistoryUpdate;
 import rs.logistics.logistics_system.entity.ChangeHistory;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ChangeHistoryMapper;
 import rs.logistics.logistics_system.repository.ChangeHistoryRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
@@ -25,7 +26,7 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
 
     @Override
     public ChangeHistoryResponse create(ChangeHistoryCreate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         ChangeHistory changeHistory = ChangeHistoryMapper.toEntity(dto, user);
         ChangeHistory saved =  _changeHistoryRepository.save(changeHistory);
@@ -34,8 +35,8 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
 
     @Override
     public ChangeHistoryResponse update(Long id, ChangeHistoryUpdate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
-        ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Change history not found"));
+        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Change history not found"));
 
         ChangeHistoryMapper.updateEntity(changeHistory, dto, user);
         ChangeHistory saved =  _changeHistoryRepository.save(changeHistory);
@@ -44,7 +45,7 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
 
     @Override
     public ChangeHistoryResponse getById(Long id) {
-        ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Change history not found"));
+        ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Change history not found"));
         return ChangeHistoryMapper.toResponse(changeHistory);
     }
 
@@ -55,7 +56,7 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Change history not found"));
+        ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Change history not found"));
         _changeHistoryRepository.delete(changeHistory);
     }
 }

@@ -8,6 +8,7 @@ import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
@@ -27,8 +28,8 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
     @Override
     public WarehouseInventoryResponse create(WarehouseInventoryCreate dto) {
-        Warehouse warehouse = warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new RuntimeException("Warehouse not found"));
-        Product product = productRepository.findById(dto.getProductId()).orElseThrow(() -> new RuntimeException("Product not found"));
+        Warehouse warehouse = warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Product product = productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         WarehouseInventory warehouseInventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
         warehouseInventoryRepository.save(warehouseInventory);
@@ -37,9 +38,9 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
     @Override
     public WarehouseInventoryResponse update(Long warehouseId, Long productId, WarehouseInventoryUpdate dto) {
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new RuntimeException("WarehouseInventory not found"));
-        Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new RuntimeException("Warehouse not found"));
-        Product product = productRepository.findById(productId).orElseThrow(() -> new RuntimeException("Product not found"));
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
         warehouseInventoryRepository.save(inventory);
@@ -48,7 +49,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
     @Override
     public WarehouseInventoryResponse findByWarehouseAndProduct(Long warehouseId, Long productId) {
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new RuntimeException("WarehouseInventory not found"));
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
         return WarehouseInventoryMapper.toResponse(inventory);
     }
 
@@ -64,7 +65,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
     @Override
     public void delete(Long warehouseId, Long productId) {
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new RuntimeException("WarehouseInventory not found"));
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
         warehouseInventoryRepository.delete(inventory);
     }
 }

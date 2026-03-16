@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Shift;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
@@ -24,7 +25,7 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse create(ShiftCreate dto) {
-        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new RuntimeException("Employee Not Found"));
+        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee Not Found"));
         Shift shift = ShiftMapper.toEntity(dto, employee);
         Shift saved = _shiftRepository.save(shift);
         return ShiftMapper.toResponse(saved);
@@ -32,8 +33,8 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse update(Long id, ShiftUpdate dto) {
-        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new RuntimeException("Employee Not Found"));
-        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new RuntimeException("Shift not found"));
+        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee Not Found"));
+        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
         ShiftMapper.updateEntity(shift,dto,employee);
         Shift updated = _shiftRepository.save(shift);
         return ShiftMapper.toResponse(updated);
@@ -41,7 +42,7 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse getById(Long id) {
-        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new RuntimeException("Shift not found"));
+        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
         return ShiftMapper.toResponse(shift);
     }
 
@@ -52,7 +53,7 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new RuntimeException("Shift not found"));
+        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
         _shiftRepository.delete(shift);
     }
 }

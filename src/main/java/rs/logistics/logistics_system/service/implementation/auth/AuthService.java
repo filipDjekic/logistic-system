@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.auth.LoginRequest;
 import rs.logistics.logistics_system.dto.auth.LoginResponse;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.JwtService;
 import rs.logistics.logistics_system.service.definition.auth.AuthServiceDefinition;
@@ -35,7 +36,7 @@ public class AuthService implements AuthServiceDefinition {
                 )
         );
 
-        User user = userRepository.findByUsername(request.getUsername()).orElseThrow(() -> new RuntimeException("Username not found"));
+        User user = userRepository.findByUsername(request.getUsername()).orElseThrow(() -> new ResourceNotFoundException("Username not found"));
 
         String token = jwtService.generateToken(user.getUsername());
 

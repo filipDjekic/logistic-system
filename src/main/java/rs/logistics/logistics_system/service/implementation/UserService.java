@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.UserMapper;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
@@ -24,7 +25,7 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public UserResponse create(UserCreate dto) {
-        Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new RuntimeException("Role Not Found"));
+        Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
         User user = UserMapper.toEntity(dto, role);
         User savedUser = _userRepository.save(user);
         return UserMapper.toResponse(savedUser);
@@ -32,8 +33,8 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public UserResponse update(Long id, UserUpdate dto) {
-        Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new RuntimeException("Role Not Found"));
-        User user = _userRepository.findById(id).orElseThrow(() -> new RuntimeException("User with id not found"));
+        Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
+        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
         UserMapper.updateEntity(user, dto, role);
         User updatedUser = _userRepository.save(user);
         return UserMapper.toResponse(updatedUser);
@@ -41,7 +42,7 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public UserResponse getById(Long id) {
-        User user  = _userRepository.findById(id).orElseThrow(() -> new RuntimeException("User with id not found"));
+        User user  = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
         return UserMapper.toResponse(user);
     }
 
@@ -52,7 +53,7 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        User user = _userRepository.findById(id).orElseThrow(() -> new RuntimeException("User with id not found"));
+        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
         _userRepository.delete(user);
     }
 }

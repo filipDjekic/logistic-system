@@ -6,6 +6,7 @@ import rs.logistics.logistics_system.dto.create.VehicleCreate;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
 import rs.logistics.logistics_system.entity.Vehicle;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.VehicleMapper;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
@@ -29,7 +30,7 @@ public class VehicleService implements VehicleServiceDefinition {
 
     @Override
     public VehicleResponse update(Long id, VehicleUpdate dto) {
-        Vehicle vehicle = _vehicleRepository.findById(id).orElseThrow(() -> new RuntimeException("Vehicle Not Found"));
+        Vehicle vehicle = _vehicleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Vehicle Not Found"));
         VehicleMapper.updateEntity(vehicle, dto);
         Vehicle updated = _vehicleRepository.save(vehicle);
         return VehicleMapper.toResponse(updated);
@@ -37,7 +38,7 @@ public class VehicleService implements VehicleServiceDefinition {
 
     @Override
     public VehicleResponse getById(Long id) {
-        Vehicle vehicle = _vehicleRepository.findById(id).orElseThrow(() -> new RuntimeException("Vehicle Not Found"));
+        Vehicle vehicle = _vehicleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Vehicle Not Found"));
         return VehicleMapper.toResponse(vehicle);
     }
 
@@ -48,7 +49,7 @@ public class VehicleService implements VehicleServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        Vehicle vehicle = _vehicleRepository.findById(id).orElseThrow(() -> new RuntimeException("Vehicle Not Found"));
+        Vehicle vehicle = _vehicleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Vehicle Not Found"));
         _vehicleRepository.delete(vehicle);
     }
 }
