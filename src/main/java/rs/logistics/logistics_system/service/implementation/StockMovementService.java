@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.dto.update.StockMovementUpdate;
@@ -35,8 +36,23 @@ public class StockMovementService implements StockMovementServiceDefinition {
         Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        WarehouseInventory inventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId()).orElseThrow(() -> new ResourceNotFoundException("Inventory not found"));
+        WarehouseInventory inventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
+                .orElseGet(() -> {
+                    if (dto.getMovementType() != StockMovementType.INBOUND) {
+                        throw new ResourceNotFoundException("Inventory not found");
+                    }
 
+                    WarehouseInventory newInventory = new WarehouseInventory();
+                    newInventory.setWarehouse(warehouse);
+                    newInventory.setProduct(product);
+                    newInventory.setQuantity(BigDecimal.ZERO);
+                    newInventory.setReservedQuantity(BigDecimal.ZERO);
+                    newInventory.setMinStockLevel(BigDecimal.ZERO);
+
+                    return _warehouseInventoryRepository.save(newInventory);
+                });
+
+        checkMovementQuantity(dto.getQuantity());
         switch(dto.getMovementType()) {
             case StockMovementType.INBOUND:
                 increaseInventory(inventory, dto.getQuantity());
@@ -110,5 +126,11 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     private void adjustInventory(WarehouseInventory inventory, BigDecimal quantity){
         inventory.setQuantity(quantity);
+    }
+
+    private void checkMovementQuantity(BigDecimal quantity){
+        if(quantity == null ||  quantity.compareTo(BigDecimal.ZERO) <= 0){
+            throw new BadRequestException("Quantity must be greater than zero");
+        }
     }
 }
