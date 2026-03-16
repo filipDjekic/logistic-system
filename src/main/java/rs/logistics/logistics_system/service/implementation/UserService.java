@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
@@ -22,11 +23,13 @@ public class UserService implements UserServiceDefinition {
 
     private final UserRepository _userRepository;
     private final RoleRepository _roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public UserResponse create(UserCreate dto) {
         Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
         User user = UserMapper.toEntity(dto, role);
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         User savedUser = _userRepository.save(user);
         return UserMapper.toResponse(savedUser);
     }
@@ -35,6 +38,7 @@ public class UserService implements UserServiceDefinition {
     public UserResponse update(Long id, UserUpdate dto) {
         Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         UserMapper.updateEntity(user, dto, role);
         User updatedUser = _userRepository.save(user);
         return UserMapper.toResponse(updatedUser);

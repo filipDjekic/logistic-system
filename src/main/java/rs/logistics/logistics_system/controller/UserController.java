@@ -23,13 +23,13 @@ public class UserController {
     private final UserServiceDefinition userService;
 
     @PostMapping
-    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserCreate dto, @RequestBody Role role) {
+    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserCreate dto) {
         UserResponse userResponse = userService.create(dto);
         return new ResponseEntity<>(userResponse, HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @RequestBody UserUpdate dto, @RequestBody Role role) {
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @RequestBody UserUpdate dto) {
         UserResponse userResponse = userService.update(id, dto);
         return ResponseEntity.ok(userResponse);
     }

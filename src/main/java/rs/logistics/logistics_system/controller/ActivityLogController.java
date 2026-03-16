@@ -15,7 +15,7 @@ import java.util.List;
 
 @PreAuthorize("hasRole('ADMIN')")
 @RestController
-@RequestMapping("/api/acitivity_logs")
+@RequestMapping("/api/activity_logs")
 @RequiredArgsConstructor
 public class ActivityLogController {
 
