@@ -6,9 +6,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import rs.logistics.logistics_system.dto.additional.TransportOrderStatusUpdate;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
 
 import java.util.List;
@@ -49,5 +51,11 @@ public class TransportOrderController {
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         transportOrderService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<TransportOrderResponse> updateStatus(@PathVariable Long id, @RequestBody TransportOrderStatusUpdate status) {
+        TransportOrderResponse response = transportOrderService.changeStatus(id, status.getStatus());
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

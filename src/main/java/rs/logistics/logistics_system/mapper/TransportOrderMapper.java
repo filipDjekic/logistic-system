@@ -14,7 +14,6 @@ public class TransportOrderMapper {
                 dto.getOrderDate(),
                 dto.getDepartureTime(),
                 dto.getPlannedArrivalTime(),
-                dto.getStatus(),
                 dto.getPriority(),
                 dto.getTotalWeight(),
                 dto.getNotes(),
@@ -34,7 +33,6 @@ public class TransportOrderMapper {
         transportOrder.setDepartureTime(dto.getDepartureTime());
         transportOrder.setPlannedArrivalTime(dto.getPlannedArrivalTime());
         transportOrder.setActualArrivalTime(dto.getActualArrivalTime());
-        transportOrder.setStatus(dto.getStatus());
         transportOrder.setPriority(dto.getPriority());
         transportOrder.setTotalWeight(dto.getTotalWeight());
         transportOrder.setNotes(dto.getNotes());

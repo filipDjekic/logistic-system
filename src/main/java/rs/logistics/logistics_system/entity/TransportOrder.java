@@ -99,7 +99,6 @@ public class TransportOrder {
             LocalDateTime orderDate,
             LocalDateTime departureTime,
             LocalDateTime plannedArrivalTime,
-            TransportOrderStatus status,
             PriorityLevel priority,
             BigDecimal totalWeight,
             String notes,
@@ -114,7 +113,6 @@ public class TransportOrder {
         this.orderDate = orderDate;
         this.departureTime = departureTime;
         this.plannedArrivalTime = plannedArrivalTime;
-        this.status = status;
         this.priority = priority;
         this.totalWeight = totalWeight;
         this.notes = notes;

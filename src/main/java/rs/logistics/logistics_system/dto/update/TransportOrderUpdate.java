@@ -21,7 +21,6 @@ public class TransportOrderUpdate {
     private LocalDateTime departureTime;
     private LocalDateTime plannedArrivalTime;
     private LocalDateTime actualArrivalTime;
-    private TransportOrderStatus status;
     private PriorityLevel priority;
     private BigDecimal totalWeight;
     private String notes;
@@ -38,7 +37,6 @@ public class TransportOrderUpdate {
                                   LocalDateTime departureTime,
                                   LocalDateTime plannedArrivalTime,
                                   LocalDateTime actualArrivalTime,
-                                  TransportOrderStatus status,
                                   PriorityLevel priority,
                                   BigDecimal totalWeight,
                                   String notes,
@@ -54,7 +52,6 @@ public class TransportOrderUpdate {
         this.departureTime = departureTime;
         this.plannedArrivalTime = plannedArrivalTime;
         this.actualArrivalTime = actualArrivalTime;
-        this.status = status;
         this.priority = priority;
         this.totalWeight = totalWeight;
         this.notes = notes;

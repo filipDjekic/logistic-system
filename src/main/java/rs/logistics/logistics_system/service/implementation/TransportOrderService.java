@@ -6,11 +6,14 @@ import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
 import rs.logistics.logistics_system.entity.*;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
+import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.repository.*;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,13 +31,32 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Override
     public TransportOrderResponse create(TransportOrderCreate dto) {
 
+        if(dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null || dto.getCreatedById() == null){
+            throw new BadRequestException("Invalid request");
+        }
+
+        if(dto.getTotalWeight().compareTo(BigDecimal.ZERO) <= 0){
+            throw new BadRequestException("Total weight must be greater than 0");
+        }
+
+        if(dto.getPlannedArrivalTime().isBefore(dto.getDepartureTime())){
+            throw new BadRequestException("Planned arrival time must be after departure time");
+        }
+
         Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
         Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
+
+        if(warehouseSource.getId().equals(warehouseDestination.getId())){
+            throw new BadRequestException("Warehouse Source and Destination are the same");
+        }
+
         Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
         User createdBy = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
 
         TransportOrder transportOrder = TransportOrderMapper.toEntity(dto, warehouseSource, warehouseDestination, vehicle, assignedEmployee, createdBy);
+        transportOrder.setStatus(TransportOrderStatus.CREATED);
+
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
         return TransportOrderMapper.toResponse(saved);
 
@@ -42,8 +64,26 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
     @Override
     public TransportOrderResponse update(Long id, TransportOrderUpdate dto) {
+
+        if(dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null || dto.getCreatedById() == null){
+            throw new BadRequestException("Invalid request");
+        }
+
+        if(dto.getTotalWeight().compareTo(BigDecimal.ZERO) <= 0){
+            throw new BadRequestException("Total weight must be greater than 0");
+        }
+
+        if(dto.getPlannedArrivalTime().isBefore(dto.getDepartureTime())){
+            throw new BadRequestException("Planned arrival time must be after departure time");
+        }
+
         Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
         Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
+
+        if(warehouseSource.getId().equals(warehouseDestination.getId())){
+            throw new BadRequestException("Warehouse Source and Destination are the same");
+        }
+
         Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
         User createdBy = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
@@ -71,5 +111,46 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     public void delete(Long id) {
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
         _transportOrderRepository.delete(transportOrder);
+    }
+
+    @Override
+    public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status) {
+        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        TransportOrderStatus current = transportOrder.getStatus();
+
+        switch (current){
+            case TransportOrderStatus.CREATED:
+                if(status.equals(TransportOrderStatus.ASSIGNED) || status.equals(TransportOrderStatus.CANCELLED)){
+                    transportOrder.setStatus(status);
+                }
+                else{
+                    throw new BadRequestException("Transport order cannot be changed to this");
+                }
+                break;
+            case TransportOrderStatus.ASSIGNED:
+                if(status.equals(TransportOrderStatus.IN_TRANSIT) || status.equals(TransportOrderStatus.CANCELLED)){
+                    transportOrder.setStatus(status);
+                }
+                else{
+                    throw new BadRequestException("Transport order cannot be changed to this");
+                }
+                break;
+            case  TransportOrderStatus.IN_TRANSIT:
+                if(status.equals(TransportOrderStatus.DELIVERED)){
+                    transportOrder.setStatus(status);
+                }
+                else {
+                    throw new BadRequestException("Transport order cannot be changed to this");
+                }
+                break;
+            case TransportOrderStatus.DELIVERED:
+                throw new BadRequestException("Transport order cannot be changed at all");
+            case TransportOrderStatus.CANCELLED:
+                throw new BadRequestException("Transport order cannot be changed at all");
+        }
+
+
+        TransportOrder saved = _transportOrderRepository.save(transportOrder);
+        return TransportOrderMapper.toResponse(saved);
     }
 }
