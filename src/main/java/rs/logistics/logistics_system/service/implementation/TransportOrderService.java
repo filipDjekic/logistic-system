@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.service.implementation;
 
+import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
@@ -27,6 +28,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final EmployeeRepository _employeeRepository;
     private final UserRepository _userRepository;
 
+    private static final List<TransportOrderStatus> ACTIVE_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
+
 
     @Override
     public TransportOrderResponse create(TransportOrderCreate dto) {
@@ -52,6 +55,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
+
+        checkVehicleAvailability(vehicle.getId());
+        checkDriverAvailability(assignedEmployee.getId());
+
         User createdBy = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
 
         TransportOrder transportOrder = TransportOrderMapper.toEntity(dto, warehouseSource, warehouseDestination, vehicle, assignedEmployee, createdBy);
@@ -90,6 +97,9 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
+        checkVehicleAvailabilityForUpdate(vehicle.getId(), transportOrder.getId());
+        checkDriverAvailabilityForUpdate(assignedEmployee.getId(), transportOrder.getId());
+
         TransportOrderMapper.updateEntity(dto, transportOrder, warehouseSource, warehouseDestination, vehicle, assignedEmployee, createdBy);
 
         TransportOrder updated = _transportOrderRepository.save(transportOrder);
@@ -117,6 +127,11 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status) {
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
         TransportOrderStatus current = transportOrder.getStatus();
+
+        if (status == TransportOrderStatus.ASSIGNED || status == TransportOrderStatus.IN_TRANSIT) {
+            checkVehicleAvailabilityForUpdate(transportOrder.getVehicle().getId(), transportOrder.getId());
+            checkDriverAvailabilityForUpdate(transportOrder.getAssignedEmployee().getId(), transportOrder.getId());
+        }
 
         switch (current){
             case TransportOrderStatus.CREATED:
@@ -152,5 +167,31 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
         return TransportOrderMapper.toResponse(saved);
+    }
+
+    // helpers
+
+    private void checkVehicleAvailability(Long vehicleId) {
+        if (_transportOrderRepository.existsByVehicleIdAndStatusIn(vehicleId, ACTIVE_STATUSES)) {
+            throw new BadRequestException("Vehicle is already assigned to another active transport order");
+        }
+    }
+
+    private void checkDriverAvailability(Long employeeId) {
+        if (_transportOrderRepository.existsByAssignedEmployeeIdAndStatusIn(employeeId, ACTIVE_STATUSES)) {
+            throw new BadRequestException("Driver is already assigned to another active transport order");
+        }
+    }
+
+    private void checkVehicleAvailabilityForUpdate(Long vehicleId, Long transportOrderId) {
+        if (_transportOrderRepository.existsByVehicleIdAndStatusInAndIdNot(vehicleId, ACTIVE_STATUSES, transportOrderId)) {
+            throw new BadRequestException("Vehicle is already assigned to another active transport order");
+        }
+    }
+
+    private void checkDriverAvailabilityForUpdate(Long employeeId, Long transportOrderId) {
+        if (_transportOrderRepository.existsByAssignedEmployeeIdAndStatusInAndIdNot(employeeId, ACTIVE_STATUSES, transportOrderId)) {
+            throw new BadRequestException("Driver is already assigned to another active transport order");
+        }
     }
 }
