@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.dto.response.NotificationResponse;
 import rs.logistics.logistics_system.dto.update.NotificationUpdate;
 import rs.logistics.logistics_system.entity.Notification;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.enums.NotificationStatus;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.NotificationMapper;
 import rs.logistics.logistics_system.repository.NotificationRepository;
@@ -58,5 +59,28 @@ public class NotificationService implements NotificationServiceDefinition {
     public void delete(Long id) {
         Notification notification = _notificationRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
         _notificationRepository.delete(notification);
+    }
+
+    @Override
+    public List<NotificationResponse> getByUserId(Long userId) {
+        return _notificationRepository.findByUserId(userId).stream().map(NotificationMapper::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<NotificationResponse> getByStatus(Long userId, NotificationStatus status) {
+        return _notificationRepository.findByUserIdAndStatus(userId, status).stream().map(NotificationMapper::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public NotificationResponse markAsRead(Long id) {
+        Notification notification = _notificationRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
+        notification.setStatus(NotificationStatus.READ);
+        _notificationRepository.save(notification);
+        return NotificationMapper.toResponse(notification);
+    }
+
+    @Override
+    public void markAllAsRead(Long userId) {
+        _notificationRepository.markAllAsRead(userId, NotificationStatus.READ);
     }
 }

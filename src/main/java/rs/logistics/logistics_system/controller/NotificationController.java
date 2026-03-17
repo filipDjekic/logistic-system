@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import rs.logistics.logistics_system.dto.create.NotificationCreate;
 import rs.logistics.logistics_system.dto.response.NotificationResponse;
 import rs.logistics.logistics_system.dto.update.NotificationUpdate;
+import rs.logistics.logistics_system.enums.NotificationStatus;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 
 import java.util.List;
@@ -49,5 +50,29 @@ public class NotificationController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         notificationService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/user/{id}")
+    public ResponseEntity<List<NotificationResponse>> getNotificationsForUser(@PathVariable Long id) {
+        List<NotificationResponse> responses = notificationService.getByUserId(id);
+        return new ResponseEntity<>(responses, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/{id}/unread")
+    public ResponseEntity<List<NotificationResponse>> getUnreadNotifications(@PathVariable Long id) {
+        List<NotificationResponse> responses = notificationService.getByStatus(id, NotificationStatus.UNREAD);
+        return new ResponseEntity<>(responses, HttpStatus.OK);
+    }
+
+    @PatchMapping("/{id}/mark_as_read")
+    public ResponseEntity<NotificationResponse> markAsRead(@PathVariable Long id) {
+        NotificationResponse response = notificationService.markAsRead(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PatchMapping("/{id}/mark_all_as_read")
+    public ResponseEntity<NotificationResponse> markAllAsRead(@PathVariable Long id) {
+        notificationService.markAllAsRead(id);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }
