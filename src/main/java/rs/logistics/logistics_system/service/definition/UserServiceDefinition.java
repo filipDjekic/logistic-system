@@ -18,4 +18,8 @@ public interface UserServiceDefinition {
     List<UserResponse> getAll();
 
     void delete(Long id);
+
+    void disableUser(Long id);
+
+    void changePassword(Long id, String newPassword);
 }

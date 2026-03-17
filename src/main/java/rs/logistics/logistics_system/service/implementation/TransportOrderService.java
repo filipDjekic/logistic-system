@@ -1,8 +1,10 @@
 package rs.logistics.logistics_system.service.implementation;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
@@ -12,6 +14,7 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.repository.*;
+import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
 
 import java.math.BigDecimal;
@@ -29,6 +32,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final UserRepository _userRepository;
 
     private static final List<TransportOrderStatus> ACTIVE_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
+    private final ActivityLogServiceDefinition activityLogService;
 
 
     @Override
@@ -65,6 +69,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         transportOrder.setStatus(TransportOrderStatus.CREATED);
 
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
+
+        activityLogService.create(new ActivityLogCreate(
+                "CREATE",
+                "TRANSPORT_ORDER",
+                saved.getId(),
+                "TRANSPORT ORDER is created (ID: " + saved.getId() + ")",
+                LocalDateTime.now(),
+                saved.getCreatedBy().getId()
+        ));
+
         return TransportOrderMapper.toResponse(saved);
 
     }
@@ -103,6 +117,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         TransportOrderMapper.updateEntity(dto, transportOrder, warehouseSource, warehouseDestination, vehicle, assignedEmployee, createdBy);
 
         TransportOrder updated = _transportOrderRepository.save(transportOrder);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATED",
+                "TRANSPORT_ORDER",
+                updated.getId(),
+                "TRANSPORT ORDER is being updated (ID: " + updated.getId() + ")",
+                LocalDateTime.now(),
+                updated.getCreatedBy().getId()
+        ));
+
         return TransportOrderMapper.toResponse(updated);
     }
 
@@ -121,6 +145,14 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     public void delete(Long id) {
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
         _transportOrderRepository.delete(transportOrder);
+        activityLogService.create(new ActivityLogCreate(
+                "DELETE",
+                "TRANSPORT_ORDER",
+                id,
+                "TRANSPORT ORDER is deleted (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
     }
 
     @Override
@@ -166,6 +198,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
 
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
+
+        activityLogService.create(new ActivityLogCreate(
+                "STATUS_CHANGED",
+                "TRANSPORT_ORDER",
+                saved.getId(),
+                "TRANSPORT ORDER status changed (ID: " + saved.getId() + ")",
+                LocalDateTime.now(),
+                saved.getCreatedBy().getId()
+        ));
+
         return TransportOrderMapper.toResponse(saved);
     }
 

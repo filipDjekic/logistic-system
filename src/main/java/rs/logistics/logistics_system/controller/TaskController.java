@@ -57,4 +57,10 @@ public class TaskController {
         TaskResponse response = taskService.changeStatus(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+    @PatchMapping("/{id}/employee/{employeeId}")
+    public ResponseEntity<TaskResponse> assignTask(@PathVariable Long id, @PathVariable Long employeeId) {
+        TaskResponse response = taskService.assignTask(id, employeeId);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
 }

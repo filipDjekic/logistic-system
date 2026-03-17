@@ -11,6 +11,8 @@ import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
 import rs.logistics.logistics_system.dto.update.ActivityLogUpdate;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @PreAuthorize("hasRole('ADMIN')")
@@ -42,6 +44,48 @@ public class ActivityLogController {
     @GetMapping
     public ResponseEntity<List<ActivityLogResponse>> getAll(){
         List<ActivityLogResponse> response = activityLogService.getAll();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/{id}")
+    public ResponseEntity<List<ActivityLogResponse>> getByUserId(@PathVariable Long id){
+        List<ActivityLogResponse> response = activityLogService.getByUserId(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/{id}/action/{action}")
+    public ResponseEntity<List<ActivityLogResponse>> getByUserIdAndAction(@PathVariable Long id, @PathVariable String action){
+        List<ActivityLogResponse> response = activityLogService.getByAction(action, id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/{id}/entity/{entityName}")
+    public ResponseEntity<List<ActivityLogResponse>> getByEntityName(@PathVariable Long id, @PathVariable String entityName){
+        List<ActivityLogResponse> response = activityLogService.getByEntityName(entityName, id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/{id}/{start_date}/{end_date}")
+    public ResponseEntity<List<ActivityLogResponse>> getBetweenDate(@PathVariable Long id, @PathVariable LocalDateTime start_date, @PathVariable LocalDateTime end_date){
+        List<ActivityLogResponse> response = activityLogService.getBetweenDates(start_date, end_date, id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/{id}/{date}")
+    public ResponseEntity<List<ActivityLogResponse>> getByDate(@PathVariable Long id, @PathVariable LocalDateTime date){
+        List<ActivityLogResponse> response = activityLogService.getByDate(date, id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/{id}/{before_date}")
+    public ResponseEntity<List<ActivityLogResponse>> getBeforeDate(@PathVariable Long id, @PathVariable LocalDateTime before_date){
+        List<ActivityLogResponse> response = activityLogService.getBeforeDate(before_date, id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/user/{id}/{after_date}")
+    public ResponseEntity<List<ActivityLogResponse>> getAfterDate(@PathVariable Long id, @PathVariable LocalDateTime after_date){
+        List<ActivityLogResponse> response = activityLogService.getAfterDate(after_date, id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

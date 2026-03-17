@@ -34,7 +34,12 @@ public class ActivityLogCreate {
     @NotNull
     private Long userId;
 
-    public ActivityLogCreate(String action, String entityName, Long entityId, String description, LocalDateTime createdAt, Long userId) {
+    public ActivityLogCreate(String action,
+                             String entityName,
+                             Long entityId,
+                             String description,
+                             LocalDateTime createdAt,
+                             Long userId) {
         this.action = action;
         this.entityName = entityName;
         this.entityId = entityId;

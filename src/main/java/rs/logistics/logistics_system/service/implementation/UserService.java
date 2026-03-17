@@ -3,6 +3,7 @@ package rs.logistics.logistics_system.service.implementation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
@@ -12,8 +13,10 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.UserMapper;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
+import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,6 +27,7 @@ public class UserService implements UserServiceDefinition {
     private final UserRepository _userRepository;
     private final RoleRepository _roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ActivityLogServiceDefinition activityLogService;
 
     @Override
     public UserResponse create(UserCreate dto) {
@@ -31,6 +35,16 @@ public class UserService implements UserServiceDefinition {
         User user = UserMapper.toEntity(dto, role);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         User savedUser = _userRepository.save(user);
+
+        activityLogService.create(new ActivityLogCreate(
+                "CREATE",
+                "USER",
+                savedUser.getId(),
+                "USER is created (ID: " + savedUser.getId() + ")",
+                LocalDateTime.now(),
+                savedUser.getId()
+        ));
+
         return UserMapper.toResponse(savedUser);
     }
 
@@ -41,6 +55,16 @@ public class UserService implements UserServiceDefinition {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         UserMapper.updateEntity(user, dto, role);
         User updatedUser = _userRepository.save(user);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "USER",
+                updatedUser.getId(),
+                "USER is updated (ID: " + updatedUser.getId() + ")",
+                LocalDateTime.now(),
+                updatedUser.getId()
+        ));
+
         return UserMapper.toResponse(updatedUser);
     }
 
@@ -59,5 +83,44 @@ public class UserService implements UserServiceDefinition {
     public void delete(Long id) {
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
         _userRepository.delete(user);
+
+        activityLogService.create(new ActivityLogCreate(
+                "DELETE",
+                "USER",
+                id,
+                "USER is deleted (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
+    }
+
+    @Override
+    public void disableUser(Long id) {
+        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        user.setEnabled(false);
+        _userRepository.save(user);
+        activityLogService.create(new ActivityLogCreate(
+                "STATUS_CHANGE",
+                "USER",
+                id,
+                "USER is disabled (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
+    }
+
+    @Override
+    public void changePassword(Long id, String newPassword) {
+        User user =  _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        _userRepository.save(user);
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE_PASSWORD",
+                "USER",
+                id,
+                "USER password is updated (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
     }
 }

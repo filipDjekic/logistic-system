@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
@@ -16,6 +17,7 @@ import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 
 import java.time.LocalDateTime;
@@ -30,6 +32,7 @@ public class TaskService implements TaskServiceDefinition {
     private final EmployeeRepository _employeeRepository;
     private final TransportOrderRepository _transportOrderRepository;
 
+    private final ActivityLogServiceDefinition activityLogService;
 
     @Override
     public TaskResponse create(TaskCreate dto) {
@@ -44,6 +47,16 @@ public class TaskService implements TaskServiceDefinition {
         Task task = TaskMapper.toEntity(dto, employee, transportOrder);
         task.setStatus(TaskStatus.NEW);
         Task saved =  _taskRepository.save(task);
+
+        activityLogService.create(new ActivityLogCreate(
+                "CREATE",
+                "TASK",
+                saved.getId(),
+                "TASK is created (ID: " + saved.getId() + ")",
+                LocalDateTime.now(),
+                saved.getId()
+        ));
+
         return TaskMapper.toResponse(saved);
     }
 
@@ -55,6 +68,16 @@ public class TaskService implements TaskServiceDefinition {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
         TaskMapper.updateEntity(task, dto, employee, transportOrder);
         Task saved =  _taskRepository.save(task);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "TASK",
+                saved.getId(),
+                "TASK is updated (ID: " + saved.getId() + ")",
+                LocalDateTime.now(),
+                saved.getId()
+        ));
+
         return TaskMapper.toResponse(saved);
     }
 
@@ -73,6 +96,15 @@ public class TaskService implements TaskServiceDefinition {
     public void delete(Long id) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
         _taskRepository.delete(task);
+
+        activityLogService.create(new ActivityLogCreate(
+                "DELETE",
+                "TASK",
+                id,
+                "TASK is created (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
     }
 
     @Override
@@ -103,6 +135,38 @@ public class TaskService implements TaskServiceDefinition {
         }
 
         Task saved = _taskRepository.save(task);
+
+        activityLogService.create(new ActivityLogCreate(
+                "CHANGE_STATUS",
+                "TASK",
+                saved.getId(),
+                "TASK status is changed (ID: " + saved.getId() + ")",
+                LocalDateTime.now(),
+                saved.getId()
+        ));
+
         return TaskMapper.toResponse(saved);
+    }
+
+    @Override
+    public TaskResponse assignTask(Long id, Long employeeId) {
+        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+
+        Employee employee = _employeeRepository.findById(employeeId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        task.setAssignedEmployee(employee);
+
+        _taskRepository.save(task);
+
+        activityLogService.create(new ActivityLogCreate(
+                "ASSIGN",
+                "TASK",
+                id,
+                "TASK is assigned (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
+
+        return TaskMapper.toResponse(task);
     }
 }

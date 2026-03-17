@@ -39,7 +39,13 @@ public class TaskCreate {
     @NotNull
     private Long transportOrderId;
 
-    public TaskCreate(String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskStatus status, Long assignedEmployeeId, Long transportOrderId) {
+    public TaskCreate(String title,
+                      String description,
+                      LocalDateTime dueDate,
+                      TaskPriority priority,
+                      TaskStatus status,
+                      Long assignedEmployeeId,
+                      Long transportOrderId) {
         this.title = title;
         this.description = description;
         this.dueDate = dueDate;

@@ -13,6 +13,8 @@ import rs.logistics.logistics_system.repository.ActivityLogRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,5 +60,88 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     public void delete(Long id) {
         ActivityLog  activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ActivityLog not found"));
         _activityLogRepository.delete(activityLog);
+    }
+
+    @Override
+    public List<ActivityLogResponse> getByUserId(Long id) {
+        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
+        for (ActivityLog activityLog : _activityLogRepository.findByUserId(user.getId())) {
+            ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
+            activityLogResponses.add(response);
+        }
+
+        return activityLogResponses;
+    }
+
+    @Override
+    public List<ActivityLogResponse> getByAction(String action, Long userId) {
+        User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
+        for (ActivityLog activityLog : _activityLogRepository.findByAction(action, user.getId())) {
+            ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
+            activityLogResponses.add(response);
+        }
+        return activityLogResponses;
+    }
+
+    @Override
+    public List<ActivityLogResponse> getByEntityName(String entityName, Long userId) {
+        User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
+        for (ActivityLog activityLog : _activityLogRepository.findByEntityName(entityName, user.getId())) {
+            ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
+            activityLogResponses.add(response);
+        }
+        return activityLogResponses;
+    }
+
+    @Override
+    public List<ActivityLogResponse> getBetweenDates(LocalDateTime start, LocalDateTime end, Long userId) {
+        User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
+        List<ActivityLog> activityLogs = _activityLogRepository.findByCreatedAtBetween(start, end, user.getId());
+        for (ActivityLog activityLog : activityLogs) {
+            ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
+            activityLogResponses.add(response);
+        }
+        return activityLogResponses;
+    }
+
+    @Override
+    public List<ActivityLogResponse> getBeforeDate(LocalDateTime date, Long userId) {
+        User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
+        List<ActivityLog> activityLogs = _activityLogRepository.getByDateBefore(date, user.getId());
+        for (ActivityLog activityLog : activityLogs) {
+            ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
+            activityLogResponses.add(response);
+        }
+        return activityLogResponses;
+    }
+
+    @Override
+    public List<ActivityLogResponse> getAfterDate(LocalDateTime date, Long userId) {
+        User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
+        List<ActivityLog> activityLogs = _activityLogRepository.getByDateAfter(date, user.getId());
+        for (ActivityLog activityLog : activityLogs) {
+            ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
+            activityLogResponses.add(response);
+        }
+        return activityLogResponses;
+    }
+
+    @Override
+    public List<ActivityLogResponse> getByDate(LocalDateTime date, Long userId) {
+        User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
+        List<ActivityLog> activityLogs = _activityLogRepository.getByDateOnly(date, user.getId());
+        for (ActivityLog activityLog : activityLogs) {
+            ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
+            activityLogResponses.add(response);
+        }
+        return activityLogResponses;
     }
 }

@@ -3,6 +3,7 @@ package rs.logistics.logistics_system.service.implementation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.dto.update.StockMovementUpdate;
@@ -12,9 +13,11 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.StockMovementMapper;
 import rs.logistics.logistics_system.repository.*;
+import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,6 +32,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final UserRepository _userRepository;
 
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
+    private final ActivityLogServiceDefinition activityLogService;
 
 
     @Override
@@ -76,6 +80,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         StockMovement stockMovement = StockMovementMapper.toEntity(dto, warehouse, product, user);
         StockMovement saved = _stockMovementRepository.save(stockMovement);
+
+        activityLogService.create(new ActivityLogCreate(
+                "CREATE",
+                "STOCK_MOVEMENT",
+                saved.getId(),
+                "STOCK_MOVEMENT is created (ID: " + saved.getId() + ")",
+                LocalDateTime.now(),
+                saved.getId()
+        ));
+
         return StockMovementMapper.toResponse(saved);
     }
 
@@ -88,9 +102,17 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         StockMovementMapper.updateEntity(stockMovement, dto, warehouse, product, user);
         StockMovement saved = _stockMovementRepository.save(stockMovement);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "STOCK_MOVEMENT",
+                saved.getId(),
+                "STOCK_MOVEMENT is updated (ID: " + saved.getId() + ")",
+                LocalDateTime.now(),
+                saved.getId()
+        ));
+
         return StockMovementMapper.toResponse(saved);
-
-
     }
 
     @Override
@@ -110,10 +132,18 @@ public class StockMovementService implements StockMovementServiceDefinition {
         _stockMovementRepository.delete(stockMovement);
     }
 
-    // helpers
 
     private void increaseInventory(WarehouseInventory inventory, BigDecimal quantity){
         inventory.setQuantity(inventory.getQuantity().add(quantity));
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "STOCK_MOVEMENT",
+                inventory.getWarehouse().getId(),
+                "Inventory increased of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
+                LocalDateTime.now(),
+                inventory.getWarehouse().getId()
+        ));
     }
 
     private void decreaseInventory(WarehouseInventory inventory, BigDecimal quantity){
@@ -122,11 +152,31 @@ public class StockMovementService implements StockMovementServiceDefinition {
         }
 
         inventory.setQuantity(inventory.getQuantity().subtract(quantity));
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "STOCK_MOVEMENT",
+                inventory.getWarehouse().getId(),
+                "Inventory decreased of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
+                LocalDateTime.now(),
+                inventory.getWarehouse().getId()
+        ));
     }
 
     private void adjustInventory(WarehouseInventory inventory, BigDecimal quantity){
         inventory.setQuantity(quantity);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "STOCK_MOVEMENT",
+                inventory.getWarehouse().getId(),
+                "Inventory adjusted of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
+                LocalDateTime.now(),
+                inventory.getWarehouse().getId()
+        ));
     }
+
+    // helpers
 
     private void checkMovementQuantity(BigDecimal quantity){
         if(quantity == null ||  quantity.compareTo(BigDecimal.ZERO) <= 0){

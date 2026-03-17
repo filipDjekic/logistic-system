@@ -51,4 +51,16 @@ public class UserController {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/disable")
+    public ResponseEntity<Void> disableUser(@PathVariable Long id) {
+        userService.disableUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/change_password")
+    public ResponseEntity<Void> changePassword(@PathVariable Long id, @RequestBody String newPassword) {
+        userService.changePassword(id, newPassword);
+        return ResponseEntity.noContent().build();
+    }
 }

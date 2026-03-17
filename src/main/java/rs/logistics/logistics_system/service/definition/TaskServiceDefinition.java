@@ -22,4 +22,6 @@ public interface TaskServiceDefinition {
     void delete(Long id);
 
     TaskResponse changeStatus(Long id, TaskStatus status);
+
+    TaskResponse assignTask(Long id, Long employeeId);
 }
