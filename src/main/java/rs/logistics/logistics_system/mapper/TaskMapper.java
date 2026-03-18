@@ -40,7 +40,7 @@ public class TaskMapper {
                 task.getPriority(),
                 task.getStatus(),
                 task.getAssignedEmployee().getId(),
-                task.getTransportOrder().getId()
+                task.getTransportOrder() != null ? task.getTransportOrder().getId() : null
         );
         return taskResponse;
     }

@@ -8,6 +8,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import rs.logistics.logistics_system.dto.create.EmployeeCreate;
 import rs.logistics.logistics_system.dto.response.EmployeeResponse;
+import rs.logistics.logistics_system.dto.response.ShiftResponse;
+import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
@@ -38,6 +40,18 @@ public class EmployeeController {
     public ResponseEntity<EmployeeResponse> getById(@PathVariable Long id) {
         EmployeeResponse response = employeeService.getById(id);
         return new  ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/tasks")
+    public ResponseEntity<List<TaskResponse>> getTasksByEmployeeId(@PathVariable Long id) {
+        List<TaskResponse> response = employeeService.getTasksByEmployeeId(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/shifts")
+    public ResponseEntity<List<ShiftResponse>> getShiftsByEmployeeId(@PathVariable Long id) {
+        List<ShiftResponse> response = employeeService.getShiftsByEmployeeId(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping
