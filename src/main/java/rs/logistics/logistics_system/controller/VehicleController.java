@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
+import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
 
 import java.util.List;
@@ -45,9 +46,15 @@ public class VehicleController {
         return new ResponseEntity<>(vehicleResponse, HttpStatus.OK);
     }
 
-    @DeleteMapping
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
         vehicleService.delete(id);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<VehicleResponse> changeStatus(@PathVariable Long id, @RequestParam VehicleStatus status) {
+        VehicleResponse response = vehicleService.changeStatus(id, status);
+        return ResponseEntity.ok(response);
     }
 }

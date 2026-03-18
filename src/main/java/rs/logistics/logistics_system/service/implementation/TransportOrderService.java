@@ -12,6 +12,7 @@ import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
 import rs.logistics.logistics_system.entity.*;
 import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
+import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
@@ -64,6 +65,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
 
+        validateVehicleStatus(vehicle);
         checkVehicleAvailability(vehicle.getId());
         checkDriverAvailability(assignedEmployee.getId());
 
@@ -153,6 +155,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         // end
 
+        if(transportOrder.getStatus() == TransportOrderStatus.ASSIGNED || transportOrder.getStatus() == TransportOrderStatus.IN_TRANSIT){
+            validateVehicleStatus(vehicle);
+        }
+
         checkVehicleAvailabilityForUpdate(vehicle.getId(), transportOrder.getId());
         checkDriverAvailabilityForUpdate(assignedEmployee.getId(), transportOrder.getId());
 
@@ -215,6 +221,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         TransportOrderStatus current = transportOrder.getStatus();
 
         if (status == TransportOrderStatus.ASSIGNED || status == TransportOrderStatus.IN_TRANSIT) {
+            validateVehicleStatus(transportOrder.getVehicle());
             checkVehicleAvailabilityForUpdate(transportOrder.getVehicle().getId(), transportOrder.getId());
             checkDriverAvailabilityForUpdate(transportOrder.getAssignedEmployee().getId(), transportOrder.getId());
         }
@@ -250,6 +257,15 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 throw new BadRequestException("Transport order cannot be changed at all");
         }
 
+        if (status == TransportOrderStatus.ASSIGNED || status == TransportOrderStatus.IN_TRANSIT) {
+            transportOrder.getVehicle().setStatus(VehicleStatus.IN_USE);
+        }
+
+        if (status == TransportOrderStatus.DELIVERED || status == TransportOrderStatus.CANCELLED) {
+            transportOrder.getVehicle().setStatus(VehicleStatus.AVAILABLE);
+        }
+
+        _vehicleRepository.save(transportOrder.getVehicle());
 
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
 
@@ -298,6 +314,12 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private void checkDriverAvailabilityForUpdate(Long employeeId, Long transportOrderId) {
         if (_transportOrderRepository.existsByAssignedEmployeeIdAndStatusInAndIdNot(employeeId, ACTIVE_STATUSES, transportOrderId)) {
             throw new BadRequestException("Driver is already assigned to another active transport order");
+        }
+    }
+
+    private void validateVehicleStatus(Vehicle vehicle) {
+        if (vehicle.getStatus() != VehicleStatus.AVAILABLE) {
+            throw new BadRequestException("Vehicle is not available for assignment");
         }
     }
 }
