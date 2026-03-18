@@ -5,6 +5,8 @@ import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ShiftServiceDefinition {
@@ -18,4 +20,6 @@ public interface ShiftServiceDefinition {
     List<ShiftResponse> getAll();
 
     void delete(Long id);
+
+    List<ShiftResponse> getShiftsByDate(LocalDate date);
 }
