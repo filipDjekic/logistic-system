@@ -13,6 +13,7 @@ import rs.logistics.logistics_system.repository.ChangeHistoryRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,6 +48,30 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
     public ChangeHistoryResponse getById(Long id) {
         ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Change history not found"));
         return ChangeHistoryMapper.toResponse(changeHistory);
+    }
+
+    @Override
+    public List<ChangeHistoryResponse> getByEntityName(String entityName) {
+        List<ChangeHistory> changeHistory = _changeHistoryRepository.findByEntityName(entityName);
+        return changeHistory.stream().map(ChangeHistoryMapper::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ChangeHistoryResponse> getByEntityId(Long entityId) {
+        List<ChangeHistory> changeHistory = _changeHistoryRepository.findByEntityId(entityId);
+        return changeHistory.stream().map(ChangeHistoryMapper::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ChangeHistoryResponse> getByUserId(Long userId) {
+        List<ChangeHistory> changeHistory = _changeHistoryRepository.findByChangedById(userId);
+        return changeHistory.stream().map(ChangeHistoryMapper::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ChangeHistoryResponse> getByBetweenDate(LocalDateTime start, LocalDateTime end) {
+        List<ChangeHistory>  changeHistory = _changeHistoryRepository.findByChangedAtBetween(start, end);
+        return changeHistory.stream().map(ChangeHistoryMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override

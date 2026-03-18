@@ -4,6 +4,7 @@ import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
 import rs.logistics.logistics_system.dto.update.ChangeHistoryUpdate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ChangeHistoryServiceDefinition {
@@ -17,4 +18,12 @@ public interface ChangeHistoryServiceDefinition {
     List<ChangeHistoryResponse> getAll();
 
     void delete(Long id);
+
+    List<ChangeHistoryResponse> getByEntityName(String entityName);
+
+    List<ChangeHistoryResponse> getByEntityId(Long entityId);
+
+    List<ChangeHistoryResponse> getByUserId(Long userId);
+
+    List<ChangeHistoryResponse> getByBetweenDate(LocalDateTime start, LocalDateTime end);
 }

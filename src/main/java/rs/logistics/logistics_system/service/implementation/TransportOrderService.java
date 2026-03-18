@@ -5,16 +5,19 @@ import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
+import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
 import rs.logistics.logistics_system.entity.*;
+import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.repository.*;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
+import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
 
 import java.math.BigDecimal;
@@ -33,6 +36,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
     private static final List<TransportOrderStatus> ACTIVE_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
     private final ActivityLogServiceDefinition activityLogService;
+    private final ChangeHistoryServiceDefinition changeHistoryService;
 
 
     @Override
@@ -79,6 +83,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 saved.getCreatedBy().getId()
         ));
 
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "TRANSPORT_ORDER",
+                saved.getId(),
+                ChangeType.CREATE,
+                " ",
+                " ",
+                " ",
+                saved.getCreatedBy().getId()
+        ));
+
         return TransportOrderMapper.toResponse(saved);
 
     }
@@ -111,6 +125,34 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
+        // change history part
+
+        if(dto.getAssignedEmployeeId().equals(transportOrder.getAssignedEmployee().getId())){
+            changeHistoryService.create(new ChangeHistoryCreate(
+                    "TRANSPORT_ORDER",
+                    transportOrder.getId(),
+                    ChangeType.UPDATE,
+                    "assignedEmployee",
+                    transportOrder.getAssignedEmployee().getId().toString(),
+                    dto.getAssignedEmployeeId().toString(),
+                    transportOrder.getId()
+            ));
+        }
+
+        if(dto.getVehicleId().equals(transportOrder.getVehicle().getId())){
+            changeHistoryService.create(new ChangeHistoryCreate(
+                    "TRANSPORT_ORDER",
+                    transportOrder.getId(),
+                    ChangeType.UPDATE,
+                    "vehicle",
+                    transportOrder.getVehicle().getId().toString(),
+                    dto.getVehicleId().toString(),
+                    transportOrder.getId()
+            ));
+        }
+
+        // end
+
         checkVehicleAvailabilityForUpdate(vehicle.getId(), transportOrder.getId());
         checkDriverAvailabilityForUpdate(assignedEmployee.getId(), transportOrder.getId());
 
@@ -126,6 +168,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 LocalDateTime.now(),
                 updated.getCreatedBy().getId()
         ));
+
+
 
         return TransportOrderMapper.toResponse(updated);
     }
@@ -151,6 +195,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 id,
                 "TRANSPORT ORDER is deleted (ID: " + id + ")",
                 LocalDateTime.now(),
+                id
+        ));
+
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "TRANSPORT_ORDER",
+                id,
+                ChangeType.DELETE,
+                " ",
+                " ",
+                " ",
                 id
         ));
     }
@@ -206,6 +260,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT ORDER status changed (ID: " + saved.getId() + ")",
                 LocalDateTime.now(),
                 saved.getCreatedBy().getId()
+        ));
+
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "TRANSPORT_ORDER",
+                id,
+                ChangeType.STATUS_CHANGE,
+                "status",
+                current.toString(),
+                saved.getStatus().toString(),
+                id
         ));
 
         return TransportOrderMapper.toResponse(saved);

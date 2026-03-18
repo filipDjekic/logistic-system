@@ -3,12 +3,14 @@ package rs.logistics.logistics_system.service.implementation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
+import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
@@ -18,6 +20,7 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
+import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 
 import java.time.LocalDateTime;
@@ -33,6 +36,7 @@ public class TaskService implements TaskServiceDefinition {
     private final TransportOrderRepository _transportOrderRepository;
 
     private final ActivityLogServiceDefinition activityLogService;
+    private final ChangeHistoryServiceDefinition changeHistoryService;
 
     @Override
     public TaskResponse create(TaskCreate dto) {
@@ -57,6 +61,16 @@ public class TaskService implements TaskServiceDefinition {
                 saved.getId()
         ));
 
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "TASK",
+                saved.getId(),
+                ChangeType.CREATE,
+                " ",
+                " ",
+                " ",
+                saved.getAssignedEmployee().getId()
+        ));
+
         return TaskMapper.toResponse(saved);
     }
 
@@ -66,6 +80,47 @@ public class TaskService implements TaskServiceDefinition {
         TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
 
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+
+        // change history part
+
+        if(task.getAssignedEmployee().getId().equals(employee.getId())) {
+            changeHistoryService.create(new ChangeHistoryCreate(
+                    "TASK",
+                    task.getId(),
+                    ChangeType.UPDATE,
+                    "assignedEmployee",
+                    task.getAssignedEmployee().getId().toString(),
+                    dto.getAssignedEmployeeId().toString(),
+                    task.getId()
+            ));
+        }
+
+        if(task.getDueDate().isBefore(LocalDateTime.now())){
+            changeHistoryService.create(new ChangeHistoryCreate(
+                    "TASK",
+                    task.getId(),
+                    ChangeType.UPDATE,
+                    "dueDate",
+                    task.getDueDate().toString(),
+                    dto.getDueDate().toString(),
+                    task.getId()
+            ));
+        }
+
+        if(task.getPriority().equals(dto.getPriority())){
+            changeHistoryService.create(new ChangeHistoryCreate(
+                    "TASK",
+                    task.getId(),
+                    ChangeType.UPDATE,
+                    "priority",
+                    task.getPriority().toString(),
+                    dto.getPriority().toString(),
+                    task.getId()
+            ));
+        }
+
+        // end
+
         TaskMapper.updateEntity(task, dto, employee, transportOrder);
         Task saved =  _taskRepository.save(task);
 

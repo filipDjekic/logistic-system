@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import rs.logistics.logistics_system.entity.ChangeHistory;
+import rs.logistics.logistics_system.entity.User;
 
 import java.time.LocalDateTime;
 import java.util.List;

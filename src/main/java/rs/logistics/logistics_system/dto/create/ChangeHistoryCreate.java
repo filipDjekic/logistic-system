@@ -38,7 +38,13 @@ public class ChangeHistoryCreate {
     @NotNull
     private Long userId;
 
-    public ChangeHistoryCreate(String entityName, Long entityId, ChangeType changeType, String fieldName, String oldValue, String newValue, Long userId) {
+    public ChangeHistoryCreate(String entityName,
+                               Long entityId,
+                               ChangeType changeType,
+                               String fieldName,
+                               String oldValue,
+                               String newValue,
+                               Long userId) {
         this.entityName = entityName;
         this.entityId = entityId;
         this.changeType = changeType;

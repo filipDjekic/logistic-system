@@ -4,16 +4,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
+import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.UserMapper;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
+import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
 import java.time.LocalDateTime;
@@ -28,6 +31,7 @@ public class UserService implements UserServiceDefinition {
     private final RoleRepository _roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final ActivityLogServiceDefinition activityLogService;
+    private final ChangeHistoryServiceDefinition changeHistoryService;
 
     @Override
     public UserResponse create(UserCreate dto) {
@@ -107,11 +111,24 @@ public class UserService implements UserServiceDefinition {
                 LocalDateTime.now(),
                 id
         ));
+
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "USER",
+                id,
+                ChangeType.STATUS_CHANGE,
+                "enabled",
+                "true",
+                "false",
+                id
+        ));
     }
 
     @Override
     public void changePassword(Long id, String newPassword) {
         User user =  _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+
+        String oldPassword = user.getPassword();
+
         user.setPassword(passwordEncoder.encode(newPassword));
         _userRepository.save(user);
         activityLogService.create(new ActivityLogCreate(
@@ -120,6 +137,16 @@ public class UserService implements UserServiceDefinition {
                 id,
                 "USER password is updated (ID: " + id + ")",
                 LocalDateTime.now(),
+                id
+        ));
+
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "USER",
+                id,
+                ChangeType.UPDATE,
+                "password",
+                oldPassword,
+                newPassword,
                 id
         ));
     }
