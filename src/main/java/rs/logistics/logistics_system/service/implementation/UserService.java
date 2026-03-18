@@ -3,6 +3,7 @@ package rs.logistics.logistics_system.service.implementation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import rs.logistics.logistics_system.dto.auth.ChangePasswordRequest;
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.create.UserCreate;
@@ -11,6 +12,7 @@ import rs.logistics.logistics_system.dto.update.UserUpdate;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.ChangeType;
+import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.UserMapper;
 import rs.logistics.logistics_system.repository.RoleRepository;
@@ -56,7 +58,6 @@ public class UserService implements UserServiceDefinition {
     public UserResponse update(Long id, UserUpdate dto) {
         Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         UserMapper.updateEntity(user, dto, role);
         User updatedUser = _userRepository.save(user);
 
@@ -99,6 +100,37 @@ public class UserService implements UserServiceDefinition {
     }
 
     @Override
+    public void enableUser(Long id) {
+        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+
+        if (Boolean.TRUE.equals(user.getEnabled())) {
+            throw new BadRequestException("User is already enabled");
+        }
+
+        user.setEnabled(true);
+        _userRepository.save(user);
+
+        activityLogService.create(new ActivityLogCreate(
+                "STATUS_CHANGE",
+                "USER",
+                id,
+                "USER is enabled (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
+
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "USER",
+                id,
+                ChangeType.STATUS_CHANGE,
+                "enabled",
+                "false",
+                "true",
+                id
+        ));
+    }
+
+    @Override
     public void disableUser(Long id) {
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
         user.setEnabled(false);
@@ -124,13 +156,24 @@ public class UserService implements UserServiceDefinition {
     }
 
     @Override
-    public void changePassword(Long id, String newPassword) {
-        User user =  _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+    public void changePassword(Long id, ChangePasswordRequest request) {
+        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
 
-        String oldPassword = user.getPassword();
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
 
-        user.setPassword(passwordEncoder.encode(newPassword));
+        if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            throw new BadRequestException("New password and confirm password do not match");
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         _userRepository.save(user);
+
         activityLogService.create(new ActivityLogCreate(
                 "UPDATE_PASSWORD",
                 "USER",
@@ -145,9 +188,60 @@ public class UserService implements UserServiceDefinition {
                 id,
                 ChangeType.UPDATE,
                 "password",
-                oldPassword,
-                newPassword,
+                "[PROTECTED]",
+                "[PROTECTED]",
                 id
         ));
+    }
+
+    @Override
+    public UserResponse assignRole(Long id, Long roleId) {
+        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+
+        Role newRole = _roleRepository.findById(roleId).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
+
+        String oldRole = user.getRole().getName();
+
+        if (user.getRole().getId().equals(roleId)) {
+            throw new BadRequestException("User already has this role");
+        }
+
+        user.setRole(newRole);
+        User updatedUser = _userRepository.save(user);
+
+        activityLogService.create(new ActivityLogCreate(
+                "ASSIGN_ROLE",
+                "USER",
+                id,
+                "USER role changed from " + oldRole + " to " + newRole.getName() + " (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
+
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "USER",
+                id,
+                ChangeType.UPDATE,
+                "role",
+                oldRole,
+                newRole.getName(),
+                id
+        ));
+
+        return UserMapper.toResponse(updatedUser);
+    }
+
+    // helpers
+
+    private void validateUniqueEmail(String email){
+        if(_userRepository.existsByEmail(email)){
+            throw new BadRequestException("Email already exists");
+        }
+    }
+
+    private void validateEmailForUpdate(User user, String email){
+        if(!user.getEmail().equals(email) && _userRepository.existsByEmail(email)){
+            throw new BadRequestException("Email already exists");
+        }
     }
 }

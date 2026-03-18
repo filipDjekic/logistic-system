@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.service.definition;
 
+import rs.logistics.logistics_system.dto.auth.ChangePasswordRequest;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
@@ -19,7 +20,12 @@ public interface UserServiceDefinition {
 
     void delete(Long id);
 
+    void enableUser(Long id);
+
     void disableUser(Long id);
 
-    void changePassword(Long id, String newPassword);
+    void changePassword(Long id, ChangePasswordRequest request);
+
+    UserResponse assignRole(Long id, Long roleId);
+
 }

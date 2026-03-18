@@ -6,6 +6,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.enums.UserStatus;
 import rs.logistics.logistics_system.repository.UserRepository;
 
 @Service
@@ -23,6 +24,8 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .username(user.getUsername())
                 .password(user.getPassword())
                 .authorities("ROLE_" + user.getRole().getName())
+                .disabled(Boolean.FALSE.equals(user.getEnabled()))
+                .accountLocked(user.getStatus() == UserStatus.BLOCKED)
                 .build();
     }
 }

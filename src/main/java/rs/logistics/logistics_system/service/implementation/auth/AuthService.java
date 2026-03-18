@@ -9,6 +9,8 @@ import rs.logistics.logistics_system.dto.auth.LoginResponse;
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.entity.ActivityLog;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.enums.UserStatus;
+import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.ActivityLogRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
@@ -30,6 +32,15 @@ public class AuthService implements AuthServiceDefinition {
 
     @Override
     public LoginResponse login(LoginRequest request) {
+        User user = userRepository.findByUsername(request.getUsername()).orElseThrow(() -> new ResourceNotFoundException("Username not found"));
+
+        if (Boolean.FALSE.equals(user.getEnabled())) {
+            throw new BadRequestException("User account is disabled");
+        }
+
+        if (user.getStatus() == UserStatus.BLOCKED || user.getStatus() == UserStatus.INACTIVE) {
+            throw new BadRequestException("User account is not active");
+        }
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -38,15 +49,13 @@ public class AuthService implements AuthServiceDefinition {
                 )
         );
 
-        User user = userRepository.findByUsername(request.getUsername()).orElseThrow(() -> new ResourceNotFoundException("Username not found"));
-
         String token = jwtService.generateToken(user.getUsername());
 
         activityLogService.create(new ActivityLogCreate(
                 "LOGIN",
                 "USER",
                 user.getId(),
-                "User with ID: " + user.getId() + "successfully logged in",
+                "User with ID: " + user.getId() + " successfully logged in",
                 LocalDateTime.now(),
                 user.getId()
         ));
