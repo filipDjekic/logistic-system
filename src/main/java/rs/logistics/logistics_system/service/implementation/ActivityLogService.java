@@ -79,7 +79,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     public List<ActivityLogResponse> getByAction(String action, Long userId) {
         User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
-        for (ActivityLog activityLog : _activityLogRepository.findByAction(action, user.getId())) {
+        for (ActivityLog activityLog : _activityLogRepository.findByActionAndUserId(action, user.getId())) {
             ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
             activityLogResponses.add(response);
         }
@@ -90,7 +90,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     public List<ActivityLogResponse> getByEntityName(String entityName, Long userId) {
         User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
-        for (ActivityLog activityLog : _activityLogRepository.findByEntityName(entityName, user.getId())) {
+        for (ActivityLog activityLog : _activityLogRepository.findByEntityNameAndUserId(entityName, user.getId())) {
             ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
             activityLogResponses.add(response);
         }
@@ -101,7 +101,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     public List<ActivityLogResponse> getBetweenDates(LocalDateTime start, LocalDateTime end, Long userId) {
         User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
-        List<ActivityLog> activityLogs = _activityLogRepository.findByCreatedAtBetween(start, end, user.getId());
+        List<ActivityLog> activityLogs = _activityLogRepository.findByCreatedAtBetweenAndUserId(start, end, user.getId());
         for (ActivityLog activityLog : activityLogs) {
             ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
             activityLogResponses.add(response);
@@ -113,7 +113,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     public List<ActivityLogResponse> getBeforeDate(LocalDateTime date, Long userId) {
         User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
-        List<ActivityLog> activityLogs = _activityLogRepository.getByDateBefore(date, user.getId());
+        List<ActivityLog> activityLogs = _activityLogRepository.findByCreatedAtBeforeAndUserId(date, user.getId());
         for (ActivityLog activityLog : activityLogs) {
             ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
             activityLogResponses.add(response);
@@ -125,19 +125,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     public List<ActivityLogResponse> getAfterDate(LocalDateTime date, Long userId) {
         User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
-        List<ActivityLog> activityLogs = _activityLogRepository.getByDateAfter(date, user.getId());
-        for (ActivityLog activityLog : activityLogs) {
-            ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
-            activityLogResponses.add(response);
-        }
-        return activityLogResponses;
-    }
-
-    @Override
-    public List<ActivityLogResponse> getByDate(LocalDateTime date, Long userId) {
-        User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        List<ActivityLogResponse> activityLogResponses = new ArrayList<>();
-        List<ActivityLog> activityLogs = _activityLogRepository.getByDateOnly(date, user.getId());
+        List<ActivityLog> activityLogs = _activityLogRepository.findByCreatedAtAfterAndUserId(date, user.getId());
         for (ActivityLog activityLog : activityLogs) {
             ActivityLogResponse response = ActivityLogMapper.toResponse(activityLog);
             activityLogResponses.add(response);

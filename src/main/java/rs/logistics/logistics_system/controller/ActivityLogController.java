@@ -65,27 +65,28 @@ public class ActivityLogController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @GetMapping("/user/{id}/{start_date}/{end_date}")
-    public ResponseEntity<List<ActivityLogResponse>> getBetweenDate(@PathVariable Long id, @PathVariable LocalDateTime start_date, @PathVariable LocalDateTime end_date){
-        List<ActivityLogResponse> response = activityLogService.getBetweenDates(start_date, end_date, id);
+    @GetMapping("/user/{id}/before")
+    public ResponseEntity<List<ActivityLogResponse>> getByDateBefore(
+            @PathVariable Long id,
+            @RequestParam LocalDateTime date) {
+        List<ActivityLogResponse> response = activityLogService.getBeforeDate(date, id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @GetMapping("/user/{id}/{date}")
-    public ResponseEntity<List<ActivityLogResponse>> getByDate(@PathVariable Long id, @PathVariable LocalDateTime date){
-        List<ActivityLogResponse> response = activityLogService.getByDate(date, id);
+    @GetMapping("/user/{id}/after")
+    public ResponseEntity<List<ActivityLogResponse>> getByDateAfter(
+            @PathVariable Long id,
+            @RequestParam LocalDateTime date) {
+        List<ActivityLogResponse> response = activityLogService.getAfterDate(date, id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @GetMapping("/user/{id}/{before_date}")
-    public ResponseEntity<List<ActivityLogResponse>> getBeforeDate(@PathVariable Long id, @PathVariable LocalDateTime before_date){
-        List<ActivityLogResponse> response = activityLogService.getBeforeDate(before_date, id);
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
-    @GetMapping("/user/{id}/{after_date}")
-    public ResponseEntity<List<ActivityLogResponse>> getAfterDate(@PathVariable Long id, @PathVariable LocalDateTime after_date){
-        List<ActivityLogResponse> response = activityLogService.getAfterDate(after_date, id);
+    @GetMapping("/user/{id}/between")
+    public ResponseEntity<List<ActivityLogResponse>> getByDateBetween(
+            @PathVariable Long id,
+            @RequestParam LocalDateTime start,
+            @RequestParam LocalDateTime end) {
+        List<ActivityLogResponse> response = activityLogService.getBetweenDates(start, end, id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

@@ -30,6 +30,4 @@ public interface ActivityLogServiceDefinition {
     List<ActivityLogResponse> getBeforeDate(LocalDateTime date, Long userId);
 
     List<ActivityLogResponse> getAfterDate(LocalDateTime date, Long userId);
-
-    List<ActivityLogResponse> getByDate(LocalDateTime date, Long userId);
 }
