@@ -37,7 +37,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         checkIfExists(dto.getWarehouseId(), dto.getProductId());
         checkQuantity(dto.getQuantity());
         checkReservedQuantity(dto.getReservedQuantity());
-        checkIfQuantityLessThanReserved(dto.getReservedQuantity(), dto.getQuantity());
+        checkIfQuantityLessThanReserved(dto.getQuantity(), dto.getReservedQuantity());
 
         WarehouseInventory warehouseInventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
         warehouseInventoryRepository.save(warehouseInventory);
@@ -52,7 +52,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         checkQuantity(dto.getQuantity());
         checkReservedQuantity(dto.getReservedQuantity());
-        checkIfQuantityLessThanReserved(dto.getReservedQuantity(), dto.getQuantity());
+        checkIfQuantityLessThanReserved(dto.getQuantity(), dto.getReservedQuantity());
 
         WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
         warehouseInventoryRepository.save(inventory);

@@ -29,4 +29,8 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     boolean existsByAssignedEmployeeIdAndStatusInAndIdNot(Long employeeId, List<TransportOrderStatus> statuses, Long id);
 
+    List<TransportOrder> findBySourceWarehouseId(Long warehouseId);
+
+    List<TransportOrder> findByDestinationWarehouseId(Long warehouseId);
+
 }

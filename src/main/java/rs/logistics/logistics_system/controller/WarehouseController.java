@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
+import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
+import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
 import rs.logistics.logistics_system.entity.Employee;
@@ -30,7 +32,7 @@ public class WarehouseController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<WarehouseResponse> update(@PathVariable Long id, @RequestBody WarehouseUpdate dto) {
+    public ResponseEntity<WarehouseResponse> update(@PathVariable Long id,@Valid @RequestBody WarehouseUpdate dto) {
         WarehouseResponse warehouseResponse = warehouseService.update(id, dto);
         return new ResponseEntity<>(warehouseResponse, HttpStatus.OK);
     }
@@ -51,5 +53,25 @@ public class WarehouseController {
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         warehouseService.delete(id);
         return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @GetMapping("/{id}/inventory")
+    public ResponseEntity<List<WarehouseInventoryResponse>> getInventoryByWarehouse(@PathVariable Long id) {
+        return ResponseEntity.ok(warehouseService.getInventoryByWarehouse(id));
+    }
+
+    @GetMapping("/{id}/outgoing-transports")
+    public ResponseEntity<List<TransportOrderResponse>> getOutgoingTransports(@PathVariable Long id) {
+        return ResponseEntity.ok(warehouseService.getOutgoingTransportOrders(id));
+    }
+
+    @GetMapping("/{id}/incoming-transports")
+    public ResponseEntity<List<TransportOrderResponse>> getIncomingTransports(@PathVariable Long id) {
+        return ResponseEntity.ok(warehouseService.getIncomingTransportOrders(id));
+    }
+
+    @GetMapping("/manager/{managerId}")
+    public ResponseEntity<List<WarehouseResponse>> getByManager(@PathVariable Long managerId) {
+        return ResponseEntity.ok(warehouseService.getByManager(managerId));
     }
 }
