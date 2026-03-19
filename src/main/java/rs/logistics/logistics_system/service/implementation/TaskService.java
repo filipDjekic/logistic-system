@@ -65,9 +65,9 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 saved.getId(),
                 ChangeType.CREATE,
+                "ENTITY",
                 " ",
-                " ",
-                " ",
+                "INITIAL_STATE",
                 saved.getAssignedEmployee().getId()
         ));
 
@@ -83,7 +83,7 @@ public class TaskService implements TaskServiceDefinition {
 
         // change history part
 
-        if(task.getAssignedEmployee().getId().equals(employee.getId())) {
+        if(!task.getAssignedEmployee().getId().equals(employee.getId())) {
             changeHistoryService.create(new ChangeHistoryCreate(
                     "TASK",
                     task.getId(),
@@ -95,7 +95,7 @@ public class TaskService implements TaskServiceDefinition {
             ));
         }
 
-        if(task.getDueDate().isBefore(LocalDateTime.now())){
+        if(!task.getDueDate().equals(LocalDateTime.now())){
             changeHistoryService.create(new ChangeHistoryCreate(
                     "TASK",
                     task.getId(),
@@ -107,7 +107,7 @@ public class TaskService implements TaskServiceDefinition {
             ));
         }
 
-        if(task.getPriority().equals(dto.getPriority())){
+        if(!task.getPriority().equals(dto.getPriority())){
             changeHistoryService.create(new ChangeHistoryCreate(
                     "TASK",
                     task.getId(),
@@ -156,6 +156,15 @@ public class TaskService implements TaskServiceDefinition {
                 "DELETE",
                 "TASK",
                 id,
+                "TASK is deleted (ID: " + id + ")",
+                LocalDateTime.now(),
+                id
+        ));
+
+        activityLogService.create(new ActivityLogCreate(
+                "DELETE",
+                "TASK",
+                id,
                 "TASK is created (ID: " + id + ")",
                 LocalDateTime.now(),
                 id
@@ -183,11 +192,21 @@ public class TaskService implements TaskServiceDefinition {
                 else {
                     throw new BadRequestException("Task is already in progress");
                 }
+                break;
             case CANCELLED:
                 throw new BadRequestException("Task is already cancelled");
             case COMPLETED:
                 throw new BadRequestException("Task is already completed");
         }
+
+        activityLogService.create(new ActivityLogCreate(
+                "STATUS_CHANGE",
+                "TASK",
+                task.getId(),
+                "TASK status changed (ID: " + task.getId() + ")",
+                LocalDateTime.now(),
+                task.getId()
+        ));
 
         Task saved = _taskRepository.save(task);
 
@@ -214,10 +233,19 @@ public class TaskService implements TaskServiceDefinition {
         _taskRepository.save(task);
 
         activityLogService.create(new ActivityLogCreate(
+                "ASSIGNED",
+                "TASK",
+                task.getId(),
+                "TASK assigned (ID: " + task.getId() + ") to employee " + employee.getId().toString(),
+                LocalDateTime.now(),
+                task.getId()
+        ));
+
+        activityLogService.create(new ActivityLogCreate(
                 "ASSIGN",
                 "TASK",
                 id,
-                "TASK is assigned (ID: " + id + ")",
+                "TASK is assigned (ID: " + id + ") to employee " + employee.getId().toString(),
                 LocalDateTime.now(),
                 id
         ));

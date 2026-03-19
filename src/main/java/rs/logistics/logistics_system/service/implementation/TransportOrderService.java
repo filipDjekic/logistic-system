@@ -89,7 +89,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 saved.getId(),
                 ChangeType.CREATE,
-                " ",
+                "ENTITY",
                 " ",
                 " ",
                 saved.getCreatedBy().getId()
@@ -129,7 +129,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         // change history part
 
-        if(dto.getAssignedEmployeeId().equals(transportOrder.getAssignedEmployee().getId())){
+        if(!dto.getAssignedEmployeeId().equals(transportOrder.getAssignedEmployee().getId())){
             changeHistoryService.create(new ChangeHistoryCreate(
                     "TRANSPORT_ORDER",
                     transportOrder.getId(),
@@ -141,7 +141,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             ));
         }
 
-        if(dto.getVehicleId().equals(transportOrder.getVehicle().getId())){
+        if(!dto.getVehicleId().equals(transportOrder.getVehicle().getId())){
             changeHistoryService.create(new ChangeHistoryCreate(
                     "TRANSPORT_ORDER",
                     transportOrder.getId(),
@@ -285,7 +285,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "status",
                 current.toString(),
                 saved.getStatus().toString(),
-                id
+                saved.getCreatedBy().getId()
         ));
 
         return TransportOrderMapper.toResponse(saved);

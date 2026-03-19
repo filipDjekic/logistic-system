@@ -71,8 +71,8 @@ public class NotificationController {
     }
 
     @PatchMapping("/{id}/mark_all_as_read")
-    public ResponseEntity<NotificationResponse> markAllAsRead(@PathVariable Long id) {
+    public ResponseEntity<Void> markAllAsRead(@PathVariable Long id) {
         notificationService.markAllAsRead(id);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return ResponseEntity.noContent().build();
     }
 }

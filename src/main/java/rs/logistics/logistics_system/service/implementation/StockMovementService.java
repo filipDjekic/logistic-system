@@ -40,21 +40,22 @@ public class StockMovementService implements StockMovementServiceDefinition {
         Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        WarehouseInventory inventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
-                .orElseGet(() -> {
-                    if (dto.getMovementType() != StockMovementType.INBOUND) {
-                        throw new ResourceNotFoundException("Inventory not found");
-                    }
+        WarehouseInventory inventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId()).orElseGet(() -> {
 
-                    WarehouseInventory newInventory = new WarehouseInventory();
-                    newInventory.setWarehouse(warehouse);
-                    newInventory.setProduct(product);
-                    newInventory.setQuantity(BigDecimal.ZERO);
-                    newInventory.setReservedQuantity(BigDecimal.ZERO);
-                    newInventory.setMinStockLevel(BigDecimal.ZERO);
+            if (dto.getMovementType() != StockMovementType.INBOUND) {
+                throw new ResourceNotFoundException("Inventory not found");
+            }
 
-                    return _warehouseInventoryRepository.save(newInventory);
-                });
+            WarehouseInventory newInventory = new WarehouseInventory(
+                    warehouse,
+                    product,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO
+            );
+
+            return _warehouseInventoryRepository.save(newInventory);
+        });
 
         checkMovementQuantity(dto.getQuantity());
         switch(dto.getMovementType()) {
@@ -147,7 +148,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     }
 
     private void decreaseInventory(WarehouseInventory inventory, BigDecimal quantity){
-        if(inventory.getQuantity().compareTo(quantity) <= 0){
+        if(inventory.getQuantity().compareTo(quantity) < 0){
             throw new BadRequestException("Not enough in stock");
         }
 
@@ -179,7 +180,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     // helpers
 
     private void checkMovementQuantity(BigDecimal quantity){
-        if(quantity == null ||  quantity.compareTo(BigDecimal.ZERO) <= 0){
+        if(quantity == null ||  quantity.compareTo(BigDecimal.ZERO) < 0){
             throw new BadRequestException("Quantity must be greater than zero");
         }
     }
