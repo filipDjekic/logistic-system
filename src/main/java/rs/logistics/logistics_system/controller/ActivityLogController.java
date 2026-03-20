@@ -30,7 +30,7 @@ public class ActivityLogController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ActivityLogResponse> update(@PathVariable Long id, @RequestBody ActivityLogUpdate dto){
+    public ResponseEntity<ActivityLogResponse> update(@PathVariable Long id,@Valid @RequestBody ActivityLogUpdate dto){
         ActivityLogResponse response = activityLogService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

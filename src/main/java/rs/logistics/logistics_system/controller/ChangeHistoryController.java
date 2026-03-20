@@ -30,7 +30,7 @@ public class ChangeHistoryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ChangeHistoryResponse> update(@PathVariable Long id, @RequestBody ChangeHistoryUpdate dto){
+    public ResponseEntity<ChangeHistoryResponse> update(@PathVariable Long id,@Valid @RequestBody ChangeHistoryUpdate dto){
         ChangeHistoryResponse response = changeHistoryService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

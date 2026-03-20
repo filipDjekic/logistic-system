@@ -29,7 +29,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TaskResponse> update(@PathVariable Long id, @RequestBody TaskUpdate dto) {
+    public ResponseEntity<TaskResponse> update(@PathVariable Long id,@Valid @RequestBody TaskUpdate dto) {
         TaskResponse response = taskService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

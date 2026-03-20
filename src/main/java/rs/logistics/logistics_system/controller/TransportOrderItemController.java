@@ -30,7 +30,7 @@ public class TransportOrderItemController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TransportOrderItemResponse> updateTransportOrderItem(@PathVariable Long id, @RequestBody TransportOrderItemUpdate dto) {
+    public ResponseEntity<TransportOrderItemResponse> updateTransportOrderItem(@PathVariable Long id,@Valid @RequestBody TransportOrderItemUpdate dto) {
         TransportOrderItemResponse response = transportOrderItemService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

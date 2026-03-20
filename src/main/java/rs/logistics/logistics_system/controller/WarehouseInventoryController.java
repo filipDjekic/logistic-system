@@ -27,7 +27,7 @@ public class WarehouseInventoryController {
     }
 
     @PutMapping("/{warehouseId}/{productId}")
-    public ResponseEntity<WarehouseInventoryResponse> update(@PathVariable Long warehouseId,@PathVariable Long productId,@RequestBody WarehouseInventoryUpdate dto) {
+    public ResponseEntity<WarehouseInventoryResponse> update(@PathVariable Long warehouseId,@PathVariable Long productId,@Valid @RequestBody WarehouseInventoryUpdate dto) {
         return ResponseEntity.ok(warehouseInventoryService.update(warehouseId, productId, dto));
     }
 

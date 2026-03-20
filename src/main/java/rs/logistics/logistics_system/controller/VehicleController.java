@@ -29,7 +29,7 @@ public class VehicleController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<VehicleResponse> updateVehicle(@PathVariable Long id, @RequestBody VehicleUpdate dto) {
+    public ResponseEntity<VehicleResponse> updateVehicle(@PathVariable Long id,@Valid @RequestBody VehicleUpdate dto) {
         VehicleResponse vehicleResponse = vehicleService.update(id, dto);
         return new ResponseEntity<>(vehicleResponse, HttpStatus.OK);
     }

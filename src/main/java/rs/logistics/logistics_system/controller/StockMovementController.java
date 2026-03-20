@@ -30,7 +30,7 @@ public class StockMovementController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<StockMovementResponse> put(@PathVariable Long id, @RequestBody StockMovementUpdate dto) {
+    public ResponseEntity<StockMovementResponse> put(@PathVariable Long id,@Valid @RequestBody StockMovementUpdate dto) {
         StockMovementResponse response = stockMovementService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

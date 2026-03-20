@@ -1,5 +1,8 @@
 package rs.logistics.logistics_system.dto.update;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,11 +16,21 @@ public class TransportOrderItemUpdate {
 
     private Long id;
 
+    @NotNull
+    @Positive
     private BigDecimal quantity;
+
+    @NotNull
+    @Positive
     private BigDecimal weight;
+
+    @Size(min = 1, max = 255)
     private String note;
 
+    @NotNull
     private Long transportOrderId;
+
+    @NotNull
     private Long productId;
 
     public TransportOrderItemUpdate(Long id, BigDecimal quantity, BigDecimal weight, String note, Long transportOrderId, Long productId) {

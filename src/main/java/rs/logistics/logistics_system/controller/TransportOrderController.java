@@ -29,7 +29,7 @@ public class TransportOrderController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TransportOrderResponse> update(@PathVariable Long id, @RequestBody TransportOrderUpdate dto) {
+    public ResponseEntity<TransportOrderResponse> update(@PathVariable Long id,@Valid @RequestBody TransportOrderUpdate dto) {
         TransportOrderResponse response = transportOrderService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

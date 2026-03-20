@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.dto.update;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -9,7 +10,9 @@ import lombok.Setter;
 @NoArgsConstructor
 public class RoleUpdate {
 
+    @NotBlank
     private String name;
+
     private String description;
 
     public RoleUpdate(String name, String description) {

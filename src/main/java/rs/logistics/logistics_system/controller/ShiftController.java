@@ -31,7 +31,7 @@ public class ShiftController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ShiftResponse> updateShift(@PathVariable Long id, @RequestBody ShiftUpdate dto){
+    public ResponseEntity<ShiftResponse> updateShift(@PathVariable Long id,@Valid @RequestBody ShiftUpdate dto){
         ShiftResponse shiftResponse = shiftService.update(id, dto);
         return ResponseEntity.ok(shiftResponse);
     }

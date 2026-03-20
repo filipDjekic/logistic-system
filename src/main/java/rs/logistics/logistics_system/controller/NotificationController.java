@@ -29,7 +29,7 @@ public class NotificationController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<NotificationResponse> update(@PathVariable Long id, @RequestBody NotificationUpdate dto) {
+    public ResponseEntity<NotificationResponse> update(@PathVariable Long id,@Valid @RequestBody NotificationUpdate dto) {
         NotificationResponse response = notificationService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
