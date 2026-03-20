@@ -57,7 +57,6 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 saved.getId(),
                 "TASK is created (ID: " + saved.getId() + ")",
-                LocalDateTime.now(),
                 saved.getId()
         ));
 
@@ -129,7 +128,6 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 saved.getId(),
                 "TASK is updated (ID: " + saved.getId() + ")",
-                LocalDateTime.now(),
                 saved.getId()
         ));
 
@@ -157,7 +155,6 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 id,
                 "TASK is deleted (ID: " + id + ")",
-                LocalDateTime.now(),
                 id
         ));
 
@@ -166,7 +163,6 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 id,
                 "TASK is created (ID: " + id + ")",
-                LocalDateTime.now(),
                 id
         ));
     }
@@ -204,7 +200,6 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 task.getId(),
                 "TASK status changed (ID: " + task.getId() + ")",
-                LocalDateTime.now(),
                 task.getId()
         ));
 
@@ -215,7 +210,6 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 saved.getId(),
                 "TASK status is changed (ID: " + saved.getId() + ")",
-                LocalDateTime.now(),
                 saved.getId()
         ));
 
@@ -237,7 +231,6 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 task.getId(),
                 "TASK assigned (ID: " + task.getId() + ") to employee " + employee.getId().toString(),
-                LocalDateTime.now(),
                 task.getId()
         ));
 
@@ -246,7 +239,6 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 id,
                 "TASK is assigned (ID: " + id + ") to employee " + employee.getId().toString(),
-                LocalDateTime.now(),
                 id
         ));
 

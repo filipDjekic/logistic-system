@@ -81,7 +81,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 saved.getId(),
                 "TRANSPORT ORDER is created (ID: " + saved.getId() + ")",
-                LocalDateTime.now(),
                 saved.getCreatedBy().getId()
         ));
 
@@ -171,7 +170,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 updated.getId(),
                 "TRANSPORT ORDER is being updated (ID: " + updated.getId() + ")",
-                LocalDateTime.now(),
                 updated.getCreatedBy().getId()
         ));
 
@@ -200,7 +198,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 id,
                 "TRANSPORT ORDER is deleted (ID: " + id + ")",
-                LocalDateTime.now(),
                 id
         ));
 
@@ -274,7 +271,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 saved.getId(),
                 "TRANSPORT ORDER status changed (ID: " + saved.getId() + ")",
-                LocalDateTime.now(),
                 saved.getCreatedBy().getId()
         ));
 
@@ -286,6 +282,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 current.toString(),
                 saved.getStatus().toString(),
                 saved.getCreatedBy().getId()
+
         ));
 
         return TransportOrderMapper.toResponse(saved);

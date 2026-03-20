@@ -47,7 +47,6 @@ public class UserService implements UserServiceDefinition {
                 "USER",
                 savedUser.getId(),
                 "USER is created (ID: " + savedUser.getId() + ")",
-                LocalDateTime.now(),
                 savedUser.getId()
         ));
 
@@ -66,7 +65,6 @@ public class UserService implements UserServiceDefinition {
                 "USER",
                 updatedUser.getId(),
                 "USER is updated (ID: " + updatedUser.getId() + ")",
-                LocalDateTime.now(),
                 updatedUser.getId()
         ));
 
@@ -94,7 +92,6 @@ public class UserService implements UserServiceDefinition {
                 "USER",
                 id,
                 "USER is deleted (ID: " + id + ")",
-                LocalDateTime.now(),
                 id
         ));
     }
@@ -115,7 +112,6 @@ public class UserService implements UserServiceDefinition {
                 "USER",
                 id,
                 "USER is enabled (ID: " + id + ")",
-                LocalDateTime.now(),
                 id
         ));
 
@@ -140,7 +136,6 @@ public class UserService implements UserServiceDefinition {
                 "USER",
                 id,
                 "USER is disabled (ID: " + id + ")",
-                LocalDateTime.now(),
                 id
         ));
 
@@ -179,7 +174,6 @@ public class UserService implements UserServiceDefinition {
                 "USER",
                 id,
                 "USER password is updated (ID: " + id + ")",
-                LocalDateTime.now(),
                 id
         ));
 
@@ -214,7 +208,6 @@ public class UserService implements UserServiceDefinition {
                 "USER",
                 id,
                 "USER role changed from " + oldRole + " to " + newRole.getName() + " (ID: " + id + ")",
-                LocalDateTime.now(),
                 id
         ));
 

@@ -87,7 +87,6 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "STOCK_MOVEMENT",
                 saved.getId(),
                 "STOCK_MOVEMENT is created (ID: " + saved.getId() + ")",
-                LocalDateTime.now(),
                 saved.getId()
         ));
 
@@ -109,7 +108,6 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "STOCK_MOVEMENT",
                 saved.getId(),
                 "STOCK_MOVEMENT is updated (ID: " + saved.getId() + ")",
-                LocalDateTime.now(),
                 saved.getId()
         ));
 
@@ -142,7 +140,6 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "STOCK_MOVEMENT",
                 inventory.getWarehouse().getId(),
                 "Inventory increased of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
-                LocalDateTime.now(),
                 inventory.getWarehouse().getId()
         ));
     }
@@ -159,7 +156,6 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "STOCK_MOVEMENT",
                 inventory.getWarehouse().getId(),
                 "Inventory decreased of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
-                LocalDateTime.now(),
                 inventory.getWarehouse().getId()
         ));
     }
@@ -172,7 +168,6 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "STOCK_MOVEMENT",
                 inventory.getWarehouse().getId(),
                 "Inventory adjusted of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
-                LocalDateTime.now(),
                 inventory.getWarehouse().getId()
         ));
     }

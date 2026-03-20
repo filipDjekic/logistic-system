@@ -28,8 +28,6 @@ public class ActivityLogCreate {
     @Size(min = 1, max = 500)
     private String description;
 
-    @NotNull
-    private LocalDateTime createdAt;
 
     @NotNull
     private Long userId;
@@ -38,13 +36,11 @@ public class ActivityLogCreate {
                              String entityName,
                              Long entityId,
                              String description,
-                             LocalDateTime createdAt,
                              Long userId) {
         this.action = action;
         this.entityName = entityName;
         this.entityId = entityId;
         this.description = description;
         this.userId = userId;
-        this.createdAt = createdAt;
     }
 }

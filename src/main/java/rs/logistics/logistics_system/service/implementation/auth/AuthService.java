@@ -56,7 +56,6 @@ public class AuthService implements AuthServiceDefinition {
                 "USER",
                 user.getId(),
                 "User with ID: " + user.getId() + " successfully logged in",
-                LocalDateTime.now(),
                 user.getId()
         ));
 
