@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
@@ -37,6 +38,8 @@ public class TaskService implements TaskServiceDefinition {
 
     private final ActivityLogServiceDefinition activityLogService;
     private final ChangeHistoryServiceDefinition changeHistoryService;
+
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
     public TaskResponse create(TaskCreate dto) {
@@ -57,7 +60,7 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 saved.getId(),
                 "TASK is created (ID: " + saved.getId() + ")",
-                saved.getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         changeHistoryService.create(new ChangeHistoryCreate(
@@ -67,7 +70,7 @@ public class TaskService implements TaskServiceDefinition {
                 "ENTITY",
                 " ",
                 "INITIAL_STATE",
-                saved.getAssignedEmployee().getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         return TaskMapper.toResponse(saved);
@@ -90,11 +93,11 @@ public class TaskService implements TaskServiceDefinition {
                     "assignedEmployee",
                     task.getAssignedEmployee().getId().toString(),
                     dto.getAssignedEmployeeId().toString(),
-                    task.getId()
+                    authenticatedUserProvider.getAuthenticatedUserId()
             ));
         }
 
-        if(!task.getDueDate().equals(LocalDateTime.now())){
+        if(!task.getDueDate().equals(dto.getDueDate())){
             changeHistoryService.create(new ChangeHistoryCreate(
                     "TASK",
                     task.getId(),
@@ -102,7 +105,7 @@ public class TaskService implements TaskServiceDefinition {
                     "dueDate",
                     task.getDueDate().toString(),
                     dto.getDueDate().toString(),
-                    task.getId()
+                    authenticatedUserProvider.getAuthenticatedUserId()
             ));
         }
 
@@ -114,21 +117,21 @@ public class TaskService implements TaskServiceDefinition {
                     "priority",
                     task.getPriority().toString(),
                     dto.getPriority().toString(),
-                    task.getId()
+                    authenticatedUserProvider.getAuthenticatedUserId()
             ));
         }
 
         // end
 
         TaskMapper.updateEntity(task, dto, employee, transportOrder);
-        Task saved =  _taskRepository.save(task);
+        Task saved = _taskRepository.save(task);
 
         activityLogService.create(new ActivityLogCreate(
                 "UPDATE",
                 "TASK",
                 saved.getId(),
                 "TASK is updated (ID: " + saved.getId() + ")",
-                saved.getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         return TaskMapper.toResponse(saved);
@@ -150,20 +153,22 @@ public class TaskService implements TaskServiceDefinition {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
         _taskRepository.delete(task);
 
-        activityLogService.create(new ActivityLogCreate(
-                "DELETE",
+        changeHistoryService.create(new ChangeHistoryCreate(
                 "TASK",
-                id,
-                "TASK is deleted (ID: " + id + ")",
-                id
+                task.getId(),
+                ChangeType.DELETE,
+                "ENTITY",
+                "INITIAL_STATE",
+                "DELETED",
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         activityLogService.create(new ActivityLogCreate(
                 "DELETE",
                 "TASK",
                 id,
-                "TASK is created (ID: " + id + ")",
-                id
+                "TASK is deleted (ID: " + id + ")",
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
     }
 
@@ -178,7 +183,7 @@ public class TaskService implements TaskServiceDefinition {
                     task.setStatus(status);
                 }
                 else{
-                    throw new BadRequestException("Task is already in progress");
+                    throw new BadRequestException("Task status cannot be changed");
                 }
                 break;
             case IN_PROGRESS:
@@ -186,7 +191,7 @@ public class TaskService implements TaskServiceDefinition {
                     task.setStatus(status);
                 }
                 else {
-                    throw new BadRequestException("Task is already in progress");
+                    throw new BadRequestException("Task status cannot be changed");
                 }
                 break;
             case CANCELLED:
@@ -200,18 +205,10 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK",
                 task.getId(),
                 "TASK status changed (ID: " + task.getId() + ")",
-                task.getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         Task saved = _taskRepository.save(task);
-
-        activityLogService.create(new ActivityLogCreate(
-                "CHANGE_STATUS",
-                "TASK",
-                saved.getId(),
-                "TASK status is changed (ID: " + saved.getId() + ")",
-                saved.getId()
-        ));
 
         return TaskMapper.toResponse(saved);
     }
@@ -222,24 +219,27 @@ public class TaskService implements TaskServiceDefinition {
 
         Employee employee = _employeeRepository.findById(employeeId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
+        Long idOld = task.getAssignedEmployee().getId();
         task.setAssignedEmployee(employee);
 
         _taskRepository.save(task);
 
-        activityLogService.create(new ActivityLogCreate(
-                "ASSIGNED",
+        changeHistoryService.create(new ChangeHistoryCreate(
                 "TASK",
                 task.getId(),
-                "TASK assigned (ID: " + task.getId() + ") to employee " + employee.getId().toString(),
-                task.getId()
+                ChangeType.UPDATE,
+                "assignedEmployee",
+                idOld.toString(),
+                employeeId.toString(),
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         activityLogService.create(new ActivityLogCreate(
                 "ASSIGN",
                 "TASK",
-                id,
-                "TASK is assigned (ID: " + id + ") to employee " + employee.getId().toString(),
-                id
+                task.getId(),
+                "TASK is assigned (ID: " + task.getId() + ") to employee " + employee.getId().toString(),
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         return TaskMapper.toResponse(task);

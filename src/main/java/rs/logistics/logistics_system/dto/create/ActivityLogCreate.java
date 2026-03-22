@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.dto.create;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,13 +24,14 @@ public class ActivityLogCreate {
     private String entityName;
 
     @NotNull
+    @Positive
     private Long entityId;
 
     @Size(min = 1, max = 500)
     private String description;
 
-
     @NotNull
+    @Positive
     private Long userId;
 
     public ActivityLogCreate(String action,

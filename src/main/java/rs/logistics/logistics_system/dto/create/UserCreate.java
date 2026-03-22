@@ -37,6 +37,7 @@ public class UserCreate {
     private String email;
 
     @NotNull
+    @Positive
     private Long roleId;
 
     @NotNull

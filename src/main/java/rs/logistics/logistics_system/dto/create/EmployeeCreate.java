@@ -49,6 +49,7 @@ public class EmployeeCreate {
     private BigDecimal salary;
 
     @NotNull
+    @Positive
     private Long userId;
 
     public EmployeeCreate(String firstName,

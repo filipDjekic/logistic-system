@@ -15,7 +15,6 @@ public class WarehouseInventoryMapper {
                 warehouse,
                 product,
                 dto.getQuantity(),
-                dto.getReservedQuantity(),
                 dto.getMinStockLevel()
         );
         return warehouseInventory;
@@ -23,7 +22,6 @@ public class WarehouseInventoryMapper {
 
     public static void updateEntity(WarehouseInventoryUpdate dto, Warehouse warehouse, Product product, WarehouseInventory warehouseInventory) {
         warehouseInventory.setQuantity(dto.getQuantity());
-        warehouseInventory.setReservedQuantity(dto.getReservedQuantity());
         warehouseInventory.setMinStockLevel(dto.getMinStockLevel());
         warehouseInventory.setProduct(product);
         warehouseInventory.setWarehouse(warehouse);

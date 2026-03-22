@@ -17,6 +17,7 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.repository.*;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
@@ -39,11 +40,13 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final ActivityLogServiceDefinition activityLogService;
     private final ChangeHistoryServiceDefinition changeHistoryService;
 
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+
 
     @Override
     public TransportOrderResponse create(TransportOrderCreate dto) {
 
-        if(dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null || dto.getCreatedById() == null){
+        if(dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null || authenticatedUserProvider.getAuthenticatedUserId() == null){
             throw new BadRequestException("Invalid request");
         }
 
@@ -62,6 +65,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             throw new BadRequestException("Warehouse Source and Destination are the same");
         }
 
+        if(!dto.getDepartureTime().isBefore(dto.getPlannedArrivalTime())){
+            throw new BadRequestException("Departure time must be before arrival time");
+        }
+
         Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
 
@@ -69,7 +76,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         checkVehicleAvailability(vehicle.getId());
         checkDriverAvailability(assignedEmployee.getId());
 
-        User createdBy = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
+        User createdBy = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
 
         TransportOrder transportOrder = TransportOrderMapper.toEntity(dto, warehouseSource, warehouseDestination, vehicle, assignedEmployee, createdBy);
         transportOrder.setStatus(TransportOrderStatus.CREATED);
@@ -81,7 +88,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 saved.getId(),
                 "TRANSPORT ORDER is created (ID: " + saved.getId() + ")",
-                saved.getCreatedBy().getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         changeHistoryService.create(new ChangeHistoryCreate(
@@ -91,7 +98,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "ENTITY",
                 " ",
                 " ",
-                saved.getCreatedBy().getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         return TransportOrderMapper.toResponse(saved);
@@ -101,7 +108,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Override
     public TransportOrderResponse update(Long id, TransportOrderUpdate dto) {
 
-        if(dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null || dto.getCreatedById() == null){
+        if(dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null || authenticatedUserProvider.getAuthenticatedUserId() == null){
             throw new BadRequestException("Invalid request");
         }
 
@@ -122,7 +129,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
-        User createdBy = _userRepository.findById(dto.getCreatedById()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
+        User createdBy = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
 
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
@@ -136,7 +143,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     "assignedEmployee",
                     transportOrder.getAssignedEmployee().getId().toString(),
                     dto.getAssignedEmployeeId().toString(),
-                    transportOrder.getId()
+                    authenticatedUserProvider.getAuthenticatedUserId()
             ));
         }
 
@@ -148,7 +155,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     "vehicle",
                     transportOrder.getVehicle().getId().toString(),
                     dto.getVehicleId().toString(),
-                    transportOrder.getId()
+                    authenticatedUserProvider.getAuthenticatedUserId()
             ));
         }
 
@@ -170,7 +177,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 updated.getId(),
                 "TRANSPORT ORDER is being updated (ID: " + updated.getId() + ")",
-                updated.getCreatedBy().getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
 
@@ -198,17 +205,17 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 id,
                 "TRANSPORT ORDER is deleted (ID: " + id + ")",
-                id
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         changeHistoryService.create(new ChangeHistoryCreate(
                 "TRANSPORT_ORDER",
                 id,
                 ChangeType.DELETE,
-                " ",
-                " ",
-                " ",
-                id
+                "ENTITY",
+                "INITIAL_STATE",
+                "null",
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
     }
 
@@ -271,7 +278,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "TRANSPORT_ORDER",
                 saved.getId(),
                 "TRANSPORT ORDER status changed (ID: " + saved.getId() + ")",
-                saved.getCreatedBy().getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
         changeHistoryService.create(new ChangeHistoryCreate(
@@ -281,7 +288,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 "status",
                 current.toString(),
                 saved.getStatus().toString(),
-                saved.getCreatedBy().getId()
+                authenticatedUserProvider.getAuthenticatedUserId()
 
         ));
 

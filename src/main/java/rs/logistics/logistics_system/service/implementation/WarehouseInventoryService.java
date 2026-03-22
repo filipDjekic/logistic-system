@@ -36,8 +36,6 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         checkIfExists(dto.getWarehouseId(), dto.getProductId());
         checkQuantity(dto.getQuantity());
-        checkReservedQuantity(dto.getReservedQuantity());
-        checkIfQuantityLessThanReserved(dto.getQuantity(), dto.getReservedQuantity());
 
         WarehouseInventory warehouseInventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
         warehouseInventoryRepository.save(warehouseInventory);
@@ -50,9 +48,11 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        checkQuantity(dto.getQuantity());
-        checkReservedQuantity(dto.getReservedQuantity());
-        checkIfQuantityLessThanReserved(dto.getQuantity(), dto.getReservedQuantity());
+        checkQuantity(dto.getQuantity());;
+
+        if(inventory.getReservedQuantity().compareTo(inventory.getQuantity()) > 0) {
+            throw new BadRequestException("Reserved quantity cannot exceed total quantity");
+        }
 
         WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
         warehouseInventoryRepository.save(inventory);
@@ -92,18 +92,6 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private void checkQuantity(BigDecimal quantity) {
         if(quantity.compareTo(BigDecimal.ZERO) < 0) {
             throw new BadRequestException("Quantity cannot be less than zero");
-        }
-    }
-
-    private void checkReservedQuantity(BigDecimal reservedQuantity) {
-        if(reservedQuantity.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Reserved quantity cannot be less than zero");
-        }
-    }
-
-    private void checkIfQuantityLessThanReserved(BigDecimal quantity, BigDecimal reservedQuantity) {
-        if(quantity.compareTo(reservedQuantity) < 0) {
-            throw new BadRequestException("Reserved quantity cannot be greater than quantity");
         }
     }
 }

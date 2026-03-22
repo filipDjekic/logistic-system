@@ -38,6 +38,7 @@ public class WarehouseUpdate {
     private WarehouseStatus status;
 
     @NotNull
+    @Positive
     private Long employeeId;
 
     public WarehouseUpdate(Long id, String name, String address, String city, BigDecimal capacity, WarehouseStatus status, Long employeeId) {

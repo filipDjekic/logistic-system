@@ -11,6 +11,8 @@ import rs.logistics.logistics_system.enums.UserStatus;
 @NoArgsConstructor
 public class UserUpdate {
 
+    private Long id;
+
     @NotBlank
     @Size(min = 1, max = 60)
     private String firstName;
@@ -29,6 +31,7 @@ public class UserUpdate {
     private String email;
 
     @NotNull
+    @Positive
     private Long roleId;
 
     @NotNull

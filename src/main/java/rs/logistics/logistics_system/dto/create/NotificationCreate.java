@@ -1,6 +1,8 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,11 +18,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class NotificationCreate {
 
-    @NotNull
+    @NotBlank
     @Size(min = 1, max = 100)
     private String title;
 
-    @NotNull
+    @NotBlank
     @Size(min = 1, max = 500)
     private String message;
 
@@ -31,6 +33,7 @@ public class NotificationCreate {
     private NotificationStatus status;
 
     @NotNull
+    @Positive
     private Long userId;
 
     public NotificationCreate(String title, String message, NotificationType type, NotificationStatus status, Long userId) {

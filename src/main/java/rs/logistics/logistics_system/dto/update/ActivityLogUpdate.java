@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.dto.update;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,6 +26,7 @@ public class ActivityLogUpdate {
     private String entityName;
 
     @NotNull
+    @Positive
     private Long entityId;
 
     @Size(min = 1, max = 500)
@@ -32,6 +34,7 @@ public class ActivityLogUpdate {
 
 
     @NotNull
+    @Positive
     private Long userId;
 
     public ActivityLogUpdate(Long id, String action, String entityName, Long entityId, String description, Long userId) {

@@ -36,6 +36,7 @@ public class WarehouseCreate {
     private WarehouseStatus status;
 
     @NotNull
+    @Positive
     private Long employeeId;
 
     public WarehouseCreate(String name, String address, String city, BigDecimal capacity, WarehouseStatus status, Long employeeId) {

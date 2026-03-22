@@ -29,12 +29,15 @@ public class StockMovementCreate {
     private String referenceNote;
 
     @NotNull
+    @Positive
     private Long warehouseId;
 
     @NotNull
+    @Positive
     private Long productId;
 
     @NotNull
+    @Positive
     private Long createdById;
 
     public StockMovementCreate(StockMovementType movementType,

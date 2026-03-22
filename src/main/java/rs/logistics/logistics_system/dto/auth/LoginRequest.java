@@ -1,26 +1,29 @@
 package rs.logistics.logistics_system.dto.auth;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class LoginRequest {
-    private String username;
+
+    @NotBlank
+    @Email
+    @Pattern(
+            regexp = "^[a-z]+\\.[a-z]+@[a-z]+\\.[a-z]+\\.[a-z]{2,}$",
+            message = "Email must be in format firstName.lastName@firm.sector.countryCode"
+    )
+    private String email;
+
+    @NotBlank
+    @Size(min = 1, max = 255)
     private String password;
-
-    public LoginRequest() {}
-
-    public LoginRequest(String username, String password) {
-        this.username = username;
-        this.password = password;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-    public void setUsername(String username) {
-        this.username = username;
-    }
-    public String getPassword() {
-        return password;
-    }
-    public void setPassword(String password) {
-        this.password = password;
-    }
 }

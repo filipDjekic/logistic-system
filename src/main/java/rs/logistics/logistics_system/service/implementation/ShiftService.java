@@ -34,6 +34,10 @@ public class ShiftService implements ShiftServiceDefinition {
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
         validateShiftOverlap(employee.getId(), dto.getStartTime(), dto.getEndTime());
 
+        if(!dto.getStartTime().isBefore(dto.getEndTime())) {
+            throw new BadRequestException("Shift start time must be before end time");
+        }
+
         Shift shift = ShiftMapper.toEntity(dto, employee);
         Shift saved = _shiftRepository.save(shift);
         return ShiftMapper.toResponse(saved);
@@ -45,6 +49,10 @@ public class ShiftService implements ShiftServiceDefinition {
 
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
         validateShiftOverlapForUpdate(employee.getId(), id, dto.getStartTime(), dto.getEndTime());
+
+        if(!dto.getStartTime().isBefore(dto.getEndTime())) {
+            throw new BadRequestException("Shift start time must be before end time");
+        }
 
         Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
         ShiftMapper.updateEntity(shift,dto,employee);

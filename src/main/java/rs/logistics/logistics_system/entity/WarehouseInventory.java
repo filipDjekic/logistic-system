@@ -46,13 +46,11 @@ public class WarehouseInventory {
     public WarehouseInventory(Warehouse warehouse,
                               Product product,
                               BigDecimal quantity,
-                              BigDecimal reservedQuantity,
                               BigDecimal minStockLevel) {
         this.id = new WarehouseInventoryId(warehouse.getId(), product.getId());
         this.warehouse = warehouse;
         this.product = product;
         this.quantity = quantity;
-        this.reservedQuantity = reservedQuantity;
         this.minStockLevel = minStockLevel;
     }
 }

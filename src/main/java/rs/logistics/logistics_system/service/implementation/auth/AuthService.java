@@ -32,7 +32,7 @@ public class AuthService implements AuthServiceDefinition {
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByUsername(request.getUsername()).orElseThrow(() -> new ResourceNotFoundException("Username not found"));
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new ResourceNotFoundException("Username not found"));
 
         if (Boolean.FALSE.equals(user.getEnabled())) {
             throw new BadRequestException("User account is disabled");
@@ -44,12 +44,12 @@ public class AuthService implements AuthServiceDefinition {
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        request.getEmail(),
                         request.getPassword()
                 )
         );
 
-        String token = jwtService.generateToken(user.getUsername());
+        String token = jwtService.generateToken(user);
 
         activityLogService.create(new ActivityLogCreate(
                 "LOGIN",

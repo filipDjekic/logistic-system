@@ -26,9 +26,11 @@ public class TransportOrderItemCreate {
     private String note;
 
     @NotNull
+    @Positive
     private Long transportOrderId;
 
     @NotNull
+    @Positive
     private Long productId;
 
     public TransportOrderItemCreate(BigDecimal quantity, BigDecimal weight, String note, Long transportOrderId, Long productId) {

@@ -54,18 +54,23 @@ public class TransportOrderCreate {
     private String notes;
 
     @NotNull
+    @Positive
     private Long sourceWarehouseId;
 
     @NotNull
+    @Positive
     private Long destinationWarehouseId;
 
     @NotNull
+    @Positive
     private Long vehicleId;
 
     @NotNull
+    @Positive
     private Long assignedEmployeeId;
 
     @NotNull
+    @Positive
     private Long createdById;
 
     public TransportOrderCreate(String orderNumber,

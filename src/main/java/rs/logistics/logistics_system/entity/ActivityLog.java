@@ -45,13 +45,11 @@ public class ActivityLog {
                        String entityName,
                        Long entityId,
                        String description,
-                       LocalDateTime createdAt,
                        User user) {
         this.action = action;
         this.entityName = entityName;
         this.entityId = entityId;
         this.description = description;
-        this.createdAt = createdAt;
         this.user = user;
     }
 }

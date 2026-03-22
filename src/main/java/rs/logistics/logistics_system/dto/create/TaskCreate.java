@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.dto.create;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,9 +35,11 @@ public class TaskCreate {
     private TaskStatus status;
 
     @NotNull
+    @Positive
     private Long assignedEmployeeId;
 
     @NotNull
+    @Positive
     private Long transportOrderId;
 
     public TaskCreate(String title,

@@ -28,9 +28,11 @@ public class TransportOrderItemUpdate {
     private String note;
 
     @NotNull
+    @Positive
     private Long transportOrderId;
 
     @NotNull
+    @Positive
     private Long productId;
 
     public TransportOrderItemUpdate(Long id, BigDecimal quantity, BigDecimal weight, String note, Long transportOrderId, Long productId) {

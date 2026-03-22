@@ -14,7 +14,6 @@ public class ActivityLogMapper {
                 dto.getEntityName(),
                 dto.getEntityId(),
                 dto.getDescription(),
-                dto.getCreatedAt(),
                 user
         );
         return activityLog;
@@ -25,7 +24,6 @@ public class ActivityLogMapper {
         activityLog.setEntityName(dto.getEntityName());
         activityLog.setEntityId(dto.getEntityId());
         activityLog.setDescription(dto.getDescription());
-        activityLog.setCreatedAt(dto.getCreatedAt());
         activityLog.setUser(user);
     }
 

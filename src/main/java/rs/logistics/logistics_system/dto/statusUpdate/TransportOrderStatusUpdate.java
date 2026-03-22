@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.dto.statusUpdate;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,5 +13,6 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 @AllArgsConstructor
 public class TransportOrderStatusUpdate {
 
+    @NotNull
     private TransportOrderStatus status;
 }

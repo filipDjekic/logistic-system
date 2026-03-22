@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.dto.update;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,18 +15,16 @@ import java.math.BigDecimal;
 public class WarehouseInventoryUpdate {
 
     @NotNull
+    @Positive
     private Long warehouseId;
 
     @NotNull
+    @Positive
     private Long productId;
 
     @NotNull
     @PositiveOrZero
     private BigDecimal quantity;
-
-    @NotNull
-    @PositiveOrZero
-    private BigDecimal reservedQuantity;
 
     @NotNull
     @PositiveOrZero
@@ -36,7 +35,6 @@ public class WarehouseInventoryUpdate {
         this.warehouseId = warehouseId;
         this.productId = productId;
         this.quantity = quantity;
-        this.reservedQuantity = reservedQuantity;
         this.minStockLevel = minStockLevel;
     }
 }

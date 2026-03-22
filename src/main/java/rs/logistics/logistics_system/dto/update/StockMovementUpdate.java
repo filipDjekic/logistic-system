@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.dto.update;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -30,12 +31,15 @@ public class StockMovementUpdate {
     private String referenceNote;
 
     @NotNull
+    @Positive
     private Long warehouseId;
 
     @NotNull
+    @Positive
     private Long productId;
 
     @NotNull
+    @Positive
     private Long createdById;
 
     public StockMovementUpdate(Long id, StockMovementType movementType,

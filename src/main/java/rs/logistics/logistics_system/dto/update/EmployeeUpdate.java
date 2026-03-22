@@ -48,6 +48,7 @@ public class EmployeeUpdate {
     private BigDecimal salary;
 
     @NotNull
+    @Positive
     private Long userId;
 
     public EmployeeUpdate(String firstName,

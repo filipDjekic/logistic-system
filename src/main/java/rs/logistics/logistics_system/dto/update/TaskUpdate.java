@@ -1,6 +1,8 @@
 package rs.logistics.logistics_system.dto.update;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,7 +19,7 @@ public class TaskUpdate {
 
     public Long id;
 
-    @NotNull
+    @NotBlank
     @Size(min = 1, max = 100)
     private String title;
 
@@ -28,17 +30,17 @@ public class TaskUpdate {
     private LocalDateTime dueDate;
 
     @NotNull
-    @Size(min = 1, max = 20)
     private TaskPriority priority;
 
     @NotNull
-    @Size(min = 1, max = 20)
     private TaskStatus status;
 
     @NotNull
+    @Positive
     private Long assignedEmployeeId;
 
     @NotNull
+    @Positive
     private Long transportOrderId;
 
     public TaskUpdate(Long id, String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskStatus status, Long assignedEmployeeId, Long transportOrderId) {
