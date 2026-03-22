@@ -9,7 +9,7 @@ import rs.logistics.logistics_system.entity.User;
 public class UserMapper {
 
     public static User toEntity(UserCreate dto, Role role){
-        User user = new User(dto.getUsername(),
+        User user = new User(
                 dto.getPassword(),
                 dto.getFirstName(),
                 dto.getLastName(),
@@ -29,8 +29,8 @@ public class UserMapper {
     }
 
     public static UserResponse toResponse(User user){
-        UserResponse userResponse = new UserResponse(user.getId(),
-                user.getUsername(),
+        UserResponse userResponse = new UserResponse(
+                user.getId(),
                 user.getFirstName(),
                 user.getLastName(),
                 user.getEmail(),

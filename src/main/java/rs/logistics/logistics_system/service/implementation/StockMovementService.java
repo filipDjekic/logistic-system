@@ -11,6 +11,7 @@ import rs.logistics.logistics_system.dto.update.StockMovementUpdate;
 import rs.logistics.logistics_system.entity.*;
 import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.enums.StockMovementType;
+import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.StockMovementMapper;
@@ -43,46 +44,51 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public StockMovementResponse create(StockMovementCreate dto) {
-        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        if (authenticatedUserProvider.getAuthenticatedUserId() == null) {
+            throw new BadRequestException("Authenticated user is required");
+        }
 
-        WarehouseInventory inventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId()).orElseGet(() -> {
+        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId())
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
 
-            if (dto.getMovementType() != StockMovementType.INBOUND) {
-                throw new ResourceNotFoundException("Inventory not found");
-            }
+        Product product = _productRepository.findById(dto.getProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-            WarehouseInventory newInventory = new WarehouseInventory(
-                    warehouse,
-                    product,
-                    BigDecimal.ZERO,
-                    BigDecimal.ZERO
-            );
+        User user = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-            return _warehouseInventoryRepository.save(newInventory);
-        });
+        validateMovementRequest(dto, warehouse, product);
 
-        checkMovementQuantity(dto.getQuantity());
-        switch(dto.getMovementType()) {
-            case StockMovementType.INBOUND:
+        WarehouseInventory inventory = getOrCreateInventoryForInbound(
+                warehouse,
+                product,
+                dto.getMovementType()
+        );
+
+        BigDecimal beforeQuantity = inventory.getQuantity();
+
+        switch (dto.getMovementType()) {
+            case INBOUND:
+            case TRANSFER_IN:
                 increaseInventory(inventory, dto.getQuantity());
                 break;
-            case StockMovementType.OUTBOUND:
+
+            case OUTBOUND:
+            case TRANSFER_OUT:
                 decreaseInventory(inventory, dto.getQuantity());
                 break;
-            case StockMovementType.TRANSFER_OUT:
-                decreaseInventory(inventory, dto.getQuantity());
-                break;
-            case StockMovementType.TRANSFER_IN:
-                increaseInventory(inventory, dto.getQuantity());
-                break;
-            case StockMovementType.ADJUSTMENT:
+
+            case ADJUSTMENT:
                 adjustInventory(inventory, dto.getQuantity());
                 break;
+
+            default:
+                throw new BadRequestException("Unsupported stock movement type");
         }
+
         _warehouseInventoryRepository.save(inventory);
 
-        User user = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        BigDecimal afterQuantity = inventory.getQuantity();
 
         StockMovement stockMovement = StockMovementMapper.toEntity(dto, warehouse, product, user);
         StockMovement saved = _stockMovementRepository.save(stockMovement);
@@ -91,9 +97,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "STOCK_MOVEMENT",
                 saved.getId(),
                 ChangeType.CREATE,
-                "ENTITY",
-                "null",
-                "INITIAL_STATE",
+                "quantity",
+                beforeQuantity.toString(),
+                afterQuantity.toString(),
                 authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
@@ -101,28 +107,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "CREATE",
                 "STOCK_MOVEMENT",
                 saved.getId(),
-                "STOCK_MOVEMENT is created (ID: " + saved.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        return StockMovementMapper.toResponse(saved);
-    }
-
-    @Override
-    public StockMovementResponse update(Long id, StockMovementUpdate dto) {
-        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-        User user = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        StockMovement stockMovement = _stockMovementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
-
-        StockMovementMapper.updateEntity(stockMovement, dto, warehouse, product, user);
-        StockMovement saved = _stockMovementRepository.save(stockMovement);
-
-        activityLogService.create(new ActivityLogCreate(
-                "UPDATE",
-                "STOCK_MOVEMENT",
-                saved.getId(),
-                "STOCK_MOVEMENT is updated (ID: " + saved.getId() + ")",
+                "Stock movement created (ID: " + saved.getId() + ", type: " + saved.getMovementType()
+                        + ", quantity: " + saved.getQuantity() + ", before: " + beforeQuantity
+                        + ", after: " + afterQuantity + ")",
                 authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
@@ -140,76 +127,146 @@ public class StockMovementService implements StockMovementServiceDefinition {
         return _stockMovementRepository.findAll().stream().map(StockMovementMapper::toResponse).collect(Collectors.toList());
     }
 
-    @Override
-    public void delete(Long id) {
-        StockMovement stockMovement = _stockMovementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
-        _stockMovementRepository.delete(stockMovement);
-
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "STOCK_MOVEMENT",
-                id,
-                ChangeType.DELETE,
-                "ENTITY",
-                "INITIAL_STATE",
-                "null",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        activityLogService.create(new ActivityLogCreate(
-                "DELETE",
-                "STOCK_MOVEMENT",
-                id,
-                "Stock movement being deleted (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-    }
-
-
-    private void increaseInventory(WarehouseInventory inventory, BigDecimal quantity){
-        inventory.setQuantity(inventory.getQuantity().add(quantity));
-
-        activityLogService.create(new ActivityLogCreate(
-                "UPDATE",
-                "STOCK_MOVEMENT",
-                inventory.getWarehouse().getId(),
-                "Inventory increased (WAREHOUSE ID: " + inventory.getWarehouse().getId() + ", PRODUCT ID: " + inventory.getProduct().getId() + ", QUANTITY: " + quantity + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-    }
-
-    private void decreaseInventory(WarehouseInventory inventory, BigDecimal quantity){
-        if(inventory.getQuantity().compareTo(quantity) < 0){
-            throw new BadRequestException("Not enough in stock");
-        }
-
-        inventory.setQuantity(inventory.getQuantity().subtract(quantity));
-
-        activityLogService.create(new ActivityLogCreate(
-                "UPDATE",
-                "STOCK_MOVEMENT",
-                inventory.getWarehouse().getId(),
-                "Inventory increased (WAREHOUSE ID: " + inventory.getWarehouse().getId() + ", PRODUCT ID: " + inventory.getProduct().getId() + ", QUANTITY: " + quantity + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-    }
-
-    private void adjustInventory(WarehouseInventory inventory, BigDecimal quantity){
-        inventory.setQuantity(quantity);
-
-        activityLogService.create(new ActivityLogCreate(
-                "UPDATE",
-                "STOCK_MOVEMENT",
-                inventory.getWarehouse().getId(),
-                "Inventory adjusted of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-    }
-
     // helpers
 
-    private void checkMovementQuantity(BigDecimal quantity){
-        if(quantity == null ||  quantity.compareTo(BigDecimal.ZERO) <= 0){
+    private void increaseInventory(WarehouseInventory inventory, BigDecimal quantity) {
+        inventory.increase(quantity);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "WAREHOUSE_INVENTORY",
+                inventory.getWarehouse().getId(),
+                "Inventory increased (WAREHOUSE ID: " + inventory.getWarehouse().getId()
+                        + ", PRODUCT ID: " + inventory.getProduct().getId()
+                        + ", QUANTITY: " + quantity + ")",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+    }
+
+    private void decreaseInventory(WarehouseInventory inventory, BigDecimal quantity) {
+        BigDecimal available = getAvailableQuantity(inventory);
+
+        if (available.compareTo(quantity) < 0) {
+            throw new BadRequestException("Not enough available stock");
+        }
+
+        inventory.decrease(quantity);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "WAREHOUSE_INVENTORY",
+                inventory.getWarehouse().getId(),
+                "Inventory decreased (WAREHOUSE ID: " + inventory.getWarehouse().getId()
+                        + ", PRODUCT ID: " + inventory.getProduct().getId()
+                        + ", QUANTITY: " + quantity + ")",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+    }
+
+    private void adjustInventory(WarehouseInventory inventory, BigDecimal quantity) {
+        validateAdjustment(inventory, quantity);
+
+        inventory.adjustTo(quantity);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "WAREHOUSE_INVENTORY",
+                inventory.getWarehouse().getId(),
+                "Inventory adjusted (WAREHOUSE ID: " + inventory.getWarehouse().getId()
+                        + ", PRODUCT ID: " + inventory.getProduct().getId()
+                        + ", NEW QUANTITY: " + quantity + ")",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+    }
+
+
+    private void checkMovementQuantity(BigDecimal quantity) {
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Quantity must be greater than zero");
         }
     }
+
+    private WarehouseInventory getOrCreateInventoryForInbound(
+            Warehouse warehouse,
+            Product product,
+            StockMovementType movementType
+    ) {
+        return _warehouseInventoryRepository
+                .findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
+                .orElseGet(() -> {
+                    if (movementType != StockMovementType.INBOUND) {
+                        throw new ResourceNotFoundException("Inventory not found");
+                    }
+
+                    WarehouseInventory newInventory = new WarehouseInventory(
+                            warehouse,
+                            product,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO
+                    );
+                    newInventory.setReservedQuantity(BigDecimal.ZERO);
+
+                    return _warehouseInventoryRepository.save(newInventory);
+                });
+    }
+
+    private void validateMovementRequest(
+            StockMovementCreate dto,
+            Warehouse warehouse,
+            Product product
+    ) {
+        if (dto == null) {
+            throw new BadRequestException("Stock movement request is required");
+        }
+
+        if (dto.getMovementType() == null) {
+            throw new BadRequestException("Movement type is required");
+        }
+
+        checkMovementQuantity(dto.getQuantity());
+
+        if (warehouse == null || warehouse.getId() == null) {
+            throw new BadRequestException("Warehouse is required");
+        }
+
+        if (!Boolean.TRUE.equals(warehouse.getActive())) {
+            throw new BadRequestException("Warehouse is not active");
+        }
+
+        if (warehouse.getStatus() != WarehouseStatus.ACTIVE) {
+            throw new BadRequestException("Warehouse is not available for stock operations");
+        }
+
+        if (product == null || product.getId() == null) {
+            throw new BadRequestException("Product is required");
+        }
+
+        if (dto.getReferenceNote() == null || dto.getReferenceNote().trim().isEmpty()) {
+            throw new BadRequestException("Reference note is required");
+        }
+
+        if (dto.getMovementType() == StockMovementType.ADJUSTMENT &&
+                dto.getReferenceNote().trim().length() < 5) {
+            throw new BadRequestException("Adjustment must contain a meaningful reference note");
+        }
+    }
+
+    private void validateAdjustment(WarehouseInventory inventory, BigDecimal newQuantity) {
+        if (newQuantity == null || newQuantity.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Adjusted quantity cannot be negative");
+        }
+
+        if (inventory.getReservedQuantity() != null &&
+                newQuantity.compareTo(inventory.getReservedQuantity()) < 0) {
+            throw new BadRequestException("Adjusted quantity cannot be lower than reserved quantity");
+        }
+    }
+
+    private BigDecimal getAvailableQuantity(WarehouseInventory inventory) {
+        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
+        BigDecimal reserved = inventory.getReservedQuantity() == null ? BigDecimal.ZERO : inventory.getReservedQuantity();
+
+        return quantity.subtract(reserved);
+    }
+
 }

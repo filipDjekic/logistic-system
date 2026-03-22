@@ -40,6 +40,7 @@ public class UserService implements UserServiceDefinition {
         Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
         User user = UserMapper.toEntity(dto, role);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setEnabled(true);
         User savedUser = _userRepository.save(user);
 
         activityLogService.create(new ActivityLogCreate(

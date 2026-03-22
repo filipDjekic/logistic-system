@@ -29,12 +29,6 @@ public class StockMovementController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<StockMovementResponse> put(@PathVariable Long id,@Valid @RequestBody StockMovementUpdate dto) {
-        StockMovementResponse response = stockMovementService.update(id, dto);
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<StockMovementResponse> getById(@PathVariable Long id) {
         StockMovementResponse response = stockMovementService.getById(id);
@@ -45,11 +39,5 @@ public class StockMovementController {
     public ResponseEntity<List<StockMovementResponse>> getAll() {
         List<StockMovementResponse> response = stockMovementService.getAll();
         return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        stockMovementService.delete(id);
-        return ResponseEntity.noContent().build();
     }
 }

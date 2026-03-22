@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import rs.logistics.logistics_system.enums.UserStatus;
 
@@ -28,9 +29,6 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Setter(AccessLevel.NONE)
     private Long id;
-
-    @Column(name = "username", length = 30, nullable = false, unique = true)
-    private String username;
 
     @Column(name = "password", length = 255, nullable = false)
     private String password;
@@ -82,20 +80,17 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "changedBy")
     private List<ChangeHistory> changeHistories = new ArrayList<>();
 
-    public User(String username,
-                String password,
+    public User(String password,
                 String firstName,
                 String lastName,
                 String email,
                 UserStatus status,
                 Role role) {
-        this.username = username;
         this.password = password;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.status = status;
-        this.enabled = true;
         this.role = role;
     }
 
@@ -111,12 +106,12 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return this.enabled;
+        return Boolean.TRUE.equals(this.enabled);
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.emptyList();
+        return List.of(new SimpleGrantedAuthority("ROLE_"+role.getName()));
     }
 
     @Override
@@ -132,5 +127,19 @@ public class User implements UserDetails {
     @Override
     public boolean isCredentialsNonExpired() {
         return UserDetails.super.isCredentialsNonExpired();
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void normalize(){
+        if(email != null){
+            email = email.trim().toLowerCase();
+        }
+        if(firstName != null){
+            firstName = firstName.trim();
+        }
+        if(lastName != null){
+            lastName = lastName.trim();
+        }
     }
 }

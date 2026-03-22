@@ -69,10 +69,6 @@ public class TransportOrderUpdate {
     @Positive
     private Long assignedEmployeeId;
 
-    @NotNull
-    @Positive
-    private Long createdById;
-
     public TransportOrderUpdate(Long id,String orderNumber,
                                   String description,
                                   LocalDateTime orderDate,
@@ -85,8 +81,7 @@ public class TransportOrderUpdate {
                                   Long sourceWarehouseId,
                                   Long destinationWarehouseId,
                                   Long vehicleId,
-                                  Long assignedEmployeeId,
-                                  Long createdById) {
+                                  Long assignedEmployeeId) {
         this.id = id;
         this.orderNumber = orderNumber;
         this.description = description;
@@ -101,6 +96,5 @@ public class TransportOrderUpdate {
         this.destinationWarehouseId = destinationWarehouseId;
         this.vehicleId = vehicleId;
         this.assignedEmployeeId = assignedEmployeeId;
-        this.createdById = createdById;
     }
 }

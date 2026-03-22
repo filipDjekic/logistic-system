@@ -53,7 +53,7 @@ public class TransportOrderController {
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<TransportOrderResponse> updateStatus(@PathVariable Long id, @RequestBody TransportOrderStatusUpdate dto) {
+    public ResponseEntity<TransportOrderResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TransportOrderStatusUpdate dto) {
         TransportOrderResponse response = transportOrderService.changeStatus(id, dto.getStatus());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

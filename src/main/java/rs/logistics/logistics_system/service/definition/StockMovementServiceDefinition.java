@@ -10,11 +10,7 @@ public interface StockMovementServiceDefinition {
 
     StockMovementResponse create(StockMovementCreate dto);
 
-    StockMovementResponse update(Long id, StockMovementUpdate dto);
-
     StockMovementResponse getById(Long id);
 
     List<StockMovementResponse> getAll();
-
-    void delete(Long id);
 }

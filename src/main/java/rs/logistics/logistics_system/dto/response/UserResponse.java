@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 public class UserResponse {
 
     private Long id;
-    private String username;
     private String firstName;
     private String lastName;
     private String email;
@@ -26,11 +25,10 @@ public class UserResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public UserResponse(Long id, String username, String firstName, String lastName, String email,
+    public UserResponse(Long id, String firstName, String lastName, String email,
                            Boolean enabled, UserStatus status, Long roleId, String roleName,
                            LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
-        this.username = username;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;

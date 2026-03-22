@@ -32,7 +32,7 @@ public class AuthService implements AuthServiceDefinition {
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new ResourceNotFoundException("Username not found"));
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (Boolean.FALSE.equals(user.getEnabled())) {
             throw new BadRequestException("User account is disabled");
@@ -60,7 +60,7 @@ public class AuthService implements AuthServiceDefinition {
         ));
 
         return new LoginResponse(
-                token, user.getId(), user.getUsername(), user.getRole().getName()
+                token, user.getId(), user.getRole().getName()
         );
     }
 }

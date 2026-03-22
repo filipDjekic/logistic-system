@@ -26,7 +26,8 @@ public class TransportOrderMapper {
         return  transportOrder;
     }
 
-    public static void updateEntity(TransportOrderUpdate dto, TransportOrder transportOrder, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicle, Employee assignedEmployee, User createdBy) {
+    public static void updateEntity(TransportOrderUpdate dto, TransportOrder transportOrder, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicle, Employee assignedEmployee
+    ) {
         transportOrder.setOrderNumber(dto.getOrderNumber());
         transportOrder.setDescription(dto.getDescription());
         transportOrder.setOrderDate(dto.getOrderDate());
@@ -40,7 +41,6 @@ public class TransportOrderMapper {
         transportOrder.setDestinationWarehouse(warehouseDestination);
         transportOrder.setVehicle(vehicle);
         transportOrder.setAssignedEmployee(assignedEmployee);
-        transportOrder.setCreatedBy(createdBy);
     }
 
     public static TransportOrderResponse toResponse(TransportOrder transportOrder) {
