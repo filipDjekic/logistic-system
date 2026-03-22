@@ -159,7 +159,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "DELETE",
                 "STOCK_MOVEMENT",
                 id,
-                "Inventory increased of warehouse(ID: " + id + ")",
+                "Stock movement being deleted (ID: " + id + ")",
                 authenticatedUserProvider.getAuthenticatedUserId()
         ));
     }
@@ -172,7 +172,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "UPDATE",
                 "STOCK_MOVEMENT",
                 inventory.getWarehouse().getId(),
-                "Inventory increased of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
+                "Inventory increased (WAREHOUSE ID: " + inventory.getWarehouse().getId() + ", PRODUCT ID: " + inventory.getProduct().getId() + ", QUANTITY: " + quantity + ")",
                 authenticatedUserProvider.getAuthenticatedUserId()
         ));
     }
@@ -188,7 +188,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "UPDATE",
                 "STOCK_MOVEMENT",
                 inventory.getWarehouse().getId(),
-                "Inventory decreased of warehouse(ID: " + inventory.getWarehouse().getId() + ")",
+                "Inventory increased (WAREHOUSE ID: " + inventory.getWarehouse().getId() + ", PRODUCT ID: " + inventory.getProduct().getId() + ", QUANTITY: " + quantity + ")",
                 authenticatedUserProvider.getAuthenticatedUserId()
         ));
     }
@@ -208,7 +208,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     // helpers
 
     private void checkMovementQuantity(BigDecimal quantity){
-        if(quantity == null ||  quantity.compareTo(BigDecimal.ZERO) < 0){
+        if(quantity == null ||  quantity.compareTo(BigDecimal.ZERO) <= 0){
             throw new BadRequestException("Quantity must be greater than zero");
         }
     }

@@ -200,6 +200,16 @@ public class TaskService implements TaskServiceDefinition {
                 throw new BadRequestException("Task is already completed");
         }
 
+        changeHistoryService.create(new ChangeHistoryCreate(
+                "TASK",
+                task.getId(),
+                ChangeType.UPDATE,
+                "status",
+                current.toString(),
+                task.getStatus().toString(),
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+
         activityLogService.create(new ActivityLogCreate(
                 "STATUS_CHANGE",
                 "TASK",
