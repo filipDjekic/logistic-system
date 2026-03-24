@@ -47,7 +47,6 @@ public class EmployeeUpdate {
     @Positive
     private BigDecimal salary;
 
-    @NotNull
     @Positive
     private Long userId;
 

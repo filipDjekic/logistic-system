@@ -93,5 +93,6 @@ public class Employee {
         this.employmentDate = employmentDate;
         this.salary = salary;
         this.active = true;
+        this.user = user;
     }
 }

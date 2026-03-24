@@ -48,7 +48,6 @@ public class EmployeeCreate {
     @Positive
     private BigDecimal salary;
 
-    @NotNull
     @Positive
     private Long userId;
 

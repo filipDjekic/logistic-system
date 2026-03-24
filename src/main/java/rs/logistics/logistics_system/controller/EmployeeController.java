@@ -65,4 +65,10 @@ public class EmployeeController {
         employeeService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/terminate/{id}")
+    public ResponseEntity<Void> terminateEmployee(@PathVariable Long id){
+        employeeService.terminateEmployee(id);
+        return ResponseEntity.noContent().build();
+    }
 }

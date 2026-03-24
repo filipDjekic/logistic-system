@@ -27,14 +27,14 @@ public class RoleService implements RoleServiceDefinition {
     @Override
     public RoleResponse create(RoleCreate dto) {
         Role role = RoleMapper.toEntity(dto);
+        role.setName(dto.getName().toUpperCase());
         Role savedRole = _roleRepository.save(role);
         return RoleMapper.toResponse(savedRole);
     }
 
     @Override
     public RoleResponse update(Long id, RoleUpdate dto) {
-        Role role = _roleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Role with id not found"));
+        Role role = _roleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Role with id not found"));
 
         RoleMapper.updateEntity(role, dto);
         Role updatedRole = _roleRepository.save(role);
@@ -43,8 +43,7 @@ public class RoleService implements RoleServiceDefinition {
 
     @Override
     public RoleResponse getById(Long id) {
-        Role role = _roleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Role with id not found"));
+        Role role = _roleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Role with id not found"));
 
         return RoleMapper.toResponse(role);
     }

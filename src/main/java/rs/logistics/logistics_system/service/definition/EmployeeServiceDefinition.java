@@ -25,4 +25,6 @@ public interface EmployeeServiceDefinition {
     List<TaskResponse> getTasksByEmployeeId(Long id);
 
     List<ShiftResponse> getShiftsByEmployeeId(Long id);
+
+    void terminateEmployee(Long id);
 }
