@@ -22,4 +22,10 @@ public interface ShiftServiceDefinition {
     void delete(Long id);
 
     List<ShiftResponse> getShiftsByDate(LocalDate date);
+
+    List<ShiftResponse> getShiftBetweenDates(LocalDateTime start, LocalDateTime end);
+
+    void cancelShift(Long id);
+
+    ShiftResponse assignShiftToEmployee(Long shiftId, Long employeeId);
 }

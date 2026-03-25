@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.controller;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -54,9 +55,21 @@ public class ShiftController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/between-dates")
+    public ResponseEntity<List<ShiftResponse>> getShiftsBetweenDates(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDateTime start, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDateTime end) {
+        List<ShiftResponse> response = shiftService.getShiftBetweenDates(start, end);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id){
         shiftService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/cancel-shift")
+    public ResponseEntity<Void> cancelShift(@RequestParam Long id){
+        shiftService.cancelShift(id);
         return ResponseEntity.noContent().build();
     }
 }

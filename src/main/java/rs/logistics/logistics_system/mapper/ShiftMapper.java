@@ -18,12 +18,11 @@ public class ShiftMapper {
         return shift;
     }
 
-    public static void updateEntity(Shift shift, ShiftUpdate dto, Employee employee) {
+    public static void updateEntity(Shift shift, ShiftUpdate dto) {
         shift.setStartTime(dto.getStartTime());
         shift.setEndTime(dto.getEndTime());
         shift.setStatus(dto.getStatus());
         shift.setNotes(dto.getNotes());
-        shift.setEmployee(employee);
     }
 
     public static ShiftResponse toResponse(Shift shift) {

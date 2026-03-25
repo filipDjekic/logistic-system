@@ -30,16 +30,11 @@ public class ShiftUpdate {
     @Size(max = 255)
     private String notes;
 
-    @NotNull
-    @Positive
-    private Long employeeId;
-
-    public ShiftUpdate(Long id, LocalDateTime startTime, LocalDateTime endTime, ShiftStatus status, String notes, Long employeeId) {
+    public ShiftUpdate(Long id, LocalDateTime startTime, LocalDateTime endTime, ShiftStatus status, String notes) {
         this.id = id;
         this.startTime = startTime;
         this.endTime = endTime;
         this.status = status;
         this.notes = notes;
-        this.employeeId = employeeId;
     }
 }
