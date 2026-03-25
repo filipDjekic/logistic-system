@@ -58,25 +58,22 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             throw new BadRequestException("Total weight must be greater than 0");
         }
 
-        Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId())
-                .orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
+        Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
 
-        Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId())
-                .orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
+        Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
 
-        Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+        Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
 
-        Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
+        Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
 
-        User createdBy = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
+        User createdBy = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
 
         validateSchedule(dto.getDepartureTime(), dto.getPlannedArrivalTime());
         validateWarehouses(warehouseSource, warehouseDestination);
         validateAssignedEmployee(assignedEmployee);
         validateVehicleForAssignment(vehicle);
+        checkVehicleAvailability(vehicle.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime());
+        checkDriverAvailability(assignedEmployee.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime());
 
         if (vehicle.getCapacity() != null && dto.getTotalWeight().compareTo(vehicle.getCapacity()) > 0) {
             throw new BadRequestException("Total weight exceeds vehicle capacity");
@@ -126,25 +123,26 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             throw new BadRequestException("Total weight must be greater than 0");
         }
 
-        TransportOrder transportOrder = _transportOrderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
-        Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId())
-                .orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
+        Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
 
-        Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId())
-                .orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
+        Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
 
-        Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+        Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
 
-        Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
+        Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
 
         validateSchedule(dto.getDepartureTime(), dto.getPlannedArrivalTime());
         validateWarehouses(warehouseSource, warehouseDestination);
         validateAssignedEmployee(assignedEmployee);
-        validateVehicleForAssignment(vehicle);
+
+        if (!dto.getVehicleId().equals(transportOrder.getVehicle().getId())) {
+            validateVehicleForAssignment(vehicle);
+        }
+
+        checkVehicleAvailabilityForUpdate(vehicle.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime(), transportOrder.getId());
+        checkDriverAvailabilityForUpdate(assignedEmployee.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime(), transportOrder.getId());
 
         if (vehicle.getCapacity() != null && dto.getTotalWeight().compareTo(vehicle.getCapacity()) > 0) {
             throw new BadRequestException("Total weight exceeds vehicle capacity");
@@ -172,12 +170,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     dto.getVehicleId().toString(),
                     authenticatedUserProvider.getAuthenticatedUserId()
             ));
-        }
-
-        if (transportOrder.getStatus() == TransportOrderStatus.ASSIGNED ||
-                transportOrder.getStatus() == TransportOrderStatus.IN_TRANSIT) {
-            checkVehicleAvailabilityForUpdate(vehicle.getId(), transportOrder.getId());
-            checkDriverAvailabilityForUpdate(assignedEmployee.getId(), transportOrder.getId());
         }
 
         TransportOrderMapper.updateEntity(
@@ -246,8 +238,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Transactional
     @Override
     public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status) {
-        TransportOrder transportOrder = _transportOrderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
         TransportOrderStatus current = transportOrder.getStatus();
 
@@ -259,10 +250,14 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
             checkVehicleAvailabilityForUpdate(
                     transportOrder.getVehicle().getId(),
+                    transportOrder.getDepartureTime(),
+                    transportOrder.getPlannedArrivalTime(),
                     transportOrder.getId()
             );
             checkDriverAvailabilityForUpdate(
                     transportOrder.getAssignedEmployee().getId(),
+                    transportOrder.getDepartureTime(),
+                    transportOrder.getPlannedArrivalTime(),
                     transportOrder.getId()
             );
 
@@ -314,15 +309,31 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
     // helpers
 
-    private void checkVehicleAvailabilityForUpdate(Long vehicleId, Long transportOrderId) {
-        if (_transportOrderRepository.existsByVehicleIdAndStatusInAndIdNot(vehicleId, ACTIVE_STATUSES, transportOrderId)) {
-            throw new BadRequestException("Vehicle is already assigned to another active transport order");
+    private void checkVehicleAvailability(Long vehicleId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime) {
+        if (_transportOrderRepository.existsByVehicleIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThan(
+                vehicleId, ACTIVE_STATUSES, plannedArrivalTime, departureTime)) {
+            throw new BadRequestException("Vehicle is not available in selected time range");
         }
     }
 
-    private void checkDriverAvailabilityForUpdate(Long employeeId, Long transportOrderId) {
-        if (_transportOrderRepository.existsByAssignedEmployeeIdAndStatusInAndIdNot(employeeId, ACTIVE_STATUSES, transportOrderId)) {
-            throw new BadRequestException("Driver is already assigned to another active transport order");
+    private void checkDriverAvailability(Long employeeId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime) {
+        if (_transportOrderRepository.existsByAssignedEmployeeIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThan(
+                employeeId, ACTIVE_STATUSES, plannedArrivalTime, departureTime)) {
+            throw new BadRequestException("Driver is not available in selected time range");
+        }
+    }
+
+    private void checkVehicleAvailabilityForUpdate(Long vehicleId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime, Long transportOrderId) {
+        if (_transportOrderRepository.existsByVehicleIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThanAndIdNot(
+                vehicleId, ACTIVE_STATUSES, plannedArrivalTime, departureTime, transportOrderId)) {
+            throw new BadRequestException("Vehicle is not available in selected time range");
+        }
+    }
+
+    private void checkDriverAvailabilityForUpdate(Long employeeId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime, Long transportOrderId) {
+        if (_transportOrderRepository.existsByAssignedEmployeeIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThanAndIdNot(
+                employeeId, ACTIVE_STATUSES, plannedArrivalTime, departureTime, transportOrderId)) {
+            throw new BadRequestException("Driver is not available in selected time range");
         }
     }
 

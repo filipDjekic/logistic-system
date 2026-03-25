@@ -37,4 +37,11 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     List<TransportOrder> findByDestinationWarehouseId(Long warehouseId);
 
+    boolean existsByVehicleIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThan(Long vehicleId, List<TransportOrderStatus> statuses, LocalDateTime newEnd, LocalDateTime newStart);
+
+    boolean existsByVehicleIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThanAndIdNot(Long vehicleId, List<TransportOrderStatus> statuses, LocalDateTime newEnd, LocalDateTime newStart, Long id);
+
+    boolean existsByAssignedEmployeeIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThan(Long employeeId, List<TransportOrderStatus> statuses, LocalDateTime newEnd, LocalDateTime newStart);
+
+    boolean existsByAssignedEmployeeIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThanAndIdNot(Long employeeId, List<TransportOrderStatus> statuses, LocalDateTime newEnd, LocalDateTime newStart, Long id);
 }
