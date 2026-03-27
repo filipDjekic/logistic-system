@@ -13,6 +13,7 @@ import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
 
 import java.util.List;
@@ -73,5 +74,17 @@ public class WarehouseController {
     @GetMapping("/manager/{managerId}")
     public ResponseEntity<List<WarehouseResponse>> getByManager(@PathVariable Long managerId) {
         return ResponseEntity.ok(warehouseService.getByManager(managerId));
+    }
+
+    @PatchMapping("/manager/assign")
+    public ResponseEntity<Void> assignEmployee(@RequestParam Long employeeId, @RequestParam Long warehouseId){
+        warehouseService.assignEmployee(employeeId, warehouseId);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @PatchMapping("/warehouse/change-status")
+    public ResponseEntity<WarehouseResponse> changeWarehouseStatus(@RequestParam Long id, @RequestParam WarehouseStatus status) {
+        WarehouseResponse response = warehouseService.changeStatus(id, status);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

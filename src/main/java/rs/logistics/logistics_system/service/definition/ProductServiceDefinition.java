@@ -17,4 +17,8 @@ public interface ProductServiceDefinition {
     List<ProductResponse> getAll();
 
     void delete(Long id);
+
+    ProductResponse activateProduct(Long id);
+
+    ProductResponse deactivateProduct(Long id);
 }
