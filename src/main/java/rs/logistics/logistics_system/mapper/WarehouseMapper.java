@@ -21,13 +21,11 @@ public class WarehouseMapper {
         return warehouse;
     }
 
-    public static void updateEntity(Warehouse warehouse, WarehouseUpdate dto, Employee employee) {
+    public static void updateEntity(Warehouse warehouse, WarehouseUpdate dto) {
         warehouse.setName(dto.getName());
         warehouse.setAddress(dto.getAddress());
         warehouse.setCity(dto.getCity());
         warehouse.setCapacity(dto.getCapacity());
-        warehouse.setStatus(dto.getStatus());
-        warehouse.setManager(employee);
     }
 
     public static WarehouseResponse toResponse(Warehouse warehouse) {

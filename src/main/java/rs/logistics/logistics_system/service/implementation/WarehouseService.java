@@ -2,25 +2,26 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
 import rs.logistics.logistics_system.entity.Employee;
-import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
-import rs.logistics.logistics_system.mapper.VehicleMapper;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.mapper.WarehouseMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
 
 import java.util.List;
@@ -35,6 +36,8 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private final TransportOrderRepository _transportOrderRepository;
     private final EmployeeRepository _employeeRepository;
 
+    private final ActivityLogService activityLogService;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
     public WarehouseResponse create(WarehouseCreate dto) {
@@ -43,17 +46,34 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
         Warehouse warehouse = WarehouseMapper.toEntity(dto, employee);
         Warehouse saved = _warehouseRepository.save(warehouse);
+
+        activityLogService.create(new ActivityLogCreate(
+                "WAREHOUSE",
+                "CREATE",
+                saved.getId(),
+                "WAREHOUSE is created (ID: " + saved.getId() + " )",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+
         return WarehouseMapper.toResponse(saved);
     }
 
     @Override
     public WarehouseResponse update(Long id, WarehouseUpdate dto) {
-        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
-        validateWarehouseManager(employee);
-
         Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-        WarehouseMapper.updateEntity(warehouse, dto, employee);
+        validateWarehouseIsActive(warehouse);
+
+        WarehouseMapper.updateEntity(warehouse, dto);
         Warehouse saved = _warehouseRepository.save(warehouse);
+
+        activityLogService.create(new ActivityLogCreate(
+                "WAREHOUSE",
+                "UPDATE",
+                saved.getId(),
+                "WAREHOUSE is updated (ID: " + saved.getId() + " )",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+
         return WarehouseMapper.toResponse(saved);
     }
 
@@ -64,6 +84,27 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     @Override
+    public WarehouseResponse assignEmployee(Long warehouseId, Long employeeId) {
+        Employee employee = _employeeRepository.findById(employeeId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Warehouse warehouse = _warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        validateWarehouseManager(employee);
+        validateWarehouseIsActive(warehouse);
+
+        warehouse.setManager(employee);
+        Warehouse saved = _warehouseRepository.save(warehouse);
+
+        activityLogService.create(new ActivityLogCreate(
+                "EMPLOYEE_ASSIGNED",
+                "UPDATE",
+                warehouseId,
+                "WAREHOUSE (ID: " + warehouseId + " ) was assigned to manager (ID: " + employeeId + " )",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+
+        return WarehouseMapper.toResponse(saved);
+    }
+
+    @Override
     public List<WarehouseResponse> getAll() {
         return _warehouseRepository.findAll().stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
     }
@@ -71,7 +112,60 @@ public class WarehouseService implements WarehouseServiceDefinition {
     @Override
     public void delete(Long id) {
         Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+
+        validateForDeleting(warehouse);
+
         _warehouseRepository.delete(warehouse);
+
+        activityLogService.create(new ActivityLogCreate(
+                "WAREHOUSE",
+                "DELETE",
+                id,
+                "WAREHOUSE is deleted (ID: " + id + " )",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+    }
+
+    @Override
+    public WarehouseResponse changeStatus(Long warehouseId, WarehouseStatus status) {
+        Warehouse warehouse = _warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+
+        if (warehouse.getStatus() == status) {
+            throw new BadRequestException("Warehouse already has this status.");
+        }
+
+        if (status == WarehouseStatus.INACTIVE) {
+            validateForDeactivation(warehouse);
+            warehouse.setStatus(WarehouseStatus.INACTIVE);
+            warehouse.setActive(false);
+        } else if (status == WarehouseStatus.ACTIVE) {
+            warehouse.setStatus(WarehouseStatus.ACTIVE);
+            warehouse.setActive(true);
+        } else if (status == WarehouseStatus.FULL) {
+            if (!Boolean.TRUE.equals(warehouse.getActive())) {
+                throw new BadRequestException("Inactive warehouse cannot be marked as full.");
+            }
+            warehouse.setStatus(WarehouseStatus.FULL);
+        } else if (status == WarehouseStatus.UNDER_MAINTENANCE) {
+            if (!Boolean.TRUE.equals(warehouse.getActive())) {
+                throw new BadRequestException("Inactive warehouse cannot be placed under maintenance.");
+            }
+            validateForDeactivation(warehouse);
+            warehouse.setStatus(WarehouseStatus.UNDER_MAINTENANCE);
+            warehouse.setActive(false);
+        }
+
+        Warehouse saved = _warehouseRepository.save(warehouse);
+
+        activityLogService.create(new ActivityLogCreate(
+                "WAREHOUSE_STATUS",
+                "UPDATE",
+                saved.getId(),
+                "WAREHOUSE status changed to " + saved.getStatus() + " (ID: " + saved.getId() + " )",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+
+        return WarehouseMapper.toResponse(saved);
     }
 
     @Override
@@ -102,8 +196,6 @@ public class WarehouseService implements WarehouseServiceDefinition {
         return _warehouseRepository.findByManagerId(manager.getId()).stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
     }
 
-    // helpers
-
     private void validateWarehouseManager(Employee employee) {
         if (Boolean.FALSE.equals(employee.getActive())) {
             throw new BadRequestException("Inactive employee cannot be assigned as warehouse manager");
@@ -111,6 +203,42 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
         if (employee.getPosition() != EmployeePosition.MANAGER) {
             throw new BadRequestException("Only employee with MANAGER position can be assigned as warehouse manager");
+        }
+    }
+
+    private void validateWarehouseIsActive(Warehouse warehouse) {
+        if (!Boolean.TRUE.equals(warehouse.getActive()) || warehouse.getStatus() == WarehouseStatus.INACTIVE) {
+            throw new BadRequestException("Inactive warehouse cannot be modified.");
+        }
+    }
+
+    private void validateForDeleting(Warehouse warehouse) {
+        if (!warehouse.getInventoryItems().isEmpty()) {
+            throw new BadRequestException("Warehouse cannot be deleted because it contains inventory.");
+        }
+
+        if (!warehouse.getStockMovements().isEmpty()) {
+            throw new BadRequestException("Warehouse cannot be deleted because it has stock movement history.");
+        }
+
+        if (warehouse.getManager() != null) {
+            throw new BadRequestException("Warehouse cannot be deleted while manager is assigned.");
+        }
+
+        if (!_transportOrderRepository.findBySourceWarehouseId(warehouse.getId()).isEmpty() ||
+                !_transportOrderRepository.findByDestinationWarehouseId(warehouse.getId()).isEmpty()) {
+            throw new BadRequestException("Warehouse cannot be deleted because it is linked to transport orders.");
+        }
+    }
+
+    private void validateForDeactivation(Warehouse warehouse) {
+        if (!warehouse.getInventoryItems().isEmpty()) {
+            throw new BadRequestException("Warehouse cannot be deactivated while it contains inventory.");
+        }
+
+        if (!_transportOrderRepository.findBySourceWarehouseId(warehouse.getId()).isEmpty() ||
+                !_transportOrderRepository.findByDestinationWarehouseId(warehouse.getId()).isEmpty()) {
+            throw new BadRequestException("Warehouse cannot be deactivated while it is linked to transport orders.");
         }
     }
 }

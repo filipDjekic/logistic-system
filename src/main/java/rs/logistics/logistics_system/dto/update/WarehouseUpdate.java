@@ -32,22 +32,13 @@ public class WarehouseUpdate {
 
     @NotNull
     @Positive
-    private BigDecimal capacity;
+    private BigDecimal capacity;;
 
-    @NotNull
-    private WarehouseStatus status;
-
-    @NotNull
-    @Positive
-    private Long employeeId;
-
-    public WarehouseUpdate(Long id, String name, String address, String city, BigDecimal capacity, WarehouseStatus status, Long employeeId) {
+    public WarehouseUpdate(Long id, String name, String address, String city, BigDecimal capacity) {
         this.id = id;
         this.name = name;
         this.address = address;
         this.city = city;
         this.capacity = capacity;
-        this.status = status;
-        this.employeeId = employeeId;
     }
 }

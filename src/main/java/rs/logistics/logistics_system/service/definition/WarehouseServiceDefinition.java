@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
+import rs.logistics.logistics_system.enums.WarehouseStatus;
 
 import java.util.List;
 
@@ -18,9 +19,13 @@ public interface WarehouseServiceDefinition {
 
     WarehouseResponse getById(Long id);
 
+    WarehouseResponse assignEmployee(Long warehouseId, Long employeeId);
+
     List<WarehouseResponse> getAll();
 
     void delete(Long id);
+
+    WarehouseResponse changeStatus(Long warehouseId, WarehouseStatus status);
 
     List<WarehouseInventoryResponse> getInventoryByWarehouse(Long warehouseId);
 
