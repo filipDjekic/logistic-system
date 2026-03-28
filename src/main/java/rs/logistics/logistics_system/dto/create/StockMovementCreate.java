@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import rs.logistics.logistics_system.enums.StockMovementReasonCode;
+import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
 
 import java.math.BigDecimal;
@@ -17,7 +19,6 @@ import java.math.BigDecimal;
 public class StockMovementCreate {
 
     @NotNull
-    @Size(min = 1, max = 30)
     private StockMovementType movementType;
 
     @NotNull
@@ -25,8 +26,24 @@ public class StockMovementCreate {
     private BigDecimal quantity;
 
     @NotNull
-    @Size(min = 1, max = 255)
+    private StockMovementReasonCode reasonCode;
+
+    @Size(max = 255)
+    private String reasonDescription;
+
+    @NotNull
+    private StockMovementReferenceType referenceType;
+
+    private Long referenceId;
+
+    @Size(max = 100)
+    private String referenceNumber;
+
+    @Size(max = 255)
     private String referenceNote;
+
+    @Positive
+    private Long transportOrderId;
 
     @NotNull
     @Positive
@@ -36,19 +53,29 @@ public class StockMovementCreate {
     @Positive
     private Long productId;
 
-    @NotNull
-    @Positive
-    private Long createdById;
-
-    public StockMovementCreate(StockMovementType movementType,
-                               BigDecimal quantity,
-                               String referenceNote,
-                               Long warehouseId, Long productId, Long createdById) {
+    public StockMovementCreate(
+            StockMovementType movementType,
+            BigDecimal quantity,
+            StockMovementReasonCode reasonCode,
+            String reasonDescription,
+            StockMovementReferenceType referenceType,
+            Long referenceId,
+            String referenceNumber,
+            String referenceNote,
+            Long transportOrderId,
+            Long warehouseId,
+            Long productId
+    ) {
         this.movementType = movementType;
         this.quantity = quantity;
+        this.reasonCode = reasonCode;
+        this.reasonDescription = reasonDescription;
+        this.referenceType = referenceType;
+        this.referenceId = referenceId;
+        this.referenceNumber = referenceNumber;
         this.referenceNote = referenceNote;
+        this.transportOrderId = transportOrderId;
         this.warehouseId = warehouseId;
         this.productId = productId;
-        this.createdById = createdById;
     }
 }

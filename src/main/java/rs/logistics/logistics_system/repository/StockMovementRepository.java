@@ -2,17 +2,18 @@ package rs.logistics.logistics_system.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import rs.logistics.logistics_system.entity.StockMovement;
-import rs.logistics.logistics_system.enums.StockMovementType;
+import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long> {
-    List<StockMovement> findByWarehouseId(Long warehouseId);
 
-    List<StockMovement> findByProductId(Long productId);
+    List<StockMovement> findByTransportOrder_Id(Long transportOrderId);
 
-    List<StockMovement> findByMovementType(StockMovementType movementType);
+    List<StockMovement> findByWarehouse_IdAndProduct_IdOrderByCreatedAtDesc(Long warehouseId, Long productId);
 
-    List<StockMovement> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+    List<StockMovement> findByReferenceTypeAndReferenceIdOrderByCreatedAtDesc(
+            StockMovementReferenceType referenceType,
+            Long referenceId
+    );
 }

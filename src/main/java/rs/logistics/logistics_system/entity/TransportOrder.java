@@ -93,6 +93,9 @@ public class TransportOrder {
     @OneToMany(mappedBy = "transportOrder")
     private List<Task> tasks = new ArrayList<>();
 
+    @OneToMany(mappedBy = "transportOrder")
+    private List<StockMovement> stockMovements = new ArrayList<>();
+
     public TransportOrder(
             String orderNumber,
             String description,

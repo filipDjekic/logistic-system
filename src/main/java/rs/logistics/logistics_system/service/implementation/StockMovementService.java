@@ -7,22 +7,32 @@ import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
-import rs.logistics.logistics_system.dto.update.StockMovementUpdate;
-import rs.logistics.logistics_system.entity.*;
+import rs.logistics.logistics_system.entity.Product;
+import rs.logistics.logistics_system.entity.StockMovement;
+import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.entity.WarehouseInventory;
 import rs.logistics.logistics_system.enums.ChangeType;
+import rs.logistics.logistics_system.enums.StockMovementReasonCode;
+import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.StockMovementMapper;
-import rs.logistics.logistics_system.repository.*;
+import rs.logistics.logistics_system.repository.ProductRepository;
+import rs.logistics.logistics_system.repository.StockMovementRepository;
+import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.repository.UserRepository;
+import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,6 +45,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final WarehouseRepository _warehouseRepository;
     private final ProductRepository _productRepository;
     private final UserRepository _userRepository;
+    private final TransportOrderRepository _transportOrderRepository;
 
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
     private final ActivityLogServiceDefinition activityLogService;
@@ -44,7 +55,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public StockMovementResponse create(StockMovementCreate dto) {
-        if (authenticatedUserProvider.getAuthenticatedUserId() == null) {
+        Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
+
+        if (authenticatedUserId == null) {
             throw new BadRequestException("Authenticated user is required");
         }
 
@@ -54,18 +67,26 @@ public class StockMovementService implements StockMovementServiceDefinition {
         Product product = _productRepository.findById(dto.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        User user = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId())
+        User user = _userRepository.findById(authenticatedUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        validateMovementRequest(dto, warehouse, product);
+        TransportOrder transportOrder = null;
+        if (dto.getTransportOrderId() != null) {
+            transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        }
 
-        WarehouseInventory inventory = getOrCreateInventoryForInbound(
+        validateMovementRequest(dto, warehouse, product, transportOrder);
+
+        WarehouseInventory inventory = getOrCreateInventoryForMovement(
                 warehouse,
                 product,
                 dto.getMovementType()
         );
 
-        BigDecimal beforeQuantity = inventory.getQuantity();
+        BigDecimal quantityBefore = getSafeQuantity(inventory.getQuantity());
+        BigDecimal reservedBefore = getSafeQuantity(inventory.getReservedQuantity());
+        BigDecimal availableBefore = quantityBefore.subtract(reservedBefore);
 
         switch (dto.getMovementType()) {
             case INBOUND:
@@ -88,9 +109,24 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         _warehouseInventoryRepository.save(inventory);
 
-        BigDecimal afterQuantity = inventory.getQuantity();
+        BigDecimal quantityAfter = getSafeQuantity(inventory.getQuantity());
+        BigDecimal reservedAfter = getSafeQuantity(inventory.getReservedQuantity());
+        BigDecimal availableAfter = quantityAfter.subtract(reservedAfter);
 
-        StockMovement stockMovement = StockMovementMapper.toEntity(dto, warehouse, product, user);
+        StockMovement stockMovement = StockMovementMapper.toEntity(
+                dto,
+                warehouse,
+                product,
+                user,
+                transportOrder,
+                quantityBefore,
+                quantityAfter,
+                reservedBefore,
+                reservedAfter,
+                availableBefore,
+                availableAfter
+        );
+
         StockMovement saved = _stockMovementRepository.save(stockMovement);
 
         changeHistoryService.create(new ChangeHistoryCreate(
@@ -98,19 +134,22 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 saved.getId(),
                 ChangeType.CREATE,
                 "quantity",
-                beforeQuantity.toString(),
-                afterQuantity.toString(),
-                authenticatedUserProvider.getAuthenticatedUserId()
+                quantityBefore.toString(),
+                quantityAfter.toString(),
+                authenticatedUserId
         ));
 
         activityLogService.create(new ActivityLogCreate(
                 "CREATE",
                 "STOCK_MOVEMENT",
                 saved.getId(),
-                "Stock movement created (ID: " + saved.getId() + ", type: " + saved.getMovementType()
-                        + ", quantity: " + saved.getQuantity() + ", before: " + beforeQuantity
-                        + ", after: " + afterQuantity + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
+                "Stock movement created (ID: " + saved.getId()
+                        + ", type: " + saved.getMovementType()
+                        + ", quantity: " + saved.getQuantity()
+                        + ", reason: " + saved.getReasonCode()
+                        + ", before: " + quantityBefore
+                        + ", after: " + quantityAfter + ")",
+                authenticatedUserId
         ));
 
         return StockMovementMapper.toResponse(saved);
@@ -118,16 +157,18 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public StockMovementResponse getById(Long id) {
-        StockMovement stockMovement =  _stockMovementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
+        StockMovement stockMovement = _stockMovementRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
         return StockMovementMapper.toResponse(stockMovement);
     }
 
     @Override
     public List<StockMovementResponse> getAll() {
-        return _stockMovementRepository.findAll().stream().map(StockMovementMapper::toResponse).collect(Collectors.toList());
+        return _stockMovementRepository.findAll()
+                .stream()
+                .map(StockMovementMapper::toResponse)
+                .collect(Collectors.toList());
     }
-
-    // helpers
 
     private void increaseInventory(WarehouseInventory inventory, BigDecimal quantity) {
         inventory.increase(quantity);
@@ -179,14 +220,13 @@ public class StockMovementService implements StockMovementServiceDefinition {
         ));
     }
 
-
     private void checkMovementQuantity(BigDecimal quantity) {
         if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Quantity must be greater than zero");
         }
     }
 
-    private WarehouseInventory getOrCreateInventoryForInbound(
+    private WarehouseInventory getOrCreateInventoryForMovement(
             Warehouse warehouse,
             Product product,
             StockMovementType movementType
@@ -194,7 +234,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
         return _warehouseInventoryRepository
                 .findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
                 .orElseGet(() -> {
-                    if (movementType != StockMovementType.INBOUND) {
+                    if (movementType != StockMovementType.INBOUND &&
+                            movementType != StockMovementType.TRANSFER_IN &&
+                            movementType != StockMovementType.ADJUSTMENT) {
                         throw new ResourceNotFoundException("Inventory not found");
                     }
 
@@ -213,7 +255,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private void validateMovementRequest(
             StockMovementCreate dto,
             Warehouse warehouse,
-            Product product
+            Product product,
+            TransportOrder transportOrder
     ) {
         if (dto == null) {
             throw new BadRequestException("Stock movement request is required");
@@ -221,6 +264,14 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         if (dto.getMovementType() == null) {
             throw new BadRequestException("Movement type is required");
+        }
+
+        if (dto.getReasonCode() == null) {
+            throw new BadRequestException("Reason code is required");
+        }
+
+        if (dto.getReferenceType() == null) {
+            throw new BadRequestException("Reference type is required");
         }
 
         checkMovementQuantity(dto.getQuantity());
@@ -241,13 +292,53 @@ public class StockMovementService implements StockMovementServiceDefinition {
             throw new BadRequestException("Product is required");
         }
 
-        if (dto.getReferenceNote() == null || dto.getReferenceNote().trim().isEmpty()) {
-            throw new BadRequestException("Reference note is required");
+        if (dto.getMovementType() == StockMovementType.ADJUSTMENT) {
+            if (dto.getReferenceNote() == null || dto.getReferenceNote().trim().length() < 5) {
+                throw new BadRequestException("Adjustment must contain a meaningful reference note");
+            }
+
+            if (dto.getReasonCode() != StockMovementReasonCode.INVENTORY_ADJUSTMENT &&
+                    dto.getReasonCode() != StockMovementReasonCode.CORRECTION) {
+                throw new BadRequestException("Invalid reason code for adjustment");
+            }
         }
 
-        if (dto.getMovementType() == StockMovementType.ADJUSTMENT &&
-                dto.getReferenceNote().trim().length() < 5) {
-            throw new BadRequestException("Adjustment must contain a meaningful reference note");
+        if (dto.getMovementType() == StockMovementType.TRANSFER_OUT ||
+                dto.getMovementType() == StockMovementType.TRANSFER_IN) {
+            if (transportOrder == null) {
+                throw new BadRequestException("Transport order is required for transfer movement");
+            }
+
+            if (dto.getReferenceType() != StockMovementReferenceType.TRANSPORT_ORDER) {
+                throw new BadRequestException("Transfer movement must use TRANSPORT_ORDER reference type");
+            }
+
+            if (dto.getMovementType() == StockMovementType.TRANSFER_OUT &&
+                    !transportOrder.getSourceWarehouse().getId().equals(warehouse.getId())) {
+                throw new BadRequestException("TRANSFER_OUT warehouse must match transport source warehouse");
+            }
+
+            if (dto.getMovementType() == StockMovementType.TRANSFER_IN &&
+                    !transportOrder.getDestinationWarehouse().getId().equals(warehouse.getId())) {
+                throw new BadRequestException("TRANSFER_IN warehouse must match transport destination warehouse");
+            }
+
+            if (dto.getReasonCode() != StockMovementReasonCode.TRANSPORT_DISPATCH &&
+                    dto.getReasonCode() != StockMovementReasonCode.TRANSPORT_RECEIPT) {
+                throw new BadRequestException("Invalid reason code for transport movement");
+            }
+        }
+
+        if (dto.getReferenceNumber() != null && dto.getReferenceNumber().trim().isEmpty()) {
+            throw new BadRequestException("Reference number cannot be blank");
+        }
+
+        if (dto.getReasonDescription() != null && dto.getReasonDescription().trim().isEmpty()) {
+            throw new BadRequestException("Reason description cannot be blank");
+        }
+
+        if (dto.getReferenceNote() != null && dto.getReferenceNote().trim().isEmpty()) {
+            throw new BadRequestException("Reference note cannot be blank");
         }
     }
 
@@ -267,6 +358,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
         BigDecimal reserved = inventory.getReservedQuantity() == null ? BigDecimal.ZERO : inventory.getReservedQuantity();
 
         return quantity.subtract(reserved);
+    }
+
+    private BigDecimal getSafeQuantity(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
 }
