@@ -20,6 +20,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
+import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -38,6 +39,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private static final List<TransportOrderStatus> ACTIVE_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
     private final ActivityLogServiceDefinition activityLogService;
     private final ChangeHistoryServiceDefinition changeHistoryService;
+    private final WarehouseInventoryServiceDefinition warehouseInventoryService;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
@@ -124,6 +126,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+
+        if (transportOrder.getStatus() != TransportOrderStatus.CREATED) {
+            if (!dto.getSourceWarehouseId().equals(transportOrder.getSourceWarehouse().getId())) {
+                throw new BadRequestException("Source warehouse cannot be changed once transport order is no longer in CREATED status");
+            }
+
+            if (!dto.getDestinationWarehouseId().equals(transportOrder.getDestinationWarehouse().getId())) {
+                throw new BadRequestException("Destination warehouse cannot be changed once transport order is no longer in CREATED status");
+            }
+        }
 
         Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
 
@@ -238,7 +250,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Transactional
     @Override
     public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status) {
-        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        TransportOrder transportOrder = _transportOrderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
         TransportOrderStatus current = transportOrder.getStatus();
 
@@ -261,6 +274,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     transportOrder.getId()
             );
 
+            reserveInventoryForOrder(transportOrder);
+
             transportOrder.getVehicle().setStatus(VehicleStatus.IN_USE);
             _vehicleRepository.save(transportOrder.getVehicle());
         }
@@ -272,12 +287,18 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         if (status == TransportOrderStatus.DELIVERED) {
+            executeDeliveryInventoryFlow(transportOrder);
+
             transportOrder.setActualArrivalTime(LocalDateTime.now());
             transportOrder.getVehicle().setStatus(VehicleStatus.AVAILABLE);
             _vehicleRepository.save(transportOrder.getVehicle());
         }
 
         if (status == TransportOrderStatus.CANCELLED) {
+            if (current == TransportOrderStatus.ASSIGNED) {
+                releaseInventoryForOrder(transportOrder);
+            }
+
             transportOrder.getVehicle().setStatus(VehicleStatus.AVAILABLE);
             _vehicleRepository.save(transportOrder.getVehicle());
         }
@@ -443,6 +464,76 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
             default:
                 throw new BadRequestException("Unsupported transport order status");
+        }
+    }
+
+    private void reserveInventoryForOrder(TransportOrder transportOrder) {
+        if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
+            throw new BadRequestException("Transport order must contain at least one item before assignment");
+        }
+
+        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
+            validateTransportOrderItem(item);
+
+            warehouseInventoryService.reserveStock(
+                    transportOrder.getSourceWarehouse().getId(),
+                    item.getProduct().getId(),
+                    item.getQuantity()
+            );
+        }
+    }
+
+    private void releaseInventoryForOrder(TransportOrder transportOrder) {
+        if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
+            return;
+        }
+
+        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
+            validateTransportOrderItem(item);
+
+            warehouseInventoryService.releaseReservedStock(
+                    transportOrder.getSourceWarehouse().getId(),
+                    item.getProduct().getId(),
+                    item.getQuantity()
+            );
+        }
+    }
+
+    private void executeDeliveryInventoryFlow(TransportOrder transportOrder) {
+        if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
+            throw new BadRequestException("Transport order must contain at least one item to complete delivery");
+        }
+
+        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
+            validateTransportOrderItem(item);
+
+            warehouseInventoryService.moveOutReservedStock(
+                    transportOrder.getSourceWarehouse().getId(),
+                    item.getProduct().getId(),
+                    item.getQuantity()
+            );
+        }
+
+        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
+            warehouseInventoryService.moveInStock(
+                    transportOrder.getDestinationWarehouse().getId(),
+                    item.getProduct().getId(),
+                    item.getQuantity()
+            );
+        }
+    }
+
+    private void validateTransportOrderItem(TransportOrderItem item) {
+        if (item == null) {
+            throw new BadRequestException("Transport order item is required");
+        }
+
+        if (item.getProduct() == null || item.getProduct().getId() == null) {
+            throw new BadRequestException("Transport order item product is required");
+        }
+
+        if (item.getQuantity() == null || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Transport order item quantity must be greater than 0");
         }
     }
 }
