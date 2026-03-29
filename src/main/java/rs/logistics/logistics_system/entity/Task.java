@@ -65,4 +65,30 @@ public class Task {
         this.assignedEmployee = assignedEmployee;
         this.transportOrder = transportOrder;
     }
+
+    // methods
+
+    public boolean isFinalStatus(){
+        return this.status == TaskStatus.COMPLETED || this.status == TaskStatus.CANCELLED;
+    }
+
+    public void validateNotFinalForUpdate() {
+        if(isFinalStatus()) {
+            throw new IllegalStateException("Final task cannot be updated.");
+        }
+    }
+
+    public void validateDueDate(LocalDateTime dueDate) {
+        if(dueDate == null || dueDate.isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Due date is invalid.");
+        }
+    }
+
+    public void assignEmployee(Employee employee) {
+        if(employee == null) {
+            throw new IllegalStateException("Assigned employee is required.");
+        }
+
+        this.assignedEmployee = employee;
+    }
 }

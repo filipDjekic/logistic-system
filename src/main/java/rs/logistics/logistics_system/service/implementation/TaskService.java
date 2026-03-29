@@ -12,7 +12,6 @@ import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.enums.TaskStatus;
-import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TaskMapper;
@@ -44,9 +43,7 @@ public class TaskService implements TaskServiceDefinition {
     @Override
     public TaskResponse create(TaskCreate dto) {
 
-        if(dto.getDueDate().isBefore(LocalDateTime.now())){
-            throw new BadRequestException("Due Date is invalid");
-        }
+        validateDueDate(dto.getDueDate());
 
         Employee employee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
@@ -78,10 +75,17 @@ public class TaskService implements TaskServiceDefinition {
 
     @Override
     public TaskResponse update(Long id, TaskUpdate dto) {
+        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+
+        validateTaskUpdatable(task);
+        validateDueDate(dto.getDueDate());
+
         Employee employee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
 
-        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        if(!task.getAssignedEmployee().getId().equals(employee.getId())) {
+            validateReassign(task, employee);
+        }
 
         // change history part
 
@@ -227,19 +231,21 @@ public class TaskService implements TaskServiceDefinition {
     public TaskResponse assignTask(Long id, Long employeeId) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
-        Employee employee = _employeeRepository.findById(employeeId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = getActiveEmployee(employeeId);
 
-        Long idOld = task.getAssignedEmployee().getId();
+        validateReassign(task, employee);
+
+        Long oldEmployeeId = task.getAssignedEmployee().getId();
         task.setAssignedEmployee(employee);
 
-        _taskRepository.save(task);
+        Task saved = _taskRepository.save(task);
 
         changeHistoryService.create(new ChangeHistoryCreate(
                 "TASK",
-                task.getId(),
+                saved.getId(),
                 ChangeType.UPDATE,
                 "assignedEmployee",
-                idOld.toString(),
+                oldEmployeeId.toString(),
                 employeeId.toString(),
                 authenticatedUserProvider.getAuthenticatedUserId()
         ));
@@ -247,11 +253,55 @@ public class TaskService implements TaskServiceDefinition {
         activityLogService.create(new ActivityLogCreate(
                 "ASSIGN",
                 "TASK",
-                task.getId(),
-                "TASK is assigned (ID: " + task.getId() + ") to employee " + employee.getId().toString(),
+                saved.getId(),
+                "TASK is reassigned (ID: " + saved.getId() + ") to employee " + employee.getId(),
                 authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
-        return TaskMapper.toResponse(task);
+        return TaskMapper.toResponse(saved);
+    }
+
+    // helpers
+
+    private Employee getActiveEmployee(Long employeeId) {
+        Employee employee = _employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        if (employee.getActive() == null || !employee.getActive()) {
+            throw new BadRequestException("Task cannot be assigned to an inactive employee");
+        }
+
+        return employee;
+    }
+
+    private TransportOrder getTransportOrder(Long transportOrderId) {
+        return _transportOrderRepository.findById(transportOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
+    }
+
+    private void validateDueDate(LocalDateTime dueDate) {
+        if (dueDate == null || dueDate.isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Due date is invalid");
+        }
+    }
+
+    private void validateTaskUpdatable(Task task) {
+        if (task.getStatus() == TaskStatus.COMPLETED || task.getStatus() == TaskStatus.CANCELLED) {
+            throw new BadRequestException("Final task cannot be updated");
+        }
+    }
+
+    private void validateReassign(Task task, Employee newEmployee) {
+        if (task.getStatus() == TaskStatus.COMPLETED || task.getStatus() == TaskStatus.CANCELLED) {
+            throw new BadRequestException("Final task cannot be reassigned");
+        }
+
+        if (task.getAssignedEmployee() != null && task.getAssignedEmployee().getId().equals(newEmployee.getId())) {
+            throw new BadRequestException("Task is already assigned to this employee");
+        }
+
+        if (task.getStatus() == TaskStatus.IN_PROGRESS) {
+            throw new BadRequestException("Task in progress cannot be reassigned");
+        }
     }
 }

@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.TaskPriority;
-import rs.logistics.logistics_system.enums.TaskStatus;
 
 import java.time.LocalDateTime;
 
@@ -31,10 +30,6 @@ public class TaskCreate {
     private TaskPriority priority;
 
     @NotNull
-    @Size(min = 1, max = 20)
-    private TaskStatus status;
-
-    @NotNull
     @Positive
     private Long assignedEmployeeId;
 
@@ -46,14 +41,12 @@ public class TaskCreate {
                       String description,
                       LocalDateTime dueDate,
                       TaskPriority priority,
-                      TaskStatus status,
                       Long assignedEmployeeId,
                       Long transportOrderId) {
         this.title = title;
         this.description = description;
         this.dueDate = dueDate;
         this.priority = priority;
-        this.status = status;
         this.assignedEmployeeId = assignedEmployeeId;
         this.transportOrderId = transportOrderId;
     }
