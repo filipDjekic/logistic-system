@@ -31,7 +31,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     @Override
     public TransportOrderItemResponse create(TransportOrderItemCreate dto) {
 
-        if(dto.getQuantity().compareTo(BigDecimal.ZERO) <= 0){
+        if(dto.getQuantity().compareTo(BigDecimal.ZERO) < 0){
             throw new BadRequestException("Quantity must be greater than 0");
         }
 
@@ -70,6 +70,25 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         Product product =  _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
 
         TransportOrderItem transportOrderItem = _transportOrderItemRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
+
+        if (dto.getQuantity() == null || dto.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Quantity must be greater than 0");
+        }
+
+        Warehouse sourceWarehouse = _warehouseRepository.findById(transportOrder.getSourceWarehouse().getId()).orElseThrow(() -> new ResourceNotFoundException("Source Warehouse Not Found"));
+
+        WarehouseInventory warehouseInventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(sourceWarehouse.getId(), product.getId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse Inventory Not Found"));
+
+        BigDecimal currentReservedByThisItem = BigDecimal.ZERO;
+        if (transportOrderItem.getProduct().getId().equals(product.getId())) {
+            currentReservedByThisItem = transportOrderItem.getQuantity();
+        }
+
+        BigDecimal effectiveAvailable = warehouseInventory.getAvailableQuantity().add(currentReservedByThisItem);
+
+        if (effectiveAvailable.compareTo(dto.getQuantity()) < 0) {
+            throw new BadRequestException("Not enough available stock");
+        }
 
         TransportOrderItemMapper.updateEntity(dto, transportOrderItem,transportOrder,product);
 

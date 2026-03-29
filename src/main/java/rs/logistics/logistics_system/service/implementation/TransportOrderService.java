@@ -272,8 +272,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Transactional
     @Override
     public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status) {
-        TransportOrder transportOrder = _transportOrderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
         TransportOrderStatus current = transportOrder.getStatus();
 
@@ -322,6 +321,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         if (status == TransportOrderStatus.CANCELLED) {
             if (current == TransportOrderStatus.ASSIGNED) {
                 releaseInventoryForOrder(transportOrder);
+            }
+
+            if (current == TransportOrderStatus.IN_TRANSIT) {
+                throw new BadRequestException("Transport order in transit cannot be cancelled");
             }
 
             refreshVehicleAvailability(transportOrder.getVehicle().getId());

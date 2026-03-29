@@ -125,4 +125,21 @@ public class WarehouseInventory {
 
         return quantity.subtract(reserved);
     }
+
+    public void moveOutReserved(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than 0");
+        }
+
+        if (this.reservedQuantity == null || this.reservedQuantity.compareTo(amount) < 0) {
+            throw new IllegalStateException("Not enough reserved stock");
+        }
+
+        if (this.quantity == null || this.quantity.compareTo(amount) < 0) {
+            throw new IllegalStateException("Not enough stock");
+        }
+
+        this.reservedQuantity = this.reservedQuantity.subtract(amount);
+        this.quantity = this.quantity.subtract(amount);
+    }
 }

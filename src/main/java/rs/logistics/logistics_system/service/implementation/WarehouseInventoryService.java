@@ -148,8 +148,13 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
 
-        inventory.release(quantity);
-        inventory.decrease(quantity);
+        BigDecimal reserved = inventory.getReservedQuantity() == null ? BigDecimal.ZERO : inventory.getReservedQuantity();
+
+        if (reserved.compareTo(quantity) < 0) {
+            throw new BadRequestException("Not enough reserved stock");
+        }
+
+        inventory.moveOutReserved(quantity);
 
         warehouseInventoryRepository.save(inventory);
     }
@@ -159,8 +164,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     public void moveInStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
-                .orElseGet(() -> {
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseGet(() -> {
                     Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
                     Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
