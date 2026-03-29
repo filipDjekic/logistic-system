@@ -61,19 +61,15 @@ public class StockMovementService implements StockMovementServiceDefinition {
             throw new BadRequestException("Authenticated user is required");
         }
 
-        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId())
-                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
 
-        Product product = _productRepository.findById(dto.getProductId())
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        User user = _userRepository.findById(authenticatedUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = _userRepository.findById(authenticatedUserId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         TransportOrder transportOrder = null;
         if (dto.getTransportOrderId() != null) {
-            transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+            transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
         }
 
         validateMovementRequest(dto, warehouse, product, transportOrder);
@@ -95,8 +91,11 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 break;
 
             case OUTBOUND:
-            case TRANSFER_OUT:
                 decreaseInventory(inventory, dto.getQuantity());
+                break;
+
+            case TRANSFER_OUT:
+                dispatchReservedInventory(inventory, dto.getQuantity());
                 break;
 
             case ADJUSTMENT:
@@ -198,6 +197,27 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 "WAREHOUSE_INVENTORY",
                 inventory.getWarehouse().getId(),
                 "Inventory decreased (WAREHOUSE ID: " + inventory.getWarehouse().getId()
+                        + ", PRODUCT ID: " + inventory.getProduct().getId()
+                        + ", QUANTITY: " + quantity + ")",
+                authenticatedUserProvider.getAuthenticatedUserId()
+        ));
+    }
+
+    private void dispatchReservedInventory(WarehouseInventory inventory, BigDecimal quantity) {
+        BigDecimal reserved = getSafeQuantity(inventory.getReservedQuantity());
+
+        if (reserved.compareTo(quantity) < 0) {
+            throw new BadRequestException("Not enough reserved stock for transport dispatch");
+        }
+
+        inventory.release(quantity);
+        inventory.decrease(quantity);
+
+        activityLogService.create(new ActivityLogCreate(
+                "UPDATE",
+                "WAREHOUSE_INVENTORY",
+                inventory.getWarehouse().getId(),
+                "Reserved inventory dispatched (WAREHOUSE ID: " + inventory.getWarehouse().getId()
                         + ", PRODUCT ID: " + inventory.getProduct().getId()
                         + ", QUANTITY: " + quantity + ")",
                 authenticatedUserProvider.getAuthenticatedUserId()

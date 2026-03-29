@@ -37,11 +37,70 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     List<TransportOrder> findByDestinationWarehouseId(Long warehouseId);
 
-    boolean existsByVehicleIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThan(Long vehicleId, List<TransportOrderStatus> statuses, LocalDateTime newEnd, LocalDateTime newStart);
+    @Query("""
+        select count(t) > 0
+        from TransportOrder t
+        where t.vehicle.id = :vehicleId
+        and t.status in :statuses
+        and t.departureTime < :newEnd
+        and t.plannedArrivalTime > :newStart
+    """)
+    boolean existsVehicleScheduleOverlap(
+            @Param("vehicleId") Long vehicleId,
+            @Param("statuses") Collection<TransportOrderStatus> statuses,
+            @Param("newStart") LocalDateTime newStart,
+            @Param("newEnd") LocalDateTime newEnd
+    );
 
-    boolean existsByVehicleIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThanAndIdNot(Long vehicleId, List<TransportOrderStatus> statuses, LocalDateTime newEnd, LocalDateTime newStart, Long id);
+    @Query("""
+        select count(t) > 0
+        from TransportOrder t
+        where t.vehicle.id = :vehicleId
+        and t.status in :statuses
+        and t.id <> :transportOrderId
+        and t.departureTime < :newEnd
+        and t.plannedArrivalTime > :newStart
+    """)
+    boolean existsVehicleScheduleOverlapExcludingOrder(
+            @Param("vehicleId") Long vehicleId,
+            @Param("statuses") Collection<TransportOrderStatus> statuses,
+            @Param("newStart") LocalDateTime newStart,
+            @Param("newEnd") LocalDateTime newEnd,
+            @Param("transportOrderId") Long transportOrderId
+    );
 
-    boolean existsByAssignedEmployeeIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThan(Long employeeId, List<TransportOrderStatus> statuses, LocalDateTime newEnd, LocalDateTime newStart);
+    @Query("""
+        select count(t) > 0
+        from TransportOrder t
+        where t.assignedEmployee.id = :employeeId
+        and t.status in :statuses
+        and t.departureTime < :newEnd
+        and t.plannedArrivalTime > :newStart
+    """)
+    boolean existsDriverScheduleOverlap(
+            @Param("employeeId") Long employeeId,
+            @Param("statuses") Collection<TransportOrderStatus> statuses,
+            @Param("newStart") LocalDateTime newStart,
+            @Param("newEnd") LocalDateTime newEnd
+    );
 
-    boolean existsByAssignedEmployeeIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThanAndIdNot(Long employeeId, List<TransportOrderStatus> statuses, LocalDateTime newEnd, LocalDateTime newStart, Long id);
+    @Query("""
+        select count(t) > 0
+        from TransportOrder t
+        where t.assignedEmployee.id = :employeeId
+        and t.status in :statuses
+        and t.id <> :transportOrderId
+        and t.departureTime < :newEnd
+        and t.plannedArrivalTime > :newStart
+    """)
+    boolean existsDriverScheduleOverlapExcludingOrder(
+            @Param("employeeId") Long employeeId,
+            @Param("statuses") Collection<TransportOrderStatus> statuses,
+            @Param("newStart") LocalDateTime newStart,
+            @Param("newEnd") LocalDateTime newEnd,
+            @Param("transportOrderId") Long transportOrderId
+    );
+
+    boolean existsByVehicleIdAndStatusIn(Long vehicleId, Collection<TransportOrderStatus> statuses);
+    boolean existsByVehicleIdAndStatusInAndIdNot(Long vehicleId, Collection<TransportOrderStatus> statuses, Long id);
 }

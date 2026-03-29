@@ -37,6 +37,10 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
 
+        if (transportOrder.getStatus() != TransportOrderStatus.CREATED) {
+            throw new BadRequestException("Items can only be added while transport order is in CREATED status");
+        }
+
         Product product =  _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
 
         if(_transportOrderItemRepository.existsByTransportOrderIdAndProductId(dto.getTransportOrderId(), dto.getProductId())){
@@ -59,8 +63,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     public TransportOrderItemResponse update(Long id, TransportOrderItemUpdate dto) {
         TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
 
-        if(transportOrder.getStatus().equals(TransportOrderStatus.IN_TRANSIT) || transportOrder.getStatus().equals(TransportOrderStatus.DELIVERED)){
-            throw new BadRequestException("Cannot modify items after transport started");
+        if (transportOrder.getStatus() != TransportOrderStatus.CREATED) {
+            throw new BadRequestException("Items can only be modified while transport order is in CREATED status");
         }
 
         Product product =  _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
@@ -90,8 +94,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         TransportOrderItem transportOrderItem = _transportOrderItemRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
 
         TransportOrder transportOrder = _transportOrderRepository.findById(transportOrderItem.getTransportOrder().getId()).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
-        if(transportOrder.getStatus().equals(TransportOrderStatus.IN_TRANSIT) || transportOrder.getStatus().equals(TransportOrderStatus.DELIVERED)){
-            throw new BadRequestException("Cannot modify items after transport started");
+        if (transportOrder.getStatus() != TransportOrderStatus.CREATED) {
+            throw new BadRequestException("Items can only be removed while transport order is in CREATED status");
         }
         _transportOrderItemRepository.delete(transportOrderItem);
     }

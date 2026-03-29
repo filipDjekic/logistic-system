@@ -159,7 +159,21 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     public void moveInStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
+                .orElseGet(() -> {
+                    Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+                    Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+                    WarehouseInventory newInventory = new WarehouseInventory(
+                            warehouse,
+                            product,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO
+                    );
+                    newInventory.setReservedQuantity(BigDecimal.ZERO);
+
+                    return warehouseInventoryRepository.save(newInventory);
+                });
 
         inventory.increase(quantity);
 

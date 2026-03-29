@@ -22,7 +22,7 @@ public class StockMovementCreate {
     private StockMovementType movementType;
 
     @NotNull
-    @PositiveOrZero
+    @Positive
     private BigDecimal quantity;
 
     @NotNull

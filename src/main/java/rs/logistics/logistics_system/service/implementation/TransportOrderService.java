@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
+import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
@@ -17,10 +18,7 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.repository.*;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
-import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
-import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
-import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
+import rs.logistics.logistics_system.service.definition.*;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -37,7 +35,13 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final UserRepository _userRepository;
 
     private static final List<TransportOrderStatus> ACTIVE_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
+    private static final List<TransportOrderStatus> SCHEDULE_BLOCKING_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
+
+    private static final List<TransportOrderStatus> VEHICLE_BUSY_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
+
     private final ActivityLogServiceDefinition activityLogService;
+
+    private final StockMovementServiceDefinition stockMovementService;
     private final ChangeHistoryServiceDefinition changeHistoryService;
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
 
@@ -127,6 +131,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
+        if (transportOrder.getStatus() == TransportOrderStatus.IN_TRANSIT || transportOrder.getStatus() == TransportOrderStatus.DELIVERED || transportOrder.getStatus() == TransportOrderStatus.CANCELLED) {
+            throw new BadRequestException("Transport order cannot be updated in current status");
+        }
+
         if (transportOrder.getStatus() != TransportOrderStatus.CREATED) {
             if (!dto.getSourceWarehouseId().equals(transportOrder.getSourceWarehouse().getId())) {
                 throw new BadRequestException("Source warehouse cannot be changed once transport order is no longer in CREATED status");
@@ -184,6 +192,11 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             ));
         }
 
+        Vehicle previousVehicle = transportOrder.getVehicle();
+        Employee previousEmployee = transportOrder.getAssignedEmployee();
+        LocalDateTime previousDepartureTime = transportOrder.getDepartureTime();
+        LocalDateTime previousPlannedArrivalTime = transportOrder.getPlannedArrivalTime();
+
         TransportOrderMapper.updateEntity(
                 dto,
                 transportOrder,
@@ -194,6 +207,15 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         );
 
         TransportOrder updated = _transportOrderRepository.save(transportOrder);
+
+        if (transportOrder.getStatus() == TransportOrderStatus.ASSIGNED) {
+            if (!previousVehicle.getId().equals(updated.getVehicle().getId())) {
+                markVehicleAsBusy(updated.getVehicle());
+                refreshVehicleAvailability(previousVehicle.getId());
+            } else {
+                markVehicleAsBusy(updated.getVehicle());
+            }
+        }
 
         activityLogService.create(new ActivityLogCreate(
                 "UPDATE",
@@ -276,22 +298,25 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
             reserveInventoryForOrder(transportOrder);
 
-            transportOrder.getVehicle().setStatus(VehicleStatus.IN_USE);
-            _vehicleRepository.save(transportOrder.getVehicle());
+            markVehicleAsBusy(transportOrder.getVehicle());
         }
 
         if (status == TransportOrderStatus.IN_TRANSIT) {
             if (transportOrder.getVehicle().getStatus() != VehicleStatus.IN_USE) {
                 throw new BadRequestException("Vehicle must be in use before transport starts");
             }
+
+            if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
+                throw new BadRequestException("Transport order must contain at least one item before transport starts");
+            }
+
+            markVehicleAsBusy(transportOrder.getVehicle());
         }
 
         if (status == TransportOrderStatus.DELIVERED) {
             executeDeliveryInventoryFlow(transportOrder);
-
             transportOrder.setActualArrivalTime(LocalDateTime.now());
-            transportOrder.getVehicle().setStatus(VehicleStatus.AVAILABLE);
-            _vehicleRepository.save(transportOrder.getVehicle());
+            refreshVehicleAvailability(transportOrder.getVehicle().getId());
         }
 
         if (status == TransportOrderStatus.CANCELLED) {
@@ -299,8 +324,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 releaseInventoryForOrder(transportOrder);
             }
 
-            transportOrder.getVehicle().setStatus(VehicleStatus.AVAILABLE);
-            _vehicleRepository.save(transportOrder.getVehicle());
+            refreshVehicleAvailability(transportOrder.getVehicle().getId());
         }
 
         transportOrder.setStatus(status);
@@ -331,29 +355,47 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     // helpers
 
     private void checkVehicleAvailability(Long vehicleId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime) {
-        if (_transportOrderRepository.existsByVehicleIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThan(
-                vehicleId, ACTIVE_STATUSES, plannedArrivalTime, departureTime)) {
+        if (_transportOrderRepository.existsVehicleScheduleOverlap(
+                vehicleId,
+                SCHEDULE_BLOCKING_STATUSES,
+                departureTime,
+                plannedArrivalTime
+        )) {
             throw new BadRequestException("Vehicle is not available in selected time range");
         }
     }
 
     private void checkDriverAvailability(Long employeeId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime) {
-        if (_transportOrderRepository.existsByAssignedEmployeeIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThan(
-                employeeId, ACTIVE_STATUSES, plannedArrivalTime, departureTime)) {
+        if (_transportOrderRepository.existsDriverScheduleOverlap(
+                employeeId,
+                SCHEDULE_BLOCKING_STATUSES,
+                departureTime,
+                plannedArrivalTime
+        )) {
             throw new BadRequestException("Driver is not available in selected time range");
         }
     }
 
     private void checkVehicleAvailabilityForUpdate(Long vehicleId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime, Long transportOrderId) {
-        if (_transportOrderRepository.existsByVehicleIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThanAndIdNot(
-                vehicleId, ACTIVE_STATUSES, plannedArrivalTime, departureTime, transportOrderId)) {
+        if (_transportOrderRepository.existsVehicleScheduleOverlapExcludingOrder(
+                vehicleId,
+                SCHEDULE_BLOCKING_STATUSES,
+                departureTime,
+                plannedArrivalTime,
+                transportOrderId
+        )) {
             throw new BadRequestException("Vehicle is not available in selected time range");
         }
     }
 
     private void checkDriverAvailabilityForUpdate(Long employeeId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime, Long transportOrderId) {
-        if (_transportOrderRepository.existsByAssignedEmployeeIdAndStatusInAndDepartureTimeLessThanAndPlannedArrivalTimeGreaterThanAndIdNot(
-                employeeId, ACTIVE_STATUSES, plannedArrivalTime, departureTime, transportOrderId)) {
+        if (_transportOrderRepository.existsDriverScheduleOverlapExcludingOrder(
+                employeeId,
+                SCHEDULE_BLOCKING_STATUSES,
+                departureTime,
+                plannedArrivalTime,
+                transportOrderId
+        )) {
             throw new BadRequestException("Driver is not available in selected time range");
         }
     }
@@ -498,7 +540,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             );
         }
     }
-
     private void executeDeliveryInventoryFlow(TransportOrder transportOrder) {
         if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
             throw new BadRequestException("Transport order must contain at least one item to complete delivery");
@@ -507,19 +548,35 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
             validateTransportOrderItem(item);
 
-            warehouseInventoryService.moveOutReservedStock(
+            stockMovementService.create(new StockMovementCreate(
+                    StockMovementType.TRANSFER_OUT,
+                    item.getQuantity(),
+                    StockMovementReasonCode.TRANSPORT_DISPATCH,
+                    "Transport order dispatched from source warehouse",
+                    StockMovementReferenceType.TRANSPORT_ORDER,
+                    transportOrder.getId(),
+                    transportOrder.getOrderNumber(),
+                    "Source warehouse transfer out",
+                    transportOrder.getId(),
                     transportOrder.getSourceWarehouse().getId(),
-                    item.getProduct().getId(),
-                    item.getQuantity()
-            );
+                    item.getProduct().getId()
+            ));
         }
 
         for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
-            warehouseInventoryService.moveInStock(
+            stockMovementService.create(new StockMovementCreate(
+                    StockMovementType.TRANSFER_IN,
+                    item.getQuantity(),
+                    StockMovementReasonCode.TRANSPORT_RECEIPT,
+                    "Transport order received at destination warehouse",
+                    StockMovementReferenceType.TRANSPORT_ORDER,
+                    transportOrder.getId(),
+                    transportOrder.getOrderNumber(),
+                    "Destination warehouse transfer in",
+                    transportOrder.getId(),
                     transportOrder.getDestinationWarehouse().getId(),
-                    item.getProduct().getId(),
-                    item.getQuantity()
-            );
+                    item.getProduct().getId()
+            ));
         }
     }
 
@@ -535,5 +592,25 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         if (item.getQuantity() == null || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Transport order item quantity must be greater than 0");
         }
+    }
+
+    private void markVehicleAsBusy(Vehicle vehicle) {
+        if (vehicle.getStatus() != VehicleStatus.IN_USE) {
+            vehicle.setStatus(VehicleStatus.IN_USE);
+            _vehicleRepository.save(vehicle);
+        }
+    }
+
+    private void refreshVehicleAvailability(Long vehicleId) {
+        Vehicle vehicle = _vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+
+        boolean stillBusy = _transportOrderRepository.existsByVehicleIdAndStatusIn(
+                vehicleId,
+                VEHICLE_BUSY_STATUSES
+        );
+
+        vehicle.setStatus(stillBusy ? VehicleStatus.IN_USE : VehicleStatus.AVAILABLE);
+        _vehicleRepository.save(vehicle);
     }
 }
