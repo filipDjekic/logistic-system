@@ -23,18 +23,6 @@ public class ActivityLogController {
 
     private final ActivityLogServiceDefinition activityLogService;
 
-    @PostMapping
-    public ResponseEntity<ActivityLogResponse> create(@Valid @RequestBody ActivityLogCreate dto){
-        ActivityLogResponse response = activityLogService.create(dto);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<ActivityLogResponse> update(@PathVariable Long id,@Valid @RequestBody ActivityLogUpdate dto){
-        ActivityLogResponse response = activityLogService.update(id, dto);
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<ActivityLogResponse> get(@PathVariable Long id){
         ActivityLogResponse response = activityLogService.getById(id);
@@ -81,11 +69,5 @@ public class ActivityLogController {
     public ResponseEntity<List<ActivityLogResponse>> getByDateBetween(@PathVariable Long id, @RequestParam LocalDateTime start, @RequestParam LocalDateTime end) {
         List<ActivityLogResponse> response = activityLogService.getBetweenDates(start, end, id);
         return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id){
-        activityLogService.delete(id);
-        return ResponseEntity.noContent().build();
     }
 }

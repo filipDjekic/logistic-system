@@ -12,6 +12,7 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ProductMapper;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
 
 import java.util.List;
@@ -23,8 +24,7 @@ public class ProductService implements ProductServiceDefinition {
 
     private final ProductRepository _productRepository;
 
-    private final ActivityLogService activityLogService;
-    private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final AuditFacadeDefinition auditFacade;
 
     @Override
     public ProductResponse create(ProductCreate dto) {
@@ -33,13 +33,13 @@ public class ProductService implements ProductServiceDefinition {
         Product product = ProductMapper.toEntity(dto);
         Product saved = _productRepository.save(product);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordCreate("PRODUCT", saved.getId());
+        auditFacade.log(
                 "CREATE",
                 "PRODUCT",
                 saved.getId(),
-                "PRODUCT is created (ID: " + saved.getId() + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "PRODUCT is created (ID: " + saved.getId() + ")"
+        );
 
         return ProductMapper.toResponse(saved);
     }
@@ -53,13 +53,16 @@ public class ProductService implements ProductServiceDefinition {
         ProductMapper.updateEntity(dto, product);
         Product saved = _productRepository.save(product);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordFieldChange("PRODUCT", product.getId(), "name", product.getName(), dto.getName());
+        auditFacade.recordFieldChange("PRODUCT", product.getId(), "description", product.getDescription(), dto.getDescription());
+        auditFacade.recordFieldChange("PRODUCT", product.getId(), "sku", product.getSku(), dto.getSku());
+
+        auditFacade.log(
                 "UPDATE",
                 "PRODUCT",
                 saved.getId(),
-                "PRODUCT is updated (ID: " + saved.getId() + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "PRODUCT is updated (ID: " + saved.getId() + ")"
+        );
 
         return ProductMapper.toResponse(saved);
     }
@@ -82,13 +85,13 @@ public class ProductService implements ProductServiceDefinition {
 
         validateForDeleteOrDeactivate(product);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordDelete("PRODUCT", id);
+        auditFacade.log(
                 "DELETE",
                 "PRODUCT",
                 id,
-                "PRODUCT is deleted (ID: " + id + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "PRODUCT is deleted (ID: " + id + ")"
+        );
 
         _productRepository.delete(product);
     }
@@ -104,13 +107,13 @@ public class ProductService implements ProductServiceDefinition {
         product.setActive(true);
         Product saved = _productRepository.save(product);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordStatusChange("PRODUCT", saved.getId(), "active", false, true);
+        auditFacade.log(
                 "ACTIVATE",
                 "PRODUCT",
                 saved.getId(),
-                "PRODUCT is activated (ID: " + saved.getId() + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "PRODUCT is activated (ID: " + saved.getId() + ")"
+        );
 
         return ProductMapper.toResponse(saved);
     }
@@ -128,13 +131,13 @@ public class ProductService implements ProductServiceDefinition {
         product.setActive(false);
         Product saved = _productRepository.save(product);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordStatusChange("PRODUCT", saved.getId(), "active", true, false);
+        auditFacade.log(
                 "DEACTIVATE",
                 "PRODUCT",
                 saved.getId(),
-                "PRODUCT is deactivated (ID: " + saved.getId() + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "PRODUCT is deactivated (ID: " + saved.getId() + ")"
+        );
 
         return ProductMapper.toResponse(saved);
     }

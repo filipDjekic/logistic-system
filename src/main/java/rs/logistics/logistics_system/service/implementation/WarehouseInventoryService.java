@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
@@ -36,7 +37,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
     private final ActivityLogService activityLogService;
     private final NotificationService notificationService;
-    private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final AuditFacadeDefinition auditFacade;
 
     @Override
     public WarehouseInventoryResponse create(WarehouseInventoryCreate dto) {
@@ -49,13 +50,14 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory inventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
         warehouseInventoryRepository.save(inventory);
 
-        activityLogService.create(new ActivityLogCreate(
-                "WAREHOUSE_INVENTORY",
+        auditFacade.recordCreate("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId());
+        auditFacade.log(
                 "CREATE",
+                "WAREHOUSE_INVENTORY",
                 inventory.getId().getWarehouseId(),
-                "WAREHOUSE INVENTORY is created (ID: " + inventory.getId() + " | " + inventory.getId().getProductId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "WAREHOUSE INVENTORY is created (WAREHOUSE ID: " + inventory.getId().getWarehouseId()
+                        + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
+        );
 
         return WarehouseInventoryMapper.toResponse(inventory);
     }
@@ -75,13 +77,16 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
         warehouseInventoryRepository.save(inventory);
 
-        activityLogService.create(new ActivityLogCreate(
-                "WAREHOUSE_INVENTORY",
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId(), "quantity", inventory.getQuantity(), dto.getQuantity());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId(), "minStockLevel", inventory.getMinStockLevel(), dto.getMinStockLevel());
+
+        auditFacade.log(
                 "UPDATE",
+                "WAREHOUSE_INVENTORY",
                 inventory.getId().getWarehouseId(),
-                "WAREHOUSE INVENTORY is created (ID: " + inventory.getId().getWarehouseId() + " | " + inventory.getId().getProductId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "WAREHOUSE INVENTORY is updated (WAREHOUSE ID: " + inventory.getId().getWarehouseId()
+                        + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
+        );
 
         notifyLowStockIfNeeded(inventory);
 
@@ -112,13 +117,14 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             throw new BadRequestException("Warehouse inventory with reserved quantity cannot be deleted");
         }
 
-        activityLogService.create(new ActivityLogCreate(
-                "WAREHOUSE_INVENTORY",
+        auditFacade.recordDelete("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId());
+        auditFacade.log(
                 "DELETE",
+                "WAREHOUSE_INVENTORY",
                 inventory.getId().getWarehouseId(),
-                "WAREHOUSE INVENTORY is deleted (ID: " + inventory.getId().getWarehouseId() + " | " + inventory.getId().getProductId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "WAREHOUSE INVENTORY is deleted (WAREHOUSE ID: " + inventory.getId().getWarehouseId()
+                        + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
+        );
 
         warehouseInventoryRepository.delete(inventory);
     }
@@ -130,6 +136,15 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
         inventory.reserve(quantity);
+
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouseId, "reservedQuantity", inventory.getReservedQuantity().subtract(quantity), inventory.getReservedQuantity());
+        auditFacade.log(
+                "RESERVE_STOCK",
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                "Reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
+        );
+
         notifyLowStockIfNeeded(inventory);
 
         warehouseInventoryRepository.save(inventory);
@@ -143,6 +158,13 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
 
         inventory.release(quantity);
+
+        auditFacade.log(
+                "RELEASE_RESERVED_STOCK",
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                "Released reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
+        );
 
         warehouseInventoryRepository.save(inventory);
     }
@@ -161,6 +183,14 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
 
         inventory.moveOutReserved(quantity);
+
+        auditFacade.log(
+                "MOVE_OUT_RESERVED_STOCK",
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                "Moved out reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
+        );
+
         notifyLowStockIfNeeded(inventory);
 
         warehouseInventoryRepository.save(inventory);
@@ -187,6 +217,13 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 });
 
         inventory.increase(quantity);
+
+        auditFacade.log(
+                "MOVE_IN_STOCK",
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                "Moved in stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
+        );
 
         warehouseInventoryRepository.save(inventory);
     }

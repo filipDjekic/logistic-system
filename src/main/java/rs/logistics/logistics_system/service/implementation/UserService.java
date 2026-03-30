@@ -20,6 +20,7 @@ import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
@@ -34,37 +35,27 @@ public class UserService implements UserServiceDefinition {
     private final UserRepository _userRepository;
     private final RoleRepository _roleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ActivityLogServiceDefinition activityLogService;
-    private final ChangeHistoryServiceDefinition changeHistoryService;
-
-    private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final AuditFacadeDefinition auditFacade;
 
     @Override
     public UserResponse create(UserCreate dto) {
         Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
+
         validateUniqueEmail(dto.getEmail());
+
         User user = UserMapper.toEntity(dto, role);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setEnabled(true);
+
         User savedUser = _userRepository.save(user);
 
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "USER",
-                savedUser.getId(),
-                ChangeType.CREATE,
-                "ENTITY",
-                "null",
-                "INITIAL_STATE",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordCreate("USER", savedUser.getId());
+        auditFacade.log(
                 "CREATE",
                 "USER",
                 savedUser.getId(),
-                "USER is created (ID: " + savedUser.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "USER is created (ID: " + savedUser.getId() + ")"
+        );
 
         return UserMapper.toResponse(savedUser);
     }
@@ -72,102 +63,38 @@ public class UserService implements UserServiceDefinition {
     @Override
     public UserResponse update(Long id, UserUpdate dto) {
         Role role = _roleRepository.findById(dto.getRoleId()).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
+
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
 
-        if(user.getRole().getId() == 1 && dto.getRoleId()!=1){
+        if (user.getRole().getId() == 1 && dto.getRoleId() != 1) {
             throw new BadRequestException("ADMIN can't change his role.");
         }
 
-        validateEmailForUpdate(user,  dto.getEmail());
+        validateEmailForUpdate(user, dto.getEmail());
 
-        if(user.getEmail().equals(dto.getEmail())) {
-            changeHistoryService.create(new ChangeHistoryCreate(
-                    "USER",
-                    id,
-                    ChangeType.UPDATE,
-                    "email",
-                    user.getEmail(),
-                    dto.getEmail(),
-                    authenticatedUserProvider.getAuthenticatedUserId()
-            ));
-        }
-
-        if(user.getFirstName().equals(dto.getFirstName())) {
-            changeHistoryService.create(new ChangeHistoryCreate(
-                    "USER",
-                    id,
-                    ChangeType.UPDATE,
-                    "first_name",
-                    user.getFirstName(),
-                    dto.getFirstName(),
-                    authenticatedUserProvider.getAuthenticatedUserId()
-            ));
-        }
-        if(user.getLastName().equals(dto.getLastName())) {
-            changeHistoryService.create(new ChangeHistoryCreate(
-                    "USER",
-                    id,
-                    ChangeType.UPDATE,
-                    "last_name",
-                    user.getLastName(),
-                    dto.getLastName(),
-                    authenticatedUserProvider.getAuthenticatedUserId()
-            ));
-        }
-
-        if(user.getStatus().equals(dto.getStatus())) {
-            changeHistoryService.create(new ChangeHistoryCreate(
-                    "USER",
-                    id,
-                    ChangeType.UPDATE,
-                    "status",
-                    user.getStatus().toString(),
-                    dto.getStatus().toString(),
-                    authenticatedUserProvider.getAuthenticatedUserId()
-            ));
-        }
-
-        if(user.getRole().getId().equals(dto.getRoleId())) {
-            changeHistoryService.create(new ChangeHistoryCreate(
-                    "USER",
-                    id,
-                    ChangeType.UPDATE,
-                    "role_id",
-                    user.getRole().getId().toString(),
-                    dto.getRoleId().toString(),
-                    authenticatedUserProvider.getAuthenticatedUserId()
-            ));
-        }
-
-        if(user.getEnabled().equals(dto.getEnabled())) {
-            changeHistoryService.create(new ChangeHistoryCreate(
-                    "USER",
-                    id,
-                    ChangeType.UPDATE,
-                    "enabled",
-                    user.getEnabled().toString(),
-                    dto.getEnabled().toString(),
-                    authenticatedUserProvider.getAuthenticatedUserId()
-            ));
-        }
+        auditFacade.recordFieldChange("USER", id, "email", user.getEmail(), dto.getEmail());
+        auditFacade.recordFieldChange("USER", id, "first_name", user.getFirstName(), dto.getFirstName());
+        auditFacade.recordFieldChange("USER", id, "last_name", user.getLastName(), dto.getLastName());
+        auditFacade.recordFieldChange("USER", id, "status", user.getStatus(), dto.getStatus());
+        auditFacade.recordFieldChange("USER", id, "role_id", user.getRole().getId(), dto.getRoleId());
+        auditFacade.recordFieldChange("USER", id, "enabled", user.getEnabled(), dto.getEnabled());
 
         UserMapper.updateEntity(user, dto, role);
         User updatedUser = _userRepository.save(user);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.log(
                 "UPDATE",
                 "USER",
                 id,
-                "USER is updated (ID: " + updatedUser.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "USER is updated (ID: " + updatedUser.getId() + ")"
+        );
 
         return UserMapper.toResponse(updatedUser);
     }
 
     @Override
     public UserResponse getById(Long id) {
-        User user  = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
         return UserMapper.toResponse(user);
     }
 
@@ -179,25 +106,16 @@ public class UserService implements UserServiceDefinition {
     @Override
     public void delete(Long id) {
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+
         _userRepository.delete(user);
 
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "USER",
-                id,
-                ChangeType.DELETE,
-                "ENTITY",
-                "STATE",
-                "null",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordDelete("USER", id);
+        auditFacade.log(
                 "DELETE",
                 "USER",
                 id,
-                "USER is deleted (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "USER is deleted (ID: " + id + ")"
+        );
     }
 
     @Override
@@ -208,50 +126,38 @@ public class UserService implements UserServiceDefinition {
             throw new BadRequestException("User is already enabled");
         }
 
+        Boolean oldEnabled = user.getEnabled();
         user.setEnabled(true);
         _userRepository.save(user);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordStatusChange("USER", id, "enabled", oldEnabled, user.getEnabled());
+        auditFacade.log(
                 "STATUS_CHANGE",
                 "USER",
                 id,
-                "USER is enabled (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "USER",
-                id,
-                ChangeType.STATUS_CHANGE,
-                "enabled",
-                "false",
-                "true",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "USER is enabled (ID: " + id + ")"
+        );
     }
 
     @Override
     public void disableUser(Long id) {
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+
+        if (Boolean.FALSE.equals(user.getEnabled())) {
+            throw new BadRequestException("User is already disabled");
+        }
+
+        Boolean oldEnabled = user.getEnabled();
         user.setEnabled(false);
         _userRepository.save(user);
-        activityLogService.create(new ActivityLogCreate(
+
+        auditFacade.recordStatusChange("USER", id, "enabled", oldEnabled, user.getEnabled());
+        auditFacade.log(
                 "STATUS_CHANGE",
                 "USER",
                 id,
-                "USER is disabled (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "USER",
-                id,
-                ChangeType.STATUS_CHANGE,
-                "enabled",
-                "true",
-                "false",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "USER is disabled (ID: " + id + ")"
+        );
     }
 
     @Override
@@ -273,23 +179,13 @@ public class UserService implements UserServiceDefinition {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         _userRepository.save(user);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordFieldChange("USER", id, "password", "[PROTECTED]", "[PROTECTED]");
+        auditFacade.log(
                 "UPDATE_PASSWORD",
                 "USER",
                 id,
-                "USER password is updated (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "USER",
-                id,
-                ChangeType.UPDATE,
-                "password",
-                "[PROTECTED]",
-                "[PROTECTED]",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "USER password is updated (ID: " + id + ")"
+        );
     }
 
     @Override
@@ -307,37 +203,27 @@ public class UserService implements UserServiceDefinition {
         user.setRole(newRole);
         User updatedUser = _userRepository.save(user);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordFieldChange("USER", id, "role", oldRole, newRole.getName());
+        auditFacade.log(
                 "ASSIGN_ROLE",
                 "USER",
                 id,
-                "USER role changed from " + oldRole + " to " + newRole.getName() + " (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "USER",
-                id,
-                ChangeType.UPDATE,
-                "role",
-                oldRole,
-                newRole.getName(),
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "USER role changed from " + oldRole + " to " + newRole.getName() + " (ID: " + id + ")"
+        );
 
         return UserMapper.toResponse(updatedUser);
     }
 
-    // helpers
+    //helpers
 
-    private void validateUniqueEmail(String email){
-        if(_userRepository.existsByEmail(email)){
+    private void validateUniqueEmail(String email) {
+        if (_userRepository.existsByEmail(email)) {
             throw new BadRequestException("Email already exists");
         }
     }
 
-    private void validateEmailForUpdate(User user, String email){
-        if(!user.getEmail().equals(email) && _userRepository.existsByEmail(email)){
+    private void validateEmailForUpdate(User user, String email) {
+        if (!user.getEmail().equals(email) && _userRepository.existsByEmail(email)) {
             throw new BadRequestException("Email already exists");
         }
     }

@@ -9,15 +9,9 @@ import java.util.List;
 
 public interface ChangeHistoryServiceDefinition {
 
-    ChangeHistoryResponse create(ChangeHistoryCreate dto);
-
-    ChangeHistoryResponse update(Long id, ChangeHistoryUpdate dto);
-
     ChangeHistoryResponse getById(Long id);
 
     List<ChangeHistoryResponse> getAll();
-
-    void delete(Long id);
 
     List<ChangeHistoryResponse> getByEntityName(String entityName);
 

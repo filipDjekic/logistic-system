@@ -22,6 +22,7 @@ import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
 
 import java.util.List;
@@ -36,8 +37,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private final TransportOrderRepository _transportOrderRepository;
     private final EmployeeRepository _employeeRepository;
 
-    private final ActivityLogService activityLogService;
-    private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final AuditFacadeDefinition auditFacade;
 
     @Override
     public WarehouseResponse create(WarehouseCreate dto) {
@@ -47,13 +47,13 @@ public class WarehouseService implements WarehouseServiceDefinition {
         Warehouse warehouse = WarehouseMapper.toEntity(dto, employee);
         Warehouse saved = _warehouseRepository.save(warehouse);
 
-        activityLogService.create(new ActivityLogCreate(
-                "WAREHOUSE",
+        auditFacade.recordCreate("WAREHOUSE", saved.getId());
+        auditFacade.log(
                 "CREATE",
+                "WAREHOUSE",
                 saved.getId(),
-                "WAREHOUSE is created (ID: " + saved.getId() + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "WAREHOUSE is created (ID: " + saved.getId() + ")"
+        );
 
         return WarehouseMapper.toResponse(saved);
     }
@@ -66,13 +66,16 @@ public class WarehouseService implements WarehouseServiceDefinition {
         WarehouseMapper.updateEntity(warehouse, dto);
         Warehouse saved = _warehouseRepository.save(warehouse);
 
-        activityLogService.create(new ActivityLogCreate(
-                "WAREHOUSE",
+        auditFacade.recordFieldChange("WAREHOUSE", warehouse.getId(), "name", warehouse.getName(), dto.getName());
+        auditFacade.recordFieldChange("WAREHOUSE", warehouse.getId(), "location", warehouse.getCity() + "; " + warehouse.getAddress(), dto.getCity() + "; " + dto.getAddress());
+        auditFacade.recordFieldChange("WAREHOUSE", warehouse.getId(), "capacity", warehouse.getCapacity(), dto.getCapacity());
+
+        auditFacade.log(
                 "UPDATE",
+                "WAREHOUSE",
                 saved.getId(),
-                "WAREHOUSE is updated (ID: " + saved.getId() + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "WAREHOUSE is updated (ID: " + saved.getId() + ")"
+        );
 
         return WarehouseMapper.toResponse(saved);
     }
@@ -90,16 +93,17 @@ public class WarehouseService implements WarehouseServiceDefinition {
         validateWarehouseManager(employee);
         validateWarehouseIsActive(warehouse);
 
+        Long oldManagerId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
         warehouse.setManager(employee);
         Warehouse saved = _warehouseRepository.save(warehouse);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordFieldChange("WAREHOUSE", warehouseId, "manager", oldManagerId, employeeId);
+        auditFacade.log(
                 "EMPLOYEE_ASSIGNED",
-                "UPDATE",
+                "WAREHOUSE",
                 warehouseId,
-                "WAREHOUSE (ID: " + warehouseId + " ) was assigned to manager (ID: " + employeeId + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "WAREHOUSE (ID: " + warehouseId + ") was assigned to manager (ID: " + employeeId + ")"
+        );
 
         return WarehouseMapper.toResponse(saved);
     }
@@ -117,18 +121,21 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
         _warehouseRepository.delete(warehouse);
 
-        activityLogService.create(new ActivityLogCreate(
-                "WAREHOUSE",
+        auditFacade.recordDelete("WAREHOUSE", id);
+        auditFacade.log(
                 "DELETE",
+                "WAREHOUSE",
                 id,
-                "WAREHOUSE is deleted (ID: " + id + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "WAREHOUSE is deleted (ID: " + id + ")"
+        );
     }
 
     @Override
     public WarehouseResponse changeStatus(Long warehouseId, WarehouseStatus status) {
         Warehouse warehouse = _warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+
+        WarehouseStatus oldStatus = warehouse.getStatus();
+        Boolean oldActive = warehouse.getActive();
 
         if (warehouse.getStatus() == status) {
             throw new BadRequestException("Warehouse already has this status.");
@@ -157,13 +164,14 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
         Warehouse saved = _warehouseRepository.save(warehouse);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordStatusChange("WAREHOUSE", saved.getId(), "status", oldStatus, saved.getStatus());
+        auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "active", oldActive, saved.getActive());
+        auditFacade.log(
                 "WAREHOUSE_STATUS",
-                "UPDATE",
+                "WAREHOUSE",
                 saved.getId(),
-                "WAREHOUSE status changed to " + saved.getStatus() + " (ID: " + saved.getId() + " )",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "WAREHOUSE status changed from " + oldStatus + " to " + saved.getStatus() + " (ID: " + saved.getId() + ")"
+        );
 
         return WarehouseMapper.toResponse(saved);
     }

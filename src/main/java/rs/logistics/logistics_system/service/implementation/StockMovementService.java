@@ -48,24 +48,17 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
 
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
-    private final ActivityLogServiceDefinition activityLogService;
-    private final ChangeHistoryServiceDefinition changeHistoryService;
-
+    private final AuditFacadeDefinition auditFacade;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
     public StockMovementResponse create(StockMovementCreate dto) {
-        Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
-
-        if (authenticatedUserId == null) {
-            throw new BadRequestException("Authenticated user is required");
-        }
 
         Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
 
         Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        User user = _userRepository.findById(authenticatedUserId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         TransportOrder transportOrder = null;
         if (dto.getTransportOrderId() != null) {
@@ -128,17 +121,11 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         StockMovement saved = _stockMovementRepository.save(stockMovement);
 
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "STOCK_MOVEMENT",
-                saved.getId(),
-                ChangeType.CREATE,
-                "quantity",
-                quantityBefore.toString(),
-                quantityAfter.toString(),
-                authenticatedUserId
-        ));
-
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordCreate("STOCK_MOVEMENT", saved.getId());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), "quantityBefore", quantityBefore, quantityAfter);
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), "reservedBefore", reservedBefore, reservedAfter);
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), "availableBefore", availableBefore, availableAfter);
+        auditFacade.log(
                 "CREATE",
                 "STOCK_MOVEMENT",
                 saved.getId(),
@@ -147,9 +134,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
                         + ", quantity: " + saved.getQuantity()
                         + ", reason: " + saved.getReasonCode()
                         + ", before: " + quantityBefore
-                        + ", after: " + quantityAfter + ")",
-                authenticatedUserId
-        ));
+                        + ", after: " + quantityAfter + ")"
+        );
 
         boolean shouldCheckLowStock = dto.getMovementType() == StockMovementType.OUTBOUND || dto.getMovementType() == StockMovementType.TRANSFER_OUT || (dto.getMovementType() == StockMovementType.ADJUSTMENT && dto.getQuantity().compareTo(BigDecimal.ZERO) > 0);
 
@@ -182,15 +168,14 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private void increaseInventory(WarehouseInventory inventory, BigDecimal quantity) {
         inventory.increase(quantity);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.log(
                 "UPDATE",
                 "WAREHOUSE_INVENTORY",
                 inventory.getWarehouse().getId(),
                 "Inventory increased (WAREHOUSE ID: " + inventory.getWarehouse().getId()
                         + ", PRODUCT ID: " + inventory.getProduct().getId()
-                        + ", QUANTITY: " + quantity + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                        + ", QUANTITY: " + quantity + ")"
+        );
     }
 
     private void decreaseInventory(WarehouseInventory inventory, BigDecimal quantity) {
@@ -202,15 +187,14 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         inventory.decrease(quantity);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.log(
                 "UPDATE",
                 "WAREHOUSE_INVENTORY",
                 inventory.getWarehouse().getId(),
                 "Inventory decreased (WAREHOUSE ID: " + inventory.getWarehouse().getId()
                         + ", PRODUCT ID: " + inventory.getProduct().getId()
-                        + ", QUANTITY: " + quantity + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                        + ", QUANTITY: " + quantity + ")"
+        );
     }
 
     private void dispatchReservedInventory(WarehouseInventory inventory, BigDecimal quantity) {
@@ -223,15 +207,14 @@ public class StockMovementService implements StockMovementServiceDefinition {
         inventory.release(quantity);
         inventory.decrease(quantity);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.log(
                 "UPDATE",
                 "WAREHOUSE_INVENTORY",
                 inventory.getWarehouse().getId(),
                 "Reserved inventory dispatched (WAREHOUSE ID: " + inventory.getWarehouse().getId()
                         + ", PRODUCT ID: " + inventory.getProduct().getId()
-                        + ", QUANTITY: " + quantity + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                        + ", QUANTITY: " + quantity + ")"
+        );
     }
 
     private void adjustInventory(WarehouseInventory inventory, BigDecimal quantity) {
@@ -239,15 +222,14 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         inventory.adjustTo(quantity);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.log(
                 "UPDATE",
                 "WAREHOUSE_INVENTORY",
                 inventory.getWarehouse().getId(),
                 "Inventory adjusted (WAREHOUSE ID: " + inventory.getWarehouse().getId()
                         + ", PRODUCT ID: " + inventory.getProduct().getId()
-                        + ", NEW QUANTITY: " + quantity + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                        + ", NEW QUANTITY: " + quantity + ")"
+        );
     }
 
     private void checkMovementQuantity(BigDecimal quantity) {

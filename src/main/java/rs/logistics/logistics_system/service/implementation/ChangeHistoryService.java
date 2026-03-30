@@ -24,26 +24,6 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
     private final ChangeHistoryRepository _changeHistoryRepository;
     private final UserRepository _userRepository;
 
-
-    @Override
-    public ChangeHistoryResponse create(ChangeHistoryCreate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        ChangeHistory changeHistory = ChangeHistoryMapper.toEntity(dto, user);
-        ChangeHistory saved =  _changeHistoryRepository.save(changeHistory);
-        return ChangeHistoryMapper.toResponse(saved);
-    }
-
-    @Override
-    public ChangeHistoryResponse update(Long id, ChangeHistoryUpdate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Change history not found"));
-
-        ChangeHistoryMapper.updateEntity(changeHistory, dto, user);
-        ChangeHistory saved =  _changeHistoryRepository.save(changeHistory);
-        return ChangeHistoryMapper.toResponse(saved);
-    }
-
     @Override
     public ChangeHistoryResponse getById(Long id) {
         ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Change history not found"));
@@ -77,11 +57,5 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
     @Override
     public List<ChangeHistoryResponse> getAll() {
         return _changeHistoryRepository.findAll().stream().map(ChangeHistoryMapper::toResponse).collect(Collectors.toList());
-    }
-
-    @Override
-    public void delete(Long id) {
-        ChangeHistory changeHistory = _changeHistoryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Change history not found"));
-        _changeHistoryRepository.delete(changeHistory);
     }
 }

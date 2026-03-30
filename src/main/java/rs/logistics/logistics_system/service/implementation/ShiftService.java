@@ -17,6 +17,7 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.ShiftServiceDefinition;
 
 import java.time.LocalDate;
@@ -30,8 +31,7 @@ public class ShiftService implements ShiftServiceDefinition {
 
     private final ShiftRepository _shiftRepository;
     private final EmployeeRepository _employeeRepository;
-    private final ActivityLogServiceDefinition activityLogService;
-    private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final AuditFacadeDefinition auditFacade;
 
     @Override
     public ShiftResponse create(ShiftCreate dto) {
@@ -47,13 +47,13 @@ public class ShiftService implements ShiftServiceDefinition {
         Shift shift = ShiftMapper.toEntity(dto, employee);
         Shift saved = _shiftRepository.save(shift);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordCreate("SHIFT", saved.getId());
+        auditFacade.log(
                 "CREATE",
                 "SHIFT",
                 saved.getId(),
-                "SHIFT is created (ID: " + saved.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "SHIFT is created (ID: " + saved.getId() + ")"
+        );
 
         return ShiftMapper.toResponse(saved);
     }
@@ -74,13 +74,15 @@ public class ShiftService implements ShiftServiceDefinition {
         ShiftMapper.updateEntity(shift, dto);
         Shift updated = _shiftRepository.save(shift);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordFieldChange("SHIFT", shift.getId(), "startTime", shift.getStartTime(), dto.getStartTime());
+        auditFacade.recordFieldChange("SHIFT", shift.getId(), "endTime", shift.getEndTime(), dto.getEndTime());
+
+        auditFacade.log(
                 "UPDATE",
                 "SHIFT",
                 updated.getId(),
-                "SHIFT is updated (ID: " + updated.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "SHIFT is updated (ID: " + updated.getId() + ")"
+        );
 
         return ShiftMapper.toResponse(updated);
     }
@@ -102,13 +104,13 @@ public class ShiftService implements ShiftServiceDefinition {
 
         _shiftRepository.delete(shift);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordDelete("SHIFT", id);
+        auditFacade.log(
                 "DELETE",
                 "SHIFT",
                 id,
-                "SHIFT is deleted (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "SHIFT is deleted (ID: " + id + ")"
+        );
     }
 
     @Override
@@ -116,10 +118,7 @@ public class ShiftService implements ShiftServiceDefinition {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
 
-        return _shiftRepository.findShiftsForDay(start, end)
-                .stream()
-                .map(ShiftMapper::toResponse)
-                .collect(Collectors.toList());
+        return _shiftRepository.findShiftsForDay(start, end).stream().map(ShiftMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -140,13 +139,13 @@ public class ShiftService implements ShiftServiceDefinition {
         shift.setStatus(ShiftStatus.CANCELLED);
         _shiftRepository.save(shift);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordStatusChange("SHIFT", id, "status", ShiftStatus.PLANNED, ShiftStatus.CANCELLED);
+        auditFacade.log(
                 "SHIFT_CANCELLED",
                 "SHIFT",
                 id,
-                "SHIFT " + id + " is cancelled",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "SHIFT " + id + " is cancelled"
+        );
     }
 
     @Override
@@ -159,10 +158,7 @@ public class ShiftService implements ShiftServiceDefinition {
             throw new BadRequestException("Inactive employee cannot be assigned to a shift.");
         }
 
-        if (shift.getStatus() == ShiftStatus.ACTIVE
-                || shift.getStatus() == ShiftStatus.CANCELLED
-                || shift.getStatus() == ShiftStatus.FINISHED
-                || !shift.getStartTime().isAfter(LocalDateTime.now())) {
+        if (shift.getStatus() == ShiftStatus.ACTIVE || shift.getStatus() == ShiftStatus.CANCELLED || shift.getStatus() == ShiftStatus.FINISHED || !shift.getStartTime().isAfter(LocalDateTime.now())) {
             throw new BadRequestException("Shift cannot be reassigned.");
         }
 
@@ -178,27 +174,21 @@ public class ShiftService implements ShiftServiceDefinition {
             oldEmployee.getShifts().remove(shift);
         }
 
+        Long oldEmployeeId = shift.getEmployee() != null ? shift.getEmployee().getId() : null;
+
         shift.setEmployee(employee);
         employee.getShifts().add(shift);
 
         Shift updatedShift = _shiftRepository.save(shift);
         _employeeRepository.save(employee);
 
-        activityLogService.create(new ActivityLogCreate(
-                "UPDATE",
-                "EMPLOYEE",
-                employeeId,
-                "EMPLOYEE has been assigned to shift",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        activityLogService.create(new ActivityLogCreate(
-                "UPDATE",
+        auditFacade.recordFieldChange("SHIFT", shiftId, "employee", oldEmployeeId, employeeId);
+        auditFacade.log(
+                "ASSIGN",
                 "SHIFT",
                 shiftId,
-                "SHIFT has been assigned to employee",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "SHIFT has been assigned to employee " + employeeId
+        );
 
         return ShiftMapper.toResponse(updatedShift);
     }

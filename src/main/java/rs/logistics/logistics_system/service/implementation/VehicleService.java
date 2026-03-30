@@ -16,6 +16,7 @@ import rs.logistics.logistics_system.mapper.VehicleMapper;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
 
 import java.util.Arrays;
@@ -28,11 +29,9 @@ public class VehicleService implements VehicleServiceDefinition {
 
     private final VehicleRepository vehicleRepository;
     private final TransportOrderRepository transportOrderRepository;
-    private final ActivityLogService activityLogService;
-    private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final AuditFacadeDefinition auditFacade;
 
-    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES =
-            Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
+    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
 
     @Transactional
     @Override
@@ -41,13 +40,13 @@ public class VehicleService implements VehicleServiceDefinition {
 
         Vehicle saved = vehicleRepository.save(vehicle);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordCreate("VEHICLE", saved.getId());
+        auditFacade.log(
                 "CREATE",
                 "VEHICLE",
                 saved.getId(),
-                "Vehicle created (ID: " + saved.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "Vehicle created (ID: " + saved.getId() + ")"
+        );
 
         return VehicleMapper.toResponse(saved);
     }
@@ -60,13 +59,17 @@ public class VehicleService implements VehicleServiceDefinition {
         VehicleMapper.updateEntity(vehicle, dto);
         Vehicle updated = vehicleRepository.save(vehicle);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordFieldChange("VEHICLE", vehicle.getId(), "registrationNumber", vehicle.getRegistrationNumber(), dto.getRegistrationNumber());
+        auditFacade.recordFieldChange("VEHICLE", vehicle.getId(), "brand", vehicle.getBrand(), dto.getBrand());
+        auditFacade.recordFieldChange("VEHICLE", vehicle.getId(), "model", vehicle.getModel(), dto.getModel());
+        auditFacade.recordFieldChange("VEHICLE", vehicle.getId(), "capacity", vehicle.getCapacity(), dto.getCapacity());
+
+        auditFacade.log(
                 "UPDATE",
                 "VEHICLE",
                 updated.getId(),
-                "Vehicle updated (ID: " + updated.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "Vehicle updated (ID: " + updated.getId() + ")"
+        );
 
         return VehicleMapper.toResponse(updated);
     }
@@ -96,13 +99,13 @@ public class VehicleService implements VehicleServiceDefinition {
 
         vehicleRepository.delete(vehicle);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordDelete("VEHICLE", id);
+        auditFacade.log(
                 "DELETE",
                 "VEHICLE",
                 id,
-                "Vehicle deleted (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "Vehicle deleted (ID: " + id + ")"
+        );
     }
 
     @Transactional
@@ -125,13 +128,13 @@ public class VehicleService implements VehicleServiceDefinition {
         vehicle.setStatus(newStatus);
         Vehicle updated = vehicleRepository.save(vehicle);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordStatusChange("VEHICLE", updated.getId(), "status", currentStatus, newStatus);
+        auditFacade.log(
                 "STATUS_CHANGED",
                 "VEHICLE",
                 updated.getId(),
-                "Vehicle status changed from " + currentStatus + " to " + newStatus + " (ID: " + updated.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "Vehicle status changed from " + currentStatus + " to " + newStatus + " (ID: " + updated.getId() + ")"
+        );
 
         return VehicleMapper.toResponse(updated);
     }

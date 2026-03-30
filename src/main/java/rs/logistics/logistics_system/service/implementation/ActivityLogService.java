@@ -25,26 +25,6 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     private final ActivityLogRepository _activityLogRepository;
     private final UserRepository _userRepository;
 
-
-    @Override
-    public ActivityLogResponse create(ActivityLogCreate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        ActivityLog activityLog = ActivityLogMapper.toEntity(dto, user);
-        ActivityLog saved = _activityLogRepository.save(activityLog);
-        return ActivityLogMapper.toResponse(saved);
-    }
-
-    @Override
-    public ActivityLogResponse update(Long id, ActivityLogUpdate dto) {
-        User user  = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        ActivityLog activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ActivityLog not found"));
-
-        ActivityLogMapper.updateEntity(dto, user, activityLog);
-        ActivityLog updated = _activityLogRepository.save(activityLog);
-        return ActivityLogMapper.toResponse(updated);
-    }
-
     @Override
     public ActivityLogResponse getById(Long id) {
         ActivityLog  activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ActivityLog not found"));
@@ -54,12 +34,6 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     @Override
     public List<ActivityLogResponse> getAll() {
         return _activityLogRepository.findAll().stream().map(ActivityLogMapper::toResponse).collect(Collectors.toList());
-    }
-
-    @Override
-    public void delete(Long id) {
-        ActivityLog  activityLog = _activityLogRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ActivityLog not found"));
-        _activityLogRepository.delete(activityLog);
     }
 
     @Override

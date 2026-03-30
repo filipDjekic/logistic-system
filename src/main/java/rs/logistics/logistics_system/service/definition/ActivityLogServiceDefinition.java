@@ -9,15 +9,9 @@ import java.util.List;
 
 public interface ActivityLogServiceDefinition {
 
-    ActivityLogResponse create(ActivityLogCreate dto);
-
-    ActivityLogResponse update(Long id, ActivityLogUpdate dto);
-
     ActivityLogResponse getById(Long id);
 
     List<ActivityLogResponse> getAll();
-
-    void delete(Long id);
 
     List<ActivityLogResponse> getByUserId(Long id);
 

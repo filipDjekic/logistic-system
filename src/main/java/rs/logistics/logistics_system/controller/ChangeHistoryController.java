@@ -23,18 +23,6 @@ public class ChangeHistoryController {
 
     private final ChangeHistoryServiceDefinition changeHistoryService;
 
-    @PostMapping
-    public ResponseEntity<ChangeHistoryResponse> save(@Valid @RequestBody ChangeHistoryCreate dto){
-        ChangeHistoryResponse response = changeHistoryService.create(dto);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<ChangeHistoryResponse> update(@PathVariable Long id,@Valid @RequestBody ChangeHistoryUpdate dto){
-        ChangeHistoryResponse response = changeHistoryService.update(id, dto);
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<ChangeHistoryResponse> getById(@PathVariable Long id){
         ChangeHistoryResponse response = changeHistoryService.getById(id);
@@ -69,11 +57,5 @@ public class ChangeHistoryController {
     public ResponseEntity<List<ChangeHistoryResponse>> getAll(){
         List<ChangeHistoryResponse> response = changeHistoryService.getAll();
         return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteById(@PathVariable Long id){
-        changeHistoryService.delete(id);
-        return ResponseEntity.noContent().build();
     }
 }

@@ -1,26 +1,43 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
-import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
-import rs.logistics.logistics_system.entity.*;
-import rs.logistics.logistics_system.enums.*;
+import rs.logistics.logistics_system.entity.Employee;
+import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.entity.TransportOrderItem;
+import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.entity.Vehicle;
+import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.NotificationType;
+import rs.logistics.logistics_system.enums.StockMovementReasonCode;
+import rs.logistics.logistics_system.enums.StockMovementReferenceType;
+import rs.logistics.logistics_system.enums.StockMovementType;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
+import rs.logistics.logistics_system.enums.VehicleStatus;
+import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
-import rs.logistics.logistics_system.repository.*;
-import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.*;
+import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.repository.UserRepository;
+import rs.logistics.logistics_system.repository.VehicleRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
+import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
+import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
+import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,33 +53,17 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
     private static final List<TransportOrderStatus> ACTIVE_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
     private static final List<TransportOrderStatus> SCHEDULE_BLOCKING_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
-
     private static final List<TransportOrderStatus> VEHICLE_BUSY_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
 
-    private final ActivityLogServiceDefinition activityLogService;
-    private final NotificationService notificationService;
+    private final NotificationServiceDefinition notificationService;
     private final StockMovementServiceDefinition stockMovementService;
-    private final ChangeHistoryServiceDefinition changeHistoryService;
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
-
-    private final AuthenticatedUserProvider authenticatedUserProvider;
-
+    private final AuditFacadeDefinition auditFacade;
 
     @Transactional
     @Override
     public TransportOrderResponse create(TransportOrderCreate dto) {
-
-        if (dto.getVehicleId() == null ||
-                dto.getAssignedEmployeeId() == null ||
-                dto.getSourceWarehouseId() == null ||
-                dto.getDestinationWarehouseId() == null ||
-                authenticatedUserProvider.getAuthenticatedUserId() == null) {
-            throw new BadRequestException("Invalid request");
-        }
-
-        if (dto.getTotalWeight() == null || dto.getTotalWeight().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BadRequestException("Total weight must be greater than 0");
-        }
+        validateCreateOrUpdateRequest(dto);
 
         Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
 
@@ -72,7 +73,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
 
-        User createdBy = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId()).orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
+        User createdBy = resolveCreatedBy(dto.getCreatedById());
 
         validateSchedule(dto.getDepartureTime(), dto.getPlannedArrivalTime());
         validateWarehouses(warehouseSource, warehouseDestination);
@@ -81,34 +82,33 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         checkVehicleAvailability(vehicle.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime());
         checkDriverAvailability(assignedEmployee.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime());
 
+        if (vehicle.getCapacity() != null && dto.getTotalWeight().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Total weight must be greater than 0");
+        }
+
         if (vehicle.getCapacity() != null && dto.getTotalWeight().compareTo(vehicle.getCapacity()) > 0) {
             throw new BadRequestException("Total weight exceeds vehicle capacity");
         }
 
         TransportOrder transportOrder = TransportOrderMapper.toEntity(
-                dto, warehouseSource, warehouseDestination, vehicle, assignedEmployee, createdBy
+                dto,
+                warehouseSource,
+                warehouseDestination,
+                vehicle,
+                assignedEmployee,
+                createdBy
         );
         transportOrder.setStatus(TransportOrderStatus.CREATED);
 
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordCreate("TRANSPORT_ORDER", saved.getId());
+        auditFacade.log(
                 "CREATE",
                 "TRANSPORT_ORDER",
                 saved.getId(),
-                "Transport order created (ID: " + saved.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "TRANSPORT_ORDER",
-                saved.getId(),
-                ChangeType.CREATE,
-                "ENTITY",
-                "null",
-                "CREATED",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "Transport order created (ID: " + saved.getId() + ")"
+        );
 
         return TransportOrderMapper.toResponse(saved);
     }
@@ -116,12 +116,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Transactional
     @Override
     public TransportOrderResponse update(Long id, TransportOrderUpdate dto) {
-
-        if (dto.getVehicleId() == null ||
-                dto.getAssignedEmployeeId() == null ||
-                dto.getSourceWarehouseId() == null ||
-                dto.getDestinationWarehouseId() == null ||
-                authenticatedUserProvider.getAuthenticatedUserId() == null) {
+        if (dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null) {
             throw new BadRequestException("Invalid request");
         }
 
@@ -168,34 +163,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             throw new BadRequestException("Total weight exceeds vehicle capacity");
         }
 
-        if (!dto.getAssignedEmployeeId().equals(transportOrder.getAssignedEmployee().getId())) {
-            changeHistoryService.create(new ChangeHistoryCreate(
-                    "TRANSPORT_ORDER",
-                    transportOrder.getId(),
-                    ChangeType.UPDATE,
-                    "assignedEmployee",
-                    transportOrder.getAssignedEmployee().getId().toString(),
-                    dto.getAssignedEmployeeId().toString(),
-                    authenticatedUserProvider.getAuthenticatedUserId()
-            ));
-        }
-
-        if (!dto.getVehicleId().equals(transportOrder.getVehicle().getId())) {
-            changeHistoryService.create(new ChangeHistoryCreate(
-                    "TRANSPORT_ORDER",
-                    transportOrder.getId(),
-                    ChangeType.UPDATE,
-                    "vehicle",
-                    transportOrder.getVehicle().getId().toString(),
-                    dto.getVehicleId().toString(),
-                    authenticatedUserProvider.getAuthenticatedUserId()
-            ));
-        }
-
         Vehicle previousVehicle = transportOrder.getVehicle();
         Employee previousEmployee = transportOrder.getAssignedEmployee();
-        LocalDateTime previousDepartureTime = transportOrder.getDepartureTime();
-        LocalDateTime previousPlannedArrivalTime = transportOrder.getPlannedArrivalTime();
+
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "assignedEmployee", transportOrder.getAssignedEmployee().getId(), dto.getAssignedEmployeeId());
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "vehicle", transportOrder.getVehicle().getId(), dto.getVehicleId());
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "sourceWarehouse", transportOrder.getSourceWarehouse().getId(), dto.getSourceWarehouseId());
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "destinationWarehouse", transportOrder.getDestinationWarehouse().getId(), dto.getDestinationWarehouseId());
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "departureTime", transportOrder.getDepartureTime(), dto.getDepartureTime());
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "plannedArrivalTime", transportOrder.getPlannedArrivalTime(), dto.getPlannedArrivalTime());
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "totalWeight", transportOrder.getTotalWeight(), dto.getTotalWeight());
 
         TransportOrderMapper.updateEntity(
                 dto,
@@ -217,13 +194,12 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             }
         }
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.log(
                 "UPDATE",
                 "TRANSPORT_ORDER",
                 updated.getId(),
-                "Transport order updated (ID: " + updated.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "Transport order updated (ID: " + updated.getId() + ")"
+        );
 
         return TransportOrderMapper.toResponse(updated);
     }
@@ -250,23 +226,13 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         _transportOrderRepository.delete(transportOrder);
 
-        activityLogService.create(new ActivityLogCreate(
+        auditFacade.recordDelete("TRANSPORT_ORDER", id);
+        auditFacade.log(
                 "DELETE",
                 "TRANSPORT_ORDER",
                 id,
-                "Transport order deleted (ID: " + id + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "TRANSPORT_ORDER",
-                id,
-                ChangeType.DELETE,
-                "ENTITY",
-                "CREATED",
-                "null",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "Transport order deleted (ID: " + id + ")"
+        );
     }
 
     @Transactional
@@ -275,7 +241,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
         TransportOrderStatus current = transportOrder.getStatus();
-
         validateStatusTransition(current, status);
 
         if (status == TransportOrderStatus.ASSIGNED) {
@@ -296,7 +261,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             );
 
             reserveInventoryForOrder(transportOrder);
-
             markVehicleAsBusy(transportOrder.getVehicle());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
@@ -344,8 +308,9 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 );
             }
 
-            if (transportOrder.getDestinationWarehouse() != null && transportOrder.getDestinationWarehouse().getManager() != null && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
-
+            if (transportOrder.getDestinationWarehouse() != null
+                    && transportOrder.getDestinationWarehouse().getManager() != null
+                    && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
                 notificationService.createSystemNotification(
                         transportOrder.getDestinationWarehouse().getManager().getUser().getId(),
                         "Incoming transport delivered",
@@ -375,19 +340,20 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 );
             }
 
-            if (transportOrder.getSourceWarehouse() != null && transportOrder.getSourceWarehouse().getManager() != null && transportOrder.getSourceWarehouse().getManager().getUser() != null) {
-
+            if (transportOrder.getSourceWarehouse() != null
+                    && transportOrder.getSourceWarehouse().getManager() != null
+                    && transportOrder.getSourceWarehouse().getManager().getUser() != null) {
                 notificationService.createSystemNotification(
                         transportOrder.getSourceWarehouse().getManager().getUser().getId(),
                         "Transport cancelled",
-                        "Transport order #" + transportOrder.getId() + " from warehouse '" +
-                                transportOrder.getSourceWarehouse().getName() + "' has been cancelled.",
+                        "Transport order #" + transportOrder.getId() + " from warehouse '" + transportOrder.getSourceWarehouse().getName() + "' has been cancelled.",
                         NotificationType.WARNING
                 );
             }
 
-            if (transportOrder.getDestinationWarehouse() != null && transportOrder.getDestinationWarehouse().getManager() != null && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
-
+            if (transportOrder.getDestinationWarehouse() != null
+                    && transportOrder.getDestinationWarehouse().getManager() != null
+                    && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
                 notificationService.createSystemNotification(
                         transportOrder.getDestinationWarehouse().getManager().getUser().getId(),
                         "Transport cancelled",
@@ -398,31 +364,39 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         transportOrder.setStatus(status);
-
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
 
-        activityLogService.create(new ActivityLogCreate(
-                "STATUS_CHANGED",
+        auditFacade.recordStatusChange("TRANSPORT_ORDER", saved.getId(), "status", current, saved.getStatus());
+        auditFacade.log(
+                "STATUS_CHANGE",
                 "TRANSPORT_ORDER",
                 saved.getId(),
-                "Transport order status changed from " + current + " to " + saved.getStatus() + " (ID: " + saved.getId() + ")",
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
-
-        changeHistoryService.create(new ChangeHistoryCreate(
-                "TRANSPORT_ORDER",
-                saved.getId(),
-                ChangeType.STATUS_CHANGE,
-                "status",
-                current.toString(),
-                saved.getStatus().toString(),
-                authenticatedUserProvider.getAuthenticatedUserId()
-        ));
+                "Transport order status changed from " + current + " to " + saved.getStatus() + " (ID: " + saved.getId() + ")"
+        );
 
         return TransportOrderMapper.toResponse(saved);
     }
 
-    // helpers
+    // HELPERS
+
+    private User resolveCreatedBy(Long createdById) {
+        if (createdById == null) {
+            throw new BadRequestException("Created by is required");
+        }
+
+        return _userRepository.findById(createdById)
+                .orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
+    }
+
+    private void validateCreateOrUpdateRequest(TransportOrderCreate dto) {
+        if (dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null) {
+            throw new BadRequestException("Invalid request");
+        }
+
+        if (dto.getTotalWeight() == null || dto.getTotalWeight().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Total weight must be greater than 0");
+        }
+    }
 
     private void checkVehicleAvailability(Long vehicleId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime) {
         if (_transportOrderRepository.existsVehicleScheduleOverlap(
@@ -557,23 +531,19 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     throw new BadRequestException("Transport order in CREATED status can only change to ASSIGNED or CANCELLED");
                 }
                 break;
-
             case ASSIGNED:
                 if (next != TransportOrderStatus.IN_TRANSIT && next != TransportOrderStatus.CANCELLED) {
                     throw new BadRequestException("Transport order in ASSIGNED status can only change to IN_TRANSIT or CANCELLED");
                 }
                 break;
-
             case IN_TRANSIT:
                 if (next != TransportOrderStatus.DELIVERED) {
                     throw new BadRequestException("Transport order in IN_TRANSIT status can only change to DELIVERED");
                 }
                 break;
-
             case DELIVERED:
             case CANCELLED:
                 throw new BadRequestException("Transport order status cannot be changed anymore");
-
             default:
                 throw new BadRequestException("Unsupported transport order status");
         }
@@ -610,6 +580,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             );
         }
     }
+
     private void executeDeliveryInventoryFlow(TransportOrder transportOrder) {
         if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
             throw new BadRequestException("Transport order must contain at least one item to complete delivery");
@@ -672,8 +643,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     }
 
     private void refreshVehicleAvailability(Long vehicleId) {
-        Vehicle vehicle = _vehicleRepository.findById(vehicleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+        Vehicle vehicle = _vehicleRepository.findById(vehicleId).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
 
         boolean stillBusy = _transportOrderRepository.existsByVehicleIdAndStatusIn(
                 vehicleId,
