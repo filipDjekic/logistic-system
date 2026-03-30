@@ -28,9 +28,7 @@ import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
-import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
-import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
+import rs.logistics.logistics_system.service.definition.*;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -48,6 +46,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final TransportOrderRepository _transportOrderRepository;
 
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
+
+    private final WarehouseInventoryServiceDefinition warehouseInventoryService;
     private final ActivityLogServiceDefinition activityLogService;
     private final ChangeHistoryServiceDefinition changeHistoryService;
 
@@ -151,6 +151,14 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 authenticatedUserId
         ));
 
+        boolean shouldCheckLowStock = dto.getMovementType() == StockMovementType.OUTBOUND || dto.getMovementType() == StockMovementType.TRANSFER_OUT || (dto.getMovementType() == StockMovementType.ADJUSTMENT && dto.getQuantity().compareTo(BigDecimal.ZERO) > 0);
+
+        if (shouldCheckLowStock) {
+            WarehouseInventory updatedInventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
+
+            warehouseInventoryService.checkLowStockAndNotify(updatedInventory);
+        }
+
         return StockMovementMapper.toResponse(saved);
     }
 
@@ -168,6 +176,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 .map(StockMovementMapper::toResponse)
                 .collect(Collectors.toList());
     }
+
+    // helpers
 
     private void increaseInventory(WarehouseInventory inventory, BigDecimal quantity) {
         inventory.increase(quantity);

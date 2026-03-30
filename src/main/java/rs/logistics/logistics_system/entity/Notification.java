@@ -52,4 +52,16 @@ public class Notification {
         this.status = status;
         this.user = user;
     }
+
+    // methods
+
+    public boolean isUnread() {
+        return this.status == NotificationStatus.UNREAD;
+    }
+
+    public void markAsRead() {
+        if(this.status == NotificationStatus.UNREAD) {
+            this.status = NotificationStatus.READ;
+        }
+    }
 }

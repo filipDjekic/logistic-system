@@ -40,7 +40,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private static final List<TransportOrderStatus> VEHICLE_BUSY_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
 
     private final ActivityLogServiceDefinition activityLogService;
-
+    private final NotificationService notificationService;
     private final StockMovementServiceDefinition stockMovementService;
     private final ChangeHistoryServiceDefinition changeHistoryService;
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
@@ -298,6 +298,15 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             reserveInventoryForOrder(transportOrder);
 
             markVehicleAsBusy(transportOrder.getVehicle());
+
+            if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
+                notificationService.createSystemNotification(
+                        transportOrder.getAssignedEmployee().getUser().getId(),
+                        "Transport assigned",
+                        "Transport order #" + transportOrder.getId() + " has been assigned to you.",
+                        NotificationType.INFO
+                );
+            }
         }
 
         if (status == TransportOrderStatus.IN_TRANSIT) {
@@ -310,12 +319,40 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             }
 
             markVehicleAsBusy(transportOrder.getVehicle());
+
+            if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
+                notificationService.createSystemNotification(
+                        transportOrder.getAssignedEmployee().getUser().getId(),
+                        "Transport started",
+                        "Transport order #" + transportOrder.getId() + " is now in transit.",
+                        NotificationType.INFO
+                );
+            }
         }
 
         if (status == TransportOrderStatus.DELIVERED) {
             executeDeliveryInventoryFlow(transportOrder);
             transportOrder.setActualArrivalTime(LocalDateTime.now());
             refreshVehicleAvailability(transportOrder.getVehicle().getId());
+
+            if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
+                notificationService.createSystemNotification(
+                        transportOrder.getAssignedEmployee().getUser().getId(),
+                        "Transport delivered",
+                        "Transport order #" + transportOrder.getId() + " has been successfully delivered.",
+                        NotificationType.INFO
+                );
+            }
+
+            if (transportOrder.getDestinationWarehouse() != null && transportOrder.getDestinationWarehouse().getManager() != null && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
+
+                notificationService.createSystemNotification(
+                        transportOrder.getDestinationWarehouse().getManager().getUser().getId(),
+                        "Incoming transport delivered",
+                        "Transport order #" + transportOrder.getId() + " has arrived at warehouse '" + transportOrder.getDestinationWarehouse().getName() + "'.",
+                        NotificationType.INFO
+                );
+            }
         }
 
         if (status == TransportOrderStatus.CANCELLED) {
@@ -328,6 +365,36 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             }
 
             refreshVehicleAvailability(transportOrder.getVehicle().getId());
+
+            if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
+                notificationService.createSystemNotification(
+                        transportOrder.getAssignedEmployee().getUser().getId(),
+                        "Transport cancelled",
+                        "Transport order #" + transportOrder.getId() + " has been cancelled.",
+                        NotificationType.WARNING
+                );
+            }
+
+            if (transportOrder.getSourceWarehouse() != null && transportOrder.getSourceWarehouse().getManager() != null && transportOrder.getSourceWarehouse().getManager().getUser() != null) {
+
+                notificationService.createSystemNotification(
+                        transportOrder.getSourceWarehouse().getManager().getUser().getId(),
+                        "Transport cancelled",
+                        "Transport order #" + transportOrder.getId() + " from warehouse '" +
+                                transportOrder.getSourceWarehouse().getName() + "' has been cancelled.",
+                        NotificationType.WARNING
+                );
+            }
+
+            if (transportOrder.getDestinationWarehouse() != null && transportOrder.getDestinationWarehouse().getManager() != null && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
+
+                notificationService.createSystemNotification(
+                        transportOrder.getDestinationWarehouse().getManager().getUser().getId(),
+                        "Transport cancelled",
+                        "Transport order #" + transportOrder.getId() + " to warehouse '" + transportOrder.getDestinationWarehouse().getName() + "' has been cancelled.",
+                        NotificationType.WARNING
+                );
+            }
         }
 
         transportOrder.setStatus(status);

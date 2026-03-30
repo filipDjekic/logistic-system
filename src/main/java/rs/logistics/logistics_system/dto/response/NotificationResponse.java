@@ -6,6 +6,8 @@ import lombok.Setter;
 import rs.logistics.logistics_system.enums.NotificationStatus;
 import rs.logistics.logistics_system.enums.NotificationType;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,15 +19,23 @@ public class NotificationResponse {
     private String message;
     private NotificationType type;
     private NotificationStatus status;
+    private LocalDateTime createdAt;
 
     private Long userId;
 
-    public NotificationResponse(Long id, String title, String message, NotificationType type, NotificationStatus status, Long userId) {
+    public NotificationResponse(Long id,
+                                String title,
+                                String message,
+                                NotificationType type,
+                                NotificationStatus status,
+                                Long userId,
+                                LocalDateTime createdAt) {
         this.id = id;
         this.title = title;
         this.message = message;
         this.type = type;
         this.status = status;
         this.userId = userId;
+        this.createdAt = createdAt;
     }
 }

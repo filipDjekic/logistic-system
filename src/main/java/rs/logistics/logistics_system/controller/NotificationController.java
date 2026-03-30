@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import rs.logistics.logistics_system.dto.create.NotificationCreate;
+import rs.logistics.logistics_system.dto.response.NotificationPageResponse;
 import rs.logistics.logistics_system.dto.response.NotificationResponse;
 import rs.logistics.logistics_system.dto.update.NotificationUpdate;
 import rs.logistics.logistics_system.enums.NotificationStatus;
@@ -28,21 +29,15 @@ public class NotificationController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<NotificationResponse> update(@PathVariable Long id,@Valid @RequestBody NotificationUpdate dto) {
-        NotificationResponse response = notificationService.update(id, dto);
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<NotificationResponse> get(@PathVariable Long id) {
         NotificationResponse response = notificationService.getById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @GetMapping
-    public ResponseEntity<List<NotificationResponse>> getAll() {
-        List<NotificationResponse> response = notificationService.getAll();
+    @GetMapping("/user/{id}")
+    public ResponseEntity<NotificationPageResponse> getNotificationsForUser(@PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        NotificationPageResponse response = notificationService.getByUser(id, page, size);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -52,19 +47,19 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/user/{id}")
-    public ResponseEntity<List<NotificationResponse>> getNotificationsForUser(@PathVariable Long id) {
-        List<NotificationResponse> responses = notificationService.getByUserId(id);
-        return new ResponseEntity<>(responses, HttpStatus.OK);
-    }
-
     @GetMapping("/user/{id}/unread")
-    public ResponseEntity<List<NotificationResponse>> getUnreadNotifications(@PathVariable Long id) {
-        List<NotificationResponse> responses = notificationService.getByStatus(id, NotificationStatus.UNREAD);
-        return new ResponseEntity<>(responses, HttpStatus.OK);
+    public ResponseEntity<NotificationPageResponse> getUnreadNotifications(@PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        NotificationPageResponse response = notificationService.getByUserAndStatus(id, NotificationStatus.UNREAD, page, size);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PatchMapping("notification/{id}/mark_as_read")
+    @GetMapping("/user/{id}/unread/count")
+    public ResponseEntity<Long> getUnreadCount(@PathVariable Long id) {
+        Long response = notificationService.getUnreadCount(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PatchMapping("/{id}/mark_as_read")
     public ResponseEntity<NotificationResponse> markAsRead(@PathVariable Long id) {
         NotificationResponse response = notificationService.markAsRead(id);
         return new ResponseEntity<>(response, HttpStatus.OK);

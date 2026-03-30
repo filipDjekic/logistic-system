@@ -10,6 +10,7 @@ import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
+import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -18,6 +19,7 @@ import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
 import java.math.BigDecimal;
@@ -33,6 +35,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final ProductRepository productRepository;
 
     private final ActivityLogService activityLogService;
+    private final NotificationService notificationService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
@@ -80,6 +83,8 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 authenticatedUserProvider.getAuthenticatedUserId()
         ));
 
+        notifyLowStockIfNeeded(inventory);
+
         return WarehouseInventoryMapper.toResponse(inventory);
     }
 
@@ -125,6 +130,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
         inventory.reserve(quantity);
+        notifyLowStockIfNeeded(inventory);
 
         warehouseInventoryRepository.save(inventory);
     }
@@ -155,6 +161,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
 
         inventory.moveOutReserved(quantity);
+        notifyLowStockIfNeeded(inventory);
 
         warehouseInventoryRepository.save(inventory);
     }
@@ -184,6 +191,33 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         warehouseInventoryRepository.save(inventory);
     }
 
+    @Override
+    public void checkLowStockAndNotify(WarehouseInventory inventory) {
+        if (inventory == null) {
+            return;
+        }
+
+        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
+
+        BigDecimal lowStockThreshold = new BigDecimal("10");
+
+        if (quantity.compareTo(lowStockThreshold) > 0) {
+            return;
+        }
+
+        if (inventory.getWarehouse() == null || inventory.getWarehouse().getManager() == null || inventory.getWarehouse().getManager().getUser() == null) {
+            return;
+        }
+
+        notificationService.createSystemNotification(
+                inventory.getWarehouse().getManager().getUser().getId(),
+                "Low stock alert",
+                "Product '" + inventory.getProduct().getName() + "' is low on stock in warehouse '" +
+                        inventory.getWarehouse().getName() + "'. Current quantity: " + quantity,
+                NotificationType.WARNING
+        );
+    }
+
 
     // helpers
 
@@ -202,6 +236,23 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private void checkMovementQuantity(BigDecimal quantity) {
         if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Quantity must be greater than zero");
+        }
+    }
+
+    private void notifyLowStockIfNeeded(WarehouseInventory inventory) {
+        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
+
+        if (quantity.compareTo(inventory.getMinStockLevel()) <= 0) {
+            if (inventory.getWarehouse() != null && inventory.getWarehouse().getManager() != null && inventory.getWarehouse().getManager().getUser() != null) {
+
+                notificationService.createSystemNotification(
+                        inventory.getWarehouse().getManager().getUser().getId(),
+                        "Low stock alert",
+                        "Product '" + inventory.getProduct().getName() + "' is low on stock in warehouse '" +
+                                inventory.getWarehouse().getName() + "'. Current quantity: " + quantity,
+                        NotificationType.WARNING
+                );
+            }
         }
     }
 }

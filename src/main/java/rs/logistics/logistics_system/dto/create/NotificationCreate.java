@@ -30,17 +30,16 @@ public class NotificationCreate {
     private NotificationType type;
 
     @NotNull
-    private NotificationStatus status;
-
-    @NotNull
     @Positive
     private Long userId;
 
-    public NotificationCreate(String title, String message, NotificationType type, NotificationStatus status, Long userId) {
+    public NotificationCreate(String title,
+                              String message,
+                              NotificationType type,
+                              Long userId) {
         this.title = title;
         this.message = message;
         this.type = type;
-        this.status = status;
         this.userId = userId;
     }
 }

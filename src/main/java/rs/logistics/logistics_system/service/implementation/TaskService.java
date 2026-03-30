@@ -11,6 +11,7 @@ import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.enums.ChangeType;
+import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -21,6 +22,7 @@ import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
+import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 
 import java.time.LocalDateTime;
@@ -37,6 +39,7 @@ public class TaskService implements TaskServiceDefinition {
 
     private final ActivityLogServiceDefinition activityLogService;
     private final ChangeHistoryServiceDefinition changeHistoryService;
+    private final NotificationService notificationService;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
@@ -51,6 +54,15 @@ public class TaskService implements TaskServiceDefinition {
         Task task = TaskMapper.toEntity(dto, employee, transportOrder);
         task.setStatus(TaskStatus.NEW);
         Task saved =  _taskRepository.save(task);
+
+        if (employee.getUser() != null) {
+            notificationService.createSystemNotification(
+                    employee.getUser().getId(),
+                    "Task assigned",
+                    "Task '" + saved.getTitle() + "' has been assigned to you.",
+                    NotificationType.INFO
+            );
+        }
 
         activityLogService.create(new ActivityLogCreate(
                 "CREATE",
@@ -81,6 +93,8 @@ public class TaskService implements TaskServiceDefinition {
         validateDueDate(dto.getDueDate());
 
         Employee employee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee oldEmployee = task.getAssignedEmployee();
+
         TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
 
         if(!task.getAssignedEmployee().getId().equals(employee.getId())) {
@@ -129,6 +143,15 @@ public class TaskService implements TaskServiceDefinition {
 
         TaskMapper.updateEntity(task, dto, employee, transportOrder);
         Task saved = _taskRepository.save(task);
+
+        if (oldEmployee != null && oldEmployee.getUser() != null) {
+            notificationService.createSystemNotification(
+                    oldEmployee.getUser().getId(),
+                    "Task reassigned",
+                    "Task '" + saved.getTitle() + "' is no longer assigned to you.",
+                    NotificationType.WARNING
+            );
+        }
 
         activityLogService.create(new ActivityLogCreate(
                 "UPDATE",
@@ -224,6 +247,17 @@ public class TaskService implements TaskServiceDefinition {
 
         Task saved = _taskRepository.save(task);
 
+        NotificationType type = saved.getStatus() == TaskStatus.CANCELLED ? NotificationType.WARNING : NotificationType.INFO;
+
+        if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
+            notificationService.createSystemNotification(
+                    saved.getAssignedEmployee().getUser().getId(),
+                    "Task status updated",
+                    "Task '" + saved.getTitle() + "' status changed to " + saved.getStatus() + ".",
+                    type
+            );
+        }
+
         return TaskMapper.toResponse(saved);
     }
 
@@ -239,6 +273,15 @@ public class TaskService implements TaskServiceDefinition {
         task.setAssignedEmployee(employee);
 
         Task saved = _taskRepository.save(task);
+
+        if (employee.getUser() != null) {
+            notificationService.createSystemNotification(
+                    employee.getUser().getId(),
+                    "Task assigned",
+                    "Task '" + task.getTitle() + "' has been assigned to you.",
+                    NotificationType.INFO
+            );
+        }
 
         changeHistoryService.create(new ChangeHistoryCreate(
                 "TASK",
@@ -275,8 +318,7 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     private TransportOrder getTransportOrder(Long transportOrderId) {
-        return _transportOrderRepository.findById(transportOrderId)
-                .orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
+        return _transportOrderRepository.findById(transportOrderId).orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
     }
 
     private void validateDueDate(LocalDateTime dueDate) {

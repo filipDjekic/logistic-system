@@ -26,7 +26,6 @@ public class TaskMapper {
         task.setDescription(dto.getDescription());
         task.setDueDate(dto.getDueDate());
         task.setPriority(dto.getPriority());
-        task.setStatus(dto.getStatus());
         task.setAssignedEmployee(employee);
         task.setTransportOrder(transportOrder);
     }
