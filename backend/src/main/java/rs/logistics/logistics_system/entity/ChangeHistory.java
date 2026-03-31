@@ -28,6 +28,9 @@ public class ChangeHistory {
     @Column(name = "entity_id", nullable = false)
     private Long entityId;
 
+    @Column(name = "entity_identifier", length = 255)
+    private String entityIdentifier;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "change_type", nullable = false, length = 30)
     private ChangeType changeType;
@@ -49,13 +52,31 @@ public class ChangeHistory {
     @JoinColumn(name = "changed_by_user_id", nullable = false)
     private User changedBy;
 
-    public ChangeHistory(String entityName, Long entityId,ChangeType changeType, String fieldName, String oldValue, String newValue, User changedBy) {
+    public ChangeHistory(String entityName,
+                         Long entityId,
+                         String entityIdentifier,
+                         ChangeType changeType,
+                         String fieldName,
+                         String oldValue,
+                         String newValue,
+                         User changedBy) {
         this.entityName = entityName;
         this.entityId = entityId;
+        this.entityIdentifier = entityIdentifier;
         this.changeType = changeType;
         this.fieldName = fieldName;
         this.oldValue = oldValue;
         this.newValue = newValue;
         this.changedBy = changedBy;
+    }
+
+    public ChangeHistory(String entityName,
+                         Long entityId,
+                         ChangeType changeType,
+                         String fieldName,
+                         String oldValue,
+                         String newValue,
+                         User changedBy) {
+        this(entityName, entityId, null, changeType, fieldName, oldValue, newValue, changedBy);
     }
 }

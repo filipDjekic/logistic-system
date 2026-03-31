@@ -87,7 +87,7 @@ public class ProductService implements ProductServiceDefinition {
     public void delete(Long id) {
         Product product = _productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        validateForDeleteOrDeactivate(product);
+        validateForDelete(product);
 
         auditFacade.recordDelete("PRODUCT", id);
         auditFacade.log(
@@ -130,8 +130,6 @@ public class ProductService implements ProductServiceDefinition {
             throw new BadRequestException("Product is already inactive");
         }
 
-        validateForDeleteOrDeactivate(product);
-
         product.setActive(false);
         Product saved = _productRepository.save(product);
 
@@ -145,6 +143,7 @@ public class ProductService implements ProductServiceDefinition {
 
         return ProductMapper.toResponse(saved);
     }
+
     // helpers
 
     private void validateSkuForCreate(String sku) {
@@ -168,6 +167,18 @@ public class ProductService implements ProductServiceDefinition {
         }
         if (_productRepository.existsTransportOrderItemByProductId(product.getId())) {
             throw new BadRequestException("Product is in transport");
+        }
+    }
+
+    private void validateForDelete(Product product) {
+        if (_productRepository.existsInventoryByProductId(product.getId())) {
+            throw new BadRequestException("Product cannot be deleted because it exists in inventory history. Deactivate product instead.");
+        }
+        if (_productRepository.existsStockMovementByProductId(product.getId())) {
+            throw new BadRequestException("Product cannot be deleted because it has stock movement history. Deactivate product instead.");
+        }
+        if (_productRepository.existsTransportOrderItemByProductId(product.getId())) {
+            throw new BadRequestException("Product cannot be deleted because it is linked to transport history. Deactivate product instead.");
         }
     }
 }

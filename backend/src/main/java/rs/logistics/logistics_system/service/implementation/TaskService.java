@@ -142,6 +142,10 @@ public class TaskService implements TaskServiceDefinition {
     public void delete(Long id) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
+        if (task.getStatus() != TaskStatus.NEW) {
+            throw new BadRequestException("Task cannot be deleted after it entered workflow. Cancel the task instead.");
+        }
+
         _taskRepository.delete(task);
 
         auditFacade.recordDelete("TASK", task.getId());

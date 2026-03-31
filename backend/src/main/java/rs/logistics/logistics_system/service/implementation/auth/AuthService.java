@@ -49,7 +49,8 @@ public class AuthService implements AuthServiceDefinition {
                 "LOGIN",
                 "USER",
                 user.getId(),
-                "User with ID: " + user.getId() + " successfully logged in"
+                "User with ID: " + user.getId() + " successfully logged in",
+                user
         );
 
         return new LoginResponse(

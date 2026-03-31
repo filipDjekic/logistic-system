@@ -30,6 +30,9 @@ public class ActivityLog {
     @Column(name = "entity_id")
     private Long entityId;
 
+    @Column(name = "entity_identifier", length = 255)
+    private String entityIdentifier;
+
     @Column(name = "description", length = 500)
     private String description;
 
@@ -44,12 +47,22 @@ public class ActivityLog {
     public ActivityLog(String action,
                        String entityName,
                        Long entityId,
+                       String entityIdentifier,
                        String description,
                        User user) {
         this.action = action;
         this.entityName = entityName;
         this.entityId = entityId;
+        this.entityIdentifier = entityIdentifier;
         this.description = description;
         this.user = user;
+    }
+
+    public ActivityLog(String action,
+                       String entityName,
+                       Long entityId,
+                       String description,
+                       User user) {
+        this(action, entityName, entityId, null, description, user);
     }
 }

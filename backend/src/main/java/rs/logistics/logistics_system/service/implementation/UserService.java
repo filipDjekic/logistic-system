@@ -114,6 +114,17 @@ public class UserService implements UserServiceDefinition {
     public void delete(Long id) {
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
 
+        boolean hasRelations = user.getEmployee() != null ||
+                        (user.getStockMovements() != null && !user.getStockMovements().isEmpty()) ||
+                        (user.getCreatedTransportOrders() != null && !user.getCreatedTransportOrders().isEmpty()) ||
+                        (user.getNotifications() != null && !user.getNotifications().isEmpty()) ||
+                        (user.getActivityLogs() != null && !user.getActivityLogs().isEmpty()) ||
+                        (user.getChangeHistories() != null && !user.getChangeHistories().isEmpty());
+
+        if (hasRelations) {
+            throw new BadRequestException("User cannot be deleted because it has related history or references. Disable user instead.");
+        }
+
         _userRepository.delete(user);
 
         auditFacade.recordDelete("USER", id);
@@ -152,6 +163,19 @@ public class UserService implements UserServiceDefinition {
 
         if (Boolean.FALSE.equals(user.getEnabled())) {
             throw new BadRequestException("User is already disabled");
+        }
+
+        if (user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName())) {
+            long enabledAdminCount = _userRepository.findAll()
+                    .stream()
+                    .filter(existingUser -> existingUser.getRole() != null)
+                    .filter(existingUser -> "ADMIN".equalsIgnoreCase(existingUser.getRole().getName()))
+                    .filter(existingUser -> Boolean.TRUE.equals(existingUser.getEnabled()))
+                    .count();
+
+            if (enabledAdminCount <= 1) {
+                throw new BadRequestException("Last enabled ADMIN user cannot be disabled");
+            }
         }
 
         Boolean oldEnabled = user.getEnabled();

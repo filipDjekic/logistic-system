@@ -1,6 +1,5 @@
 package rs.logistics.logistics_system.service.implementation;
 
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.entity.ActivityLog;
@@ -24,12 +23,37 @@ public class AuditFacadeService implements AuditFacadeDefinition {
 
     @Override
     public void log(String action, String entityName, Long entityId, String description) {
+        log(action, entityName, entityId, null, description);
+    }
+
+    @Override
+    public void log(String action, String entityName, Long entityId, String description, User actor) {
+        log(action, entityName, entityId, null, description, actor);
+    }
+
+    @Override
+    public void log(String action, String entityName, Long entityId, String entityIdentifier, String description) {
         User actor = authenticatedUserProvider.getAuthenticatedUser();
 
         ActivityLog activityLog = new ActivityLog(
                 action,
                 entityName,
                 entityId,
+                entityIdentifier,
+                description,
+                actor
+        );
+
+        activityLogRepository.save(activityLog);
+    }
+
+    @Override
+    public void log(String action, String entityName, Long entityId, String entityIdentifier, String description, User actor) {
+        ActivityLog activityLog = new ActivityLog(
+                action,
+                entityName,
+                entityId,
+                entityIdentifier,
                 description,
                 actor
         );
@@ -39,11 +63,17 @@ public class AuditFacadeService implements AuditFacadeDefinition {
 
     @Override
     public void recordCreate(String entityName, Long entityId) {
+        recordCreate(entityName, entityId, null);
+    }
+
+    @Override
+    public void recordCreate(String entityName, Long entityId, String entityIdentifier) {
         User actor = authenticatedUserProvider.getAuthenticatedUser();
 
         ChangeHistory changeHistory = new ChangeHistory(
                 entityName,
                 entityId,
+                entityIdentifier,
                 ChangeType.CREATE,
                 "ENTITY",
                 null,
@@ -56,11 +86,17 @@ public class AuditFacadeService implements AuditFacadeDefinition {
 
     @Override
     public void recordDelete(String entityName, Long entityId) {
+        recordDelete(entityName, entityId, null);
+    }
+
+    @Override
+    public void recordDelete(String entityName, Long entityId, String entityIdentifier) {
         User actor = authenticatedUserProvider.getAuthenticatedUser();
 
         ChangeHistory changeHistory = new ChangeHistory(
                 entityName,
                 entityId,
+                entityIdentifier,
                 ChangeType.DELETE,
                 "ENTITY",
                 "EXISTING_STATE",
@@ -73,6 +109,11 @@ public class AuditFacadeService implements AuditFacadeDefinition {
 
     @Override
     public void recordFieldChange(String entityName, Long entityId, String fieldName, Object oldValue, Object newValue) {
+        recordFieldChange(entityName, entityId, null, fieldName, oldValue, newValue);
+    }
+
+    @Override
+    public void recordFieldChange(String entityName, Long entityId, String entityIdentifier, String fieldName, Object oldValue, Object newValue) {
         if (!hasRealChange(oldValue, newValue)) {
             return;
         }
@@ -82,6 +123,7 @@ public class AuditFacadeService implements AuditFacadeDefinition {
         ChangeHistory changeHistory = new ChangeHistory(
                 entityName,
                 entityId,
+                entityIdentifier,
                 ChangeType.UPDATE,
                 fieldName,
                 normalizeValue(oldValue),
@@ -94,6 +136,11 @@ public class AuditFacadeService implements AuditFacadeDefinition {
 
     @Override
     public void recordStatusChange(String entityName, Long entityId, String fieldName, Object oldValue, Object newValue) {
+        recordStatusChange(entityName, entityId, null, fieldName, oldValue, newValue);
+    }
+
+    @Override
+    public void recordStatusChange(String entityName, Long entityId, String entityIdentifier, String fieldName, Object oldValue, Object newValue) {
         if (!hasRealChange(oldValue, newValue)) {
             return;
         }
@@ -103,6 +150,7 @@ public class AuditFacadeService implements AuditFacadeDefinition {
         ChangeHistory changeHistory = new ChangeHistory(
                 entityName,
                 entityId,
+                entityIdentifier,
                 ChangeType.STATUS_CHANGE,
                 fieldName,
                 normalizeValue(oldValue),
@@ -112,8 +160,6 @@ public class AuditFacadeService implements AuditFacadeDefinition {
 
         changeHistoryRepository.save(changeHistory);
     }
-
-    // helpers
 
     private boolean hasRealChange(Object oldValue, Object newValue) {
         return !Objects.equals(normalizeValue(oldValue), normalizeValue(newValue));

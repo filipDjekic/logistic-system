@@ -227,11 +227,11 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     private void validateForDeleting(Warehouse warehouse) {
         if (!warehouse.getInventoryItems().isEmpty()) {
-            throw new BadRequestException("Warehouse cannot be deleted because it contains inventory.");
+            throw new BadRequestException("Warehouse cannot be deleted because it contains inventory records.");
         }
 
         if (!warehouse.getStockMovements().isEmpty()) {
-            throw new BadRequestException("Warehouse cannot be deleted because it has stock movement history.");
+            throw new BadRequestException("Warehouse cannot be deleted because it has stock movement history. Deactivate warehouse instead.");
         }
 
         if (warehouse.getManager() != null) {
@@ -240,18 +240,13 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
         if (!_transportOrderRepository.findBySourceWarehouseId(warehouse.getId()).isEmpty() ||
                 !_transportOrderRepository.findByDestinationWarehouseId(warehouse.getId()).isEmpty()) {
-            throw new BadRequestException("Warehouse cannot be deleted because it is linked to transport orders.");
+            throw new BadRequestException("Warehouse cannot be deleted because it is linked to transport history. Deactivate warehouse instead.");
         }
     }
 
     private void validateForDeactivation(Warehouse warehouse) {
         if (!warehouse.getInventoryItems().isEmpty()) {
             throw new BadRequestException("Warehouse cannot be deactivated while it contains inventory.");
-        }
-
-        if (!_transportOrderRepository.findBySourceWarehouseId(warehouse.getId()).isEmpty() ||
-                !_transportOrderRepository.findByDestinationWarehouseId(warehouse.getId()).isEmpty()) {
-            throw new BadRequestException("Warehouse cannot be deactivated while it is linked to transport orders.");
         }
     }
 }

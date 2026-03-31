@@ -105,8 +105,18 @@ public class EmployeeService implements EmployeeServiceDefinition {
     public void delete(Long id) {
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        if ((employee.getShifts() != null && !employee.getShifts().isEmpty()) || (employee.getTasks() != null && !employee.getTasks().isEmpty()) || (employee.getTransportOrders() != null && !employee.getTransportOrders().isEmpty()) || (employee.getManagedWarehouses() != null && !employee.getManagedWarehouses().isEmpty())) {
-            throw new BadRequestException("Employee cannot be deleted because related history already exists");
+        boolean hasHistory =
+                (employee.getShifts() != null && !employee.getShifts().isEmpty()) ||
+                        (employee.getTasks() != null && !employee.getTasks().isEmpty()) ||
+                        (employee.getTransportOrders() != null && !employee.getTransportOrders().isEmpty()) ||
+                        (employee.getManagedWarehouses() != null && !employee.getManagedWarehouses().isEmpty());
+
+        if (hasHistory) {
+            throw new BadRequestException("Employee cannot be deleted because related history already exists. Terminate employee instead.");
+        }
+
+        if (employee.getUser() != null) {
+            throw new BadRequestException("Employee cannot be deleted while linked user exists. Disable user and terminate employee instead.");
         }
 
         _employeeRepository.delete(employee);
@@ -138,12 +148,6 @@ public class EmployeeService implements EmployeeServiceDefinition {
     public void terminateEmployee(Long id) {
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        if (employee.getUser() == null) {
-            throw new BadRequestException("Employee is not connected to a user");
-        }
-
-        User user = _userRepository.findById(employee.getUser().getId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
         if (Boolean.FALSE.equals(employee.getActive())) {
             throw new BadRequestException("Employee is already inactive");
         }
@@ -152,7 +156,9 @@ public class EmployeeService implements EmployeeServiceDefinition {
         employee.setActive(false);
         _employeeRepository.save(employee);
 
-        userService.disableUser(user.getId());
+        if (employee.getUser() != null) {
+            userService.disableUser(employee.getUser().getId());
+        }
 
         auditFacade.recordStatusChange("EMPLOYEE", id, "active", oldActive, employee.getActive());
         auditFacade.log(

@@ -36,4 +36,8 @@ public class WarehouseInventoryId implements Serializable {
     public int hashCode() {
         return Objects.hash(warehouseId, productId);
     }
+
+    public String toAuditIdentifier() {
+        return "warehouseId=" + warehouseId + ",productId=" + productId;
+    }
 }

@@ -57,10 +57,14 @@ public class RoleService implements RoleServiceDefinition {
     public void delete(Long id) {
         Role role = _roleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Role not found"));
 
-        boolean hasActiveUsers = _userRepository.existsByRoleIdAndEnabledTrueAndStatus(role.getId(), UserStatus.ACTIVE);
+        if ("ADMIN".equalsIgnoreCase(role.getName())) {
+            throw new BadRequestException("ADMIN role cannot be deleted");
+        }
 
-        if (hasActiveUsers) {
-            throw new BadRequestException("Role cannot be deleted because it is assigned to active users");
+        boolean hasAnyUsers = !_userRepository.findByRoleId(role.getId()).isEmpty();
+
+        if (hasAnyUsers) {
+            throw new BadRequestException("Role cannot be deleted because it is assigned to users. Reassign users instead.");
         }
 
         _roleRepository.delete(role);

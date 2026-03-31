@@ -3,7 +3,6 @@ package rs.logistics.logistics_system.service.implementation;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
@@ -18,9 +17,7 @@ import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
-import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
-import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
 import java.math.BigDecimal;
@@ -35,7 +32,6 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final WarehouseRepository warehouseRepository;
     private final ProductRepository productRepository;
 
-    private final ActivityLogService activityLogService;
     private final NotificationService notificationService;
     private final AuditFacadeDefinition auditFacade;
 
@@ -50,13 +46,15 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory inventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
         warehouseInventoryRepository.save(inventory);
 
-        auditFacade.recordCreate("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId());
+        String entityIdentifier = inventoryAuditIdentifier(inventory);
+
+        auditFacade.recordCreate("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId(), entityIdentifier);
         auditFacade.log(
                 "CREATE",
                 "WAREHOUSE_INVENTORY",
                 inventory.getId().getWarehouseId(),
-                "WAREHOUSE INVENTORY is created (WAREHOUSE ID: " + inventory.getId().getWarehouseId()
-                        + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
+                entityIdentifier,
+                "WAREHOUSE INVENTORY is created (WAREHOUSE ID: " + inventory.getId().getWarehouseId() + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
         );
 
         return WarehouseInventoryMapper.toResponse(inventory);
@@ -80,15 +78,31 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
         WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", saved.getId().getWarehouseId(), "quantity", oldQuantity, saved.getQuantity());
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", saved.getId().getWarehouseId(), "minStockLevel", oldMinStockLevel, saved.getMinStockLevel());
+        String entityIdentifier = inventoryAuditIdentifier(saved);
+
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                saved.getId().getWarehouseId(),
+                entityIdentifier,
+                "quantity",
+                oldQuantity,
+                saved.getQuantity()
+        );
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                saved.getId().getWarehouseId(),
+                entityIdentifier,
+                "minStockLevel",
+                oldMinStockLevel,
+                saved.getMinStockLevel()
+        );
 
         auditFacade.log(
                 "UPDATE",
                 "WAREHOUSE_INVENTORY",
                 saved.getId().getWarehouseId(),
-                "WAREHOUSE INVENTORY is updated (WAREHOUSE ID: " + saved.getId().getWarehouseId()
-                        + " | PRODUCT ID: " + saved.getId().getProductId() + ")"
+                entityIdentifier,
+                "WAREHOUSE INVENTORY is updated (WAREHOUSE ID: " + saved.getId().getWarehouseId() + " | PRODUCT ID: " + saved.getId().getProductId() + ")"
         );
 
         notifyLowStockIfNeeded(saved);
@@ -121,15 +135,20 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         if (quantity.compareTo(BigDecimal.ZERO) > 0 || reservedQuantity.compareTo(BigDecimal.ZERO) > 0) {
             throw new BadRequestException(
-                    "Warehouse inventory cannot be deleted while stock or active reservations exist. \n" + "Inventory state must not disappear from the system. +\n " + "Set quantity and reserved quantity to zero before deletion."
+                    "Warehouse inventory cannot be deleted while stock or active reservations exist.\n" +
+                            "Inventory state must not disappear from the system.\n" +
+                            "Set quantity and reserved quantity to zero before deletion."
             );
         }
 
-        auditFacade.recordDelete("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId());
+        String entityIdentifier = inventoryAuditIdentifier(inventory);
+
+        auditFacade.recordDelete("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId(), entityIdentifier);
         auditFacade.log(
                 "DELETE",
                 "WAREHOUSE_INVENTORY",
                 inventory.getId().getWarehouseId(),
+                entityIdentifier,
                 "WAREHOUSE INVENTORY is deleted (WAREHOUSE ID: " + inventory.getId().getWarehouseId() + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
         );
 
@@ -141,14 +160,27 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     public void reserveStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+
+        BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
         inventory.reserve(quantity);
 
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouseId, "reservedQuantity", inventory.getReservedQuantity().subtract(quantity), inventory.getReservedQuantity());
+        String entityIdentifier = inventoryAuditIdentifier(inventory);
+
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                entityIdentifier,
+                "reservedQuantity",
+                oldReservedQuantity,
+                inventory.getReservedQuantity()
+        );
         auditFacade.log(
                 "RESERVE_STOCK",
                 "WAREHOUSE_INVENTORY",
                 warehouseId,
+                entityIdentifier,
                 "Reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
         );
 
@@ -162,14 +194,27 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     public void releaseReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
 
+        BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
         inventory.release(quantity);
 
+        String entityIdentifier = inventoryAuditIdentifier(inventory);
+
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                entityIdentifier,
+                "reservedQuantity",
+                oldReservedQuantity,
+                inventory.getReservedQuantity()
+        );
         auditFacade.log(
                 "RELEASE_RESERVED_STOCK",
                 "WAREHOUSE_INVENTORY",
                 warehouseId,
+                entityIdentifier,
                 "Released reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
         );
 
@@ -183,6 +228,9 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
 
+        BigDecimal oldQuantity = inventory.getQuantity();
+        BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
+
         BigDecimal reserved = inventory.getReservedQuantity() == null ? BigDecimal.ZERO : inventory.getReservedQuantity();
 
         if (reserved.compareTo(quantity) < 0) {
@@ -191,10 +239,29 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         inventory.moveOutReserved(quantity);
 
+        String entityIdentifier = inventoryAuditIdentifier(inventory);
+
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                entityIdentifier,
+                "quantity",
+                oldQuantity,
+                inventory.getQuantity()
+        );
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                entityIdentifier,
+                "reservedQuantity",
+                oldReservedQuantity,
+                inventory.getReservedQuantity()
+        );
         auditFacade.log(
                 "MOVE_OUT_RESERVED_STOCK",
                 "WAREHOUSE_INVENTORY",
                 warehouseId,
+                entityIdentifier,
                 "Moved out reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
         );
 
@@ -208,7 +275,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     public void moveInStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseGet(() -> {
+        final boolean[] newlyCreated = {false};
+
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
+                .orElseGet(() -> {
                     Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
                     Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
@@ -220,15 +290,32 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                     );
                     newInventory.setReservedQuantity(BigDecimal.ZERO);
 
+                    newlyCreated[0] = true;
                     return warehouseInventoryRepository.save(newInventory);
                 });
 
+        BigDecimal oldQuantity = inventory.getQuantity();
         inventory.increase(quantity);
 
+        String entityIdentifier = inventoryAuditIdentifier(inventory);
+
+        if (newlyCreated[0]) {
+            auditFacade.recordCreate("WAREHOUSE_INVENTORY", warehouseId, entityIdentifier);
+        }
+
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                warehouseId,
+                entityIdentifier,
+                "quantity",
+                oldQuantity,
+                inventory.getQuantity()
+        );
         auditFacade.log(
                 "MOVE_IN_STOCK",
                 "WAREHOUSE_INVENTORY",
                 warehouseId,
+                entityIdentifier,
                 "Moved in stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
         );
 
@@ -284,9 +371,18 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     }
 
     private void notifyLowStockIfNeeded(WarehouseInventory inventory) {
-        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
+        if (inventory == null) {
+            return;
+        }
 
-        if (quantity.compareTo(inventory.getMinStockLevel()) <= 0) {
+        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
+        BigDecimal minStockLevel = inventory.getMinStockLevel();
+
+        if (minStockLevel == null) {
+            return;
+        }
+
+        if (quantity.compareTo(minStockLevel) <= 0) {
             if (inventory.getWarehouse() != null && inventory.getWarehouse().getManager() != null && inventory.getWarehouse().getManager().getUser() != null) {
 
                 notificationService.createSystemNotification(
@@ -298,5 +394,9 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 );
             }
         }
+    }
+
+    private String inventoryAuditIdentifier(WarehouseInventory inventory) {
+        return inventory.getId().toAuditIdentifier();
     }
 }

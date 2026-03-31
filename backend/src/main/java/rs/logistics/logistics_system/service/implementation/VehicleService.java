@@ -99,8 +99,8 @@ public class VehicleService implements VehicleServiceDefinition {
     public void delete(Long id) {
         Vehicle vehicle = findVehicleById(id);
 
-        if (hasActiveTransport(vehicle.getId())) {
-            throw new BadRequestException("Vehicle cannot be deleted while it has an active transport order");
+        if (hasAnyTransportHistory(vehicle.getId())) {
+            throw new BadRequestException("Vehicle cannot be deleted because it has transport history. Change vehicle status instead.");
         }
 
         vehicleRepository.delete(vehicle);
@@ -203,5 +203,11 @@ public class VehicleService implements VehicleServiceDefinition {
                 || newStatus == VehicleStatus.AVAILABLE) {
             throw new BadRequestException("Vehicle with active transport must remain in IN_USE status");
         }
+    }
+
+    private boolean hasAnyTransportHistory(Long vehicleId) {
+        return transportOrderRepository.findAll()
+                .stream()
+                .anyMatch(order -> order.getVehicle() != null && order.getVehicle().getId().equals(vehicleId));
     }
 }
