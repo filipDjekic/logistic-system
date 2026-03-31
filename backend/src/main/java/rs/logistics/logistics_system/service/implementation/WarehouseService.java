@@ -25,6 +25,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -63,12 +64,16 @@ public class WarehouseService implements WarehouseServiceDefinition {
         Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         validateWarehouseIsActive(warehouse);
 
+        String oldName = warehouse.getName();
+        String oldLocation = warehouse.getCity() + "; " + warehouse.getAddress();
+        BigDecimal oldCapacity = warehouse.getCapacity();
+
         WarehouseMapper.updateEntity(warehouse, dto);
         Warehouse saved = _warehouseRepository.save(warehouse);
 
-        auditFacade.recordFieldChange("WAREHOUSE", warehouse.getId(), "name", warehouse.getName(), dto.getName());
-        auditFacade.recordFieldChange("WAREHOUSE", warehouse.getId(), "location", warehouse.getCity() + "; " + warehouse.getAddress(), dto.getCity() + "; " + dto.getAddress());
-        auditFacade.recordFieldChange("WAREHOUSE", warehouse.getId(), "capacity", warehouse.getCapacity(), dto.getCapacity());
+        auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "name", oldName, saved.getName());
+        auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "location", oldLocation, saved.getCity() + "; " + saved.getAddress());
+        auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "capacity", oldCapacity, saved.getCapacity());
 
         auditFacade.log(
                 "UPDATE",

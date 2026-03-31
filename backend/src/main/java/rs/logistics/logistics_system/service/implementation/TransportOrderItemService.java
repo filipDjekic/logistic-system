@@ -171,13 +171,9 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     }
 
     private void validateProjectedVehicleCapacityOnCreate(TransportOrder transportOrder, TransportOrderItem newItem) {
-        BigDecimal currentTotalWeight = transportOrder.getTotalWeight() != null
-                ? transportOrder.getTotalWeight()
-                : transportOrder.calculateTotalWeight();
+        BigDecimal currentTotalWeight = transportOrder.getTotalWeight() != null ? transportOrder.getTotalWeight() : transportOrder.calculateTotalWeight();
 
-        BigDecimal newItemWeight = newItem.getWeight() != null
-                ? newItem.getWeight()
-                : BigDecimal.ZERO;
+        BigDecimal newItemWeight = newItem.getWeight() != null ? newItem.getWeight() : BigDecimal.ZERO;
 
         BigDecimal projectedTotalWeight = currentTotalWeight.add(newItemWeight);
 
@@ -185,29 +181,21 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     }
 
     private void validateProjectedVehicleCapacityOnUpdate(TransportOrderItem existingItem, TransportOrder targetOrder, Product targetProduct, BigDecimal targetQuantity) {
-        BigDecimal oldWeight = existingItem.getWeight() != null
-                ? existingItem.getWeight()
-                : BigDecimal.ZERO;
+        BigDecimal oldWeight = existingItem.getWeight() != null ? existingItem.getWeight() : BigDecimal.ZERO;
 
-        BigDecimal newWeightPerUnit = targetProduct.getWeight() != null
-                ? targetProduct.getWeight()
-                : BigDecimal.ZERO;
+        BigDecimal newWeightPerUnit = targetProduct.getWeight() != null ? targetProduct.getWeight() : BigDecimal.ZERO;
 
         BigDecimal newWeight = newWeightPerUnit.multiply(targetQuantity);
 
         if (existingItem.getTransportOrder().getId().equals(targetOrder.getId())) {
-            BigDecimal currentTotalWeight = targetOrder.getTotalWeight() != null
-                    ? targetOrder.getTotalWeight()
-                    : targetOrder.calculateTotalWeight();
+            BigDecimal currentTotalWeight = targetOrder.getTotalWeight() != null ? targetOrder.getTotalWeight() : targetOrder.calculateTotalWeight();
 
             BigDecimal projectedTotalWeight = currentTotalWeight.subtract(oldWeight).add(newWeight);
             validateProjectedVehicleCapacity(targetOrder, projectedTotalWeight);
             return;
         }
 
-        BigDecimal targetOrderCurrentWeight = targetOrder.getTotalWeight() != null
-                ? targetOrder.getTotalWeight()
-                : targetOrder.calculateTotalWeight();
+        BigDecimal targetOrderCurrentWeight = targetOrder.getTotalWeight() != null ? targetOrder.getTotalWeight() : targetOrder.calculateTotalWeight();
 
         BigDecimal projectedTargetOrderWeight = targetOrderCurrentWeight.add(newWeight);
         validateProjectedVehicleCapacity(targetOrder, projectedTargetOrderWeight);

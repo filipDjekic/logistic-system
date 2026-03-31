@@ -9,6 +9,7 @@ import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.enums.NotificationType;
+import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -81,15 +82,22 @@ public class TaskService implements TaskServiceDefinition {
             validateReassign(task, employee);
         }
 
-        auditFacade.recordFieldChange("TASK", task.getId(), "assignedEmployee", task.getAssignedEmployee().getId(), dto.getAssignedEmployeeId());
-        auditFacade.recordFieldChange("TASK", task.getId(), "dueDate", task.getDueDate(), dto.getDueDate());
-        auditFacade.recordFieldChange("TASK", task.getId(), "priority", task.getPriority(), dto.getPriority());
-        auditFacade.recordFieldChange("TASK", task.getId(), "title", task.getTitle(), dto.getTitle());
-        auditFacade.recordFieldChange("TASK", task.getId(), "description", task.getDescription(), dto.getDescription());
-        auditFacade.recordFieldChange("TASK", task.getId(), "transportOrder", task.getTransportOrder() != null ? task.getTransportOrder().getId() : null, dto.getTransportOrderId());
+        Long oldAssignedEmployeeId = task.getAssignedEmployee() != null ? task.getAssignedEmployee().getId() : null;
+        LocalDateTime oldDueDate = task.getDueDate();
+        TaskPriority oldPriority = task.getPriority();
+        String oldTitle = task.getTitle();
+        String oldDescription = task.getDescription();
+        Long oldTransportOrderId = task.getTransportOrder() != null ? task.getTransportOrder().getId() : null;
 
         TaskMapper.updateEntity(task, dto, employee, transportOrder);
         Task saved = _taskRepository.save(task);
+
+        auditFacade.recordFieldChange("TASK", saved.getId(), "assignedEmployee", oldAssignedEmployeeId, saved.getAssignedEmployee() != null ? saved.getAssignedEmployee().getId() : null);
+        auditFacade.recordFieldChange("TASK", saved.getId(), "dueDate", oldDueDate, saved.getDueDate());
+        auditFacade.recordFieldChange("TASK", saved.getId(), "priority", oldPriority, saved.getPriority());
+        auditFacade.recordFieldChange("TASK", saved.getId(), "title", oldTitle, saved.getTitle());
+        auditFacade.recordFieldChange("TASK", saved.getId(), "description", oldDescription, saved.getDescription());
+        auditFacade.recordFieldChange("TASK", saved.getId(), "transportOrder", oldTransportOrderId, saved.getTransportOrder() != null ? saved.getTransportOrder().getId() : null);
 
         if (oldEmployee != null && !oldEmployee.getId().equals(employee.getId()) && oldEmployee.getUser() != null) {
             notificationService.createSystemNotification(

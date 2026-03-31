@@ -74,23 +74,26 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             throw new BadRequestException("Total quantity cannot be lower than reserved quantity");
         }
 
-        WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
-        warehouseInventoryRepository.save(inventory);
+        BigDecimal oldQuantity = inventory.getQuantity();
+        BigDecimal oldMinStockLevel = inventory.getMinStockLevel();
 
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId(), "quantity", inventory.getQuantity(), dto.getQuantity());
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId(), "minStockLevel", inventory.getMinStockLevel(), dto.getMinStockLevel());
+        WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
+        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
+
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", saved.getId().getWarehouseId(), "quantity", oldQuantity, saved.getQuantity());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", saved.getId().getWarehouseId(), "minStockLevel", oldMinStockLevel, saved.getMinStockLevel());
 
         auditFacade.log(
                 "UPDATE",
                 "WAREHOUSE_INVENTORY",
-                inventory.getId().getWarehouseId(),
-                "WAREHOUSE INVENTORY is updated (WAREHOUSE ID: " + inventory.getId().getWarehouseId()
-                        + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
+                saved.getId().getWarehouseId(),
+                "WAREHOUSE INVENTORY is updated (WAREHOUSE ID: " + saved.getId().getWarehouseId()
+                        + " | PRODUCT ID: " + saved.getId().getProductId() + ")"
         );
 
-        notifyLowStockIfNeeded(inventory);
+        notifyLowStockIfNeeded(saved);
 
-        return WarehouseInventoryMapper.toResponse(inventory);
+        return WarehouseInventoryMapper.toResponse(saved);
     }
 
     @Override

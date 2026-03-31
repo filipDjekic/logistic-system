@@ -65,14 +65,20 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         validateUserAssignmentForUpdate(employee, user.getId());
 
-        auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "userId", employee.getUser() != null ? employee.getUser().getId() : null, dto.getUserId());
-        auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "firstName", employee.getFirstName(), dto.getFirstName());
-        auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "lastName", employee.getLastName(), dto.getLastName());
-        auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "position", employee.getPosition(), dto.getPosition());
-        auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "phoneNumber", employee.getPhoneNumber(), dto.getPhoneNumber());
+        Long oldUserId = employee.getUser() != null ? employee.getUser().getId() : null;
+        String oldFirstName = employee.getFirstName();
+        String oldLastName = employee.getLastName();
+        Object oldPosition = employee.getPosition();
+        String oldPhoneNumber = employee.getPhoneNumber();
 
         EmployeeMapper.updateEntity(dto, employee, user);
         Employee updated = _employeeRepository.save(employee);
+
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "userId", oldUserId, updated.getUser() != null ? updated.getUser().getId() : null);
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "firstName", oldFirstName, updated.getFirstName());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "lastName", oldLastName, updated.getLastName());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "position", oldPosition, updated.getPosition());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "phoneNumber", oldPhoneNumber, updated.getPhoneNumber());
 
         auditFacade.log(
                 "UPDATE",

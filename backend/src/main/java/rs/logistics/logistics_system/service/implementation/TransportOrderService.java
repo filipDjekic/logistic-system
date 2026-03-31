@@ -132,11 +132,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
-
         Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
-
         Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
-
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
 
         validateSchedule(dto.getDepartureTime(), dto.getPlannedArrivalTime());
@@ -153,12 +150,12 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         Vehicle previousVehicle = transportOrder.getVehicle();
         Employee previousEmployee = transportOrder.getAssignedEmployee();
 
-        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "assignedEmployee", transportOrder.getAssignedEmployee().getId(), dto.getAssignedEmployeeId());
-        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "vehicle", transportOrder.getVehicle().getId(), dto.getVehicleId());
-        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "sourceWarehouse", transportOrder.getSourceWarehouse().getId(), dto.getSourceWarehouseId());
-        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "destinationWarehouse", transportOrder.getDestinationWarehouse().getId(), dto.getDestinationWarehouseId());
-        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "departureTime", transportOrder.getDepartureTime(), dto.getDepartureTime());
-        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "plannedArrivalTime", transportOrder.getPlannedArrivalTime(), dto.getPlannedArrivalTime());
+        Long oldAssignedEmployeeId = transportOrder.getAssignedEmployee() != null ? transportOrder.getAssignedEmployee().getId() : null;
+        Long oldVehicleId = transportOrder.getVehicle() != null ? transportOrder.getVehicle().getId() : null;
+        Long oldSourceWarehouseId = transportOrder.getSourceWarehouse() != null ? transportOrder.getSourceWarehouse().getId() : null;
+        Long oldDestinationWarehouseId = transportOrder.getDestinationWarehouse() != null ? transportOrder.getDestinationWarehouse().getId() : null;
+        LocalDateTime oldDepartureTime = transportOrder.getDepartureTime();
+        LocalDateTime oldPlannedArrivalTime = transportOrder.getPlannedArrivalTime();
 
         TransportOrderMapper.updateEntity(
                 dto,
@@ -174,7 +171,14 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         TransportOrder updated = _transportOrderRepository.save(transportOrder);
 
-        if (transportOrder.getStatus() == TransportOrderStatus.ASSIGNED) {
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", updated.getId(), "assignedEmployee", oldAssignedEmployeeId, updated.getAssignedEmployee() != null ? updated.getAssignedEmployee().getId() : null);
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", updated.getId(), "vehicle", oldVehicleId, updated.getVehicle() != null ? updated.getVehicle().getId() : null);
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", updated.getId(), "sourceWarehouse", oldSourceWarehouseId, updated.getSourceWarehouse() != null ? updated.getSourceWarehouse().getId() : null);
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", updated.getId(), "destinationWarehouse", oldDestinationWarehouseId, updated.getDestinationWarehouse() != null ? updated.getDestinationWarehouse().getId() : null);
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", updated.getId(), "departureTime", oldDepartureTime, updated.getDepartureTime());
+        auditFacade.recordFieldChange("TRANSPORT_ORDER", updated.getId(), "plannedArrivalTime", oldPlannedArrivalTime, updated.getPlannedArrivalTime());
+
+        if (updated.getStatus() == TransportOrderStatus.ASSIGNED) {
             if (!previousVehicle.getId().equals(updated.getVehicle().getId())) {
                 markVehicleAsBusy(updated.getVehicle());
                 refreshVehicleAvailability(previousVehicle.getId());

@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -56,13 +57,18 @@ public class VehicleService implements VehicleServiceDefinition {
     public VehicleResponse update(Long id, VehicleUpdate dto) {
         Vehicle vehicle = findVehicleById(id);
 
+        String oldRegistrationNumber = vehicle.getRegistrationNumber();
+        String oldBrand = vehicle.getBrand();
+        String oldModel = vehicle.getModel();
+        BigDecimal oldCapacity = vehicle.getCapacity();
+
         VehicleMapper.updateEntity(vehicle, dto);
         Vehicle updated = vehicleRepository.save(vehicle);
 
-        auditFacade.recordFieldChange("VEHICLE", vehicle.getId(), "registrationNumber", vehicle.getRegistrationNumber(), dto.getRegistrationNumber());
-        auditFacade.recordFieldChange("VEHICLE", vehicle.getId(), "brand", vehicle.getBrand(), dto.getBrand());
-        auditFacade.recordFieldChange("VEHICLE", vehicle.getId(), "model", vehicle.getModel(), dto.getModel());
-        auditFacade.recordFieldChange("VEHICLE", vehicle.getId(), "capacity", vehicle.getCapacity(), dto.getCapacity());
+        auditFacade.recordFieldChange("VEHICLE", updated.getId(), "registrationNumber", oldRegistrationNumber, updated.getRegistrationNumber());
+        auditFacade.recordFieldChange("VEHICLE", updated.getId(), "brand", oldBrand, updated.getBrand());
+        auditFacade.recordFieldChange("VEHICLE", updated.getId(), "model", oldModel, updated.getModel());
+        auditFacade.recordFieldChange("VEHICLE", updated.getId(), "capacity", oldCapacity, updated.getCapacity());
 
         auditFacade.log(
                 "UPDATE",

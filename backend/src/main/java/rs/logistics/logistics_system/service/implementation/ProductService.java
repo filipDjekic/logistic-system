@@ -50,12 +50,16 @@ public class ProductService implements ProductServiceDefinition {
 
         validateSkuForUpdate(dto.getSku(), id);
 
+        String oldName = product.getName();
+        String oldDescription = product.getDescription();
+        String oldSku = product.getSku();
+
         ProductMapper.updateEntity(dto, product);
         Product saved = _productRepository.save(product);
 
-        auditFacade.recordFieldChange("PRODUCT", product.getId(), "name", product.getName(), dto.getName());
-        auditFacade.recordFieldChange("PRODUCT", product.getId(), "description", product.getDescription(), dto.getDescription());
-        auditFacade.recordFieldChange("PRODUCT", product.getId(), "sku", product.getSku(), dto.getSku());
+        auditFacade.recordFieldChange("PRODUCT", saved.getId(), "name", oldName, saved.getName());
+        auditFacade.recordFieldChange("PRODUCT", saved.getId(), "description", oldDescription, saved.getDescription());
+        auditFacade.recordFieldChange("PRODUCT", saved.getId(), "sku", oldSku, saved.getSku());
 
         auditFacade.log(
                 "UPDATE",

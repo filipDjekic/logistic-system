@@ -71,11 +71,14 @@ public class ShiftService implements ShiftServiceDefinition {
                 dto.getEndTime()
         );
 
+        LocalDateTime oldStartTime = shift.getStartTime();
+        LocalDateTime oldEndTime = shift.getEndTime();
+
         ShiftMapper.updateEntity(shift, dto);
         Shift updated = _shiftRepository.save(shift);
 
-        auditFacade.recordFieldChange("SHIFT", shift.getId(), "startTime", shift.getStartTime(), dto.getStartTime());
-        auditFacade.recordFieldChange("SHIFT", shift.getId(), "endTime", shift.getEndTime(), dto.getEndTime());
+        auditFacade.recordFieldChange("SHIFT", updated.getId(), "startTime", oldStartTime, updated.getStartTime());
+        auditFacade.recordFieldChange("SHIFT", updated.getId(), "endTime", oldEndTime, updated.getEndTime());
 
         auditFacade.log(
                 "UPDATE",
@@ -206,10 +209,7 @@ public class ShiftService implements ShiftServiceDefinition {
     }
 
     private void validateShiftCanBeModified(Shift shift) {
-        if (!shift.getStartTime().isAfter(LocalDateTime.now())
-                || shift.getStatus() == ShiftStatus.ACTIVE
-                || shift.getStatus() == ShiftStatus.CANCELLED
-                || shift.getStatus() == ShiftStatus.FINISHED) {
+        if (!shift.getStartTime().isAfter(LocalDateTime.now()) || shift.getStatus() == ShiftStatus.ACTIVE || shift.getStatus() == ShiftStatus.CANCELLED || shift.getStatus() == ShiftStatus.FINISHED) {
             throw new BadRequestException("Shift cannot be modified.");
         }
     }

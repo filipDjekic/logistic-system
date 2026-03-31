@@ -72,15 +72,22 @@ public class UserService implements UserServiceDefinition {
 
         validateEmailForUpdate(user, dto.getEmail());
 
-        auditFacade.recordFieldChange("USER", id, "email", user.getEmail(), dto.getEmail());
-        auditFacade.recordFieldChange("USER", id, "first_name", user.getFirstName(), dto.getFirstName());
-        auditFacade.recordFieldChange("USER", id, "last_name", user.getLastName(), dto.getLastName());
-        auditFacade.recordFieldChange("USER", id, "status", user.getStatus(), dto.getStatus());
-        auditFacade.recordFieldChange("USER", id, "role_id", user.getRole().getId(), dto.getRoleId());
-        auditFacade.recordFieldChange("USER", id, "enabled", user.getEnabled(), dto.getEnabled());
+        String oldEmail = user.getEmail();
+        String oldFirstName = user.getFirstName();
+        String oldLastName = user.getLastName();
+        Object oldStatus = user.getStatus();
+        Long oldRoleId = user.getRole() != null ? user.getRole().getId() : null;
+        Boolean oldEnabled = user.getEnabled();
 
         UserMapper.updateEntity(user, dto, role);
         User updatedUser = _userRepository.save(user);
+
+        auditFacade.recordFieldChange("USER", updatedUser.getId(), "email", oldEmail, updatedUser.getEmail());
+        auditFacade.recordFieldChange("USER", updatedUser.getId(), "first_name", oldFirstName, updatedUser.getFirstName());
+        auditFacade.recordFieldChange("USER", updatedUser.getId(), "last_name", oldLastName, updatedUser.getLastName());
+        auditFacade.recordFieldChange("USER", updatedUser.getId(), "status", oldStatus, updatedUser.getStatus());
+        auditFacade.recordFieldChange("USER", updatedUser.getId(), "role_id", oldRoleId, updatedUser.getRole() != null ? updatedUser.getRole().getId() : null);
+        auditFacade.recordFieldChange("USER", updatedUser.getId(), "enabled", oldEnabled, updatedUser.getEnabled());
 
         auditFacade.log(
                 "UPDATE",
@@ -179,7 +186,6 @@ public class UserService implements UserServiceDefinition {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         _userRepository.save(user);
 
-        auditFacade.recordFieldChange("USER", id, "password", "[PROTECTED]", "[PROTECTED]");
         auditFacade.log(
                 "UPDATE_PASSWORD",
                 "USER",
