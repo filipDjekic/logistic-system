@@ -82,8 +82,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         checkVehicleAvailability(vehicle.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime());
         checkDriverAvailability(assignedEmployee.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime());
 
-
-
         TransportOrder transportOrder = TransportOrderMapper.toEntity(
                 dto,
                 warehouseSource,
@@ -94,7 +92,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         );
         transportOrder.setStatus(TransportOrderStatus.CREATED);
 
-        transportOrder.calculateTotalWeight();
+        transportOrder.recalculateTotalWeight();
         validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
 
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
@@ -171,7 +169,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 assignedEmployee
         );
 
-        transportOrder.calculateTotalWeight();
+        transportOrder.recalculateTotalWeight();
         validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
 
         TransportOrder updated = _transportOrderRepository.save(transportOrder);
@@ -236,7 +234,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         if (status == TransportOrderStatus.ASSIGNED) {
 
-            transportOrder.calculateTotalWeight();
+            transportOrder.recalculateTotalWeight();
             validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
 
             validateVehicleForAssignment(transportOrder.getVehicle());
@@ -270,7 +268,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         if (status == TransportOrderStatus.IN_TRANSIT) {
 
-            transportOrder.calculateTotalWeight();
+            transportOrder.recalculateTotalWeight();
             validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
 
             if (transportOrder.getVehicle().getStatus() != VehicleStatus.IN_USE) {
@@ -654,7 +652,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             throw new BadRequestException("Transport order is required");
         }
 
-        transportOrder.calculateTotalWeight();
+        transportOrder.recalculateTotalWeight();
 
         if (!transportOrder.fitsAssignedVehicleCapacity()) {
             throw new BadRequestException("Total weight exceeds vehicle capacity");

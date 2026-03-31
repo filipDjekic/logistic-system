@@ -130,13 +130,7 @@ public class TransportOrder {
 
     // methods
 
-    public void calculateTotalWeight() {
-        this.totalWeight = transportOrderItems == null ?
-                BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
-                : transportOrderItems.stream().filter(Objects::nonNull).map(TransportOrderItem::getWeight).filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP);
-    }
-
-    public BigDecimal recalculateTotalWeight() {
+    public BigDecimal calculateTotalWeight() {
         return transportOrderItems == null
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
                 : transportOrderItems.stream()
@@ -147,12 +141,16 @@ public class TransportOrder {
                   .setScale(2, RoundingMode.HALF_UP);
     }
 
+    public void recalculateTotalWeight() {
+        this.totalWeight = calculateTotalWeight();
+    }
+
     public boolean fitsAssignedVehicleCapacity() {
         if (this.vehicle == null) {
             return true;
         }
 
-        BigDecimal weightToCheck = this.totalWeight != null ? this.totalWeight : recalculateTotalWeight();
+        BigDecimal weightToCheck = this.totalWeight != null ? this.totalWeight : calculateTotalWeight();
         return this.vehicle.canCarry(weightToCheck);
     }
 }

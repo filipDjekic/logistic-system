@@ -159,7 +159,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     }
 
     private void recalculateAndPersistOrderTotalWeight(TransportOrder transportOrder) {
-        transportOrder.calculateTotalWeight();
+        transportOrder.recalculateTotalWeight();
         validateVehicleCapacity(transportOrder);
         _transportOrderRepository.save(transportOrder);
     }
@@ -173,7 +173,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     private void validateProjectedVehicleCapacityOnCreate(TransportOrder transportOrder, TransportOrderItem newItem) {
         BigDecimal currentTotalWeight = transportOrder.getTotalWeight() != null
                 ? transportOrder.getTotalWeight()
-                : transportOrder.recalculateTotalWeight();
+                : transportOrder.calculateTotalWeight();
 
         BigDecimal newItemWeight = newItem.getWeight() != null
                 ? newItem.getWeight()
@@ -198,7 +198,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         if (existingItem.getTransportOrder().getId().equals(targetOrder.getId())) {
             BigDecimal currentTotalWeight = targetOrder.getTotalWeight() != null
                     ? targetOrder.getTotalWeight()
-                    : targetOrder.recalculateTotalWeight();
+                    : targetOrder.calculateTotalWeight();
 
             BigDecimal projectedTotalWeight = currentTotalWeight.subtract(oldWeight).add(newWeight);
             validateProjectedVehicleCapacity(targetOrder, projectedTotalWeight);
@@ -207,7 +207,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         BigDecimal targetOrderCurrentWeight = targetOrder.getTotalWeight() != null
                 ? targetOrder.getTotalWeight()
-                : targetOrder.recalculateTotalWeight();
+                : targetOrder.calculateTotalWeight();
 
         BigDecimal projectedTargetOrderWeight = targetOrderCurrentWeight.add(newWeight);
         validateProjectedVehicleCapacity(targetOrder, projectedTargetOrderWeight);
