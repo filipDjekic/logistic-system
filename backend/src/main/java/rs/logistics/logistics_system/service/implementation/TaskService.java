@@ -142,8 +142,26 @@ public class TaskService implements TaskServiceDefinition {
     public void delete(Long id) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
-        if (task.getStatus() != TaskStatus.NEW) {
-            throw new BadRequestException("Task cannot be deleted after it entered workflow. Cancel the task instead.");
+        boolean canBeHardDeleted = _taskRepository.canBeHardDeleted(task.getId(), TaskStatus.NEW);
+
+        if (!canBeHardDeleted) {
+            if (task.getStatus() == TaskStatus.IN_PROGRESS) {
+                throw new BadRequestException("Task already started and cannot be deleted. Complete or cancel it instead.");
+            }
+
+            if (task.getStatus() == TaskStatus.COMPLETED) {
+                throw new BadRequestException("Completed task cannot be deleted because history must be preserved.");
+            }
+
+            if (task.getStatus() == TaskStatus.CANCELLED) {
+                throw new BadRequestException("Cancelled task cannot be deleted because history must be preserved.");
+            }
+
+            if (task.getTransportOrder() != null) {
+                throw new BadRequestException("Task linked to a transport order cannot be deleted. Cancel it instead.");
+            }
+
+            throw new BadRequestException("Task cannot be deleted because it is already part of operational history. Cancel it instead.");
         }
 
         _taskRepository.delete(task);

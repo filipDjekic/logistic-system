@@ -91,4 +91,32 @@ public class Task {
 
         this.assignedEmployee = employee;
     }
+
+    public boolean hasOperationalHistory() {
+        if (this.status != TaskStatus.NEW) {
+            return true;
+        }
+
+        if (this.transportOrder != null) {
+            return true;
+        }
+
+        if (this.createdAt != null && this.updatedAt != null && !this.updatedAt.equals(this.createdAt)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean canBeHardDeleted() {
+        return this.status == TaskStatus.NEW && !hasOperationalHistory();
+    }
+
+    public void validateHardDeleteAllowed() {
+        if (!canBeHardDeleted()) {
+            throw new IllegalStateException(
+                    "Task cannot be hard deleted because it is already part of operational history. Cancel or close it instead."
+            );
+        }
+    }
 }

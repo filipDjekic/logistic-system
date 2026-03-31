@@ -30,4 +30,8 @@ public class AuthenticatedUserProvider {
     public Long getAuthenticatedUserId() {
         return getAuthenticatedUser().getId();
     }
+
+    public boolean isSelf(Long userId) {
+        return getAuthenticatedUserId().equals(userId);
+    }
 }

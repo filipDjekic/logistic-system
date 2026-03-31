@@ -1,30 +1,22 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
-import org.hibernate.validator.internal.constraintvalidators.hv.UniqueElementsValidator;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.auth.ChangePasswordRequest;
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
-import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
-import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.UserMapper;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
-import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
-import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -112,17 +104,12 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        User user = getUserOrThrow(id);
 
-        boolean hasRelations = user.getEmployee() != null ||
-                        (user.getStockMovements() != null && !user.getStockMovements().isEmpty()) ||
-                        (user.getCreatedTransportOrders() != null && !user.getCreatedTransportOrders().isEmpty()) ||
-                        (user.getNotifications() != null && !user.getNotifications().isEmpty()) ||
-                        (user.getActivityLogs() != null && !user.getActivityLogs().isEmpty()) ||
-                        (user.getChangeHistories() != null && !user.getChangeHistories().isEmpty());
+        validateLastEnabledAdminNotRemoved(user);
 
-        if (hasRelations) {
-            throw new BadRequestException("User cannot be deleted because it has related history or references. Disable user instead.");
+        if (_userRepository.hasBusinessReferences(id)) {
+            throw new BadRequestException("User cannot be deleted because it already has employee, history or system references. Disable user instead.");
         }
 
         _userRepository.delete(user);
@@ -138,7 +125,7 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public void enableUser(Long id) {
-        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        User user = getUserOrThrow(id);
 
         if (Boolean.TRUE.equals(user.getEnabled())) {
             throw new BadRequestException("User is already enabled");
@@ -159,24 +146,13 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public void disableUser(Long id) {
-        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        User user = getUserOrThrow(id);
 
         if (Boolean.FALSE.equals(user.getEnabled())) {
             throw new BadRequestException("User is already disabled");
         }
 
-        if (user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName())) {
-            long enabledAdminCount = _userRepository.findAll()
-                    .stream()
-                    .filter(existingUser -> existingUser.getRole() != null)
-                    .filter(existingUser -> "ADMIN".equalsIgnoreCase(existingUser.getRole().getName()))
-                    .filter(existingUser -> Boolean.TRUE.equals(existingUser.getEnabled()))
-                    .count();
-
-            if (enabledAdminCount <= 1) {
-                throw new BadRequestException("Last enabled ADMIN user cannot be disabled");
-            }
-        }
+        validateLastEnabledAdminNotRemoved(user);
 
         Boolean oldEnabled = user.getEnabled();
         user.setEnabled(false);
@@ -193,7 +169,11 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public void changePassword(Long id, ChangePasswordRequest request) {
-        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        User user = getUserOrThrow(id);
+
+        if (Boolean.FALSE.equals(user.getEnabled())) {
+            throw new BadRequestException("Disabled user cannot change password");
+        }
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             throw new BadRequestException("Current password is incorrect");
@@ -220,7 +200,7 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public UserResponse assignRole(Long id, Long roleId) {
-        User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+        User user = getUserOrThrow(id);
 
         Role newRole = _roleRepository.findById(roleId).orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
@@ -244,7 +224,9 @@ public class UserService implements UserServiceDefinition {
         return UserMapper.toResponse(updatedUser);
     }
 
-    //helpers
+    private User getUserOrThrow(Long id) {
+        return _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+    }
 
     private void validateUniqueEmail(String email) {
         if (_userRepository.existsByEmail(email)) {
@@ -256,5 +238,20 @@ public class UserService implements UserServiceDefinition {
         if (!user.getEmail().equals(email) && _userRepository.existsByEmail(email)) {
             throw new BadRequestException("Email already exists");
         }
+    }
+
+    private void validateLastEnabledAdminNotRemoved(User user) {
+        if (!isEnabledAdmin(user)) {
+            return;
+        }
+
+        long enabledAdminCount = _userRepository.countByRole_NameIgnoreCaseAndEnabledTrue("ADMIN");
+        if (enabledAdminCount <= 1) {
+            throw new BadRequestException("Last enabled ADMIN user cannot be deleted or disabled");
+        }
+    }
+
+    private boolean isEnabledAdmin(User user) {
+        return user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().getName()) && Boolean.TRUE.equals(user.getEnabled());
     }
 }

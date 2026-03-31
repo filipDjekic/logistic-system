@@ -1,6 +1,8 @@
 package rs.logistics.logistics_system.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.UserStatus;
 
@@ -18,4 +20,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRoleId(Long roleId);
 
     boolean existsByRoleIdAndEnabledTrueAndStatus(Long roleId, UserStatus status);
+
+    long countByRole_NameIgnoreCaseAndEnabledTrue(String roleName);
+
+    @Query("""
+            select case when count(u) > 0 then true else false end
+            from User u
+            where u.id = :userId
+            and (
+            u.employee is not null
+            or exists (select 1 from StockMovement sm where sm.createdBy.id = :userId)
+            or exists (select 1 from TransportOrder t where t.createdBy.id = :userId)
+            or exists (select 1 from Notification n where n.user.id = :userId)
+            or exists (select 1 from ActivityLog al where al.user.id = :userId)
+            or exists (select 1 from ChangeHistory ch where ch.changedBy.id = :userId)
+            )
+            """)
+    boolean hasBusinessReferences(@Param("userId") Long userId);
 }

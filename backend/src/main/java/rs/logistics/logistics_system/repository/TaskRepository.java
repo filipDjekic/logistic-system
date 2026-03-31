@@ -22,4 +22,14 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByDueDateBefore(LocalDateTime date);
 
     List<Task> findByDueDateAfter(LocalDateTime date);
+
+    @Query("""
+            select case when count(t) > 0 then true else false end
+            from Task t
+            where t.id = :taskId
+            and t.status = :status
+            and t.transportOrder is null
+            and (t.updatedAt is null or t.updatedAt = t.createdAt)
+            """)
+    boolean canBeHardDeleted(@Param("taskId") Long taskId, @Param("status") TaskStatus status);
 }
