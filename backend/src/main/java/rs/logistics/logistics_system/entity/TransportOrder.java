@@ -11,9 +11,11 @@ import rs.logistics.logistics_system.enums.PriorityLevel;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
 @Table(name = "TRANSPORT_ORDERS")
@@ -124,5 +126,33 @@ public class TransportOrder {
         this.vehicle = vehicle;
         this.assignedEmployee = assignedEmployee;
         this.createdBy = createdBy;
+    }
+
+    // methods
+
+    public void calculateTotalWeight() {
+        this.totalWeight = transportOrderItems == null ?
+                BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : transportOrderItems.stream().filter(Objects::nonNull).map(TransportOrderItem::getWeight).filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal recalculateTotalWeight() {
+        return transportOrderItems == null
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : transportOrderItems.stream()
+                  .filter(Objects::nonNull)
+                  .map(TransportOrderItem::getWeight)
+                  .filter(Objects::nonNull)
+                  .reduce(BigDecimal.ZERO, BigDecimal::add)
+                  .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public boolean fitsAssignedVehicleCapacity() {
+        if (this.vehicle == null) {
+            return true;
+        }
+
+        BigDecimal weightToCheck = this.totalWeight != null ? this.totalWeight : recalculateTotalWeight();
+        return this.vehicle.canCarry(weightToCheck);
     }
 }

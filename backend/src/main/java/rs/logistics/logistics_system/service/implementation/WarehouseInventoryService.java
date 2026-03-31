@@ -113,8 +113,13 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     public void delete(Long warehouseId, Long productId) {
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
 
-        if (inventory.getReservedQuantity() != null && inventory.getReservedQuantity().compareTo(BigDecimal.ZERO) > 0) {
-            throw new BadRequestException("Warehouse inventory with reserved quantity cannot be deleted");
+        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
+        BigDecimal reservedQuantity = inventory.getReservedQuantity() == null ? BigDecimal.ZERO : inventory.getReservedQuantity();
+
+        if (quantity.compareTo(BigDecimal.ZERO) > 0 || reservedQuantity.compareTo(BigDecimal.ZERO) > 0) {
+            throw new BadRequestException(
+                    "Warehouse inventory cannot be deleted while stock or active reservations exist. \n" + "Inventory state must not disappear from the system. +\n " + "Set quantity and reserved quantity to zero before deletion."
+            );
         }
 
         auditFacade.recordDelete("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId());
@@ -122,8 +127,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 "DELETE",
                 "WAREHOUSE_INVENTORY",
                 inventory.getId().getWarehouseId(),
-                "WAREHOUSE INVENTORY is deleted (WAREHOUSE ID: " + inventory.getId().getWarehouseId()
-                        + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
+                "WAREHOUSE INVENTORY is deleted (WAREHOUSE ID: " + inventory.getId().getWarehouseId() + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
         );
 
         warehouseInventoryRepository.delete(inventory);

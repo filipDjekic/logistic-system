@@ -79,4 +79,18 @@ public class Vehicle {
         this.status = status;
         this.active = true;
     }
+
+    // methods
+
+    public boolean canCarry(BigDecimal weight) {
+        if(weight == null) {
+            return true;
+        }
+
+        if(this.capacity == null) {
+            return false;
+        }
+
+        return weight.compareTo(this.capacity) <= 0;
+    }
 }

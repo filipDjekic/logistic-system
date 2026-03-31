@@ -82,13 +82,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         checkVehicleAvailability(vehicle.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime());
         checkDriverAvailability(assignedEmployee.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime());
 
-        if (vehicle.getCapacity() != null && dto.getTotalWeight().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BadRequestException("Total weight must be greater than 0");
-        }
 
-        if (vehicle.getCapacity() != null && dto.getTotalWeight().compareTo(vehicle.getCapacity()) > 0) {
-            throw new BadRequestException("Total weight exceeds vehicle capacity");
-        }
 
         TransportOrder transportOrder = TransportOrderMapper.toEntity(
                 dto,
@@ -99,6 +93,9 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 createdBy
         );
         transportOrder.setStatus(TransportOrderStatus.CREATED);
+
+        transportOrder.calculateTotalWeight();
+        validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
 
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
 
@@ -118,10 +115,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     public TransportOrderResponse update(Long id, TransportOrderUpdate dto) {
         if (dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null) {
             throw new BadRequestException("Invalid request");
-        }
-
-        if (dto.getTotalWeight() == null || dto.getTotalWeight().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BadRequestException("Total weight must be greater than 0");
         }
 
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
@@ -159,10 +152,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         checkVehicleAvailabilityForUpdate(vehicle.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime(), transportOrder.getId());
         checkDriverAvailabilityForUpdate(assignedEmployee.getId(), dto.getDepartureTime(), dto.getPlannedArrivalTime(), transportOrder.getId());
 
-        if (vehicle.getCapacity() != null && dto.getTotalWeight().compareTo(vehicle.getCapacity()) > 0) {
-            throw new BadRequestException("Total weight exceeds vehicle capacity");
-        }
-
         Vehicle previousVehicle = transportOrder.getVehicle();
         Employee previousEmployee = transportOrder.getAssignedEmployee();
 
@@ -172,7 +161,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "destinationWarehouse", transportOrder.getDestinationWarehouse().getId(), dto.getDestinationWarehouseId());
         auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "departureTime", transportOrder.getDepartureTime(), dto.getDepartureTime());
         auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "plannedArrivalTime", transportOrder.getPlannedArrivalTime(), dto.getPlannedArrivalTime());
-        auditFacade.recordFieldChange("TRANSPORT_ORDER", transportOrder.getId(), "totalWeight", transportOrder.getTotalWeight(), dto.getTotalWeight());
 
         TransportOrderMapper.updateEntity(
                 dto,
@@ -182,6 +170,9 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 vehicle,
                 assignedEmployee
         );
+
+        transportOrder.calculateTotalWeight();
+        validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
 
         TransportOrder updated = _transportOrderRepository.save(transportOrder);
 
@@ -244,6 +235,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         validateStatusTransition(current, status);
 
         if (status == TransportOrderStatus.ASSIGNED) {
+
+            transportOrder.calculateTotalWeight();
+            validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
+
             validateVehicleForAssignment(transportOrder.getVehicle());
             validateAssignedEmployee(transportOrder.getAssignedEmployee());
 
@@ -274,6 +269,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         if (status == TransportOrderStatus.IN_TRANSIT) {
+
+            transportOrder.calculateTotalWeight();
+            validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
+
             if (transportOrder.getVehicle().getStatus() != VehicleStatus.IN_USE) {
                 throw new BadRequestException("Vehicle must be in use before transport starts");
             }
@@ -391,10 +390,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private void validateCreateOrUpdateRequest(TransportOrderCreate dto) {
         if (dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null) {
             throw new BadRequestException("Invalid request");
-        }
-
-        if (dto.getTotalWeight() == null || dto.getTotalWeight().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BadRequestException("Total weight must be greater than 0");
         }
     }
 
@@ -652,5 +647,17 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         vehicle.setStatus(stillBusy ? VehicleStatus.IN_USE : VehicleStatus.AVAILABLE);
         _vehicleRepository.save(vehicle);
+    }
+
+    private void validateTransportOrderWeightAgainstVehicleCapacity(TransportOrder transportOrder) {
+        if (transportOrder == null) {
+            throw new BadRequestException("Transport order is required");
+        }
+
+        transportOrder.calculateTotalWeight();
+
+        if (!transportOrder.fitsAssignedVehicleCapacity()) {
+            throw new BadRequestException("Total weight exceeds vehicle capacity");
+        }
     }
 }

@@ -5,7 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
 import rs.logistics.logistics_system.entity.WarehouseInventoryId;
 
@@ -13,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInventory, WarehouseInventoryId> {
-
 
     List<WarehouseInventory> findByWarehouse_Id(Long warehouseId);
 
