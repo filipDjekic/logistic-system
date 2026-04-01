@@ -16,13 +16,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class TaskUpdate {
 
-    public Long id;
+    private Long id;
 
     @NotBlank
     @Size(min = 1, max = 100)
     private String title;
 
-    @Size(min = 1, max = 500)
+    @Size(max = 500)
     private String description;
 
     @NotNull
@@ -35,7 +35,6 @@ public class TaskUpdate {
     @Positive
     private Long assignedEmployeeId;
 
-    @NotNull
     @Positive
     private Long transportOrderId;
 

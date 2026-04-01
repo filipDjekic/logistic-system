@@ -9,7 +9,7 @@ import rs.logistics.logistics_system.entity.User;
 public class EmployeeMapper {
 
     public static Employee toEntity(EmployeeCreate dto, User user) {
-        Employee employee = new Employee(
+        return new Employee(
                 dto.getFirstName(),
                 dto.getLastName(),
                 dto.getJmbg(),
@@ -20,7 +20,6 @@ public class EmployeeMapper {
                 dto.getSalary(),
                 user
         );
-        return employee;
     }
 
     public static void updateEntity(EmployeeUpdate dto, Employee entity, User user) {
@@ -36,7 +35,7 @@ public class EmployeeMapper {
     }
 
     public static EmployeeResponse toResponse(Employee employee) {
-        EmployeeResponse employeeResponse = new EmployeeResponse(
+        return new EmployeeResponse(
                 employee.getId(),
                 employee.getFirstName(),
                 employee.getLastName(),
@@ -46,8 +45,7 @@ public class EmployeeMapper {
                 employee.getPosition(),
                 employee.getEmploymentDate(),
                 employee.getSalary(),
-                employee.getUser().getId()
+                employee.getUser() != null ? employee.getUser().getId() : null
         );
-        return employeeResponse;
     }
 }

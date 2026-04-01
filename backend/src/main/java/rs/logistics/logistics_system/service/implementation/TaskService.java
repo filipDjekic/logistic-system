@@ -43,7 +43,7 @@ public class TaskService implements TaskServiceDefinition {
         validateDueDate(dto.getDueDate());
 
         Employee employee = getActiveEmployee(dto.getAssignedEmployeeId());
-        TransportOrder transportOrder = getTransportOrder(dto.getTransportOrderId());
+        TransportOrder transportOrder = getOptionalTransportOrder(dto.getTransportOrderId());
 
         Task task = TaskMapper.toEntity(dto, employee, transportOrder);
         task.setStatus(TaskStatus.NEW);
@@ -79,7 +79,7 @@ public class TaskService implements TaskServiceDefinition {
 
         Employee employee = getActiveEmployee(dto.getAssignedEmployeeId());
         Employee oldEmployee = task.getAssignedEmployee();
-        TransportOrder transportOrder = getTransportOrder(dto.getTransportOrderId());
+        TransportOrder transportOrder = getOptionalTransportOrder(dto.getTransportOrderId());
 
         if (!task.getAssignedEmployee().getId().equals(employee.getId())) {
             validateReassign(task, employee);
@@ -95,12 +95,24 @@ public class TaskService implements TaskServiceDefinition {
         TaskMapper.updateEntity(task, dto, employee, transportOrder);
         Task saved = _taskRepository.save(task);
 
-        auditFacade.recordFieldChange("TASK", saved.getId(), "assignedEmployee", oldAssignedEmployeeId, saved.getAssignedEmployee() != null ? saved.getAssignedEmployee().getId() : null);
+        auditFacade.recordFieldChange(
+                "TASK",
+                saved.getId(),
+                "assignedEmployee",
+                oldAssignedEmployeeId,
+                saved.getAssignedEmployee() != null ? saved.getAssignedEmployee().getId() : null
+        );
         auditFacade.recordFieldChange("TASK", saved.getId(), "dueDate", oldDueDate, saved.getDueDate());
         auditFacade.recordFieldChange("TASK", saved.getId(), "priority", oldPriority, saved.getPriority());
         auditFacade.recordFieldChange("TASK", saved.getId(), "title", oldTitle, saved.getTitle());
         auditFacade.recordFieldChange("TASK", saved.getId(), "description", oldDescription, saved.getDescription());
-        auditFacade.recordFieldChange("TASK", saved.getId(), "transportOrder", oldTransportOrderId, saved.getTransportOrder() != null ? saved.getTransportOrder().getId() : null);
+        auditFacade.recordFieldChange(
+                "TASK",
+                saved.getId(),
+                "transportOrder",
+                oldTransportOrderId,
+                saved.getTransportOrder() != null ? saved.getTransportOrder().getId() : null
+        );
 
         if (oldEmployee != null && !oldEmployee.getId().equals(employee.getId()) && oldEmployee.getUser() != null) {
             notificationService.createSystemNotification(
@@ -138,7 +150,10 @@ public class TaskService implements TaskServiceDefinition {
 
     @Override
     public List<TaskResponse> getAll() {
-        return _taskRepository.findAll().stream().map(TaskMapper::toResponse).collect(Collectors.toList());
+        return _taskRepository.findAll()
+                .stream()
+                .map(TaskMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -214,7 +229,9 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK status changed from " + current + " to " + saved.getStatus() + " (ID: " + task.getId() + ")"
         );
 
-        NotificationType type = saved.getStatus() == TaskStatus.CANCELLED ? NotificationType.WARNING : NotificationType.INFO;
+        NotificationType type = saved.getStatus() == TaskStatus.CANCELLED
+                ? NotificationType.WARNING
+                : NotificationType.INFO;
 
         if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
             notificationService.createSystemNotification(
@@ -261,8 +278,6 @@ public class TaskService implements TaskServiceDefinition {
         return TaskMapper.toResponse(saved);
     }
 
-    // helpers
-
     private Employee getActiveEmployee(Long employeeId) {
         Employee employee = _employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
@@ -274,7 +289,11 @@ public class TaskService implements TaskServiceDefinition {
         return employee;
     }
 
-    private TransportOrder getTransportOrder(Long transportOrderId) {
+    private TransportOrder getOptionalTransportOrder(Long transportOrderId) {
+        if (transportOrderId == null) {
+            return null;
+        }
+
         return _transportOrderRepository.findById(transportOrderId)
                 .orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
     }

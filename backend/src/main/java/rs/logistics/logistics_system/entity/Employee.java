@@ -32,7 +32,7 @@ public class Employee {
     @Column(name = "last_name", length = 30, nullable = false)
     private String lastName;
 
-    @Column(name = "jmbg", length = 13,nullable = false, unique = true)
+    @Column(name = "jmbg", length = 13, nullable = false, unique = true)
     private String jmbg;
 
     @Column(name = "phone_number", length = 20, nullable = false)
@@ -58,9 +58,9 @@ public class Employee {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    //relations
-    @OneToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id", unique = true)
+    // relations
+    @OneToOne(fetch = FetchType.EAGER, optional = true)
+    @JoinColumn(name = "user_id", unique = true, nullable = true)
     private User user;
 
     @OneToMany(mappedBy = "employee")
@@ -94,5 +94,25 @@ public class Employee {
         this.salary = salary;
         this.active = true;
         this.user = user;
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void normalize() {
+        if (firstName != null) {
+            firstName = firstName.trim();
+        }
+        if (lastName != null) {
+            lastName = lastName.trim();
+        }
+        if (jmbg != null) {
+            jmbg = jmbg.trim();
+        }
+        if (phoneNumber != null) {
+            phoneNumber = phoneNumber.trim();
+        }
+        if (email != null) {
+            email = email.trim().toLowerCase();
+        }
     }
 }

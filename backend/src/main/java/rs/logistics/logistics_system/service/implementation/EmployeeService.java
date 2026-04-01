@@ -41,10 +41,14 @@ public class EmployeeService implements EmployeeServiceDefinition {
     @Override
     @Transactional
     public EmployeeResponse create(EmployeeCreate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = resolveOptionalUser(dto.getUserId());
 
-        validateUserNotAlreadyAssigned(user.getId());
         validateUniqueJmbg(dto.getJmbg());
+        validateUniqueEmail(dto.getEmail());
+
+        if (user != null) {
+            validateUserNotAlreadyAssigned(user.getId());
+        }
 
         Employee employee = EmployeeMapper.toEntity(dto, user);
         Employee saved = _employeeRepository.save(employee);
@@ -63,12 +67,16 @@ public class EmployeeService implements EmployeeServiceDefinition {
     @Override
     @Transactional
     public EmployeeResponse update(Long id, EmployeeUpdate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        validateUserAssignmentForUpdate(employee, user.getId());
+        User user = resolveOptionalUser(dto.getUserId());
+
         validateUniqueJmbgForUpdate(employee.getId(), dto.getJmbg());
+        validateUniqueEmailForUpdate(employee.getId(), dto.getEmail());
+
+        if (user != null) {
+            validateUserAssignmentForUpdate(employee, user.getId());
+        }
 
         Long oldUserId = employee.getUser() != null ? employee.getUser().getId() : null;
         String oldFirstName = employee.getFirstName();
@@ -76,16 +84,27 @@ public class EmployeeService implements EmployeeServiceDefinition {
         Object oldPosition = employee.getPosition();
         String oldPhoneNumber = employee.getPhoneNumber();
         String oldJmbg = employee.getJmbg();
+        String oldEmail = employee.getEmail();
+        Boolean oldActive = employee.getActive();
 
         EmployeeMapper.updateEntity(dto, employee, user);
         Employee updated = _employeeRepository.save(employee);
 
-        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "userId", oldUserId, updated.getUser() != null ? updated.getUser().getId() : null);
+        if (Boolean.FALSE.equals(updated.getActive())
+                && updated.getUser() != null
+                && Boolean.TRUE.equals(updated.getUser().getEnabled())) {
+            userService.disableUser(updated.getUser().getId());
+        }
+
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "userId", oldUserId,
+                updated.getUser() != null ? updated.getUser().getId() : null);
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "firstName", oldFirstName, updated.getFirstName());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "lastName", oldLastName, updated.getLastName());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "position", oldPosition, updated.getPosition());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "phoneNumber", oldPhoneNumber, updated.getPhoneNumber());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "jmbg", oldJmbg, updated.getJmbg());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "email", oldEmail, updated.getEmail());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "active", oldActive, updated.getActive());
 
         auditFacade.log(
                 "UPDATE",
@@ -105,7 +124,10 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public List<EmployeeResponse> getAll() {
-        return _employeeRepository.findAll().stream().map(EmployeeMapper::toResponse).collect(Collectors.toList());
+        return _employeeRepository.findAll()
+                .stream()
+                .map(EmployeeMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -120,11 +142,15 @@ public class EmployeeService implements EmployeeServiceDefinition {
                         (employee.getManagedWarehouses() != null && !employee.getManagedWarehouses().isEmpty());
 
         if (hasHistory) {
-            throw new BadRequestException("Employee cannot be deleted because related history already exists. Terminate employee instead.");
+            throw new BadRequestException(
+                    "Employee cannot be deleted because related history already exists. Terminate employee instead."
+            );
         }
 
         if (employee.getUser() != null) {
-            throw new BadRequestException("Employee cannot be deleted while linked user exists. Disable user and terminate employee instead.");
+            throw new BadRequestException(
+                    "Employee cannot be deleted while linked user exists. Unlink user first or terminate employee instead."
+            );
         }
 
         _employeeRepository.delete(employee);
@@ -142,14 +168,20 @@ public class EmployeeService implements EmployeeServiceDefinition {
     public List<TaskResponse> getTasksByEmployeeId(Long id) {
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        return _taskRepository.findByAssignedEmployeeId(employee.getId()).stream().map(TaskMapper::toResponse).collect(Collectors.toList());
+        return _taskRepository.findByAssignedEmployeeId(employee.getId())
+                .stream()
+                .map(TaskMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<ShiftResponse> getShiftsByEmployeeId(Long id) {
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        return _shiftRepository.findByEmployeeId(employee.getId()).stream().map(ShiftMapper::toResponse).collect(Collectors.toList());
+        return _shiftRepository.findByEmployeeId(employee.getId())
+                .stream()
+                .map(ShiftMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -165,7 +197,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         employee.setActive(false);
         _employeeRepository.save(employee);
 
-        if (employee.getUser() != null) {
+        if (employee.getUser() != null && Boolean.TRUE.equals(employee.getUser().getEnabled())) {
             userService.disableUser(employee.getUser().getId());
         }
 
@@ -178,11 +210,16 @@ public class EmployeeService implements EmployeeServiceDefinition {
         );
     }
 
-    private void validateUserNotAlreadyAssigned(Long userId) {
-        List<Employee> employees = _employeeRepository.findAll();
-        boolean alreadyAssigned = employees.stream().anyMatch(employee -> employee.getUser() != null && employee.getUser().getId().equals(userId));
+    private User resolveOptionalUser(Long userId) {
+        if (userId == null) {
+            return null;
+        }
 
-        if (alreadyAssigned) {
+        return _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    private void validateUserNotAlreadyAssigned(Long userId) {
+        if (_employeeRepository.existsByUser_Id(userId)) {
             throw new BadRequestException("Selected user is already assigned to another employee");
         }
     }
@@ -192,31 +229,56 @@ public class EmployeeService implements EmployeeServiceDefinition {
             return;
         }
 
-        List<Employee> employees = _employeeRepository.findAll();
-        boolean alreadyAssigned = employees.stream().anyMatch(employee -> !employee.getId().equals(currentEmployee.getId()) && employee.getUser() != null && employee.getUser().getId().equals(newUserId));
-
-        if (alreadyAssigned) {
+        if (_employeeRepository.existsByUser_IdAndIdNot(newUserId, currentEmployee.getId())) {
             throw new BadRequestException("Selected user is already assigned to another employee");
         }
     }
 
     private void validateUniqueJmbg(String jmbg) {
-        if (jmbg == null || jmbg.isBlank()) {
-            throw new BadRequestException("JMBG is required");
-        }
+        String normalizedJmbg = normalizeJmbg(jmbg);
 
-        if (_employeeRepository.existsByJmbg(jmbg.trim())) {
+        if (_employeeRepository.existsByJmbg(normalizedJmbg)) {
             throw new BadRequestException("Employee with this JMBG already exists");
         }
     }
 
     private void validateUniqueJmbgForUpdate(Long employeeId, String jmbg) {
+        String normalizedJmbg = normalizeJmbg(jmbg);
+
+        if (_employeeRepository.existsByJmbgAndIdNot(normalizedJmbg, employeeId)) {
+            throw new BadRequestException("Employee with this JMBG already exists");
+        }
+    }
+
+    private void validateUniqueEmail(String email) {
+        String normalizedEmail = normalizeEmail(email);
+
+        if (_employeeRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+            throw new BadRequestException("Employee with this email already exists");
+        }
+    }
+
+    private void validateUniqueEmailForUpdate(Long employeeId, String email) {
+        String normalizedEmail = normalizeEmail(email);
+
+        if (_employeeRepository.existsByEmailIgnoreCaseAndIdNot(normalizedEmail, employeeId)) {
+            throw new BadRequestException("Employee with this email already exists");
+        }
+    }
+
+    private String normalizeJmbg(String jmbg) {
         if (jmbg == null || jmbg.isBlank()) {
             throw new BadRequestException("JMBG is required");
         }
 
-        if (_employeeRepository.existsByJmbgAndIdNot(jmbg.trim(), employeeId)) {
-            throw new BadRequestException("Employee with this JMBG already exists");
+        return jmbg.trim();
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new BadRequestException("Email is required");
         }
+
+        return email.trim().toLowerCase();
     }
 }
