@@ -38,8 +38,8 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Override
     @Transactional
     public WarehouseInventoryResponse create(WarehouseInventoryCreate dto) {
-        Warehouse warehouse = warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-        Product product = productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        Warehouse warehouse = getValidatedOperationalWarehouse(dto.getWarehouseId());
+        Product product = getValidatedOperationalProduct(dto.getProductId());
 
         checkIfExists(dto.getWarehouseId(), dto.getProductId());
         checkQuantity(dto.getQuantity());
@@ -58,7 +58,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 "WAREHOUSE INVENTORY is created (WAREHOUSE ID: " + saved.getId().getWarehouseId() + " | PRODUCT ID: " + saved.getId().getProductId() + ")"
         );
 
-        notifyLowStockIfNeeded(saved);
+        notifyLowStockIfStateChanged(null, null, saved);
 
         return WarehouseInventoryMapper.toResponse(saved);
     }
@@ -66,10 +66,12 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Override
     @Transactional
     public WarehouseInventoryResponse update(Long warehouseId, Long productId, WarehouseInventoryUpdate dto) {
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
-        Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-        Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        Warehouse warehouse = getValidatedOperationalWarehouse(warehouseId);
+        Product product = getValidatedOperationalProduct(productId);
 
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+
+        validateInventoryOperationalContext(inventory);
         checkQuantity(dto.getQuantity());
 
         if (dto.getQuantity().compareTo(inventory.getReservedQuantity()) < 0) {
@@ -109,7 +111,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 "WAREHOUSE INVENTORY is updated (WAREHOUSE ID: " + saved.getId().getWarehouseId() + " | PRODUCT ID: " + saved.getId().getProductId() + ")"
         );
 
-        notifyLowStockIfNeeded(saved);
+        notifyLowStockIfStateChanged(oldQuantity, oldMinStockLevel, saved);
 
         return WarehouseInventoryMapper.toResponse(saved);
     }
@@ -164,9 +166,12 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Transactional
     public void reserveStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
+        getValidatedOperationalWarehouse(warehouseId);
+        getValidatedOperationalProduct(productId);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
-                .orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+
+        validateInventoryOperationalContext(inventory);
 
         BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
         inventory.reserve(quantity);
@@ -189,8 +194,6 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 "Reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
         );
 
-        notifyLowStockIfNeeded(inventory);
-
         warehouseInventoryRepository.save(inventory);
     }
 
@@ -198,9 +201,12 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Transactional
     public void releaseReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
+        getValidatedOperationalWarehouse(warehouseId);
+        getValidatedOperationalProduct(productId);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
-                .orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+
+        validateInventoryOperationalContext(inventory);
 
         BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
         inventory.release(quantity);
@@ -230,8 +236,12 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Transactional
     public void moveOutReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
+        getValidatedOperationalWarehouse(warehouseId);
+        getValidatedOperationalProduct(productId);
 
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+
+        validateInventoryOperationalContext(inventory);
 
         BigDecimal oldQuantity = inventory.getQuantity();
         BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
@@ -243,6 +253,8 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
 
         inventory.moveOutReserved(quantity);
+
+        BigDecimal oldMinStockLevel = inventory.getMinStockLevel();
 
         String entityIdentifier = inventoryAuditIdentifier(inventory);
 
@@ -270,7 +282,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 "Moved out reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
         );
 
-        notifyLowStockIfNeeded(inventory);
+        notifyLowStockIfStateChanged(oldQuantity, oldMinStockLevel, inventory);
 
         warehouseInventoryRepository.save(inventory);
     }
@@ -280,13 +292,12 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     public void moveInStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
+        Warehouse warehouse = getValidatedOperationalWarehouse(warehouseId);
+        Product product = getValidatedOperationalProduct(productId);
+
         final boolean[] newlyCreated = {false};
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
-                .orElseGet(() -> {
-                    Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-                    Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-
+        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseGet(() -> {
                     WarehouseInventory newInventory = new WarehouseInventory(
                             warehouse,
                             product,
@@ -294,10 +305,11 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                             BigDecimal.ZERO
                     );
                     newInventory.setReservedQuantity(BigDecimal.ZERO);
-
                     newlyCreated[0] = true;
                     return warehouseInventoryRepository.save(newInventory);
                 });
+
+        validateInventoryOperationalContext(inventory);
 
         BigDecimal oldQuantity = inventory.getQuantity();
         inventory.increase(quantity);
@@ -333,24 +345,11 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             return;
         }
 
-        if (!inventory.hasMinStockLevel()) {
+        if (!isLowStockNotificationEligible(inventory)) {
             return;
         }
 
-        if (!inventory.isLowStock()) {
-            return;
-        }
-
-        if (inventory.getWarehouse() == null || inventory.getWarehouse().getManager() == null || inventory.getWarehouse().getManager().getUser() == null) {
-            return;
-        }
-
-        notificationService.createSystemNotification(
-                inventory.getWarehouse().getManager().getUser().getId(),
-                "Low stock alert",
-                "Product '" + inventory.getProduct().getName() + "' is low on stock in warehouse '" + inventory.getWarehouse().getName() + "'. Current quantity: " + inventory.getSafeQuantity(),
-                NotificationType.WARNING
-        );
+        createLowStockNotification(inventory);
     }
 
 
@@ -402,5 +401,115 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
     private String inventoryAuditIdentifier(WarehouseInventory inventory) {
         return inventory.getId().toAuditIdentifier();
+    }
+
+    private Warehouse getValidatedOperationalWarehouse(Long warehouseId) {
+        Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+
+        validateWarehouseOperational(warehouse);
+        return warehouse;
+    }
+
+    private Product getValidatedOperationalProduct(Long productId) {
+        Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+        validateProductOperational(product);
+        return product;
+    }
+
+    private void validateWarehouseOperational(Warehouse warehouse) {
+        if (warehouse == null || warehouse.getId() == null) {
+            throw new BadRequestException("Warehouse is required");
+        }
+
+        if (!warehouse.isOperational()) {
+            throw new BadRequestException("Warehouse is not operational for inventory operations");
+        }
+    }
+
+    private void validateProductOperational(Product product) {
+        if (product == null || product.getId() == null) {
+            throw new BadRequestException("Product is required");
+        }
+
+        if (!product.isOperational()) {
+            throw new BadRequestException("Product is not active");
+        }
+    }
+
+    private void validateInventoryOperationalContext(WarehouseInventory inventory) {
+        if (inventory == null) {
+            throw new BadRequestException("Warehouse inventory is required");
+        }
+
+        validateWarehouseOperational(inventory.getWarehouse());
+        validateProductOperational(inventory.getProduct());
+    }
+
+    private void notifyLowStockIfStateChanged(BigDecimal previousQuantity, BigDecimal previousMinStockLevel, WarehouseInventory inventory) {
+        if (inventory == null) {
+            return;
+        }
+
+        BigDecimal currentQuantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
+        BigDecimal currentMinStockLevel = inventory.getMinStockLevel();
+
+        boolean wasLowStock = previousQuantity != null
+                && previousMinStockLevel != null
+                && previousQuantity.compareTo(previousMinStockLevel) <= 0;
+
+        boolean isLowStockNow = currentMinStockLevel != null
+                && currentQuantity.compareTo(currentMinStockLevel) <= 0;
+
+        if (!isLowStockNow || wasLowStock) {
+            return;
+        }
+
+        if (!isLowStockNotificationEligible(inventory)) {
+            return;
+        }
+
+        createLowStockNotification(inventory);
+    }
+
+    private boolean isLowStockNotificationEligible(WarehouseInventory inventory) {
+        if (inventory == null) {
+            return false;
+        }
+
+        if (inventory.getMinStockLevel() == null) {
+            return false;
+        }
+
+        if (inventory.getQuantity() == null) {
+            return BigDecimal.ZERO.compareTo(inventory.getMinStockLevel()) <= 0
+                    && inventory.getWarehouse() != null
+                    && inventory.getWarehouse().getManager() != null
+                    && inventory.getWarehouse().getManager().getUser() != null
+                    && inventory.getProduct() != null
+                    && inventory.getProduct().getName() != null;
+        }
+
+        if (inventory.getQuantity().compareTo(inventory.getMinStockLevel()) > 0) {
+            return false;
+        }
+
+        return inventory.getWarehouse() != null
+                && inventory.getWarehouse().getManager() != null
+                && inventory.getWarehouse().getManager().getUser() != null
+                && inventory.getProduct() != null
+                && inventory.getProduct().getName() != null
+                && inventory.getWarehouse().getName() != null;
+    }
+
+    private void createLowStockNotification(WarehouseInventory inventory) {
+        notificationService.createSystemNotification(
+                inventory.getWarehouse().getManager().getUser().getId(),
+                "Low stock alert",
+                "Product '" + inventory.getProduct().getName()
+                        + "' is at or below minimum stock level in warehouse '"
+                        + inventory.getWarehouse().getName() + "'.",
+                NotificationType.WARNING
+        );
     }
 }

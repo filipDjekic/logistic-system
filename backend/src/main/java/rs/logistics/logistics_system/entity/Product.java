@@ -80,4 +80,10 @@ public class Product {
         this.weight = weight;
         this.active = true;
     }
+
+    // methods
+
+    public boolean isOperational() {
+        return Boolean.TRUE.equals(this.active);
+    }
 }

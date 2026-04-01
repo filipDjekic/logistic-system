@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.entity.Notification;
 import rs.logistics.logistics_system.enums.NotificationStatus;
+import rs.logistics.logistics_system.enums.NotificationType;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +27,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     Page<Notification> findByUserIdAndStatusOrderByCreatedAtDesc(Long userId, NotificationStatus status, Pageable pageable);
 
     long countByUserIdAndStatus(Long userId, NotificationStatus status);
+
+    boolean existsByUserIdAndTitleAndMessageAndTypeAndStatus(Long userId, String title, String message, NotificationType type, NotificationStatus status);
 
     @Transactional
     @Modifying

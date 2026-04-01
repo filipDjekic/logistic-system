@@ -138,6 +138,27 @@ public class NotificationService implements NotificationServiceDefinition {
     public NotificationResponse createSystemNotification(Long userId, String title, String message, NotificationType type) {
         User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        boolean duplicateUnreadExists = _notificationRepository.existsByUserIdAndTitleAndMessageAndTypeAndStatus(
+                userId,
+                title,
+                message,
+                type,
+                NotificationStatus.UNREAD
+        );
+
+        if (duplicateUnreadExists) {
+            Notification existing = _notificationRepository
+                    .findByUserIdAndStatus(userId, NotificationStatus.UNREAD)
+                    .stream()
+                    .filter(n -> title.equals(n.getTitle())
+                            && message.equals(n.getMessage())
+                            && type == n.getType())
+                    .findFirst()
+                    .orElseThrow(() -> new ResourceNotFoundException("Existing notification not found"));
+
+            return NotificationMapper.toResponse(existing);
+        }
+
         Notification notification = new Notification(
                 title,
                 message,

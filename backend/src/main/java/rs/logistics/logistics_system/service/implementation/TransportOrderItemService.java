@@ -46,6 +46,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
 
+        validateInventoryContextForTransportOrder(transportOrder, product);
+
         if (_transportOrderItemRepository.existsByTransportOrderIdAndProductId(dto.getTransportOrderId(), dto.getProductId())) {
             throw new ConflictException("Transport Order Item Already Exists");
         }
@@ -77,6 +79,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         validateTransportOrderEditable(transportOrder);
 
         Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
+
+        validateInventoryContextForTransportOrder(transportOrder, product);
 
         TransportOrderItem transportOrderItem = _transportOrderItemRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport Order Item Not Found"));
 
@@ -212,5 +216,27 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         }
 
         transportOrder.setTotalWeight(previousTotalWeight);
+    }
+
+    private void validateInventoryContextForTransportOrder(TransportOrder transportOrder, Product product) {
+        if (transportOrder == null) {
+            throw new BadRequestException("Transport order is required");
+        }
+
+        if (transportOrder.getSourceWarehouse() == null || transportOrder.getSourceWarehouse().getId() == null) {
+            throw new BadRequestException("Transport order source warehouse is required");
+        }
+
+        if (!transportOrder.getSourceWarehouse().isOperational()) {
+            throw new BadRequestException("Source warehouse is not operational for inventory operations");
+        }
+
+        if (product == null || product.getId() == null) {
+            throw new BadRequestException("Product is required");
+        }
+
+        if (!product.isOperational()) {
+            throw new BadRequestException("Product is not active");
+        }
     }
 }

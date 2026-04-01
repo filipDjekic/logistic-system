@@ -73,4 +73,10 @@ public class Warehouse {
         this.manager = manager;
         this.active = true;
     }
+
+    // methods
+
+    public boolean isOperational(){
+        return Boolean.TRUE.equals(this.active) && this.status == WarehouseStatus.ACTIVE;
+    }
 }

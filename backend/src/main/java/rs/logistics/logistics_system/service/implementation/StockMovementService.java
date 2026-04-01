@@ -232,13 +232,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
         }
     }
 
-    private WarehouseInventory getOrCreateInventoryForMovement(
-            Warehouse warehouse,
-            Product product,
-            StockMovementType movementType
-    ) {
-        return _warehouseInventoryRepository
-                .findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
+    private WarehouseInventory getOrCreateInventoryForMovement(Warehouse warehouse, Product product, StockMovementType movementType) {
+        WarehouseInventory inventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
                 .orElseGet(() -> {
                     if (movementType != StockMovementType.INBOUND &&
                             movementType != StockMovementType.TRANSFER_IN &&
@@ -256,14 +251,12 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
                     return _warehouseInventoryRepository.save(newInventory);
                 });
+
+        validateInventoryOperationalContext(inventory);
+        return inventory;
     }
 
-    private void validateMovementRequest(
-            StockMovementCreate dto,
-            Warehouse warehouse,
-            Product product,
-            TransportOrder transportOrder
-    ) {
+    private void validateMovementRequest(StockMovementCreate dto, Warehouse warehouse, Product product, TransportOrder transportOrder) {
         if (dto == null) {
             throw new BadRequestException("Stock movement request is required");
         }
@@ -282,21 +275,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         checkMovementQuantity(dto.getQuantity());
 
-        if (warehouse == null || warehouse.getId() == null) {
-            throw new BadRequestException("Warehouse is required");
-        }
-
-        if (!Boolean.TRUE.equals(warehouse.getActive())) {
-            throw new BadRequestException("Warehouse is not active");
-        }
-
-        if (warehouse.getStatus() != WarehouseStatus.ACTIVE) {
-            throw new BadRequestException("Warehouse is not available for stock operations");
-        }
-
-        if (product == null || product.getId() == null) {
-            throw new BadRequestException("Product is required");
-        }
+        validateWarehouseOperational(warehouse);
+        validateProductOperational(product);
 
         if (dto.getMovementType() == StockMovementType.ADJUSTMENT) {
             if (dto.getReferenceNote() == null || dto.getReferenceNote().trim().length() < 5) {
@@ -368,6 +348,35 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     private BigDecimal getSafeQuantity(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private void validateWarehouseOperational(Warehouse warehouse) {
+        if (warehouse == null || warehouse.getId() == null) {
+            throw new BadRequestException("Warehouse is required");
+        }
+
+        if (!warehouse.isOperational()) {
+            throw new BadRequestException("Warehouse is not operational for stock operations");
+        }
+    }
+
+    private void validateProductOperational(Product product) {
+        if (product == null || product.getId() == null) {
+            throw new BadRequestException("Product is required");
+        }
+
+        if (!product.isOperational()) {
+            throw new BadRequestException("Product is not active");
+        }
+    }
+
+    private void validateInventoryOperationalContext(WarehouseInventory inventory) {
+        if (inventory == null) {
+            throw new BadRequestException("Warehouse inventory is required");
+        }
+
+        validateWarehouseOperational(inventory.getWarehouse());
+        validateProductOperational(inventory.getProduct());
     }
 
 }

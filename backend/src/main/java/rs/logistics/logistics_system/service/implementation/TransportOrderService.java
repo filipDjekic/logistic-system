@@ -39,7 +39,9 @@ import rs.logistics.logistics_system.service.definition.WarehouseInventoryServic
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -238,6 +240,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
         TransportOrderStatus current = transportOrder.getStatus();
+        Set<Long> notifiedUserIds = new HashSet<>();
 
         if (status == null) {
             throw new BadRequestException("Transport order status is required");
@@ -276,7 +279,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             markVehicleAsBusy(transportOrder.getVehicle());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
-                notificationService.createSystemNotification(
+                notifyOnce(
+                        notifiedUserIds,
                         transportOrder.getAssignedEmployee().getUser().getId(),
                         "Transport assigned",
                         "Transport order #" + transportOrder.getId() + " has been assigned to you.",
@@ -302,7 +306,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             markVehicleAsBusy(transportOrder.getVehicle());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
-                notificationService.createSystemNotification(
+                notifyOnce(
+                        notifiedUserIds,
                         transportOrder.getAssignedEmployee().getUser().getId(),
                         "Transport started",
                         "Transport order #" + transportOrder.getId() + " is now in transit.",
@@ -319,7 +324,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             refreshVehicleAvailability(transportOrder.getVehicle().getId());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
-                notificationService.createSystemNotification(
+                notifyOnce(
+                        notifiedUserIds,
                         transportOrder.getAssignedEmployee().getUser().getId(),
                         "Transport delivered",
                         "Transport order #" + transportOrder.getId() + " has been successfully delivered.",
@@ -330,7 +336,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             if (transportOrder.getDestinationWarehouse() != null
                     && transportOrder.getDestinationWarehouse().getManager() != null
                     && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
-                notificationService.createSystemNotification(
+                notifyOnce(
+                        notifiedUserIds,
                         transportOrder.getDestinationWarehouse().getManager().getUser().getId(),
                         "Incoming transport delivered",
                         "Transport order #" + transportOrder.getId() + " has arrived at warehouse '" + transportOrder.getDestinationWarehouse().getName() + "'.",
@@ -347,7 +354,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             refreshVehicleAvailability(transportOrder.getVehicle().getId());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
-                notificationService.createSystemNotification(
+                notifyOnce(
+                        notifiedUserIds,
                         transportOrder.getAssignedEmployee().getUser().getId(),
                         "Transport cancelled",
                         "Transport order #" + transportOrder.getId() + " has been cancelled.",
@@ -358,7 +366,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             if (transportOrder.getSourceWarehouse() != null
                     && transportOrder.getSourceWarehouse().getManager() != null
                     && transportOrder.getSourceWarehouse().getManager().getUser() != null) {
-                notificationService.createSystemNotification(
+                notifyOnce(
+                        notifiedUserIds,
                         transportOrder.getSourceWarehouse().getManager().getUser().getId(),
                         "Transport cancelled",
                         "Transport order #" + transportOrder.getId() + " from warehouse '" + transportOrder.getSourceWarehouse().getName() + "' has been cancelled.",
@@ -369,7 +378,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             if (transportOrder.getDestinationWarehouse() != null
                     && transportOrder.getDestinationWarehouse().getManager() != null
                     && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
-                notificationService.createSystemNotification(
+                notifyOnce(
+                        notifiedUserIds,
                         transportOrder.getDestinationWarehouse().getManager().getUser().getId(),
                         "Transport cancelled",
                         "Transport order #" + transportOrder.getId() + " to warehouse '" + transportOrder.getDestinationWarehouse().getName() + "' has been cancelled.",
@@ -632,6 +642,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             throw new BadRequestException("Transport order item product is required");
         }
 
+        if (!item.getProduct().isOperational()) {
+            throw new BadRequestException("Transport order item product is not active");
+        }
+
         if (item.getQuantity() == null || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Transport order item quantity must be greater than 0");
         }
@@ -696,12 +710,24 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         Warehouse source = transportOrder.getSourceWarehouse();
         Warehouse destination = transportOrder.getDestinationWarehouse();
 
-        if (!Boolean.TRUE.equals(source.getActive()) || source.getStatus() != WarehouseStatus.ACTIVE) {
+        if (!source.isOperational()) {
             throw new BadRequestException("Source warehouse is not operational for transport execution");
         }
 
-        if (!Boolean.TRUE.equals(destination.getActive()) || destination.getStatus() != WarehouseStatus.ACTIVE) {
+        if (!destination.isOperational()) {
             throw new BadRequestException("Destination warehouse is not operational for transport execution");
         }
+    }
+
+    private void notifyOnce(Set<Long> notifiedUserIds, Long userId, String title, String message, NotificationType type) {
+        if (userId == null) {
+            return;
+        }
+
+        if (!notifiedUserIds.add(userId)) {
+            return;
+        }
+
+        notificationService.createSystemNotification(userId, title, message, type);
     }
 }
