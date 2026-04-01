@@ -99,10 +99,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 throw new BadRequestException("Unsupported stock movement type");
         }
 
-        _warehouseInventoryRepository.save(inventory);
+        WarehouseInventory savedInventory = _warehouseInventoryRepository.save(inventory);
 
-        BigDecimal quantityAfter = getSafeQuantity(inventory.getQuantity());
-        BigDecimal reservedAfter = getSafeQuantity(inventory.getReservedQuantity());
+        BigDecimal quantityAfter = getSafeQuantity(savedInventory.getQuantity());
+        BigDecimal reservedAfter = getSafeQuantity(savedInventory.getReservedQuantity());
         BigDecimal availableAfter = quantityAfter.subtract(reservedAfter);
 
         StockMovement stockMovement = StockMovementMapper.toEntity(
@@ -137,13 +137,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                         + ", after: " + quantityAfter + ")"
         );
 
-        boolean shouldCheckLowStock = dto.getMovementType() == StockMovementType.OUTBOUND || dto.getMovementType() == StockMovementType.TRANSFER_OUT || (dto.getMovementType() == StockMovementType.ADJUSTMENT && dto.getQuantity().compareTo(BigDecimal.ZERO) > 0);
-
-        if (shouldCheckLowStock) {
-            WarehouseInventory updatedInventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
-
-            warehouseInventoryService.checkLowStockAndNotify(updatedInventory);
-        }
+        warehouseInventoryService.checkLowStockAndNotify(savedInventory);
 
         return StockMovementMapper.toResponse(saved);
     }

@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
@@ -37,6 +38,7 @@ public class TaskService implements TaskServiceDefinition {
     private final AuditFacadeDefinition auditFacade;
 
     @Override
+    @Transactional
     public TaskResponse create(TaskCreate dto) {
         validateDueDate(dto.getDueDate());
 
@@ -68,6 +70,7 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     @Override
+    @Transactional
     public TaskResponse update(Long id, TaskUpdate dto) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
@@ -139,6 +142,7 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
@@ -176,6 +180,7 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     @Override
+    @Transactional
     public TaskResponse changeStatus(Long id, TaskStatus status) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
@@ -224,6 +229,7 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     @Override
+    @Transactional
     public TaskResponse assignTask(Long id, Long employeeId) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 

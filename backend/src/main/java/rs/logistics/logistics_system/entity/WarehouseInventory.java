@@ -142,4 +142,20 @@ public class WarehouseInventory {
         this.reservedQuantity = this.reservedQuantity.subtract(amount);
         this.quantity = this.quantity.subtract(amount);
     }
+
+    public boolean hasMinStockLevel() {
+        return this.minStockLevel != null;
+    }
+
+    public BigDecimal getSafeQuantity() {
+        return this.quantity == null ? BigDecimal.ZERO : this.quantity;
+    }
+
+    public boolean isLowStock() {
+        if(!hasMinStockLevel()){
+            return false;
+        }
+
+        return getSafeQuantity().compareTo(this.minStockLevel) <= 0;
+    }
 }

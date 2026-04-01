@@ -36,6 +36,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final AuditFacadeDefinition auditFacade;
 
     @Override
+    @Transactional
     public WarehouseInventoryResponse create(WarehouseInventoryCreate dto) {
         Warehouse warehouse = warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         Product product = productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
@@ -44,23 +45,26 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         checkQuantity(dto.getQuantity());
 
         WarehouseInventory inventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
-        warehouseInventoryRepository.save(inventory);
+        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
-        String entityIdentifier = inventoryAuditIdentifier(inventory);
+        String entityIdentifier = inventoryAuditIdentifier(saved);
 
-        auditFacade.recordCreate("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId(), entityIdentifier);
+        auditFacade.recordCreate("WAREHOUSE_INVENTORY", saved.getId().getWarehouseId(), entityIdentifier);
         auditFacade.log(
                 "CREATE",
                 "WAREHOUSE_INVENTORY",
-                inventory.getId().getWarehouseId(),
+                saved.getId().getWarehouseId(),
                 entityIdentifier,
-                "WAREHOUSE INVENTORY is created (WAREHOUSE ID: " + inventory.getId().getWarehouseId() + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
+                "WAREHOUSE INVENTORY is created (WAREHOUSE ID: " + saved.getId().getWarehouseId() + " | PRODUCT ID: " + saved.getId().getProductId() + ")"
         );
 
-        return WarehouseInventoryMapper.toResponse(inventory);
+        notifyLowStockIfNeeded(saved);
+
+        return WarehouseInventoryMapper.toResponse(saved);
     }
 
     @Override
+    @Transactional
     public WarehouseInventoryResponse update(Long warehouseId, Long productId, WarehouseInventoryUpdate dto) {
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
         Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
@@ -127,6 +131,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     }
 
     @Override
+    @Transactional
     public void delete(Long warehouseId, Long productId) {
         WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
 
@@ -155,8 +160,8 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         warehouseInventoryRepository.delete(inventory);
     }
 
-    @Transactional
     @Override
+    @Transactional
     public void reserveStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
@@ -189,8 +194,8 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         warehouseInventoryRepository.save(inventory);
     }
 
-    @Transactional
     @Override
+    @Transactional
     public void releaseReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
@@ -221,8 +226,8 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         warehouseInventoryRepository.save(inventory);
     }
 
-    @Transactional
     @Override
+    @Transactional
     public void moveOutReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
@@ -270,8 +275,8 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         warehouseInventoryRepository.save(inventory);
     }
 
-    @Transactional
     @Override
+    @Transactional
     public void moveInStock(Long warehouseId, Long productId, BigDecimal quantity) {
         checkMovementQuantity(quantity);
 
@@ -328,11 +333,11 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             return;
         }
 
-        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
+        if (!inventory.hasMinStockLevel()) {
+            return;
+        }
 
-        BigDecimal lowStockThreshold = new BigDecimal("10");
-
-        if (quantity.compareTo(lowStockThreshold) > 0) {
+        if (!inventory.isLowStock()) {
             return;
         }
 
@@ -343,8 +348,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         notificationService.createSystemNotification(
                 inventory.getWarehouse().getManager().getUser().getId(),
                 "Low stock alert",
-                "Product '" + inventory.getProduct().getName() + "' is low on stock in warehouse '" +
-                        inventory.getWarehouse().getName() + "'. Current quantity: " + quantity,
+                "Product '" + inventory.getProduct().getName() + "' is low on stock in warehouse '" + inventory.getWarehouse().getName() + "'. Current quantity: " + inventory.getSafeQuantity(),
                 NotificationType.WARNING
         );
     }

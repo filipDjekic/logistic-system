@@ -11,6 +11,7 @@ import rs.logistics.logistics_system.entity.Notification;
 import rs.logistics.logistics_system.enums.NotificationStatus;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
@@ -18,7 +19,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     List<Notification> findByUserIdAndStatus(Long userId, NotificationStatus status);
 
-    Notification findByUserIdAndId(Long userId, Long id);
+    Optional<Notification> findByUserIdAndId(Long userId, Long id);
 
     Page<Notification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 

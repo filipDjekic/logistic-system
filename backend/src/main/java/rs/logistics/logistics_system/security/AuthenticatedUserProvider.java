@@ -16,9 +16,9 @@ public class AuthenticatedUserProvider {
     private final UserRepository userRepository;
 
     public User getAuthenticatedUser() {
-        Authentication  authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if(authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
+        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
             throw new ResourceNotFoundException("Authenticated user is not found");
         }
 
@@ -33,5 +33,22 @@ public class AuthenticatedUserProvider {
 
     public boolean isSelf(Long userId) {
         return getAuthenticatedUserId().equals(userId);
+    }
+
+    public boolean hasRole(String role) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
+            return false;
+        }
+
+        String expectedAuthority = "ROLE_" + role;
+
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> expectedAuthority.equals(authority.getAuthority()));
+    }
+
+    public boolean isAdmin() {
+        return hasRole("ADMIN");
     }
 }

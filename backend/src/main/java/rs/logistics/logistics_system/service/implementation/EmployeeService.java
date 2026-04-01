@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.EmployeeCreate;
 import rs.logistics.logistics_system.dto.response.EmployeeResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
@@ -38,6 +39,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     private final AuditFacadeDefinition auditFacade;
 
     @Override
+    @Transactional
     public EmployeeResponse create(EmployeeCreate dto) {
         User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -58,6 +60,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     }
 
     @Override
+    @Transactional
     public EmployeeResponse update(Long id, EmployeeUpdate dto) {
         User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -102,6 +105,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
@@ -145,6 +149,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void terminateEmployee(Long id) {
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
