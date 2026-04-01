@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.ProductCreate;
 import rs.logistics.logistics_system.dto.response.ProductResponse;
@@ -84,10 +85,13 @@ public class ProductService implements ProductServiceDefinition {
 
 
     @Override
+    @Transactional
     public void delete(Long id) {
         Product product = _productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         validateForDelete(product);
+
+        _productRepository.delete(product);
 
         auditFacade.recordDelete("PRODUCT", id);
         auditFacade.log(
@@ -96,8 +100,6 @@ public class ProductService implements ProductServiceDefinition {
                 id,
                 "PRODUCT is deleted (ID: " + id + ")"
         );
-
-        _productRepository.delete(product);
     }
 
     @Override
@@ -155,18 +157,6 @@ public class ProductService implements ProductServiceDefinition {
     private void validateSkuForUpdate(String sku, Long id) {
         if (_productRepository.existsBySkuAndIdNot(sku, id)) {
             throw new BadRequestException("Product SKU already exists");
-        }
-    }
-
-    private void validateForDeleteOrDeactivate(Product product) {
-        if (_productRepository.existsInventoryByProductId(product.getId())) {
-            throw new BadRequestException("Product is in inventory");
-        }
-        if (_productRepository.existsStockMovementByProductId(product.getId())) {
-            throw new BadRequestException("Product is in stock");
-        }
-        if (_productRepository.existsTransportOrderItemByProductId(product.getId())) {
-            throw new BadRequestException("Product is in transport");
         }
     }
 

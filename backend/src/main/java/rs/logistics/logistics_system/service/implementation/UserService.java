@@ -3,6 +3,7 @@ package rs.logistics.logistics_system.service.implementation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.auth.ChangePasswordRequest;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
@@ -105,6 +106,7 @@ public class UserService implements UserServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         User user = getUserOrThrow(id);
 

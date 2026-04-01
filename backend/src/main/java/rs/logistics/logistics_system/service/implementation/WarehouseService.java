@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
@@ -121,6 +122,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
 
