@@ -232,15 +232,25 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         );
     }
 
-    @Transactional
     @Override
+    @Transactional
     public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status) {
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
 
         TransportOrderStatus current = transportOrder.getStatus();
+
+        if (status == null) {
+            throw new BadRequestException("Transport order status is required");
+        }
+
+        if (current == status) {
+            throw new BadRequestException("Transport order already has selected status");
+        }
+
         validateStatusTransition(current, status);
 
         if (status == TransportOrderStatus.ASSIGNED) {
+            validateOperationalWarehousesForExecution(transportOrder);
 
             transportOrder.recalculateTotalWeight();
             validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
@@ -254,6 +264,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     transportOrder.getPlannedArrivalTime(),
                     transportOrder.getId()
             );
+
             checkDriverAvailabilityForUpdate(
                     transportOrder.getAssignedEmployee().getId(),
                     transportOrder.getDepartureTime(),
@@ -275,6 +286,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         if (status == TransportOrderStatus.IN_TRANSIT) {
+            validateOperationalWarehousesForExecution(transportOrder);
 
             transportOrder.recalculateTotalWeight();
             validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
@@ -300,6 +312,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         if (status == TransportOrderStatus.DELIVERED) {
+            validateOperationalWarehousesForExecution(transportOrder);
+
             executeDeliveryInventoryFlow(transportOrder);
             transportOrder.setActualArrivalTime(LocalDateTime.now());
             refreshVehicleAvailability(transportOrder.getVehicle().getId());
@@ -328,10 +342,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         if (status == TransportOrderStatus.CANCELLED) {
             if (current == TransportOrderStatus.ASSIGNED) {
                 releaseInventoryForOrder(transportOrder);
-            }
-
-            if (current == TransportOrderStatus.IN_TRANSIT) {
-                throw new BadRequestException("Transport order in transit cannot be cancelled");
             }
 
             refreshVehicleAvailability(transportOrder.getVehicle().getId());
@@ -675,6 +685,23 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         if (_transportOrderRepository.existsByOrderNumberAndIdNot(orderNumber.trim(), transportOrderId)) {
             throw new BadRequestException("Transport order with this order number already exists");
+        }
+    }
+
+    private void validateOperationalWarehousesForExecution(TransportOrder transportOrder) {
+        if (transportOrder.getSourceWarehouse() == null || transportOrder.getDestinationWarehouse() == null) {
+            throw new BadRequestException("Transport order must have source and destination warehouse");
+        }
+
+        Warehouse source = transportOrder.getSourceWarehouse();
+        Warehouse destination = transportOrder.getDestinationWarehouse();
+
+        if (!Boolean.TRUE.equals(source.getActive()) || source.getStatus() != WarehouseStatus.ACTIVE) {
+            throw new BadRequestException("Source warehouse is not operational for transport execution");
+        }
+
+        if (!Boolean.TRUE.equals(destination.getActive()) || destination.getStatus() != WarehouseStatus.ACTIVE) {
+            throw new BadRequestException("Destination warehouse is not operational for transport execution");
         }
     }
 }

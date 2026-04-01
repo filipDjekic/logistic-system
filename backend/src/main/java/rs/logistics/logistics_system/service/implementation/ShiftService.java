@@ -45,6 +45,8 @@ public class ShiftService implements ShiftServiceDefinition {
         validateShiftOverlap(employee.getId(), dto.getStartTime(), dto.getEndTime());
 
         Shift shift = ShiftMapper.toEntity(dto, employee);
+        shift.setStatus(ShiftStatus.PLANNED);
+
         Shift saved = _shiftRepository.save(shift);
 
         auditFacade.recordCreate("SHIFT", saved.getId());
@@ -105,6 +107,8 @@ public class ShiftService implements ShiftServiceDefinition {
     public void delete(Long id) {
         Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
 
+        validateShiftCanBeDeleted(shift);
+
         _shiftRepository.delete(shift);
 
         auditFacade.recordDelete("SHIFT", id);
@@ -135,9 +139,7 @@ public class ShiftService implements ShiftServiceDefinition {
     public void cancelShift(Long id) {
         Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
 
-        if (shift.getStatus() != ShiftStatus.PLANNED) {
-            throw new BadRequestException("Only planned shifts can be cancelled.");
-        }
+        validateShiftCanBeCancelled(shift);
 
         shift.setStatus(ShiftStatus.CANCELLED);
         _shiftRepository.save(shift);
@@ -161,9 +163,7 @@ public class ShiftService implements ShiftServiceDefinition {
             throw new BadRequestException("Inactive employee cannot be assigned to a shift.");
         }
 
-        if (shift.getStatus() == ShiftStatus.ACTIVE || shift.getStatus() == ShiftStatus.CANCELLED || shift.getStatus() == ShiftStatus.FINISHED || !shift.getStartTime().isAfter(LocalDateTime.now())) {
-            throw new BadRequestException("Shift cannot be reassigned.");
-        }
+        validateShiftCanBeReassigned(shift);
 
         validateShiftOverlapForUpdate(
                 employee.getId(),
@@ -209,8 +209,12 @@ public class ShiftService implements ShiftServiceDefinition {
     }
 
     private void validateShiftCanBeModified(Shift shift) {
-        if (!shift.getStartTime().isAfter(LocalDateTime.now()) || shift.getStatus() == ShiftStatus.ACTIVE || shift.getStatus() == ShiftStatus.CANCELLED || shift.getStatus() == ShiftStatus.FINISHED) {
-            throw new BadRequestException("Shift cannot be modified.");
+        if (shift.getStatus() != ShiftStatus.PLANNED) {
+            throw new BadRequestException("Only planned shifts can be modified.");
+        }
+
+        if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Shift that has started or already passed cannot be modified.");
         }
     }
 
@@ -227,6 +231,36 @@ public class ShiftService implements ShiftServiceDefinition {
 
         if (!overlappingShifts.isEmpty()) {
             throw new ConflictException("Employee already has another shift in the given time range.");
+        }
+    }
+
+    private void validateShiftCanBeDeleted(Shift shift) {
+        if (shift.getStatus() != ShiftStatus.PLANNED) {
+            throw new BadRequestException("Only planned future shifts can be deleted. Started, finished or cancelled shifts must remain in history.");
+        }
+
+        if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Shift that has started or already passed cannot be deleted.");
+        }
+    }
+
+    private void validateShiftCanBeCancelled(Shift shift) {
+        if (shift.getStatus() != ShiftStatus.PLANNED) {
+            throw new BadRequestException("Only planned shifts can be cancelled.");
+        }
+
+        if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Shift that has started or already passed cannot be cancelled.");
+        }
+    }
+
+    private void validateShiftCanBeReassigned(Shift shift) {
+        if (shift.getStatus() != ShiftStatus.PLANNED) {
+            throw new BadRequestException("Only planned shifts can be reassigned.");
+        }
+
+        if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Shift that has started or already passed cannot be reassigned.");
         }
     }
 }

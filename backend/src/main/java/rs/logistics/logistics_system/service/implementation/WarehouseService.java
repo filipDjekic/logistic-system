@@ -9,8 +9,10 @@ import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
 import rs.logistics.logistics_system.entity.Employee;
+import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -247,6 +249,24 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private void validateForDeactivation(Warehouse warehouse) {
         if (!warehouse.getInventoryItems().isEmpty()) {
             throw new BadRequestException("Warehouse cannot be deactivated while it contains inventory.");
+        }
+
+        boolean hasActiveOutgoingTransport = _transportOrderRepository.findBySourceWarehouseId(warehouse.getId())
+                .stream()
+                .map(TransportOrder::getStatus)
+                .anyMatch(status -> status == TransportOrderStatus.ASSIGNED || status == TransportOrderStatus.IN_TRANSIT);
+
+        if (hasActiveOutgoingTransport) {
+            throw new BadRequestException("Warehouse cannot be deactivated while it is source warehouse for active transport orders.");
+        }
+
+        boolean hasActiveIncomingTransport = _transportOrderRepository.findByDestinationWarehouseId(warehouse.getId())
+                .stream()
+                .map(TransportOrder::getStatus)
+                .anyMatch(status -> status == TransportOrderStatus.ASSIGNED || status == TransportOrderStatus.IN_TRANSIT);
+
+        if (hasActiveIncomingTransport) {
+            throw new BadRequestException("Warehouse cannot be deactivated while it is destination warehouse for active transport orders.");
         }
     }
 }

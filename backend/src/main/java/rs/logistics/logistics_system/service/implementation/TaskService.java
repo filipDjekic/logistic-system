@@ -12,6 +12,7 @@ import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TaskMapper;
@@ -201,6 +202,14 @@ public class TaskService implements TaskServiceDefinition {
 
         TaskStatus current = task.getStatus();
 
+        if (status == null) {
+            throw new BadRequestException("Task status is required");
+        }
+
+        if (current == status) {
+            throw new BadRequestException("Task already has selected status");
+        }
+
         switch (current) {
             case NEW:
                 if (status != TaskStatus.IN_PROGRESS && status != TaskStatus.CANCELLED) {
@@ -216,6 +225,8 @@ public class TaskService implements TaskServiceDefinition {
                 throw new BadRequestException("Task is already cancelled");
             case COMPLETED:
                 throw new BadRequestException("Task is already completed");
+            default:
+                throw new BadRequestException("Unsupported task status");
         }
 
         task.setStatus(status);
@@ -294,8 +305,15 @@ public class TaskService implements TaskServiceDefinition {
             return null;
         }
 
-        return _transportOrderRepository.findById(transportOrderId)
+        TransportOrder transportOrder = _transportOrderRepository.findById(transportOrderId)
                 .orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
+
+        if (transportOrder.getStatus() == TransportOrderStatus.DELIVERED
+                || transportOrder.getStatus() == TransportOrderStatus.CANCELLED) {
+            throw new BadRequestException("Task cannot be linked to a completed or cancelled transport order");
+        }
+
+        return transportOrder;
     }
 
     private void validateDueDate(LocalDateTime dueDate) {
@@ -305,8 +323,8 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     private void validateTaskUpdatable(Task task) {
-        if (task.getStatus() == TaskStatus.COMPLETED || task.getStatus() == TaskStatus.CANCELLED) {
-            throw new BadRequestException("Final task cannot be updated");
+        if (task.getStatus() != TaskStatus.NEW) {
+            throw new BadRequestException("Only NEW task can be updated");
         }
     }
 

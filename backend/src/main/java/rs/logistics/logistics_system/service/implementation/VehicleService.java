@@ -119,11 +119,12 @@ public class VehicleService implements VehicleServiceDefinition {
         );
     }
 
-    @Transactional
     @Override
+    @Transactional
     public VehicleResponse changeStatus(Long id, VehicleStatus newStatus) {
         Vehicle vehicle = findVehicleById(id);
         VehicleStatus currentStatus = vehicle.getStatus();
+        Boolean oldActive = vehicle.getActive();
 
         if (newStatus == null) {
             throw new BadRequestException("Vehicle status is required");
@@ -137,9 +138,17 @@ public class VehicleService implements VehicleServiceDefinition {
         validateStatusChangeAgainstActiveTransport(vehicle, newStatus);
 
         vehicle.setStatus(newStatus);
+
+        if (newStatus == VehicleStatus.OUT_OF_SERVICE) {
+            vehicle.setActive(false);
+        } else {
+            vehicle.setActive(true);
+        }
+
         Vehicle updated = vehicleRepository.save(vehicle);
 
         auditFacade.recordStatusChange("VEHICLE", updated.getId(), "status", currentStatus, newStatus);
+        auditFacade.recordFieldChange("VEHICLE", updated.getId(), "active", oldActive, updated.getActive());
         auditFacade.log(
                 "STATUS_CHANGED",
                 "VEHICLE",
@@ -197,13 +206,11 @@ public class VehicleService implements VehicleServiceDefinition {
     private void validateStatusChangeAgainstActiveTransport(Vehicle vehicle, VehicleStatus newStatus) {
         boolean hasActiveTransport = hasActiveTransport(vehicle.getId());
 
-        if (!hasActiveTransport) {
-            return;
+        if (newStatus == VehicleStatus.IN_USE && !hasActiveTransport) {
+            throw new BadRequestException("Vehicle can be set to IN_USE only when it has an active transport order");
         }
 
-        if (newStatus == VehicleStatus.MAINTENANCE
-                || newStatus == VehicleStatus.OUT_OF_SERVICE
-                || newStatus == VehicleStatus.AVAILABLE) {
+        if (hasActiveTransport && newStatus != VehicleStatus.IN_USE) {
             throw new BadRequestException("Vehicle with active transport must remain in IN_USE status");
         }
     }
