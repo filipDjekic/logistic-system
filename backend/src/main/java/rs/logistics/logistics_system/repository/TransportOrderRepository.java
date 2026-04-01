@@ -17,6 +17,10 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     Optional<TransportOrder> findByOrderNumber(String orderNumber);
 
+    boolean existsByOrderNumber(String orderNumber);
+
+    boolean existsByOrderNumberAndIdNot(String orderNumber, Long id);
+
     List<TransportOrder> findByStatus(TransportOrderStatus status);
 
     List<TransportOrder> findByVehicleId(Long vehicleId);
@@ -102,6 +106,8 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
     );
 
     boolean existsByVehicleIdAndStatusIn(Long vehicleId, Collection<TransportOrderStatus> statuses);
+
     boolean existsByVehicleIdAndStatusInAndIdNot(Long vehicleId, Collection<TransportOrderStatus> statuses, Long id);
+
     boolean existsByVehicleId(Long vehicleId);
 }

@@ -29,6 +29,7 @@ import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
@@ -49,7 +50,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final WarehouseRepository _warehouseRepository;
     private final VehicleRepository _vehicleRepository;
     private final EmployeeRepository _employeeRepository;
-    private final UserRepository _userRepository;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     private static final List<TransportOrderStatus> ACTIVE_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
     private static final List<TransportOrderStatus> SCHEDULE_BLOCKING_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
@@ -60,10 +61,11 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
     private final AuditFacadeDefinition auditFacade;
 
-    @Transactional
     @Override
+    @Transactional
     public TransportOrderResponse create(TransportOrderCreate dto) {
         validateCreateOrUpdateRequest(dto);
+        validateUniqueOrderNumber(dto.getOrderNumber());
 
         Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
 
@@ -73,7 +75,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
 
-        User createdBy = resolveCreatedBy(dto.getCreatedById());
+        User createdBy = authenticatedUserProvider.getAuthenticatedUser();
 
         validateSchedule(dto.getDepartureTime(), dto.getPlannedArrivalTime());
         validateWarehouses(warehouseSource, warehouseDestination);
@@ -116,6 +118,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+
+        validateUniqueOrderNumberForUpdate(transportOrder.getId(), dto.getOrderNumber());
 
         if (transportOrder.getStatus() == TransportOrderStatus.IN_TRANSIT || transportOrder.getStatus() == TransportOrderStatus.DELIVERED || transportOrder.getStatus() == TransportOrderStatus.CANCELLED) {
             throw new BadRequestException("Transport order cannot be updated in current status");
@@ -379,15 +383,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     }
 
     // HELPERS
-
-    private User resolveCreatedBy(Long createdById) {
-        if (createdById == null) {
-            throw new BadRequestException("Created by is required");
-        }
-
-        return _userRepository.findById(createdById)
-                .orElseThrow(() -> new ResourceNotFoundException("Created by not found"));
-    }
 
     private void validateCreateOrUpdateRequest(TransportOrderCreate dto) {
         if (dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null) {
@@ -660,6 +655,26 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         if (!transportOrder.fitsAssignedVehicleCapacity()) {
             throw new BadRequestException("Total weight exceeds vehicle capacity");
+        }
+    }
+
+    private void validateUniqueOrderNumber(String orderNumber) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new BadRequestException("Transport order number is required");
+        }
+
+        if (_transportOrderRepository.existsByOrderNumber(orderNumber.trim())) {
+            throw new BadRequestException("Transport order with this order number already exists");
+        }
+    }
+
+    private void validateUniqueOrderNumberForUpdate(Long transportOrderId, String orderNumber) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new BadRequestException("Transport order number is required");
+        }
+
+        if (_transportOrderRepository.existsByOrderNumberAndIdNot(orderNumber.trim(), transportOrderId)) {
+            throw new BadRequestException("Transport order with this order number already exists");
         }
     }
 }

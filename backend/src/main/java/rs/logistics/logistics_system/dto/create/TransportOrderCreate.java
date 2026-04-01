@@ -7,10 +7,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import rs.logistics.logistics_system.entity.Employee;
-import rs.logistics.logistics_system.entity.User;
-import rs.logistics.logistics_system.entity.Vehicle;
-import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.PriorityLevel;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
@@ -69,24 +65,19 @@ public class TransportOrderCreate {
     @Positive
     private Long assignedEmployeeId;
 
-    @NotNull
-    @Positive
-    private Long createdById;
-
     public TransportOrderCreate(String orderNumber,
-                                  String description,
-                                  LocalDateTime orderDate,
-                                  LocalDateTime departureTime,
-                                  LocalDateTime plannedArrivalTime,
-                                  TransportOrderStatus status,
-                                  PriorityLevel priority,
-                                  BigDecimal totalWeight,
-                                  String notes,
-                                  Long sourceWarehouseId,
-                                  Long destinationWarehouseId,
-                                  Long vehicleId,
-                                  Long assignedEmployeeId,
-                                  Long createdById) {
+                                String description,
+                                LocalDateTime orderDate,
+                                LocalDateTime departureTime,
+                                LocalDateTime plannedArrivalTime,
+                                TransportOrderStatus status,
+                                PriorityLevel priority,
+                                BigDecimal totalWeight,
+                                String notes,
+                                Long sourceWarehouseId,
+                                Long destinationWarehouseId,
+                                Long vehicleId,
+                                Long assignedEmployeeId) {
         this.orderNumber = orderNumber;
         this.description = description;
         this.orderDate = orderDate;
@@ -100,6 +91,5 @@ public class TransportOrderCreate {
         this.destinationWarehouseId = destinationWarehouseId;
         this.vehicleId = vehicleId;
         this.assignedEmployeeId = assignedEmployeeId;
-        this.createdById = createdById;
     }
 }

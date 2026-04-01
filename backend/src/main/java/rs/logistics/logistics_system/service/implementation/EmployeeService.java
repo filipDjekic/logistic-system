@@ -44,6 +44,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         validateUserNotAlreadyAssigned(user.getId());
+        validateUniqueJmbg(dto.getJmbg());
 
         Employee employee = EmployeeMapper.toEntity(dto, user);
         Employee saved = _employeeRepository.save(employee);
@@ -67,12 +68,14 @@ public class EmployeeService implements EmployeeServiceDefinition {
         Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         validateUserAssignmentForUpdate(employee, user.getId());
+        validateUniqueJmbgForUpdate(employee.getId(), dto.getJmbg());
 
         Long oldUserId = employee.getUser() != null ? employee.getUser().getId() : null;
         String oldFirstName = employee.getFirstName();
         String oldLastName = employee.getLastName();
         Object oldPosition = employee.getPosition();
         String oldPhoneNumber = employee.getPhoneNumber();
+        String oldJmbg = employee.getJmbg();
 
         EmployeeMapper.updateEntity(dto, employee, user);
         Employee updated = _employeeRepository.save(employee);
@@ -82,6 +85,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "lastName", oldLastName, updated.getLastName());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "position", oldPosition, updated.getPosition());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "phoneNumber", oldPhoneNumber, updated.getPhoneNumber());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "jmbg", oldJmbg, updated.getJmbg());
 
         auditFacade.log(
                 "UPDATE",
@@ -174,8 +178,6 @@ public class EmployeeService implements EmployeeServiceDefinition {
         );
     }
 
-    //helpers
-
     private void validateUserNotAlreadyAssigned(Long userId) {
         List<Employee> employees = _employeeRepository.findAll();
         boolean alreadyAssigned = employees.stream().anyMatch(employee -> employee.getUser() != null && employee.getUser().getId().equals(userId));
@@ -195,6 +197,26 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         if (alreadyAssigned) {
             throw new BadRequestException("Selected user is already assigned to another employee");
+        }
+    }
+
+    private void validateUniqueJmbg(String jmbg) {
+        if (jmbg == null || jmbg.isBlank()) {
+            throw new BadRequestException("JMBG is required");
+        }
+
+        if (_employeeRepository.existsByJmbg(jmbg.trim())) {
+            throw new BadRequestException("Employee with this JMBG already exists");
+        }
+    }
+
+    private void validateUniqueJmbgForUpdate(Long employeeId, String jmbg) {
+        if (jmbg == null || jmbg.isBlank()) {
+            throw new BadRequestException("JMBG is required");
+        }
+
+        if (_employeeRepository.existsByJmbgAndIdNot(jmbg.trim(), employeeId)) {
+            throw new BadRequestException("Employee with this JMBG already exists");
         }
     }
 }

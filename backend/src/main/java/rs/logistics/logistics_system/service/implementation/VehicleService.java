@@ -3,7 +3,6 @@ package rs.logistics.logistics_system.service.implementation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
@@ -15,7 +14,6 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.VehicleMapper;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
-import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
 
@@ -37,8 +35,9 @@ public class VehicleService implements VehicleServiceDefinition {
     @Transactional
     @Override
     public VehicleResponse create(VehicleCreate dto) {
-        Vehicle vehicle = VehicleMapper.toEntity(dto);
+        validateUniqueRegistrationNumber(dto.getRegistrationNumber());
 
+        Vehicle vehicle = VehicleMapper.toEntity(dto);
         Vehicle saved = vehicleRepository.save(vehicle);
 
         auditFacade.recordCreate("VEHICLE", saved.getId());
@@ -56,6 +55,8 @@ public class VehicleService implements VehicleServiceDefinition {
     @Override
     public VehicleResponse update(Long id, VehicleUpdate dto) {
         Vehicle vehicle = findVehicleById(id);
+
+        validateUniqueRegistrationNumberForUpdate(id, dto.getRegistrationNumber());
 
         String oldRegistrationNumber = vehicle.getRegistrationNumber();
         String oldBrand = vehicle.getBrand();
@@ -149,8 +150,6 @@ public class VehicleService implements VehicleServiceDefinition {
         return VehicleMapper.toResponse(updated);
     }
 
-    // helpers
-
     private Vehicle findVehicleById(Long id) {
         return vehicleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
@@ -211,5 +210,25 @@ public class VehicleService implements VehicleServiceDefinition {
 
     private boolean hasAnyTransportHistory(Long vehicleId) {
         return transportOrderRepository.existsByVehicleId(vehicleId);
+    }
+
+    private void validateUniqueRegistrationNumber(String registrationNumber) {
+        if (registrationNumber == null || registrationNumber.isBlank()) {
+            throw new BadRequestException("Registration number is required");
+        }
+
+        if (vehicleRepository.existsByRegistrationNumberIgnoreCase(registrationNumber.trim())) {
+            throw new BadRequestException("Vehicle with this registration number already exists");
+        }
+    }
+
+    private void validateUniqueRegistrationNumberForUpdate(Long vehicleId, String registrationNumber) {
+        if (registrationNumber == null || registrationNumber.isBlank()) {
+            throw new BadRequestException("Registration number is required");
+        }
+
+        if (vehicleRepository.existsByRegistrationNumberIgnoreCaseAndIdNot(registrationNumber.trim(), vehicleId)) {
+            throw new BadRequestException("Vehicle with this registration number already exists");
+        }
     }
 }

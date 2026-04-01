@@ -58,6 +58,8 @@ public class UserService implements UserServiceDefinition {
 
         User user = _userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
 
+        validateEmailForUpdate(user, dto.getEmail());
+
         if (user.getRole().getId() == 1 && dto.getRoleId() != 1) {
             throw new BadRequestException("ADMIN can't change his role.");
         }
@@ -229,15 +231,27 @@ public class UserService implements UserServiceDefinition {
     }
 
     private void validateUniqueEmail(String email) {
-        if (_userRepository.existsByEmail(email)) {
-            throw new BadRequestException("Email already exists");
+        String normalizedEmail = normalizeEmail(email);
+
+        if (_userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+            throw new BadRequestException("User with this email already exists");
         }
     }
 
     private void validateEmailForUpdate(User user, String email) {
-        if (!user.getEmail().equals(email) && _userRepository.existsByEmail(email)) {
-            throw new BadRequestException("Email already exists");
+        String normalizedEmail = normalizeEmail(email);
+
+        if (_userRepository.existsByEmailIgnoreCaseAndIdNot(normalizedEmail, user.getId())) {
+            throw new BadRequestException("User with this email already exists");
         }
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new BadRequestException("Email is required");
+        }
+
+        return email.trim();
     }
 
     private void validateLastEnabledAdminNotRemoved(User user) {
