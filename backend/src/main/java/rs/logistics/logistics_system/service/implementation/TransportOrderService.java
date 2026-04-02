@@ -666,8 +666,18 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 VEHICLE_BUSY_STATUSES
         );
 
-        vehicle.setStatus(stillBusy ? VehicleStatus.IN_USE : VehicleStatus.AVAILABLE);
-        _vehicleRepository.save(vehicle);
+        if (stillBusy) {
+            if (vehicle.getStatus() != VehicleStatus.IN_USE) {
+                vehicle.setStatus(VehicleStatus.IN_USE);
+                _vehicleRepository.save(vehicle);
+            }
+            return;
+        }
+
+        if (vehicle.getStatus() == VehicleStatus.IN_USE) {
+            vehicle.setStatus(VehicleStatus.AVAILABLE);
+            _vehicleRepository.save(vehicle);
+        }
     }
 
     private void validateTransportOrderWeightAgainstVehicleCapacity(TransportOrder transportOrder) {
