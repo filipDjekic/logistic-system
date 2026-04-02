@@ -1,4 +1,6 @@
-import axios from "axios";
+import axios, {AxiosError, InternalAxiosRequestConfig} from "axios";
+
+const TOKEN_KEY = "";
 
 const api = axios.create({
     baseURL: "http://localhost:8080/api",

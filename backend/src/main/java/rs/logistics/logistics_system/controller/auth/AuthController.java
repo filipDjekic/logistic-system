@@ -2,12 +2,14 @@ package rs.logistics.logistics_system.controller.auth;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import rs.logistics.logistics_system.dto.auth.AuthMeResponse;
 import rs.logistics.logistics_system.dto.auth.LoginRequest;
 import rs.logistics.logistics_system.dto.auth.LoginResponse;
+import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.repository.UserRepository;
+import rs.logistics.logistics_system.security.CustomUserDetailsService;
 import rs.logistics.logistics_system.service.definition.auth.AuthServiceDefinition;
 
 @RestController
@@ -15,9 +17,11 @@ import rs.logistics.logistics_system.service.definition.auth.AuthServiceDefiniti
 public class AuthController {
 
     private final AuthServiceDefinition authService;
+    private final UserRepository userRepository;
 
-    public AuthController(AuthServiceDefinition authService) {
+    public AuthController(AuthServiceDefinition authService, UserRepository userRepository) {
         this.authService = authService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/login")
@@ -25,5 +29,23 @@ public class AuthController {
         LoginResponse response = authService.login(request);
 
         return  ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<AuthMeResponse> me(Authentication authentication) {
+
+        String email = authentication.getName();
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+
+        String role = user.getRole() != null ? user.getRole().getName() : null;
+
+        AuthMeResponse response = new AuthMeResponse(
+                user.getId(),
+                user.getEmail(),
+                role
+        );
+
+        return ResponseEntity.ok(response);
     }
 }
