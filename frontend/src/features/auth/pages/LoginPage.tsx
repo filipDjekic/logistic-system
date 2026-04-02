@@ -3,6 +3,6 @@ import logoMini from "../../../assets/images/logo.png";
 
 export default function LoginPage() {
   return (
-    <div>cigan</div>
+    <div>Proba</div>
   );
 }
