@@ -3,19 +3,25 @@ package rs.logistics.logistics_system.mapper;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
-import rs.logistics.logistics_system.entity.*;
+import rs.logistics.logistics_system.entity.Employee;
+import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.entity.Vehicle;
+import rs.logistics.logistics_system.entity.Warehouse;
+
+import java.math.BigDecimal;
 
 public class TransportOrderMapper {
 
     public static TransportOrder toEntity(TransportOrderCreate dto, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicle, Employee assignedEmployee, User createdBy) {
-        TransportOrder transportOrder = new TransportOrder(
+        return new TransportOrder(
                 dto.getOrderNumber(),
                 dto.getDescription(),
                 dto.getOrderDate(),
                 dto.getDepartureTime(),
                 dto.getPlannedArrivalTime(),
                 dto.getPriority(),
-                dto.getTotalWeight(),
+                BigDecimal.ZERO,
                 dto.getNotes(),
                 warehouseSource,
                 warehouseDestination,
@@ -23,11 +29,9 @@ public class TransportOrderMapper {
                 assignedEmployee,
                 createdBy
         );
-        return  transportOrder;
     }
 
-    public static void updateEntity(TransportOrderUpdate dto, TransportOrder transportOrder, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicle, Employee assignedEmployee
-    ) {
+    public static void updateEntity(TransportOrderUpdate dto, TransportOrder transportOrder, Warehouse warehouseSource, Warehouse warehouseDestination, Vehicle vehicle, Employee assignedEmployee) {
         transportOrder.setOrderNumber(dto.getOrderNumber());
         transportOrder.setDescription(dto.getDescription());
         transportOrder.setOrderDate(dto.getOrderDate());
@@ -35,7 +39,6 @@ public class TransportOrderMapper {
         transportOrder.setPlannedArrivalTime(dto.getPlannedArrivalTime());
         transportOrder.setActualArrivalTime(dto.getActualArrivalTime());
         transportOrder.setPriority(dto.getPriority());
-        transportOrder.setTotalWeight(dto.getTotalWeight());
         transportOrder.setNotes(dto.getNotes());
         transportOrder.setSourceWarehouse(warehouseSource);
         transportOrder.setDestinationWarehouse(warehouseDestination);
@@ -44,7 +47,7 @@ public class TransportOrderMapper {
     }
 
     public static TransportOrderResponse toResponse(TransportOrder transportOrder) {
-        TransportOrderResponse response = new TransportOrderResponse(
+        return new TransportOrderResponse(
                 transportOrder.getId(),
                 transportOrder.getOrderNumber(),
                 transportOrder.getDescription(),
@@ -62,7 +65,5 @@ public class TransportOrderMapper {
                 transportOrder.getAssignedEmployee().getId(),
                 transportOrder.getCreatedBy().getId()
         );
-
-        return response;
     }
 }

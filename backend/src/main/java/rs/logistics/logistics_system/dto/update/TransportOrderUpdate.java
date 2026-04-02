@@ -8,9 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.PriorityLevel;
-import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -36,19 +34,10 @@ public class TransportOrderUpdate {
     @NotNull
     private LocalDateTime plannedArrivalTime;
 
-    @NotNull
     private LocalDateTime actualArrivalTime;
 
     @NotNull
-    @Size(min = 1, max = 30)
-    private TransportOrderStatus status;
-
-    @NotNull
     private PriorityLevel priority;
-
-    @NotNull
-    @Positive
-    private BigDecimal totalWeight;
 
     @Size(min = 1, max = 255)
     private String notes;
@@ -69,19 +58,19 @@ public class TransportOrderUpdate {
     @Positive
     private Long assignedEmployeeId;
 
-    public TransportOrderUpdate(Long id,String orderNumber,
-                                  String description,
-                                  LocalDateTime orderDate,
-                                  LocalDateTime departureTime,
-                                  LocalDateTime plannedArrivalTime,
-                                  LocalDateTime actualArrivalTime,
-                                  PriorityLevel priority,
-                                  BigDecimal totalWeight,
-                                  String notes,
-                                  Long sourceWarehouseId,
-                                  Long destinationWarehouseId,
-                                  Long vehicleId,
-                                  Long assignedEmployeeId) {
+    public TransportOrderUpdate(Long id,
+                                String orderNumber,
+                                String description,
+                                LocalDateTime orderDate,
+                                LocalDateTime departureTime,
+                                LocalDateTime plannedArrivalTime,
+                                LocalDateTime actualArrivalTime,
+                                PriorityLevel priority,
+                                String notes,
+                                Long sourceWarehouseId,
+                                Long destinationWarehouseId,
+                                Long vehicleId,
+                                Long assignedEmployeeId) {
         this.id = id;
         this.orderNumber = orderNumber;
         this.description = description;
@@ -90,7 +79,6 @@ public class TransportOrderUpdate {
         this.plannedArrivalTime = plannedArrivalTime;
         this.actualArrivalTime = actualArrivalTime;
         this.priority = priority;
-        this.totalWeight = totalWeight;
         this.notes = notes;
         this.sourceWarehouseId = sourceWarehouseId;
         this.destinationWarehouseId = destinationWarehouseId;

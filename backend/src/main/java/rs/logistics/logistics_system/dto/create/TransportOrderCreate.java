@@ -8,9 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.PriorityLevel;
-import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -36,15 +34,7 @@ public class TransportOrderCreate {
     private LocalDateTime plannedArrivalTime;
 
     @NotNull
-    @Size(min = 1, max = 30)
-    private TransportOrderStatus status;
-
-    @NotNull
     private PriorityLevel priority;
-
-    @NotNull
-    @Positive
-    private BigDecimal totalWeight;
 
     @Size(min = 1, max = 255)
     private String notes;
@@ -70,9 +60,7 @@ public class TransportOrderCreate {
                                 LocalDateTime orderDate,
                                 LocalDateTime departureTime,
                                 LocalDateTime plannedArrivalTime,
-                                TransportOrderStatus status,
                                 PriorityLevel priority,
-                                BigDecimal totalWeight,
                                 String notes,
                                 Long sourceWarehouseId,
                                 Long destinationWarehouseId,
@@ -83,9 +71,7 @@ public class TransportOrderCreate {
         this.orderDate = orderDate;
         this.departureTime = departureTime;
         this.plannedArrivalTime = plannedArrivalTime;
-        this.status = status;
         this.priority = priority;
-        this.totalWeight = totalWeight;
         this.notes = notes;
         this.sourceWarehouseId = sourceWarehouseId;
         this.destinationWarehouseId = destinationWarehouseId;

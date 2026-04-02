@@ -128,11 +128,16 @@ public class UserService implements UserServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void enableUser(Long id) {
         User user = getUserOrThrow(id);
 
         if (Boolean.TRUE.equals(user.getEnabled())) {
             throw new BadRequestException("User is already enabled");
+        }
+
+        if (user.getEmployee() != null && Boolean.FALSE.equals(user.getEmployee().getActive())) {
+            throw new BadRequestException("Cannot enable user while linked employee is inactive");
         }
 
         Boolean oldEnabled = user.getEnabled();

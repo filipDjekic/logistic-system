@@ -45,6 +45,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         validateTransportOrderEditable(transportOrder);
 
         Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
+        validateProductWeight(product);
 
         validateInventoryContextForTransportOrder(transportOrder, product);
 
@@ -79,10 +80,15 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         validateTransportOrderEditable(transportOrder);
 
         Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
+        validateProductWeight(product);
 
         validateInventoryContextForTransportOrder(transportOrder, product);
 
         TransportOrderItem transportOrderItem = _transportOrderItemRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport Order Item Not Found"));
+
+        if (_transportOrderItemRepository.existsByTransportOrderIdAndProductIdAndIdNot(dto.getTransportOrderId(), dto.getProductId(), id)) {
+            throw new ConflictException("Transport Order Item Already Exists");
+        }
 
         TransportOrder previousTransportOrder = transportOrderItem.getTransportOrder();
 
@@ -237,6 +243,12 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         if (!product.isOperational()) {
             throw new BadRequestException("Product is not active");
+        }
+    }
+
+    private void validateProductWeight(Product product) {
+        if (product.getWeight() == null || product.getWeight().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Product weight must be defined and greater than zero");
         }
     }
 }

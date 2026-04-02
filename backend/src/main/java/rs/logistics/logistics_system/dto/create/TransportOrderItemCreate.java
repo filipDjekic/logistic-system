@@ -18,10 +18,6 @@ public class TransportOrderItemCreate {
     @Positive
     private BigDecimal quantity;
 
-    @NotNull
-    @Positive
-    private BigDecimal weight;
-
     @Size(min = 1, max = 255)
     private String note;
 
@@ -33,9 +29,8 @@ public class TransportOrderItemCreate {
     @Positive
     private Long productId;
 
-    public TransportOrderItemCreate(BigDecimal quantity, BigDecimal weight, String note, Long transportOrderId, Long productId) {
+    public TransportOrderItemCreate(BigDecimal quantity, String note, Long transportOrderId, Long productId) {
         this.quantity = quantity;
-        this.weight = weight;
         this.note = note;
         this.transportOrderId = transportOrderId;
         this.productId = productId;

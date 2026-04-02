@@ -261,13 +261,25 @@ public class TaskService implements TaskServiceDefinition {
     public TaskResponse assignTask(Long id, Long employeeId) {
         Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
 
+        Employee oldEmployee = task.getAssignedEmployee();
         Employee employee = getActiveEmployee(employeeId);
         validateReassign(task, employee);
 
-        Long oldEmployeeId = task.getAssignedEmployee() != null ? task.getAssignedEmployee().getId() : null;
+        Long oldEmployeeId = oldEmployee != null ? oldEmployee.getId() : null;
         task.setAssignedEmployee(employee);
 
         Task saved = _taskRepository.save(task);
+
+        if (oldEmployee != null
+                && !oldEmployee.getId().equals(employee.getId())
+                && oldEmployee.getUser() != null) {
+            notificationService.createSystemNotification(
+                    oldEmployee.getUser().getId(),
+                    "Task reassigned",
+                    "Task '" + task.getTitle() + "' is no longer assigned to you.",
+                    NotificationType.WARNING
+            );
+        }
 
         if (employee.getUser() != null) {
             notificationService.createSystemNotification(

@@ -7,29 +7,30 @@ import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.TransportOrderItem;
 
+import java.math.BigDecimal;
+
 public class TransportOrderItemMapper {
 
     public static TransportOrderItem toEntity(TransportOrderItemCreate dto, TransportOrder transportOrder, Product product) {
-        TransportOrderItem transportOrderItem = new TransportOrderItem(
+        return new TransportOrderItem(
                 dto.getQuantity(),
-                dto.getWeight(),
+                calculateWeight(product, dto.getQuantity()),
                 dto.getNote(),
                 transportOrder,
                 product
         );
-        return transportOrderItem;
     }
 
     public static void updateEntity(TransportOrderItemUpdate dto, TransportOrderItem transportOrderItem, TransportOrder transportOrder, Product product) {
         transportOrderItem.setQuantity(dto.getQuantity());
-        transportOrderItem.setWeight(dto.getWeight());
+        transportOrderItem.setWeight(calculateWeight(product, dto.getQuantity()));
         transportOrderItem.setNote(dto.getNote());
         transportOrderItem.setTransportOrder(transportOrder);
         transportOrderItem.setProduct(product);
     }
 
     public static TransportOrderItemResponse toResponse(TransportOrderItem transportOrderItem){
-        TransportOrderItemResponse transportOrderItemResponse = new TransportOrderItemResponse(
+        return new TransportOrderItemResponse(
                 transportOrderItem.getId(),
                 transportOrderItem.getQuantity(),
                 transportOrderItem.getWeight(),
@@ -37,6 +38,17 @@ public class TransportOrderItemMapper {
                 transportOrderItem.getTransportOrder().getId(),
                 transportOrderItem.getProduct().getId()
         );
-        return transportOrderItemResponse;
+    }
+
+    private static BigDecimal calculateWeight(Product product, BigDecimal quantity) {
+        if (product == null || product.getWeight() == null || product.getWeight().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("Product weight must be defined and greater than zero");
+        }
+
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("Quantity must be greater than zero");
+        }
+
+        return product.getWeight().multiply(quantity);
     }
 }
