@@ -1,14 +1,14 @@
-import type { PropsWithChildren } from "react";
-import QueryProvider from "@/app/providers/QueryProvider";
-import ThemeProvider from "@/app/providers/ThemeProvider";
-import SnackbarProvider from "@/app/providers/SnackbarProvider";
+import type { PropsWithChildren } from 'react';
+import AppThemeProvider from './ThemeProvider';
+import AppQueryProvider from './QueryProvider';
+import AppSnackbarProvider from './SnackbarProvider';
 
 export default function AppProviders({ children }: PropsWithChildren) {
   return (
-    <ThemeProvider>
-      <SnackbarProvider>
-        <QueryProvider>{children}</QueryProvider>
-      </SnackbarProvider>
-    </ThemeProvider>
+    <AppThemeProvider>
+      <AppQueryProvider>
+        <AppSnackbarProvider>{children}</AppSnackbarProvider>
+      </AppQueryProvider>
+    </AppThemeProvider>
   );
 }

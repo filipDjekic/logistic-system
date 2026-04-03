@@ -1,17 +1,17 @@
-const TOKEY_KEY = "access_token";
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-export const getToken = (): string | null => {
-    return localStorage.getItem(TOKEY_KEY);
-};
+export function getAccessToken(): string | null {
+  return localStorage.getItem(STORAGE_KEYS.accessToken);
+}
 
-export const setToken = (token: string): void => {
-    localStorage.setItem(TOKEY_KEY, token);
-};
+export function setAccessToken(token: string): void {
+  localStorage.setItem(STORAGE_KEYS.accessToken, token);
+}
 
-export const removeToken = (): void => {
-    localStorage.removeItem(TOKEY_KEY);
-};
+export function removeAccessToken(): void {
+  localStorage.removeItem(STORAGE_KEYS.accessToken);
+}
 
-export const hasToken = (): boolean => {
-    return Boolean(getToken());
-};
+export function hasAccessToken(): boolean {
+  return Boolean(getAccessToken());
+}

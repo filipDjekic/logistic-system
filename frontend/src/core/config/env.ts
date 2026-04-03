@@ -1,11 +1,19 @@
-const requiredEnv = {
-    API_BASE_URL: import.meta.env.API_BASE_URL,
+type AppEnv = {
+  appName: string;
+  apiBaseUrl: string;
 };
 
-if(!requiredEnv.API_BASE_URL) {
-    throw new Error("Missing required env variable (API_BASE_URL)");
+function getRequiredEnv(name: 'VITE_APP_NAME' | 'VITE_API_BASE_URL'): string {
+  const value = import.meta.env[name];
+
+  if (!value || typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
 }
 
-export const env = {
-    apiBaseUrl: requiredEnv.API_BASE_URL,
-} as const;
+export const appEnv: AppEnv = {
+  appName: getRequiredEnv('VITE_APP_NAME'),
+  apiBaseUrl: getRequiredEnv('VITE_API_BASE_URL'),
+};
