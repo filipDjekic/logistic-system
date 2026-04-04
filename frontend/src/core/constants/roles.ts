@@ -1,0 +1,19 @@
+export const ROLES = {
+  ADMIN: 'ADMIN',
+  USER: 'USER',
+  HR_MANAGER: 'HR_MANAGER',
+  DISPATCHER: 'DISPATCHER',
+  WAREHOUSE_MANAGER: 'WAREHOUSE_MANAGER',
+  OPERATIVE: 'OPERATIVE',
+} as const;
+
+export type Role = (typeof ROLES)[keyof typeof ROLES];
+
+export const ALL_ROLES: Role[] = [
+  ROLES.ADMIN,
+  ROLES.USER,
+  ROLES.HR_MANAGER,
+  ROLES.DISPATCHER,
+  ROLES.WAREHOUSE_MANAGER,
+  ROLES.OPERATIVE,
+];

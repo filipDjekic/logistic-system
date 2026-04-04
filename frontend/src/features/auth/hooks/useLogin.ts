@@ -39,7 +39,7 @@ export function useLogin() {
         severity: 'success',
       });
 
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     },
     onError: (error) => {
       authStore.setUnauthenticated();

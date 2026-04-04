@@ -1,14 +1,7 @@
 import axios, { type AxiosError } from 'axios';
 import { appEnv } from '../config/env';
 import { getAccessToken, removeAccessToken } from '../auth/token';
-
-export type ApiErrorResponse = {
-  timestamp: string;
-  status: number;
-  error: string;
-  message: string;
-  path: string;
-};
+import type { ApiErrorResponse } from '../../shared/types/api.types';
 
 export const apiClient = axios.create({
   baseURL: appEnv.apiBaseUrl,

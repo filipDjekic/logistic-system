@@ -1,0 +1,78 @@
+import { Autocomplete, TextField, type TextFieldProps } from '@mui/material';
+import {
+  useController,
+  type Control,
+  type FieldPath,
+  type FieldValues,
+  type RegisterOptions,
+} from 'react-hook-form';
+
+type FormAutocompleteProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+  TOption,
+> = {
+  name: TName;
+  control: Control<TFieldValues>;
+  label: string;
+  options: TOption[];
+  rules?: RegisterOptions<TFieldValues, TName>;
+  helperText?: TextFieldProps['helperText'];
+  required?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+  fullWidth?: boolean;
+  placeholder?: string;
+  getOptionLabel: (option: TOption) => string;
+  isOptionEqualToValue?: (option: TOption, value: TOption) => boolean;
+};
+
+export default function FormAutocomplete<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues>,
+  TOption,
+>({
+  name,
+  control,
+  label,
+  options,
+  rules,
+  helperText,
+  required,
+  disabled,
+  loading,
+  fullWidth = true,
+  placeholder,
+  getOptionLabel,
+  isOptionEqualToValue,
+}: FormAutocompleteProps<TFieldValues, TName, TOption>) {
+  const { field, fieldState } = useController({
+    name,
+    control,
+    rules,
+  });
+
+  return (
+    <Autocomplete<TOption, false, false, false>
+      options={options}
+      value={field.value ?? null}
+      onChange={(_, value) => field.onChange(value)}
+      onBlur={field.onBlur}
+      disabled={disabled}
+      loading={loading}
+      fullWidth={fullWidth}
+      getOptionLabel={getOptionLabel}
+      isOptionEqualToValue={isOptionEqualToValue}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label={label}
+          required={required}
+          placeholder={placeholder}
+          error={Boolean(fieldState.error)}
+          helperText={fieldState.error?.message ?? helperText}
+        />
+      )}
+    />
+  );
+}
