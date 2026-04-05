@@ -3,8 +3,10 @@ import StarterPage from './StarterPage';
 import LoginPage from '../../features/auth/pages/LoginPage';
 import DashboardPage from '../../features/dashboard/pages/DashboardPage';
 import NotificationsPage from '../../features/notifications/pages/NotificationsPage';
+import ShiftsPage from '../../features/shifts/pages/ShiftsPage';
+import MyShiftsPage from '../../features/shifts/pages/MyShiftsPage';
 import { GuestRoute, ProtectedRoute } from './guards';
-import { ALL_ROLES } from '../../core/constants/roles';
+import { ALL_ROLES, ROLES } from '../../core/constants/roles';
 import AuthLayout from '../layout/AuthLayout';
 import AppLayout from '../layout/AppLayout';
 
@@ -40,6 +42,24 @@ export const routes = [
           {
             path: '/notifications',
             element: <NotificationsPage />,
+          },
+          {
+            path: '/my-shifts',
+            element: <MyShiftsPage />,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.HR_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          {
+            path: '/shifts',
+            element: <ShiftsPage />,
           },
         ],
       },

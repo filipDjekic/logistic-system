@@ -25,6 +25,16 @@ export const routeMeta = {
     title: 'Notifications',
     breadcrumb: 'Notifications',
   },
+  shifts: {
+    path: '/shifts',
+    title: 'Shifts',
+    breadcrumb: 'Shifts',
+  },
+  myShifts: {
+    path: '/my-shifts',
+    title: 'My Shifts',
+    breadcrumb: 'My Shifts',
+  },
 } satisfies Record<string, AppRouteMeta>;
 
 export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
