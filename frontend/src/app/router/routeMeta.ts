@@ -35,9 +35,51 @@ export const routeMeta = {
     title: 'My Shifts',
     breadcrumb: 'My Shifts',
   },
+  transportOrders: {
+    path: '/transport-orders',
+    title: 'Transport Orders',
+    breadcrumb: 'Transport Orders',
+  },
+  transportOrderDetails: {
+    path: '/transport-orders/:id',
+    title: 'Transport Order Details',
+    breadcrumb: 'Transport Order Details',
+  },
+  vehicles: {
+    path: '/vehicles',
+    title: 'Vehicles',
+    breadcrumb: 'Vehicles',
+  },
+  vehicleDetails: {
+    path: '/vehicles/:id',
+    title: 'Vehicle Details',
+    breadcrumb: 'Vehicle Details',
+  },
+    inventory: {
+    path: '/inventory',
+    title: 'Inventory',
+    breadcrumb: 'Inventory',
+  },
+  inventoryDetails: {
+    path: '/inventory/:warehouseId/:productId',
+    title: 'Inventory Details',
+    breadcrumb: 'Inventory Details',
+  },
 } satisfies Record<string, AppRouteMeta>;
 
 export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
+  if (/^\/transport-orders\/\d+$/.test(pathname)) {
+    return routeMeta.transportOrderDetails;
+  }
+
+  if (/^\/vehicles\/\d+$/.test(pathname)) {
+    return routeMeta.vehicleDetails;
+  }
+
+    if (/^\/inventory\/\d+\/\d+$/.test(pathname)) {
+    return routeMeta.inventoryDetails;
+  }
+
   const entries = Object.values(routeMeta);
   return entries.find((item) => item.path === pathname) ?? null;
 }

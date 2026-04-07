@@ -5,6 +5,12 @@ import DashboardPage from '../../features/dashboard/pages/DashboardPage';
 import NotificationsPage from '../../features/notifications/pages/NotificationsPage';
 import ShiftsPage from '../../features/shifts/pages/ShiftsPage';
 import MyShiftsPage from '../../features/shifts/pages/MyShiftsPage';
+import TransportOrdersPage from '../../features/transport-orders/pages/TransportOrdersPage';
+import TransportOrderDetailsPage from '../../features/transport-orders/pages/TransportOrderDetailsPage';
+import VehiclesPage from '../../features/vehicles/pages/VehiclesPage';
+import VehicleDetailsPage from '../../features/vehicles/pages/VehicleDetailsPage';
+import InventoryPage from '../../features/inventory/pages/InventoryPage';
+import InventoryDetailsPage from '../../features/inventory/pages/InventoryDetailsPage';
 import { GuestRoute, ProtectedRoute } from './guards';
 import { ALL_ROLES, ROLES } from '../../core/constants/roles';
 import AuthLayout from '../layout/AuthLayout';
@@ -60,6 +66,58 @@ export const routes = [
           {
             path: '/shifts',
             element: <ShiftsPage />,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          {
+            path: '/transport-orders',
+            element: <TransportOrdersPage />,
+          },
+          {
+            path: '/transport-orders/:id',
+            element: <TransportOrderDetailsPage />,
+          },
+        ],
+      },
+    ],
+  },
+    {
+    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          {
+            path: '/transport-orders',
+            element: <TransportOrdersPage />,
+          },
+          {
+            path: '/transport-orders/:id',
+            element: <TransportOrderDetailsPage />,
+          },
+          {
+            path: '/vehicles',
+            element: <VehiclesPage />,
+          },
+          {
+            path: '/vehicles/:id',
+            element: <VehicleDetailsPage />,
+          },
+                    {
+            path: '/inventory',
+            element: <InventoryPage />,
+          },
+          {
+            path: '/inventory/:warehouseId/:productId',
+            element: <InventoryDetailsPage />,
           },
         ],
       },

@@ -73,6 +73,10 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   TRANSFER_IN: { label: 'Transfer In', tone: 'info' },
   TRANSFER_OUT: { label: 'Transfer Out', tone: 'primary' },
   ADJUSTMENT: { label: 'Adjustment', tone: 'neutral' },
+
+  // Derived inventory UI status
+  LOW_STOCK: { label: 'Low Stock', tone: 'warning' },
+  SUFFICIENT: { label: 'Sufficient', tone: 'success' },
 };
 
 export function getStatusConfig(value: string): StatusConfig {
