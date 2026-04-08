@@ -11,6 +11,9 @@ import VehiclesPage from '../../features/vehicles/pages/VehiclesPage';
 import VehicleDetailsPage from '../../features/vehicles/pages/VehicleDetailsPage';
 import InventoryPage from '../../features/inventory/pages/InventoryPage';
 import InventoryDetailsPage from '../../features/inventory/pages/InventoryDetailsPage';
+import StockMovementsPage from '../../features/stock-movements/pages/StockMovementsPage';
+import EmployeesPage from '../../features/employees/pages/EmployeesPage';
+import EmployeeDetailsPage from '../../features/employees/pages/EmployeeDetailsPage';
 import { GuestRoute, ProtectedRoute } from './guards';
 import { ALL_ROLES, ROLES } from '../../core/constants/roles';
 import AuthLayout from '../layout/AuthLayout';
@@ -126,6 +129,18 @@ export const routes = [
   {
     path: '*',
     element: <Navigate to="/" replace />,
+  },
+  {
+    path: '/stock-movements',
+    element: <StockMovementsPage />,
+  },
+  {
+    path: '/employees',
+    element: <EmployeesPage />,
+  },
+  {
+    path: '/employees/:id',
+    element: <EmployeeDetailsPage />,
   },
 ];
 

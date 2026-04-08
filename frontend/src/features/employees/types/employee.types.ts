@@ -1,0 +1,92 @@
+export type EmployeePosition =
+  | 'MANAGER'
+  | 'DISPATCHER'
+  | 'DRIVER'
+  | 'WAREHOUSE_OPERATOR'
+  | 'ADMINISTRATIVE_WORKER';
+
+export type EmployeeResponse = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  jmbg: string;
+  phoneNumber: string;
+  email: string;
+  position: EmployeePosition;
+  employmentDate: string;
+  salary: number;
+  userId: number | null;
+};
+
+export type EmployeeCreateRequest = {
+  firstName: string;
+  lastName: string;
+  jmbg: string;
+  phoneNumber: string;
+  email: string;
+  position: EmployeePosition;
+  employmentDate: string;
+  salary: number;
+  userId?: number;
+};
+
+export type EmployeeUpdateRequest = {
+  firstName: string;
+  lastName: string;
+  jmbg: string;
+  phoneNumber: string;
+  email: string;
+  position: EmployeePosition;
+  employmentDate: string;
+  salary: number;
+  userId?: number;
+};
+
+export type EmployeeFiltersState = {
+  search: string;
+  position: EmployeePosition | 'ALL';
+  linkedUser: 'ALL' | 'LINKED' | 'UNLINKED';
+};
+
+export type EmployeeUserOption = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  enabled: boolean;
+  status: string;
+  roleId: number;
+  roleName: string;
+};
+
+export type EmployeeTaskResponse = {
+  id: number;
+  title: string;
+  description: string | null;
+  dueDate: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status: 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  assignedEmployeeId: number;
+  transportOrderId: number | null;
+};
+
+export type EmployeeShiftResponse = {
+  id: number;
+  startTime: string;
+  endTime: string;
+  status: 'PLANNED' | 'ACTIVE' | 'FINISHED' | 'CANCELLED';
+  notes: string;
+  employeeId: number;
+};
+
+export type EmployeeFormValues = {
+  firstName: string;
+  lastName: string;
+  jmbg: string;
+  phoneNumber: string;
+  email: string;
+  position: EmployeePosition;
+  employmentDate: string;
+  salary: number | '';
+  userId: number | '';
+};

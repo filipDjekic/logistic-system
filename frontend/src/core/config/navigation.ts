@@ -5,7 +5,9 @@ import EventNoteRoundedIcon from '@mui/icons-material/EventNoteRounded';
 import LocalShippingRoundedIcon from '@mui/icons-material/LocalShippingRounded';
 import DirectionsCarFilledRoundedIcon from '@mui/icons-material/DirectionsCarFilledRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import SyncAltRoundedIcon from '@mui/icons-material/SyncAltRounded';
 import type { SvgIconComponent } from '@mui/icons-material';
+import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import { ALL_ROLES, ROLES, type Role } from '../constants/roles';
 
 export type NavigationItem = {
@@ -63,7 +65,21 @@ export const navigationItems: NavigationItem[] = [
     key: 'inventory',
     label: 'Inventory',
     to: '/inventory',
-    roles: [ROLES.ADMIN],
+    roles: ALL_ROLES,
     icon: Inventory2RoundedIcon,
+  },
+  {
+    key: 'stock-movements',
+    label: 'Stock Movements',
+    to: '/stock-movements',
+    roles: ALL_ROLES,
+    icon: SyncAltRoundedIcon,
+  },
+  {
+    key: 'employees',
+    label: 'Employees',
+    to: '/employees',
+    roles: [ROLES.ADMIN, ROLES.HR_MANAGER],
+    icon: GroupsRoundedIcon,
   },
 ];
