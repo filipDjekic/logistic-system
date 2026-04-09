@@ -1,0 +1,76 @@
+import { z } from 'zod';
+
+export const userStatusOptions = ['ACTIVE', 'INACTIVE', 'BLOCKED'] as const;
+
+const emailPattern = /^[a-z]+\.[a-z]+@[a-z]+\.[a-z]+\.[a-z]{2,}$/;
+
+const roleIdSchema = z
+  .string()
+  .trim()
+  .min(1, 'Role is required')
+  .refine((value) => !Number.isNaN(Number(value)) && Number(value) > 0, {
+    message: 'Selected role is not valid',
+  });
+
+export const createUserSchema = z.object({
+  password: z
+    .string()
+    .trim()
+    .min(1, 'Password is required')
+    .max(255, 'Password must be at most 255 characters'),
+  firstName: z
+    .string()
+    .trim()
+    .min(1, 'First name is required')
+    .max(60, 'First name must be at most 60 characters'),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, 'Last name is required')
+    .max(60, 'Last name must be at most 60 characters'),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email is required')
+    .max(50, 'Email must be at most 50 characters')
+    .email('Email is not valid')
+    .regex(
+      emailPattern,
+      'Email must be in format firstName.lastName@firm.sector.countryCode',
+    ),
+  roleId: roleIdSchema,
+  status: z.enum(userStatusOptions, {
+    message: 'Status is required',
+  }),
+});
+
+export const updateUserSchema = z.object({
+  firstName: z
+    .string()
+    .trim()
+    .min(1, 'First name is required')
+    .max(60, 'First name must be at most 60 characters'),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, 'Last name is required')
+    .max(60, 'Last name must be at most 60 characters'),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email is required')
+    .max(50, 'Email must be at most 50 characters')
+    .email('Email is not valid')
+    .regex(
+      emailPattern,
+      'Email must be in format firstName.lastName@firm.sector.countryCode',
+    ),
+  roleId: roleIdSchema,
+  enabled: z.boolean(),
+  status: z.enum(userStatusOptions, {
+    message: 'Status is required',
+  }),
+});
+
+export type CreateUserFormSchemaValues = z.infer<typeof createUserSchema>;
+export type UpdateUserFormSchemaValues = z.infer<typeof updateUserSchema>;

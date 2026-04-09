@@ -66,9 +66,9 @@ export const routeMeta = {
     breadcrumb: 'Inventory Details',
   },
   stockMovements: {
-  path: '/stock-movements',
-  title: 'Stock Movements',
-  breadcrumb: 'Stock Movements',
+    path: '/stock-movements',
+    title: 'Stock Movements',
+    breadcrumb: 'Stock Movements',
   },
     employees: {
     path: '/employees',
@@ -79,6 +79,16 @@ export const routeMeta = {
     path: '/employees/:id',
     title: 'Employee Details',
     breadcrumb: 'Employee Details',
+  },
+    users: {
+    path: '/users',
+    title: 'Users',
+    breadcrumb: 'Users',
+  },
+  userDetails: {
+    path: '/users/:id',
+    title: 'User Details',
+    breadcrumb: 'User Details',
   },
 } satisfies Record<string, AppRouteMeta>;
 
@@ -97,6 +107,10 @@ export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
 
   if (/^\/employees\/\d+$/.test(pathname)) {
     return routeMeta.employeeDetails;
+  }
+
+  if (/^\/users\/\d+$/.test(pathname)) {
+    return routeMeta.userDetails;
   }
 
   const entries = Object.values(routeMeta);

@@ -82,4 +82,11 @@ export const navigationItems: NavigationItem[] = [
     roles: [ROLES.ADMIN, ROLES.HR_MANAGER],
     icon: GroupsRoundedIcon,
   },
+  {
+    key: 'users',
+    label: 'Users',
+    to: '/users',
+    roles: [ROLES.ADMIN, ROLES.HR_MANAGER],
+    icon: GroupsRoundedIcon,
+  },
 ];

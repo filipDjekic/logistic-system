@@ -14,6 +14,8 @@ import InventoryDetailsPage from '../../features/inventory/pages/InventoryDetail
 import StockMovementsPage from '../../features/stock-movements/pages/StockMovementsPage';
 import EmployeesPage from '../../features/employees/pages/EmployeesPage';
 import EmployeeDetailsPage from '../../features/employees/pages/EmployeeDetailsPage';
+import UsersPage from '../../features/users/pages/UsersPage';
+import UserDetailsPage from '../../features/users/pages/UserDetailsPage';
 import { GuestRoute, ProtectedRoute } from './guards';
 import { ALL_ROLES, ROLES } from '../../core/constants/roles';
 import AuthLayout from '../layout/AuthLayout';
@@ -92,7 +94,7 @@ export const routes = [
       },
     ],
   },
-    {
+  {
     element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
     children: [
       {
@@ -141,6 +143,34 @@ export const routes = [
   {
     path: '/employees/:id',
     element: <EmployeeDetailsPage />,
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.HR_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          {
+            path: '/users',
+            element: <UsersPage />,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          {
+            path: '/users/:id',
+            element: <UserDetailsPage />,
+          },
+        ],
+      },
+    ],
   },
 ];
 
