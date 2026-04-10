@@ -2,7 +2,6 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.ShiftCreate;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
@@ -15,8 +14,6 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
-import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.ShiftServiceDefinition;
 
@@ -35,12 +32,10 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse create(ShiftCreate dto) {
-        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = _employeeRepository.findById(dto.getEmployeeId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        if (!employee.getUser().getEnabled()) {
-            throw new BadRequestException("Inactive employee cannot be assigned to a shift.");
-        }
-
+        validateEmployeeCanBeAssignedToShift(employee);
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
         validateShiftOverlap(employee.getId(), dto.getStartTime(), dto.getEndTime());
 
@@ -62,7 +57,8 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse update(Long id, ShiftUpdate dto) {
-        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        Shift shift = _shiftRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
 
         validateShiftCanBeModified(shift);
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
@@ -94,18 +90,24 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse getById(Long id) {
-        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        Shift shift = _shiftRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+
         return ShiftMapper.toResponse(shift);
     }
 
     @Override
     public List<ShiftResponse> getAll() {
-        return _shiftRepository.findAll().stream().map(ShiftMapper::toResponse).collect(Collectors.toList());
+        return _shiftRepository.findAll()
+                .stream()
+                .map(ShiftMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public void delete(Long id) {
-        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        Shift shift = _shiftRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
 
         validateShiftCanBeDeleted(shift);
 
@@ -125,26 +127,34 @@ public class ShiftService implements ShiftServiceDefinition {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
 
-        return _shiftRepository.findShiftsForDay(start, end).stream().map(ShiftMapper::toResponse).collect(Collectors.toList());
+        return _shiftRepository.findShiftsForDay(start, end)
+                .stream()
+                .map(ShiftMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<ShiftResponse> getShiftBetweenDates(LocalDateTime start, LocalDateTime end) {
         validateShiftTime(start, end);
 
-        return _shiftRepository.findShiftByBetweenDates(start, end).stream().map(ShiftMapper::toResponse).collect(Collectors.toList());
+        return _shiftRepository.findShiftByBetweenDates(start, end)
+                .stream()
+                .map(ShiftMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public void cancelShift(Long id) {
-        Shift shift = _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        Shift shift = _shiftRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
 
         validateShiftCanBeCancelled(shift);
 
+        ShiftStatus oldStatus = shift.getStatus();
         shift.setStatus(ShiftStatus.CANCELLED);
         _shiftRepository.save(shift);
 
-        auditFacade.recordStatusChange("SHIFT", id, "status", ShiftStatus.PLANNED, ShiftStatus.CANCELLED);
+        auditFacade.recordStatusChange("SHIFT", id, "status", oldStatus, ShiftStatus.CANCELLED);
         auditFacade.log(
                 "SHIFT_CANCELLED",
                 "SHIFT",
@@ -155,16 +165,14 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse assignShiftToEmployee(Long shiftId, Long employeeId) {
-        Shift shift = _shiftRepository.findById(shiftId).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        Shift shift = _shiftRepository.findById(shiftId)
+                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
 
-        Employee employee = _employeeRepository.findById(employeeId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = _employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        if (!employee.getUser().getEnabled()) {
-            throw new BadRequestException("Inactive employee cannot be assigned to a shift.");
-        }
-
+        validateEmployeeCanBeAssignedToShift(employee);
         validateShiftCanBeReassigned(shift);
-
         validateShiftOverlapForUpdate(
                 employee.getId(),
                 shift.getId(),
@@ -177,7 +185,7 @@ public class ShiftService implements ShiftServiceDefinition {
             oldEmployee.getShifts().remove(shift);
         }
 
-        Long oldEmployeeId = shift.getEmployee() != null ? shift.getEmployee().getId() : null;
+        Long oldEmployeeId = oldEmployee != null ? oldEmployee.getId() : null;
 
         shift.setEmployee(employee);
         employee.getShifts().add(shift);
@@ -196,7 +204,19 @@ public class ShiftService implements ShiftServiceDefinition {
         return ShiftMapper.toResponse(updatedShift);
     }
 
-    // helpers
+    private void validateEmployeeCanBeAssignedToShift(Employee employee) {
+        if (!Boolean.TRUE.equals(employee.getActive())) {
+            throw new BadRequestException("Inactive employee cannot be assigned to a shift.");
+        }
+
+        if (employee.getUser() == null) {
+            throw new BadRequestException("Employee without a user account cannot be assigned to a shift.");
+        }
+
+        if (!Boolean.TRUE.equals(employee.getUser().getEnabled())) {
+            throw new BadRequestException("Employee with a disabled user account cannot be assigned to a shift.");
+        }
+    }
 
     private void validateShiftTime(LocalDateTime startTime, LocalDateTime endTime) {
         if (startTime == null || endTime == null) {

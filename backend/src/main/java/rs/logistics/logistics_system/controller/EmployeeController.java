@@ -1,19 +1,29 @@
 package rs.logistics.logistics_system.controller;
 
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.EmployeeCreate;
+import rs.logistics.logistics_system.dto.create.EmployeeWithUserCreate;
 import rs.logistics.logistics_system.dto.response.EmployeeResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/employees")
@@ -26,6 +36,13 @@ public class EmployeeController {
     @PostMapping
     public ResponseEntity<EmployeeResponse> createUser(@Valid @RequestBody EmployeeCreate dto) {
         EmployeeResponse response = employeeService.create(dto);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER')")
+    @PostMapping("/with-user")
+    public ResponseEntity<EmployeeResponse> createWithUser(@Valid @RequestBody EmployeeWithUserCreate dto) {
+        EmployeeResponse response = employeeService.createWithUser(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
@@ -64,9 +81,9 @@ public class EmployeeController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteById(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         employeeService.delete(id);
         return ResponseEntity.noContent().build();
     }

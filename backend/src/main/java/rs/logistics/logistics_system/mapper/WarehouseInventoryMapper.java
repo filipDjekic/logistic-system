@@ -6,7 +6,6 @@ import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
-import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 
 public class WarehouseInventoryMapper {
 

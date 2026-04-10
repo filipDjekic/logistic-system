@@ -90,6 +90,16 @@ export const routeMeta = {
     title: 'User Details',
     breadcrumb: 'User Details',
   },
+  activityLogs: {
+    path: '/activity-logs',
+    title: 'Activity Logs',
+    breadcrumb: 'Activity Logs',
+  },
+  changeHistory: {
+    path: '/change-history',
+    title: 'Change History',
+    breadcrumb: 'Change History',
+  },
 } satisfies Record<string, AppRouteMeta>;
 
 export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {

@@ -5,6 +5,8 @@ export type EmployeePosition =
   | 'WAREHOUSE_OPERATOR'
   | 'ADMINISTRATIVE_WORKER';
 
+export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
+
 export type EmployeeResponse = {
   id: number;
   firstName: string;
@@ -28,6 +30,20 @@ export type EmployeeCreateRequest = {
   employmentDate: string;
   salary: number;
   userId?: number;
+};
+
+export type EmployeeCreateWithUserRequest = {
+  firstName: string;
+  lastName: string;
+  jmbg: string;
+  phoneNumber: string;
+  email: string;
+  position: EmployeePosition;
+  employmentDate: string;
+  salary: number;
+  password: string;
+  roleId: number;
+  status: UserStatus;
 };
 
 export type EmployeeUpdateRequest = {
@@ -59,6 +75,12 @@ export type EmployeeUserOption = {
   roleName: string;
 };
 
+export type EmployeeRoleOption = {
+  id: number;
+  name: string;
+  description: string | null;
+};
+
 export type EmployeeTaskResponse = {
   id: number;
   title: string;
@@ -87,6 +109,9 @@ export type EmployeeFormValues = {
   email: string;
   position: EmployeePosition;
   employmentDate: string;
-  salary: number | '';
-  userId: number | '';
+  salary: string;
+  userId: string;
+  password: string;
+  roleId: string;
+  status: UserStatus;
 };

@@ -3,15 +3,21 @@ import {
   alpha,
   Avatar,
   Box,
+  IconButton,
   Menu,
   MenuItem,
   Stack,
   Typography,
 } from '@mui/material';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import { authStore, useAuthStore } from '../../core/auth/authStore';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
+
+type TopbarProps = {
+  onOpenSidebar: () => void;
+};
 
 function getInitial(email: string | undefined) {
   if (!email) {
@@ -21,7 +27,7 @@ function getInitial(email: string | undefined) {
   return email.charAt(0).toUpperCase();
 }
 
-export default function Topbar() {
+export default function Topbar({ onOpenSidebar }: TopbarProps) {
   const auth = useAuthStore();
   const [userAnchorEl, setUserAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -54,11 +60,21 @@ export default function Topbar() {
           gap: 2,
         }}
       >
-        <Stack spacing={0.25}>
-          <Typography variant="h6">Logistics System</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Private workspace
-          </Typography>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <IconButton
+            onClick={onOpenSidebar}
+            sx={{ display: { xs: 'inline-flex', lg: 'none' } }}
+            aria-label="Open navigation"
+          >
+            <MenuRoundedIcon />
+          </IconButton>
+
+          <Stack spacing={0.25}>
+            <Typography variant="h6">Logistics System</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Operational workspace
+            </Typography>
+          </Stack>
         </Stack>
 
         <Stack direction="row" spacing={1} alignItems="center">
@@ -106,7 +122,6 @@ export default function Topbar() {
           sx: {
             width: 280,
             mt: 1,
-            borderRadius: 2,
           },
         }}
       >

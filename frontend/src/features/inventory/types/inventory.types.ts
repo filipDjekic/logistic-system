@@ -18,20 +18,14 @@ export type InventoryWarehouseOption = {
   employeeId: number | null;
 };
 
-export type ProductUnit =
-  | 'PIECE'
-  | 'KILOGRAM'
-  | 'LITER'
-  | 'METER'
-  | 'BOX'
-  | 'PALLET';
+export type ProductUnit = 'PIECE' | 'KG' | 'LITER' | 'BOX' | 'PALLET';
 
 export type InventoryProductOption = {
   id: number;
   name: string;
   description: string | null;
   sku: string;
-  unit: ProductUnit | string;
+  unit: ProductUnit;
   price: number;
   fragile: boolean;
   weight: number;
@@ -45,7 +39,7 @@ export type InventoryListRow = WarehouseInventoryResponse & {
   warehouseStatus: WarehouseStatus;
   productName: string;
   productSku: string;
-  productUnit: string;
+  productUnit: ProductUnit;
   availableQuantity: number;
   derivedStatus: DerivedInventoryStatus;
 };

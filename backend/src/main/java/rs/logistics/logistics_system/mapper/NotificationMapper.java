@@ -2,7 +2,6 @@ package rs.logistics.logistics_system.mapper;
 
 import rs.logistics.logistics_system.dto.create.NotificationCreate;
 import rs.logistics.logistics_system.dto.response.NotificationResponse;
-import rs.logistics.logistics_system.dto.update.NotificationUpdate;
 import rs.logistics.logistics_system.entity.Notification;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.NotificationStatus;

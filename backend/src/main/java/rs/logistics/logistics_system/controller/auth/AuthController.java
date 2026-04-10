@@ -1,15 +1,20 @@
 package rs.logistics.logistics_system.controller.auth;
 
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
 import rs.logistics.logistics_system.dto.auth.AuthMeResponse;
 import rs.logistics.logistics_system.dto.auth.LoginRequest;
 import rs.logistics.logistics_system.dto.auth.LoginResponse;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.UserRepository;
-import rs.logistics.logistics_system.security.CustomUserDetailsService;
 import rs.logistics.logistics_system.service.definition.auth.AuthServiceDefinition;
 
 @RestController
@@ -25,18 +30,21 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request){
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
-
-        return  ResponseEntity.ok(response);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/me")
     public ResponseEntity<AuthMeResponse> me(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new ResourceNotFoundException("Authenticated user not found");
+        }
 
         String email = authentication.getName();
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         String role = user.getRole() != null ? user.getRole().getName() : null;
 

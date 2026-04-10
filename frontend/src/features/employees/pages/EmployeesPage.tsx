@@ -13,6 +13,7 @@ import { useUpdateEmployee } from '../hooks/useUpdateEmployee';
 import type {
   EmployeeFiltersState,
   EmployeeResponse,
+  EmployeeRoleOption,
   EmployeeUserOption,
 } from '../types/employee.types';
 import { employeePositionOptions, type EmployeeFormValues } from '../validation/employeeSchema';
@@ -37,10 +38,18 @@ export default function EmployeesPage() {
     refetchOnWindowFocus: false,
   });
 
+  const rolesQuery = useQuery({
+    queryKey: ['roles', 'all'],
+    queryFn: employeesApi.getRoles,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
   const createEmployeeMutation = useCreateEmployee();
   const updateEmployeeMutation = useUpdateEmployee();
 
   const users = useMemo<EmployeeUserOption[]>(() => usersQuery.data ?? [], [usersQuery.data]);
+  const roles = useMemo<EmployeeRoleOption[]>(() => rolesQuery.data ?? [], [rolesQuery.data]);
 
   const usersById = useMemo<Record<number, EmployeeUserOption>>(
     () =>
@@ -82,24 +91,27 @@ export default function EmployeesPage() {
     createEmployeeMutation.isPending || updateEmployeeMutation.isPending;
 
   const handleSubmit = (values: EmployeeFormValues) => {
-    const payload = {
-      firstName: values.firstName,
-      lastName: values.lastName,
-      jmbg: values.jmbg,
-      phoneNumber: values.phoneNumber,
-      email: values.email,
-      position: values.position,
-      employmentDate: values.employmentDate,
-      salary: Number(values.salary),
-      userId: values.userId.trim() === '' ? undefined : Number(values.userId),
-    };
-
     if (dialogMode === 'create') {
-      createEmployeeMutation.mutate(payload, {
-        onSuccess: () => {
-          setDialogOpen(false);
+      createEmployeeMutation.mutate(
+        {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          jmbg: values.jmbg,
+          phoneNumber: values.phoneNumber,
+          email: values.email,
+          position: values.position,
+          employmentDate: values.employmentDate,
+          salary: Number(values.salary),
+          password: values.password,
+          roleId: Number(values.roleId),
+          status: values.status,
         },
-      });
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+          },
+        },
+      );
       return;
     }
 
@@ -110,7 +122,17 @@ export default function EmployeesPage() {
     updateEmployeeMutation.mutate(
       {
         id: selectedEmployee.id,
-        data: payload,
+        data: {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          jmbg: values.jmbg,
+          phoneNumber: values.phoneNumber,
+          email: values.email,
+          position: values.position,
+          employmentDate: values.employmentDate,
+          salary: Number(values.salary),
+          userId: values.userId.trim() === '' ? undefined : Number(values.userId),
+        },
       },
       {
         onSuccess: () => {
@@ -125,10 +147,11 @@ export default function EmployeesPage() {
       <PageHeader
         overline="Workforce"
         title="Employees"
-        description="Manage employee records using confirmed backend employee fields and user linking."
+        description="Create employees together with system access or edit existing employee records."
         actions={
           <Button
             variant="contained"
+            disabled={rolesQuery.isLoading || rolesQuery.isError}
             onClick={() => {
               setDialogMode('create');
               setSelectedEmployee(null);
@@ -142,7 +165,7 @@ export default function EmployeesPage() {
 
       <SectionCard
         title="Employee list"
-        description="The current backend returns employee identity, position, salary, employment date and linked user ID."
+        description="Employee creation now uses a unified employee + user flow, while edit mode preserves current linking support."
       >
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5}>
@@ -194,9 +217,15 @@ export default function EmployeesPage() {
 
             <Button
               variant="outlined"
-              disabled={employeesQuery.isFetching || usersQuery.isFetching}
+              disabled={
+                employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching
+              }
               onClick={() => {
-                void Promise.all([employeesQuery.refetch(), usersQuery.refetch()]);
+                void Promise.all([
+                  employeesQuery.refetch(),
+                  usersQuery.refetch(),
+                  rolesQuery.refetch(),
+                ]);
               }}
             >
               Refresh
@@ -206,10 +235,16 @@ export default function EmployeesPage() {
           <EmployeesTable
             rows={filteredRows}
             usersById={usersById}
-            loading={employeesQuery.isLoading || usersQuery.isLoading}
-            error={employeesQuery.isError || usersQuery.isError}
+            loading={
+              employeesQuery.isLoading || usersQuery.isLoading || rolesQuery.isLoading
+            }
+            error={employeesQuery.isError || usersQuery.isError || rolesQuery.isError}
             onRetry={() => {
-              void Promise.all([employeesQuery.refetch(), usersQuery.refetch()]);
+              void Promise.all([
+                employeesQuery.refetch(),
+                usersQuery.refetch(),
+                rolesQuery.refetch(),
+              ]);
             }}
             onEdit={(employee) => {
               setDialogMode('edit');
@@ -227,6 +262,7 @@ export default function EmployeesPage() {
         mode={dialogMode}
         initialData={selectedEmployee}
         users={users}
+        roles={roles}
         loading={isSaving}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}

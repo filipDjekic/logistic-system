@@ -1,4 +1,13 @@
-import { Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Toolbar } from '@mui/material';
+import {
+  Box,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Toolbar,
+  Typography,
+} from '@mui/material';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../core/auth/authStore';
 import { canAccess } from '../../core/permissions/canAccess';
@@ -11,7 +20,7 @@ type SidebarProps = {
   onMobileClose: () => void;
 };
 
-function SidebarContent() {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const auth = useAuthStore();
 
   const allowedItems = navigationItems.filter((item) =>
@@ -25,8 +34,12 @@ function SidebarContent() {
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Toolbar sx={{ minHeight: '72px !important', px: 2.5 }}>
         <Box>
-          <Box sx={{ fontWeight: 800, fontSize: 18, lineHeight: 1.2 }}>Logistics System</Box>
-          <Box sx={{ fontSize: 13, color: 'text.secondary' }}>Enterprise workspace</Box>
+          <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
+            Logistics System
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Enterprise workspace
+          </Typography>
         </Box>
       </Toolbar>
 
@@ -40,9 +53,11 @@ function SidebarContent() {
                 key={item.key}
                 component={NavLink}
                 to={item.to}
+                onClick={onNavigate}
                 sx={{
-                  borderRadius: 2,
+                  borderRadius: 2.5,
                   mb: 0.5,
+                  minHeight: 48,
                   '&.active': {
                     backgroundColor: 'action.selected',
                   },
@@ -51,7 +66,12 @@ function SidebarContent() {
                 <ListItemIcon sx={{ minWidth: 40 }}>
                   <Icon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText primary={item.label} />
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontWeight: 600,
+                  }}
+                />
               </ListItemButton>
             );
           })}
@@ -77,7 +97,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           },
         }}
       >
-        <SidebarContent />
+        <SidebarContent onNavigate={onMobileClose} />
       </Drawer>
 
       <Drawer

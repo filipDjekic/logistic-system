@@ -3,6 +3,7 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import type { TableCellProps } from '@mui/material/TableCell';
 
 export type RowId = string | number;
+export type Nullable<T> = T | null;
 
 export type PaginationState = {
   page: number;

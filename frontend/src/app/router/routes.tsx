@@ -16,6 +16,8 @@ import EmployeesPage from '../../features/employees/pages/EmployeesPage';
 import EmployeeDetailsPage from '../../features/employees/pages/EmployeeDetailsPage';
 import UsersPage from '../../features/users/pages/UsersPage';
 import UserDetailsPage from '../../features/users/pages/UserDetailsPage';
+import ActivityLogsPage from '../../features/activity-logs/pages/ActivityLogsPage';
+import ChangeHistoryPage from '../../features/change-history/pages/ChangeHistoryPage';
 import { GuestRoute, ProtectedRoute } from './guards';
 import { ALL_ROLES, ROLES } from '../../core/constants/roles';
 import AuthLayout from '../layout/AuthLayout';
@@ -72,23 +74,17 @@ export const routes = [
             path: '/shifts',
             element: <ShiftsPage />,
           },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
-    children: [
-      {
-        element: <AppLayout />,
-        children: [
           {
-            path: '/transport-orders',
-            element: <TransportOrdersPage />,
+            path: '/employees',
+            element: <EmployeesPage />,
           },
           {
-            path: '/transport-orders/:id',
-            element: <TransportOrderDetailsPage />,
+            path: '/employees/:id',
+            element: <EmployeeDetailsPage />,
+          },
+          {
+            path: '/users',
+            element: <UsersPage />,
           },
         ],
       },
@@ -116,13 +112,29 @@ export const routes = [
             path: '/vehicles/:id',
             element: <VehicleDetailsPage />,
           },
-                    {
+          {
             path: '/inventory',
             element: <InventoryPage />,
           },
           {
             path: '/inventory/:warehouseId/:productId',
             element: <InventoryDetailsPage />,
+          },
+          {
+            path: '/stock-movements',
+            element: <StockMovementsPage />,
+          },
+          {
+            path: '/users/:id',
+            element: <UserDetailsPage />,
+          },
+          {
+            path: '/activity-logs',
+            element: <ActivityLogsPage />,
+          },
+          {
+            path: '/change-history',
+            element: <ChangeHistoryPage />,
           },
         ],
       },
@@ -131,46 +143,6 @@ export const routes = [
   {
     path: '*',
     element: <Navigate to="/" replace />,
-  },
-  {
-    path: '/stock-movements',
-    element: <StockMovementsPage />,
-  },
-  {
-    path: '/employees',
-    element: <EmployeesPage />,
-  },
-  {
-    path: '/employees/:id',
-    element: <EmployeeDetailsPage />,
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.HR_MANAGER]} />,
-    children: [
-      {
-        element: <AppLayout />,
-        children: [
-          {
-            path: '/users',
-            element: <UsersPage />,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
-    children: [
-      {
-        element: <AppLayout />,
-        children: [
-          {
-            path: '/users/:id',
-            element: <UserDetailsPage />,
-          },
-        ],
-      },
-    ],
   },
 ];
 

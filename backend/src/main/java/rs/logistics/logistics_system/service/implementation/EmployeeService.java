@@ -1,14 +1,21 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.EmployeeCreate;
+import rs.logistics.logistics_system.dto.create.EmployeeWithUserCreate;
 import rs.logistics.logistics_system.dto.response.EmployeeResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
 import rs.logistics.logistics_system.entity.Employee;
+import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -16,15 +23,13 @@ import rs.logistics.logistics_system.mapper.EmployeeMapper;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,9 +39,11 @@ public class EmployeeService implements EmployeeServiceDefinition {
     private final TaskRepository _taskRepository;
     private final ShiftRepository _shiftRepository;
     private final UserRepository _userRepository;
+    private final RoleRepository _roleRepository;
 
     private final UserServiceDefinition userService;
     private final AuditFacadeDefinition auditFacade;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -44,7 +51,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         User user = resolveOptionalUser(dto.getUserId());
 
         validateUniqueJmbg(dto.getJmbg());
-        validateUniqueEmail(dto.getEmail());
+        validateUniqueEmployeeEmail(dto.getEmail());
 
         if (user != null) {
             validateUserNotAlreadyAssigned(user.getId());
@@ -66,8 +73,66 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     @Transactional
+    public EmployeeResponse createWithUser(EmployeeWithUserCreate dto) {
+        validateUniqueJmbg(dto.getJmbg());
+        validateUniqueEmployeeEmail(dto.getEmail());
+        validateUniqueUserEmail(dto.getEmail());
+
+        Role role = _roleRepository.findById(dto.getRoleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
+
+        User user = new User(
+                passwordEncoder.encode(dto.getPassword()),
+                dto.getFirstName(),
+                dto.getLastName(),
+                dto.getEmail(),
+                dto.getStatus(),
+                role
+        );
+        user.setEnabled(true);
+
+        User savedUser = _userRepository.save(user);
+
+        Employee employee = new Employee(
+                dto.getFirstName(),
+                dto.getLastName(),
+                dto.getJmbg(),
+                dto.getPhoneNumber(),
+                dto.getEmail(),
+                dto.getPosition(),
+                dto.getEmploymentDate(),
+                dto.getSalary(),
+                savedUser
+        );
+
+        Employee savedEmployee = _employeeRepository.save(employee);
+
+        auditFacade.recordCreate("USER", savedUser.getId());
+        auditFacade.log(
+                "CREATE",
+                "USER",
+                savedUser.getId(),
+                "USER is created through employee onboarding flow (ID: " + savedUser.getId() + ")"
+        );
+
+        auditFacade.recordCreate("EMPLOYEE", savedEmployee.getId());
+        auditFacade.log(
+                "CREATE",
+                "EMPLOYEE",
+                savedEmployee.getId(),
+                "EMPLOYEE is created together with USER (ID: " + savedEmployee.getId() + ")"
+        );
+
+        auditFacade.recordFieldChange("EMPLOYEE", savedEmployee.getId(), "userId", null, savedUser.getId());
+
+        return EmployeeMapper.toResponse(savedEmployee);
+    }
+
+    @Override
+    @Transactional
     public EmployeeResponse update(Long id, EmployeeUpdate dto) {
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = _employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         User user = resolveOptionalUser(dto.getUserId());
 
@@ -118,7 +183,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public EmployeeResponse getById(Long id) {
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = _employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         return EmployeeMapper.toResponse(employee);
     }
 
@@ -133,7 +199,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
     @Override
     @Transactional
     public void delete(Long id) {
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = _employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         boolean hasHistory =
                 (employee.getShifts() != null && !employee.getShifts().isEmpty()) ||
@@ -166,7 +233,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public List<TaskResponse> getTasksByEmployeeId(Long id) {
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = _employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         return _taskRepository.findByAssignedEmployeeId(employee.getId())
                 .stream()
@@ -176,7 +244,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public List<ShiftResponse> getShiftsByEmployeeId(Long id) {
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = _employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         return _shiftRepository.findByEmployeeId(employee.getId())
                 .stream()
@@ -187,7 +256,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
     @Override
     @Transactional
     public void terminateEmployee(Long id) {
-        Employee employee = _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = _employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         if (Boolean.FALSE.equals(employee.getActive())) {
             throw new BadRequestException("Employee is already inactive");
@@ -215,7 +285,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
             return null;
         }
 
-        return _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return _userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     private void validateUserNotAlreadyAssigned(Long userId) {
@@ -250,7 +321,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         }
     }
 
-    private void validateUniqueEmail(String email) {
+    private void validateUniqueEmployeeEmail(String email) {
         String normalizedEmail = normalizeEmail(email);
 
         if (_employeeRepository.existsByEmailIgnoreCase(normalizedEmail)) {
@@ -263,6 +334,14 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         if (_employeeRepository.existsByEmailIgnoreCaseAndIdNot(normalizedEmail, employeeId)) {
             throw new BadRequestException("Employee with this email already exists");
+        }
+    }
+
+    private void validateUniqueUserEmail(String email) {
+        String normalizedEmail = normalizeEmail(email);
+
+        if (_userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+            throw new BadRequestException("User with this email already exists");
         }
     }
 

@@ -1,7 +1,9 @@
 import { apiClient } from '../../../core/api/client';
 import type {
   EmployeeCreateRequest,
+  EmployeeCreateWithUserRequest,
   EmployeeResponse,
+  EmployeeRoleOption,
   EmployeeShiftResponse,
   EmployeeTaskResponse,
   EmployeeUpdateRequest,
@@ -17,6 +19,12 @@ type UserResponse = {
   status: string;
   roleId: number;
   roleName: string;
+};
+
+type RoleResponse = {
+  id: number;
+  name: string;
+  description: string | null;
 };
 
 export const employeesApi = {
@@ -35,6 +43,12 @@ export const employeesApi = {
   create(payload: EmployeeCreateRequest) {
     return apiClient
       .post<EmployeeResponse>('/api/employees', payload)
+      .then((response) => response.data);
+  },
+
+  createWithUser(payload: EmployeeCreateWithUserRequest) {
+    return apiClient
+      .post<EmployeeResponse>('/api/employees/with-user', payload)
       .then((response) => response.data);
   },
 
@@ -73,6 +87,18 @@ export const employeesApi = {
           status: user.status,
           roleId: user.roleId,
           roleName: user.roleName,
+        })),
+      );
+  },
+
+  getRoles() {
+    return apiClient
+      .get<RoleResponse[]>('/api/roles')
+      .then((response) =>
+        response.data.map<EmployeeRoleOption>((role) => ({
+          id: role.id,
+          name: role.name,
+          description: role.description,
         })),
       );
   },

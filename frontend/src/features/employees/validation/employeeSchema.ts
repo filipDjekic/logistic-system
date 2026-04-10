@@ -8,7 +8,9 @@ export const employeePositionOptions = [
   'ADMINISTRATIVE_WORKER',
 ] as const;
 
-export const employeeSchema = z.object({
+export const userStatusOptions = ['ACTIVE', 'INACTIVE', 'BLOCKED'] as const;
+
+const employeeFormSchemaBase = z.object({
   firstName: z
     .string()
     .trim()
@@ -33,7 +35,8 @@ export const employeeSchema = z.object({
     .string()
     .trim()
     .min(1, 'Email is required')
-    .max(30, 'Email must be at most 30 characters'),
+    .email('Email is not valid')
+    .max(50, 'Email must be at most 50 characters'),
   position: z.enum(employeePositionOptions, {
     message: 'Position is required',
   }),
@@ -51,12 +54,57 @@ export const employeeSchema = z.object({
     .refine((value) => Number(value) > 0, {
       message: 'Salary must be greater than 0',
     }),
-  userId: z
-    .string()
-    .trim()
-    .refine((value) => value === '' || (!Number.isNaN(Number(value)) && Number(value) > 0), {
-      message: 'Selected user is not valid',
-    }),
+  userId: z.string().trim(),
+  password: z.string().trim(),
+  roleId: z.string().trim(),
+  status: z.enum(userStatusOptions),
 });
 
-export type EmployeeFormValues = z.infer<typeof employeeSchema>;
+export type EmployeeFormValues = z.infer<typeof employeeFormSchemaBase>;
+
+export function getEmployeeFormSchema(mode: 'create' | 'edit') {
+  return employeeFormSchemaBase.superRefine((values, ctx) => {
+    if (mode === 'create') {
+      if (values.password.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['password'],
+          message: 'Password is required',
+        });
+      } else if (values.password.length < 8) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['password'],
+          message: 'Password must be at least 8 characters',
+        });
+      }
+
+      if (values.roleId.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['roleId'],
+          message: 'Role is required',
+        });
+      } else if (Number.isNaN(Number(values.roleId)) || Number(values.roleId) <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['roleId'],
+          message: 'Selected role is not valid',
+        });
+      }
+    }
+
+    if (mode === 'edit') {
+      if (
+        values.userId.length > 0 &&
+        (Number.isNaN(Number(values.userId)) || Number(values.userId) <= 0)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['userId'],
+          message: 'Selected user is not valid',
+        });
+      }
+    }
+  });
+}

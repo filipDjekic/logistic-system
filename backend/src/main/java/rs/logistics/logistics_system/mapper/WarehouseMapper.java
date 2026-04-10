@@ -9,7 +9,7 @@ import rs.logistics.logistics_system.entity.Warehouse;
 public class WarehouseMapper {
 
     public static Warehouse toEntity(WarehouseCreate dto, Employee employee) {
-        Warehouse warehouse = new Warehouse(
+        return new Warehouse(
                 dto.getName(),
                 dto.getAddress(),
                 dto.getCity(),
@@ -17,8 +17,6 @@ public class WarehouseMapper {
                 dto.getStatus(),
                 employee
         );
-
-        return warehouse;
     }
 
     public static void updateEntity(Warehouse warehouse, WarehouseUpdate dto) {
@@ -29,16 +27,16 @@ public class WarehouseMapper {
     }
 
     public static WarehouseResponse toResponse(Warehouse warehouse) {
-        WarehouseResponse warehouseResponse = new WarehouseResponse(
+        Long employeeId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
+
+        return new WarehouseResponse(
                 warehouse.getId(),
                 warehouse.getName(),
                 warehouse.getAddress(),
                 warehouse.getCity(),
                 warehouse.getCapacity(),
                 warehouse.getStatus(),
-                warehouse.getManager().getId()
+                employeeId
         );
-
-        return  warehouseResponse;
     }
 }

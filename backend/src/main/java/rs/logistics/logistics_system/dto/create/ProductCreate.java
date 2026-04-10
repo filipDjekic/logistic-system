@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.dto.create;
 
+import java.math.BigDecimal;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -8,8 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.ProductUnit;
-
-import java.math.BigDecimal;
 
 @Getter
 @Setter
@@ -20,15 +20,14 @@ public class ProductCreate {
     @Size(min = 1, max = 100)
     private String name;
 
-    @Size(min = 1, max = 255)
+    @Size(max = 255)
     private String description;
 
     @NotBlank
     @Size(min = 1, max = 50)
     private String sku;
 
-    @NotBlank
-    @Size(min = 1, max = 20)
+    @NotNull
     private ProductUnit unit;
 
     @NotNull

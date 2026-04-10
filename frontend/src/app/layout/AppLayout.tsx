@@ -20,10 +20,10 @@ export default function AppLayout() {
           ml: { xs: 0, lg: `${SIDEBAR_WIDTH}px` },
         }}
       >
-        <Topbar />
+        <Topbar onOpenSidebar={() => setMobileOpen(true)} />
 
         <PageContainer>
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: { xs: 2, md: 3 } }}>
             <BreadcrumbsBar />
           </Box>
 
