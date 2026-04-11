@@ -21,7 +21,7 @@ import { userStatusOptions } from '../validation/userSchema';
 
 export default function UsersPage() {
   const auth = useAuthStore();
-  const isAdmin = auth.user?.role === ROLES.ADMIN;
+  const isAdmin = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.OVERLORD;
 
   const [filters, setFilters] = useState<UserFiltersState>({
     search: '',
@@ -72,7 +72,7 @@ export default function UsersPage() {
         description={
           isAdmin
             ? 'Manage user accounts and review assigned roles.'
-            : 'Review user accounts. HR access is read-only based on the current backend.'
+            : 'Review user accounts. Access is limited by the current backend authorization rules.'
         }
         actions={
           isAdmin ? (
@@ -92,7 +92,7 @@ export default function UsersPage() {
 
       <SectionCard
         title="User list"
-        description="List view is available to ADMIN and HR_MANAGER. Create/edit remains ADMIN-only because of backend authorization."
+        description="List view is available to OVERLORD, COMPANY_ADMIN and HR_MANAGER. Create/edit is limited by current backend authorization."
       >
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>

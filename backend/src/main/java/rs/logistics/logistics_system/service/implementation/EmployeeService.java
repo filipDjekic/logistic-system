@@ -14,10 +14,12 @@ import rs.logistics.logistics_system.dto.response.EmployeeResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
+import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.EmployeeMapper;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
@@ -27,6 +29,7 @@ import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
@@ -45,6 +48,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
     private final AuditFacadeDefinition auditFacade;
     private final PasswordEncoder passwordEncoder;
 
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+
     @Override
     @Transactional
     public EmployeeResponse create(EmployeeCreate dto) {
@@ -58,6 +63,23 @@ public class EmployeeService implements EmployeeServiceDefinition {
         }
 
         Employee employee = EmployeeMapper.toEntity(dto, user);
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            Company company = authenticatedUserProvider.getAuthenticatedCompany();
+
+            if (company == null) {
+                throw new ForbiddenException("Authenticated user is not assigned to a company");
+            }
+
+            employee.setCompany(company);
+
+            if (user != null) {
+                authenticatedUserProvider.ensureCompanyAccess(
+                        user.getCompany() != null ? user.getCompany().getId() : null
+                );
+            }
+        }
+
         Employee saved = _employeeRepository.save(employee);
 
         auditFacade.recordCreate("EMPLOYEE", saved.getId());
@@ -91,6 +113,16 @@ public class EmployeeService implements EmployeeServiceDefinition {
         );
         user.setEnabled(true);
 
+        if (!authenticatedUserProvider.isOverlord()) {
+            Company company = authenticatedUserProvider.getAuthenticatedCompany();
+
+            if (company == null) {
+                throw new ForbiddenException("Authenticated user is not assigned to a company");
+            }
+
+            user.setCompany(company);
+        }
+
         User savedUser = _userRepository.save(user);
 
         Employee employee = new Employee(
@@ -104,6 +136,10 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 dto.getSalary(),
                 savedUser
         );
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            employee.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
+        }
 
         Employee savedEmployee = _employeeRepository.save(employee);
 
@@ -131,8 +167,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     @Override
     @Transactional
     public EmployeeResponse update(Long id, EmployeeUpdate dto) {
-        Employee employee = _employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = getEmployeeOrThrow(id);
 
         User user = resolveOptionalUser(dto.getUserId());
 
@@ -141,6 +176,12 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         if (user != null) {
             validateUserAssignmentForUpdate(employee, user.getId());
+
+            if (!authenticatedUserProvider.isOverlord()) {
+                authenticatedUserProvider.ensureCompanyAccess(
+                        user.getCompany() != null ? user.getCompany().getId() : null
+                );
+            }
         }
 
         Long oldUserId = employee.getUser() != null ? employee.getUser().getId() : null;
@@ -153,6 +194,11 @@ public class EmployeeService implements EmployeeServiceDefinition {
         Boolean oldActive = employee.getActive();
 
         EmployeeMapper.updateEntity(dto, employee, user);
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            employee.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
+        }
+
         Employee updated = _employeeRepository.save(employee);
 
         if (Boolean.FALSE.equals(updated.getActive())
@@ -183,15 +229,16 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public EmployeeResponse getById(Long id) {
-        Employee employee = _employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
-        return EmployeeMapper.toResponse(employee);
+        return EmployeeMapper.toResponse(getEmployeeOrThrow(id));
     }
 
     @Override
     public List<EmployeeResponse> getAll() {
-        return _employeeRepository.findAll()
-                .stream()
+        List<Employee> employees = authenticatedUserProvider.isOverlord()
+                ? _employeeRepository.findAll()
+                : _employeeRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+
+        return employees.stream()
                 .map(EmployeeMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -199,8 +246,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     @Override
     @Transactional
     public void delete(Long id) {
-        Employee employee = _employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = getEmployeeOrThrow(id);
 
         boolean hasHistory =
                 (employee.getShifts() != null && !employee.getShifts().isEmpty()) ||
@@ -233,31 +279,40 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public List<TaskResponse> getTasksByEmployeeId(Long id) {
-        Employee employee = _employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = getEmployeeOrThrow(id);
 
-        return _taskRepository.findByAssignedEmployeeId(employee.getId())
-                .stream()
-                .map(TaskMapper::toResponse)
+        List<?> tasks = authenticatedUserProvider.isOverlord()
+                ? _taskRepository.findByAssignedEmployeeId(employee.getId())
+                : _taskRepository.findByAssignedEmployeeIdAndAssignedEmployee_Company_Id(
+                employee.getId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        );
+
+        return tasks.stream()
+                .map(task -> TaskMapper.toResponse((rs.logistics.logistics_system.entity.Task) task))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<ShiftResponse> getShiftsByEmployeeId(Long id) {
-        Employee employee = _employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = getEmployeeOrThrow(id);
 
-        return _shiftRepository.findByEmployeeId(employee.getId())
-                .stream()
-                .map(ShiftMapper::toResponse)
+        List<?> shifts = authenticatedUserProvider.isOverlord()
+                ? _shiftRepository.findByEmployeeId(employee.getId())
+                : _shiftRepository.findByEmployeeIdAndEmployee_Company_Id(
+                employee.getId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        );
+
+        return shifts.stream()
+                .map(shift -> ShiftMapper.toResponse((rs.logistics.logistics_system.entity.Shift) shift))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public void terminateEmployee(Long id) {
-        Employee employee = _employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = getEmployeeOrThrow(id);
 
         if (Boolean.FALSE.equals(employee.getActive())) {
             throw new BadRequestException("Employee is already inactive");
@@ -280,13 +335,22 @@ public class EmployeeService implements EmployeeServiceDefinition {
         );
     }
 
+    // helpers
+
     private User resolveOptionalUser(Long userId) {
         if (userId == null) {
             return null;
         }
 
-        return _userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = authenticatedUserProvider.isOverlord()
+                ? _userRepository.findById(userId)
+                  .orElseThrow(() -> new ResourceNotFoundException("User not found"))
+                : _userRepository.findByIdAndCompany_Id(
+                userId,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        return user;
     }
 
     private void validateUserNotAlreadyAssigned(Long userId) {
@@ -359,5 +423,15 @@ public class EmployeeService implements EmployeeServiceDefinition {
         }
 
         return email.trim().toLowerCase();
+    }
+
+    private Employee getEmployeeOrThrow(Long id) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _employeeRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        }
+
+        return _employeeRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
 }

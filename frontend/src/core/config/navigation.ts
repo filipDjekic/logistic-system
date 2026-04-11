@@ -9,6 +9,7 @@ import SyncAltRoundedIcon from '@mui/icons-material/SyncAltRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { ALL_ROLES, ROLES, type Role } from '../constants/roles';
 
@@ -43,66 +44,73 @@ export const navigationItems: NavigationItem[] = [
     icon: EventNoteRoundedIcon,
   },
   {
+    key: 'companies',
+    label: 'Companies',
+    to: '/companies',
+    roles: [ROLES.OVERLORD],
+    icon: BusinessRoundedIcon,
+  },
+  {
     key: 'shifts',
     label: 'Shifts',
     to: '/shifts',
-    roles: [ROLES.ADMIN, ROLES.HR_MANAGER],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER],
     icon: ScheduleRoundedIcon,
   },
   {
     key: 'transport-orders',
     label: 'Transport Orders',
     to: '/transport-orders',
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.DRIVER],
     icon: LocalShippingRoundedIcon,
   },
   {
     key: 'vehicles',
     label: 'Vehicles',
     to: '/vehicles',
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER],
     icon: DirectionsCarFilledRoundedIcon,
   },
   {
     key: 'inventory',
     label: 'Inventory',
     to: '/inventory',
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER],
     icon: Inventory2RoundedIcon,
   },
   {
     key: 'stock-movements',
     label: 'Stock Movements',
     to: '/stock-movements',
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
     icon: SyncAltRoundedIcon,
   },
   {
     key: 'employees',
     label: 'Employees',
     to: '/employees',
-    roles: [ROLES.ADMIN, ROLES.HR_MANAGER],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER],
     icon: GroupsRoundedIcon,
   },
   {
     key: 'users',
     label: 'Users',
     to: '/users',
-    roles: [ROLES.ADMIN, ROLES.HR_MANAGER],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN],
     icon: GroupsRoundedIcon,
   },
   {
     key: 'activity-logs',
     label: 'Activity Logs',
     to: '/activity-logs',
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.OVERLORD],
     icon: HistoryRoundedIcon,
   },
   {
     key: 'change-history',
     label: 'Change History',
     to: '/change-history',
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
     icon: FactCheckRoundedIcon,
   },
 ];

@@ -25,6 +25,16 @@ export const routeMeta = {
     title: 'Notifications',
     breadcrumb: 'Notifications',
   },
+  companies: {
+    path: '/companies',
+    title: 'Companies',
+    breadcrumb: 'Companies',
+  },
+  companyDetails: {
+    path: '/companies/:id',
+    title: 'Company Details',
+    breadcrumb: 'Company Details',
+  },
   shifts: {
     path: '/shifts',
     title: 'Shifts',
@@ -55,7 +65,7 @@ export const routeMeta = {
     title: 'Vehicle Details',
     breadcrumb: 'Vehicle Details',
   },
-    inventory: {
+  inventory: {
     path: '/inventory',
     title: 'Inventory',
     breadcrumb: 'Inventory',
@@ -70,7 +80,7 @@ export const routeMeta = {
     title: 'Stock Movements',
     breadcrumb: 'Stock Movements',
   },
-    employees: {
+  employees: {
     path: '/employees',
     title: 'Employees',
     breadcrumb: 'Employees',
@@ -80,7 +90,7 @@ export const routeMeta = {
     title: 'Employee Details',
     breadcrumb: 'Employee Details',
   },
-    users: {
+  users: {
     path: '/users',
     title: 'Users',
     breadcrumb: 'Users',
@@ -103,6 +113,10 @@ export const routeMeta = {
 } satisfies Record<string, AppRouteMeta>;
 
 export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
+  if (/^\/companies\/\d+$/.test(pathname)) {
+    return routeMeta.companyDetails;
+  }
+
   if (/^\/transport-orders\/\d+$/.test(pathname)) {
     return routeMeta.transportOrderDetails;
   }

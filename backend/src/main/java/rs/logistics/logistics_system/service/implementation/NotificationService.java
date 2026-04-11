@@ -1,11 +1,14 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.NotificationCreate;
 import rs.logistics.logistics_system.dto.response.NotificationPageResponse;
 import rs.logistics.logistics_system.dto.response.NotificationResponse;
@@ -22,8 +25,6 @@ import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class NotificationService implements NotificationServiceDefinition {
@@ -35,6 +36,12 @@ public class NotificationService implements NotificationServiceDefinition {
     @Override
     public NotificationResponse create(NotificationCreate dto) {
         User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            authenticatedUserProvider.ensureCompanyAccess(
+                    user.getCompany() != null ? user.getCompany().getId() : null
+            );
+        }
 
         if (user.getStatus() == null) {
             throw new BadRequestException("User status is invalid");
@@ -54,7 +61,7 @@ public class NotificationService implements NotificationServiceDefinition {
 
     @Override
     public void delete(Long id) {
-        Notification notification = _notificationRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
+        Notification notification = getAccessibleNotification(id);
         _notificationRepository.delete(notification);
     }
 
@@ -80,14 +87,25 @@ public class NotificationService implements NotificationServiceDefinition {
         validateUserAccess(userId);
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Notification> notificationPage = _notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        Page<Notification> notificationPage;
+        long unreadCount;
+
+        if (authenticatedUserProvider.isOverlord()) {
+            notificationPage = _notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+            unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
+        } else if (authenticatedUserProvider.isCompanyAdmin()) {
+            Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+            notificationPage = _notificationRepository.findByUserIdAndUser_Company_IdOrderByCreatedAtDesc(userId, companyId, pageable);
+            unreadCount = _notificationRepository.countByUserIdAndStatusAndUser_Company_Id(userId, NotificationStatus.UNREAD, companyId);
+        } else {
+            notificationPage = _notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+            unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
+        }
 
         List<NotificationResponse> items = notificationPage.getContent()
                 .stream()
                 .map(NotificationMapper::toResponse)
                 .toList();
-
-        long unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
 
         return new NotificationPageResponse(
                 items,
@@ -106,14 +124,30 @@ public class NotificationService implements NotificationServiceDefinition {
         validateUserAccess(userId);
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Notification> notificationPage = _notificationRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, status, pageable);
+        Page<Notification> notificationPage;
+        long unreadCount;
+
+        if (authenticatedUserProvider.isOverlord()) {
+            notificationPage = _notificationRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, status, pageable);
+            unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
+        } else if (authenticatedUserProvider.isCompanyAdmin()) {
+            Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+            notificationPage = _notificationRepository.findByUserIdAndStatusAndUser_Company_IdOrderByCreatedAtDesc(
+                    userId,
+                    status,
+                    companyId,
+                    pageable
+            );
+            unreadCount = _notificationRepository.countByUserIdAndStatusAndUser_Company_Id(userId, NotificationStatus.UNREAD, companyId);
+        } else {
+            notificationPage = _notificationRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, status, pageable);
+            unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
+        }
 
         List<NotificationResponse> items = notificationPage.getContent()
                 .stream()
                 .map(NotificationMapper::toResponse)
                 .toList();
-
-        long unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
 
         return new NotificationPageResponse(
                 items,
@@ -137,6 +171,12 @@ public class NotificationService implements NotificationServiceDefinition {
     @Transactional
     public NotificationResponse createSystemNotification(Long userId, String title, String message, NotificationType type) {
         User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            authenticatedUserProvider.ensureCompanyAccess(
+                    user.getCompany() != null ? user.getCompany().getId() : null
+            );
+        }
 
         boolean duplicateUnreadExists = _notificationRepository.existsByUserIdAndTitleAndMessageAndTypeAndStatus(
                 userId,
@@ -172,17 +212,37 @@ public class NotificationService implements NotificationServiceDefinition {
     }
 
     private Notification getAccessibleNotification(Long notificationId) {
-        if (authenticatedUserProvider.isAdmin()) {
-            return _notificationRepository.findById(notificationId).orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
+        if (authenticatedUserProvider.isOverlord()) {
+            return _notificationRepository.findById(notificationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
+        }
+
+        if (authenticatedUserProvider.isCompanyAdmin()) {
+            return _notificationRepository.findByIdAndUser_Company_Id(
+                            notificationId,
+                            authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                    )
+                    .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
         }
 
         Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
 
-        return _notificationRepository.findByUserIdAndId(authenticatedUserId, notificationId).orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
+        return _notificationRepository.findByUserIdAndId(authenticatedUserId, notificationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
     }
 
     private void validateUserAccess(Long userId) {
-        if (authenticatedUserProvider.isAdmin()) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        if (authenticatedUserProvider.isCompanyAdmin()) {
+            User targetUser = _userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+            authenticatedUserProvider.ensureCompanyAccess(
+                    targetUser.getCompany() != null ? targetUser.getCompany().getId() : null
+            );
             return;
         }
 

@@ -16,6 +16,11 @@ export const queryKeys = {
     detail: (id: number) => ['change-history', 'details', id] as const,
   },
 
+  companies: {
+    all: () => ['companies', 'all'] as const,
+    detail: (id: number) => ['companies', 'details', id] as const,
+  },
+
   dashboard: {
     myTasks: () => ['dashboard', 'my-tasks'] as const,
     myUnreadNotificationsCount: () =>

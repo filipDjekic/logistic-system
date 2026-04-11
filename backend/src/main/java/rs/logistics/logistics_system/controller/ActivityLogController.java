@@ -1,21 +1,22 @@
 package rs.logistics.logistics_system.controller;
 
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
-import rs.logistics.logistics_system.dto.update.ActivityLogUpdate;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('OVERLORD')")
 @RestController
 @RequestMapping("/api/activity_logs")
 @RequiredArgsConstructor

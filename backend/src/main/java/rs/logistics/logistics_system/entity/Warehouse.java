@@ -48,7 +48,10 @@ public class Warehouse {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    //relations
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
     @ManyToOne
     @JoinColumn(name = "manager_id")
     private Employee manager;
@@ -74,9 +77,7 @@ public class Warehouse {
         this.active = true;
     }
 
-    // methods
-
-    public boolean isOperational(){
+    public boolean isOperational() {
         return Boolean.TRUE.equals(this.active) && this.status == WarehouseStatus.ACTIVE;
     }
 }

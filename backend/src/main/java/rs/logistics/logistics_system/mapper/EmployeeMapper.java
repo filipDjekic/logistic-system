@@ -45,7 +45,10 @@ public class EmployeeMapper {
                 employee.getPosition(),
                 employee.getEmploymentDate(),
                 employee.getSalary(),
-                employee.getUser() != null ? employee.getUser().getId() : null
+                employee.getActive(),
+                employee.getUser() != null ? employee.getUser().getId() : null,
+                employee.getCompany() != null ? employee.getCompany().getId() : null,
+                employee.getCompany() != null ? employee.getCompany().getName() : null
         );
     }
 }

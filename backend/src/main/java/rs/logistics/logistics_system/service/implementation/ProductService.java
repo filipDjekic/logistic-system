@@ -3,12 +3,13 @@ package rs.logistics.logistics_system.service.implementation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.create.ProductCreate;
 import rs.logistics.logistics_system.dto.response.ProductResponse;
 import rs.logistics.logistics_system.dto.update.ProductUpdate;
+import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ProductMapper;
 import rs.logistics.logistics_system.repository.ProductRepository;
@@ -24,14 +25,23 @@ import java.util.stream.Collectors;
 public class ProductService implements ProductServiceDefinition {
 
     private final ProductRepository _productRepository;
-
     private final AuditFacadeDefinition auditFacade;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
     public ProductResponse create(ProductCreate dto) {
         validateSkuForCreate(dto.getSku());
 
         Product product = ProductMapper.toEntity(dto);
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            Company company = authenticatedUserProvider.getAuthenticatedCompany();
+            if (company == null) {
+                throw new ForbiddenException("Authenticated user is not assigned to a company");
+            }
+            product.setCompany(company);
+        }
+
         Product saved = _productRepository.save(product);
 
         auditFacade.recordCreate("PRODUCT", saved.getId());
@@ -47,7 +57,7 @@ public class ProductService implements ProductServiceDefinition {
 
     @Override
     public ProductResponse update(Long id, ProductUpdate dto) {
-        Product product = _productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        Product product = getProductOrThrow(id);
 
         validateSkuForUpdate(dto.getSku(), id);
 
@@ -74,20 +84,22 @@ public class ProductService implements ProductServiceDefinition {
 
     @Override
     public ProductResponse getById(Long id) {
-        Product saved = _productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-        return ProductMapper.toResponse(saved);
+        return ProductMapper.toResponse(getProductOrThrow(id));
     }
 
     @Override
     public List<ProductResponse> getAll() {
-        return _productRepository.findAll().stream().map(ProductMapper::toResponse).collect(Collectors.toList());
-    }
+        List<Product> products = authenticatedUserProvider.isOverlord()
+                ? _productRepository.findAll()
+                : _productRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
 
+        return products.stream().map(ProductMapper::toResponse).collect(Collectors.toList());
+    }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        Product product = _productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        Product product = getProductOrThrow(id);
 
         validateForDelete(product);
 
@@ -104,7 +116,7 @@ public class ProductService implements ProductServiceDefinition {
 
     @Override
     public ProductResponse activateProduct(Long id) {
-        Product product = _productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        Product product = getProductOrThrow(id);
 
         if (Boolean.TRUE.equals(product.getActive())) {
             throw new BadRequestException("Product is already active");
@@ -126,7 +138,7 @@ public class ProductService implements ProductServiceDefinition {
 
     @Override
     public ProductResponse deactivateProduct(Long id) {
-        Product product = _productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        Product product = getProductOrThrow(id);
 
         if (Boolean.FALSE.equals(product.getActive())) {
             throw new BadRequestException("Product is already inactive");
@@ -146,16 +158,42 @@ public class ProductService implements ProductServiceDefinition {
         return ProductMapper.toResponse(saved);
     }
 
-    // helpers
+    private Product getProductOrThrow(Long id) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _productRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        }
+
+        return _productRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+    }
 
     private void validateSkuForCreate(String sku) {
-        if (_productRepository.existsBySku(sku)) {
+        if (authenticatedUserProvider.isOverlord()) {
+            if (_productRepository.existsBySku(sku)) {
+                throw new BadRequestException("Product SKU already exists");
+            }
+            return;
+        }
+
+        if (_productRepository.existsBySkuAndCompany_Id(sku, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())) {
             throw new BadRequestException("Product SKU already exists");
         }
     }
 
     private void validateSkuForUpdate(String sku, Long id) {
-        if (_productRepository.existsBySkuAndIdNot(sku, id)) {
+        if (authenticatedUserProvider.isOverlord()) {
+            if (_productRepository.existsBySkuAndIdNot(sku, id)) {
+                throw new BadRequestException("Product SKU already exists");
+            }
+            return;
+        }
+
+        if (_productRepository.existsBySkuAndCompany_IdAndIdNot(
+                sku,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                id
+        )) {
             throw new BadRequestException("Product SKU already exists");
         }
     }

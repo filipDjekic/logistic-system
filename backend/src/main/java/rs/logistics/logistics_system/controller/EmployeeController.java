@@ -32,63 +32,63 @@ public class EmployeeController {
 
     private final EmployeeServiceDefinition employeeService;
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PostMapping
     public ResponseEntity<EmployeeResponse> createUser(@Valid @RequestBody EmployeeCreate dto) {
         EmployeeResponse response = employeeService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PostMapping("/with-user")
     public ResponseEntity<EmployeeResponse> createWithUser(@Valid @RequestBody EmployeeWithUserCreate dto) {
         EmployeeResponse response = employeeService.createWithUser(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<EmployeeResponse> update(@PathVariable Long id, @Valid @RequestBody EmployeeUpdate dto) {
         EmployeeResponse response = employeeService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER') or @employeeSecurity.isSelf(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER') or @employeeSecurity.isSelf(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeResponse> getById(@PathVariable Long id) {
         EmployeeResponse response = employeeService.getById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER') or @employeeSecurity.isSelf(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER') or @employeeSecurity.isSelf(#id)")
     @GetMapping("/{id}/tasks")
     public ResponseEntity<List<TaskResponse>> getTasksByEmployeeId(@PathVariable Long id) {
         List<TaskResponse> response = employeeService.getTasksByEmployeeId(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER') or @employeeSecurity.isSelf(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER') or @employeeSecurity.isSelf(#id)")
     @GetMapping("/{id}/shifts")
     public ResponseEntity<List<ShiftResponse>> getShiftsByEmployeeId(@PathVariable Long id) {
         List<ShiftResponse> response = employeeService.getShiftsByEmployeeId(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @GetMapping
     public ResponseEntity<List<EmployeeResponse>> getAll() {
         List<EmployeeResponse> response = employeeService.getAll();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         employeeService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PatchMapping("/terminate/{id}")
     public ResponseEntity<Void> terminateEmployee(@PathVariable Long id) {
         employeeService.terminateEmployee(id);

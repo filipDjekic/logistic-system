@@ -10,10 +10,12 @@ import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.VehicleMapper;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
 
@@ -32,12 +34,22 @@ public class VehicleService implements VehicleServiceDefinition {
 
     private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
 
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+
     @Transactional
     @Override
     public VehicleResponse create(VehicleCreate dto) {
         validateUniqueRegistrationNumber(dto.getRegistrationNumber());
 
         Vehicle vehicle = VehicleMapper.toEntity(dto);
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            if (authenticatedUserProvider.getAuthenticatedCompany() == null) {
+                throw new ForbiddenException("Authenticated user is not assigned to a company");
+            }
+            vehicle.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
+        }
+
         Vehicle saved = vehicleRepository.save(vehicle);
 
         auditFacade.recordCreate("VEHICLE", saved.getId());
@@ -89,8 +101,11 @@ public class VehicleService implements VehicleServiceDefinition {
 
     @Override
     public List<VehicleResponse> getAll() {
-        return vehicleRepository.findAll()
-                .stream()
+        List<Vehicle> vehicles = authenticatedUserProvider.isOverlord()
+                ? vehicleRepository.findAll()
+                : vehicleRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+
+        return vehicles.stream()
                 .map(VehicleMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -159,8 +174,15 @@ public class VehicleService implements VehicleServiceDefinition {
         return VehicleMapper.toResponse(updated);
     }
 
+    // helpers
+
     private Vehicle findVehicleById(Long id) {
-        return vehicleRepository.findById(id)
+        if (authenticatedUserProvider.isOverlord()) {
+            return vehicleRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+        }
+
+        return vehicleRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
     }
 

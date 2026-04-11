@@ -17,6 +17,7 @@ import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
@@ -35,12 +36,15 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final NotificationService notificationService;
     private final AuditFacadeDefinition auditFacade;
 
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+
     @Override
     @Transactional
     public WarehouseInventoryResponse create(WarehouseInventoryCreate dto) {
         Warehouse warehouse = getValidatedOperationalWarehouse(dto.getWarehouseId());
         Product product = getValidatedOperationalProduct(dto.getProductId());
 
+        validateSameCompany(warehouse, product);
         checkIfExists(dto.getWarehouseId(), dto.getProductId());
         checkQuantity(dto.getQuantity());
 
@@ -69,7 +73,9 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         Warehouse warehouse = getValidatedOperationalWarehouse(warehouseId);
         Product product = getValidatedOperationalProduct(productId);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        validateSameCompany(warehouse, product);
+
+        WarehouseInventory inventory = getInventoryOrThrow(warehouseId, productId);
 
         validateInventoryOperationalContext(inventory);
         checkQuantity(dto.getQuantity());
@@ -118,24 +124,38 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
     @Override
     public WarehouseInventoryResponse findByWarehouseAndProduct(Long warehouseId, Long productId) {
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        WarehouseInventory inventory = getInventoryOrThrow(warehouseId, productId);
         return WarehouseInventoryMapper.toResponse(inventory);
     }
 
     @Override
     public List<WarehouseInventoryResponse> findByWarehouse(Long warehouseId) {
-        return warehouseInventoryRepository.findByWarehouse_Id(warehouseId).stream().map(WarehouseInventoryMapper::toResponse).collect(Collectors.toList());
+        List<WarehouseInventory> data = authenticatedUserProvider.isOverlord()
+                ? warehouseInventoryRepository.findByWarehouse_Id(warehouseId)
+                : warehouseInventoryRepository.findByWarehouse_IdAndWarehouse_Company_Id(
+                warehouseId,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        );
+
+        return data.stream().map(WarehouseInventoryMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
     public List<WarehouseInventoryResponse> findByProduct(Long productId) {
-        return warehouseInventoryRepository.findByProduct_Id(productId).stream().map(WarehouseInventoryMapper::toResponse).collect(Collectors.toList());
+        List<WarehouseInventory> data = authenticatedUserProvider.isOverlord()
+                ? warehouseInventoryRepository.findByProduct_Id(productId)
+                : warehouseInventoryRepository.findByProduct_IdAndProduct_Company_Id(
+                productId,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        );
+
+        return data.stream().map(WarehouseInventoryMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public void delete(Long warehouseId, Long productId) {
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        WarehouseInventory inventory = getInventoryOrThrow(warehouseId, productId);
 
         BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
         BigDecimal reservedQuantity = inventory.getReservedQuantity() == null ? BigDecimal.ZERO : inventory.getReservedQuantity();
@@ -403,20 +423,6 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         return inventory.getId().toAuditIdentifier();
     }
 
-    private Warehouse getValidatedOperationalWarehouse(Long warehouseId) {
-        Warehouse warehouse = warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-
-        validateWarehouseOperational(warehouse);
-        return warehouse;
-    }
-
-    private Product getValidatedOperationalProduct(Long productId) {
-        Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-
-        validateProductOperational(product);
-        return product;
-    }
-
     private void validateWarehouseOperational(Warehouse warehouse) {
         if (warehouse == null || warehouse.getId() == null) {
             throw new BadRequestException("Warehouse is required");
@@ -510,6 +516,64 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                         + "' is at or below minimum stock level in warehouse '"
                         + inventory.getWarehouse().getName() + "'.",
                 NotificationType.WARNING
+        );
+    }
+
+    private WarehouseInventory getInventoryOrThrow(Long warehouseId, Long productId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        }
+
+        return warehouseInventoryRepository.findByWarehouse_IdAndProduct_IdAndWarehouse_Company_Id(
+                        warehouseId,
+                        productId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+    }
+
+    private Warehouse getValidatedOperationalWarehouse(Long warehouseId) {
+        Warehouse warehouse = authenticatedUserProvider.isOverlord()
+                ? warehouseRepository.findById(warehouseId)
+                  .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"))
+                : warehouseRepository.findByIdAndCompany_Id(
+                warehouseId,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+
+        if (!Boolean.TRUE.equals(warehouse.getActive()) || warehouse.getStatus() == null) {
+            throw new BadRequestException("Warehouse is not operational");
+        }
+
+        return warehouse;
+    }
+
+    private Product getValidatedOperationalProduct(Long productId) {
+        Product product = authenticatedUserProvider.isOverlord()
+                ? productRepository.findById(productId)
+                  .orElseThrow(() -> new ResourceNotFoundException("Product not found"))
+                : productRepository.findByIdAndCompany_Id(
+                productId,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+        if (!Boolean.TRUE.equals(product.getActive())) {
+            throw new BadRequestException("Product is not active");
+        }
+
+        return product;
+    }
+
+    private void validateSameCompany(Warehouse warehouse, Product product) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        authenticatedUserProvider.ensureSameCompany(
+                warehouse.getCompany() != null ? warehouse.getCompany().getId() : null,
+                product.getCompany() != null ? product.getCompany().getId() : null,
+                "Warehouse and product must belong to the same company"
         );
     }
 }

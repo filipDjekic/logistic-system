@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
@@ -38,6 +39,8 @@ public class TaskService implements TaskServiceDefinition {
     private final NotificationServiceDefinition notificationService;
     private final AuditFacadeDefinition auditFacade;
 
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+
     @Override
     @Transactional
     public TaskResponse create(TaskCreate dto) {
@@ -45,6 +48,8 @@ public class TaskService implements TaskServiceDefinition {
 
         Employee employee = getActiveEmployee(dto.getAssignedEmployeeId());
         TransportOrder transportOrder = getOptionalTransportOrder(dto.getTransportOrderId());
+
+        validateTaskCompanyContext(employee, transportOrder);
 
         Task task = TaskMapper.toEntity(dto, employee, transportOrder);
         task.setStatus(TaskStatus.NEW);
@@ -73,7 +78,7 @@ public class TaskService implements TaskServiceDefinition {
     @Override
     @Transactional
     public TaskResponse update(Long id, TaskUpdate dto) {
-        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        Task task = getTaskOrThrow(id);
 
         validateTaskUpdatable(task);
         validateDueDate(dto.getDueDate());
@@ -81,6 +86,8 @@ public class TaskService implements TaskServiceDefinition {
         Employee employee = getActiveEmployee(dto.getAssignedEmployeeId());
         Employee oldEmployee = task.getAssignedEmployee();
         TransportOrder transportOrder = getOptionalTransportOrder(dto.getTransportOrderId());
+
+        validateTaskCompanyContext(employee, transportOrder);
 
         if (!task.getAssignedEmployee().getId().equals(employee.getId())) {
             validateReassign(task, employee);
@@ -145,14 +152,17 @@ public class TaskService implements TaskServiceDefinition {
 
     @Override
     public TaskResponse getById(Long id) {
-        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        Task task = getTaskOrThrow(id);
         return TaskMapper.toResponse(task);
     }
 
     @Override
     public List<TaskResponse> getAll() {
-        return _taskRepository.findAll()
-                .stream()
+        List<Task> tasks = authenticatedUserProvider.isOverlord()
+                ? _taskRepository.findAll()
+                : _taskRepository.findAllByAssignedEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+
+        return tasks.stream()
                 .map(TaskMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -160,7 +170,7 @@ public class TaskService implements TaskServiceDefinition {
     @Override
     @Transactional
     public void delete(Long id) {
-        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        Task task = getTaskOrThrow(id);
 
         boolean canBeHardDeleted = _taskRepository.canBeHardDeleted(task.getId(), TaskStatus.NEW);
 
@@ -198,7 +208,7 @@ public class TaskService implements TaskServiceDefinition {
     @Override
     @Transactional
     public TaskResponse changeStatus(Long id, TaskStatus status) {
-        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        Task task = getTaskOrThrow(id);
 
         TaskStatus current = task.getStatus();
 
@@ -259,11 +269,19 @@ public class TaskService implements TaskServiceDefinition {
     @Override
     @Transactional
     public TaskResponse assignTask(Long id, Long employeeId) {
-        Task task = _taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        Task task = getTaskOrThrow(id);
 
         Employee oldEmployee = task.getAssignedEmployee();
         Employee employee = getActiveEmployee(employeeId);
         validateReassign(task, employee);
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            authenticatedUserProvider.ensureSameCompany(
+                    oldEmployee != null && oldEmployee.getCompany() != null ? oldEmployee.getCompany().getId() : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                    employee.getCompany() != null ? employee.getCompany().getId() : null,
+                    "Task can be assigned only within the same company"
+            );
+        }
 
         Long oldEmployeeId = oldEmployee != null ? oldEmployee.getId() : null;
         task.setAssignedEmployee(employee);
@@ -302,8 +320,13 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     private Employee getActiveEmployee(Long employeeId) {
-        Employee employee = _employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = authenticatedUserProvider.isOverlord()
+                ? _employeeRepository.findById(employeeId)
+                  .orElseThrow(() -> new ResourceNotFoundException("Employee not found"))
+                : _employeeRepository.findByIdAndCompany_Id(
+                employeeId,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         if (employee.getActive() == null || !employee.getActive()) {
             throw new BadRequestException("Task cannot be assigned to an inactive employee");
@@ -317,8 +340,13 @@ public class TaskService implements TaskServiceDefinition {
             return null;
         }
 
-        TransportOrder transportOrder = _transportOrderRepository.findById(transportOrderId)
-                .orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
+        TransportOrder transportOrder = authenticatedUserProvider.isOverlord()
+                ? _transportOrderRepository.findById(transportOrderId)
+                  .orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"))
+                : _transportOrderRepository.findByIdAndCreatedBy_Company_Id(
+                transportOrderId,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
 
         if (transportOrder.getStatus() == TransportOrderStatus.DELIVERED
                 || transportOrder.getStatus() == TransportOrderStatus.CANCELLED) {
@@ -351,6 +379,37 @@ public class TaskService implements TaskServiceDefinition {
 
         if (task.getStatus() == TaskStatus.IN_PROGRESS) {
             throw new BadRequestException("Task in progress cannot be reassigned");
+        }
+    }
+
+    private Task getTaskOrThrow(Long id) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _taskRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+        }
+
+        return _taskRepository.findByIdAndAssignedEmployee_Company_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+    }
+
+    private void validateTaskCompanyContext(Employee employee, TransportOrder transportOrder) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        Long employeeCompanyId = employee != null && employee.getCompany() != null ? employee.getCompany().getId() : null;
+        authenticatedUserProvider.ensureCompanyAccess(employeeCompanyId);
+
+        if (transportOrder != null) {
+            Long transportCompanyId = transportOrder.getCreatedBy() != null && transportOrder.getCreatedBy().getCompany() != null
+                    ? transportOrder.getCreatedBy().getCompany().getId()
+                    : null;
+
+            authenticatedUserProvider.ensureSameCompany(
+                    employeeCompanyId,
+                    transportCompanyId,
+                    "Task employee and transport order must belong to the same company"
+            );
         }
     }
 }

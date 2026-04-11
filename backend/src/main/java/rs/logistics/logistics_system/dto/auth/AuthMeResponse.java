@@ -1,7 +1,17 @@
 package rs.logistics.logistics_system.dto.auth;
 
 public record AuthMeResponse(
-        Long userId,
+        Long id,
+        String firstName,
+        String lastName,
         String email,
-        String role
-) {}
+        Boolean enabled,
+        String role,
+        AuthMeCompanyResponse company
+) {
+    public record AuthMeCompanyResponse(
+            Long id,
+            String name,
+            Boolean active
+    ) {}
+}

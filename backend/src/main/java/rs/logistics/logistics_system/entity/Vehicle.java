@@ -57,7 +57,10 @@ public class Vehicle {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    //relations
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
     @OneToMany(mappedBy = "vehicle")
     private List<TransportOrder> transportOrders = new ArrayList<>();
 
@@ -68,7 +71,7 @@ public class Vehicle {
                    BigDecimal capacity,
                    String fuelType,
                    Integer yearOfProduction,
-                   VehicleStatus status ) {
+                   VehicleStatus status) {
         this.registrationNumber = registrationNumber;
         this.brand = brand;
         this.model = model;
@@ -80,14 +83,12 @@ public class Vehicle {
         this.active = true;
     }
 
-    // methods
-
     public boolean canCarry(BigDecimal weight) {
-        if(weight == null) {
+        if (weight == null) {
             return true;
         }
 
-        if(this.capacity == null) {
+        if (this.capacity == null) {
             return false;
         }
 

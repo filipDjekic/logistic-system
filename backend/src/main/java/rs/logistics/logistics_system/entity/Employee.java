@@ -58,7 +58,10 @@ public class Employee {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // relations
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
     @OneToOne(fetch = FetchType.EAGER, optional = true)
     @JoinColumn(name = "user_id", unique = true, nullable = true)
     private User user;

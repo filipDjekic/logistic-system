@@ -1,21 +1,21 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.RoleCreate;
 import rs.logistics.logistics_system.dto.response.RoleResponse;
 import rs.logistics.logistics_system.dto.update.RoleUpdate;
 import rs.logistics.logistics_system.entity.Role;
-import rs.logistics.logistics_system.enums.UserStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.RoleMapper;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.service.definition.RoleServiceDefinition;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -57,8 +57,8 @@ public class RoleService implements RoleServiceDefinition {
     public void delete(Long id) {
         Role role = _roleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Role not found"));
 
-        if ("ADMIN".equalsIgnoreCase(role.getName())) {
-            throw new BadRequestException("ADMIN role cannot be deleted");
+        if ("OVERLORD".equalsIgnoreCase(role.getName())) {
+            throw new BadRequestException("OVERLORD role cannot be deleted");
         }
 
         boolean hasAnyUsers = !_userRepository.findByRoleId(role.getId()).isEmpty();

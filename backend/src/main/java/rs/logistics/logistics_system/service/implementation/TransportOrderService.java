@@ -69,16 +69,13 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         validateCreateOrUpdateRequest(dto);
         validateUniqueOrderNumber(dto.getOrderNumber());
 
-        Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
-
-        Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
-
-        Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
-
-        Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
-
+        Warehouse warehouseSource = getAccessibleWarehouse(dto.getSourceWarehouseId(), "Source warehouse not found");
+        Warehouse warehouseDestination = getAccessibleWarehouse(dto.getDestinationWarehouseId(), "Destination warehouse not found");
+        Vehicle vehicle = getAccessibleVehicle(dto.getVehicleId(), "Vehicle not found");
+        Employee assignedEmployee = getAccessibleEmployee(dto.getAssignedEmployeeId(), "Assigned employee not found");
         User createdBy = authenticatedUserProvider.getAuthenticatedUser();
 
+        validateCrossCompanyContext(warehouseSource, warehouseDestination, vehicle, assignedEmployee, createdBy);
         validateSchedule(dto.getDepartureTime(), dto.getPlannedArrivalTime());
         validateWarehouses(warehouseSource, warehouseDestination);
         validateAssignedEmployee(assignedEmployee);
@@ -119,7 +116,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             throw new BadRequestException("Invalid request");
         }
 
-        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        TransportOrder transportOrder = getTransportOrderOrThrow(id);
 
         validateUniqueOrderNumberForUpdate(transportOrder.getId(), dto.getOrderNumber());
 
@@ -137,11 +134,12 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             }
         }
 
-        Warehouse warehouseSource = _warehouseRepository.findById(dto.getSourceWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Source warehouse not found"));
-        Warehouse warehouseDestination = _warehouseRepository.findById(dto.getDestinationWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
-        Vehicle vehicle = _vehicleRepository.findById(dto.getVehicleId()).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
-        Employee assignedEmployee = _employeeRepository.findById(dto.getAssignedEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Assigned employee not found"));
+        Warehouse warehouseSource = getAccessibleWarehouse(dto.getSourceWarehouseId(), "Source warehouse not found");
+        Warehouse warehouseDestination = getAccessibleWarehouse(dto.getDestinationWarehouseId(), "Destination warehouse not found");
+        Vehicle vehicle = getAccessibleVehicle(dto.getVehicleId(), "Vehicle not found");
+        Employee assignedEmployee = getAccessibleEmployee(dto.getAssignedEmployeeId(), "Assigned employee not found");
 
+        validateCrossCompanyContext(warehouseSource, warehouseDestination, vehicle, assignedEmployee, transportOrder.getCreatedBy());
         validateSchedule(dto.getDepartureTime(), dto.getPlannedArrivalTime());
         validateWarehouses(warehouseSource, warehouseDestination);
         validateAssignedEmployee(assignedEmployee);
@@ -184,13 +182,36 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         auditFacade.recordFieldChange("TRANSPORT_ORDER", updated.getId(), "departureTime", oldDepartureTime, updated.getDepartureTime());
         auditFacade.recordFieldChange("TRANSPORT_ORDER", updated.getId(), "plannedArrivalTime", oldPlannedArrivalTime, updated.getPlannedArrivalTime());
 
+        if (previousVehicle != null && !previousVehicle.getId().equals(updated.getVehicle().getId())) {
+            refreshVehicleAvailability(previousVehicle.getId());
+        }
+
         if (updated.getStatus() == TransportOrderStatus.ASSIGNED) {
-            if (!previousVehicle.getId().equals(updated.getVehicle().getId())) {
-                markVehicleAsBusy(updated.getVehicle());
-                refreshVehicleAvailability(previousVehicle.getId());
-            } else {
-                markVehicleAsBusy(updated.getVehicle());
-            }
+            markVehicleAsBusy(updated.getVehicle());
+        }
+
+        if (previousEmployee != null
+                && previousEmployee.getUser() != null
+                && !previousEmployee.getId().equals(updated.getAssignedEmployee().getId())) {
+            notifyOnce(
+                    new HashSet<>(),
+                    previousEmployee.getUser().getId(),
+                    "Transport reassigned",
+                    "Transport order #" + updated.getId() + " is no longer assigned to you.",
+                    NotificationType.WARNING
+            );
+        }
+
+        if (updated.getAssignedEmployee() != null
+                && updated.getAssignedEmployee().getUser() != null
+                && (previousEmployee == null || !previousEmployee.getId().equals(updated.getAssignedEmployee().getId()))) {
+            notifyOnce(
+                    new HashSet<>(),
+                    updated.getAssignedEmployee().getUser().getId(),
+                    "Transport assigned",
+                    "Transport order #" + updated.getId() + " has been assigned to you.",
+                    NotificationType.INFO
+            );
         }
 
         auditFacade.log(
@@ -205,19 +226,22 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
     @Override
     public TransportOrderResponse getById(Long id) {
-        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
-        return TransportOrderMapper.toResponse(transportOrder);
+        return TransportOrderMapper.toResponse(getTransportOrderOrThrow(id));
     }
 
     @Override
     public List<TransportOrderResponse> getAll() {
-        return _transportOrderRepository.findAll().stream().map(TransportOrderMapper::toResponse).collect(Collectors.toList());
+        List<TransportOrder> data = authenticatedUserProvider.isOverlord()
+                ? _transportOrderRepository.findAll()
+                : _transportOrderRepository.findAllByCreatedBy_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+
+        return data.stream().map(TransportOrderMapper::toResponse).collect(Collectors.toList());
     }
 
-    @Transactional
     @Override
+    @Transactional
     public void delete(Long id) {
-        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        TransportOrder transportOrder = getTransportOrderOrThrow(id);
 
         if (transportOrder.getStatus() != TransportOrderStatus.CREATED) {
             throw new BadRequestException("Only transport orders in CREATED status can be deleted");
@@ -237,7 +261,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Override
     @Transactional
     public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status) {
-        TransportOrder transportOrder = _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        TransportOrder transportOrder = getTransportOrderOrThrow(id);
 
         TransportOrderStatus current = transportOrder.getStatus();
         Set<Long> notifiedUserIds = new HashSet<>();
@@ -739,5 +763,54 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         notificationService.createSystemNotification(userId, title, message, type);
+    }
+
+    private TransportOrder getTransportOrderOrThrow(Long id) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        }
+
+        return _transportOrderRepository.findByIdAndCreatedBy_Company_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+    }
+
+    private Warehouse getAccessibleWarehouse(Long id, String message) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(message));
+        }
+
+        return _warehouseRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException(message));
+    }
+
+    private Vehicle getAccessibleVehicle(Long id, String message) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _vehicleRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(message));
+        }
+
+        return _vehicleRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException(message));
+    }
+
+    private Employee getAccessibleEmployee(Long id, String message) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _employeeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(message));
+        }
+
+        return _employeeRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException(message));
+    }
+
+    private void validateCrossCompanyContext(Warehouse source,Warehouse destination,Vehicle vehicle,Employee assignedEmployee,User createdBy) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        Long createdByCompanyId = createdBy != null && createdBy.getCompany() != null ? createdBy.getCompany().getId() : null;
+        Long sourceCompanyId = source != null && source.getCompany() != null ? source.getCompany().getId() : null;
+        Long destinationCompanyId = destination != null && destination.getCompany() != null ? destination.getCompany().getId() : null;
+        Long vehicleCompanyId = vehicle != null && vehicle.getCompany() != null ? vehicle.getCompany().getId() : null;
+        Long employeeCompanyId = assignedEmployee != null && assignedEmployee.getCompany() != null ? assignedEmployee.getCompany().getId() : null;
+
+        authenticatedUserProvider.ensureSameCompany(createdByCompanyId, sourceCompanyId, "Source warehouse must belong to the same company");
+        authenticatedUserProvider.ensureSameCompany(createdByCompanyId, destinationCompanyId, "Destination warehouse must belong to the same company");
+        authenticatedUserProvider.ensureSameCompany(createdByCompanyId, vehicleCompanyId, "Vehicle must belong to the same company");
+        authenticatedUserProvider.ensureSameCompany(createdByCompanyId, employeeCompanyId, "Assigned employee must belong to the same company");
     }
 }

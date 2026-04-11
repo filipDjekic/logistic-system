@@ -9,11 +9,20 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
+
     Optional<Product> findBySku(String sku);
+
+    Optional<Product> findByIdAndCompany_Id(Long id, Long companyId);
 
     boolean existsBySku(String sku);
 
     boolean existsBySkuAndIdNot(String sku, Long id);
+
+    boolean existsBySkuAndCompany_Id(String sku, Long companyId);
+
+    boolean existsBySkuAndCompany_IdAndIdNot(String sku, Long companyId, Long id);
+
+    List<Product> findAllByCompany_Id(Long companyId);
 
     @Query("""
             select case when count(wi) > 0 then true else false end

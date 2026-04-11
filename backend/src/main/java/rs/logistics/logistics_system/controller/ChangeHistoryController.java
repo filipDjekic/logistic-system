@@ -1,21 +1,21 @@
 package rs.logistics.logistics_system.controller;
 
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import rs.logistics.logistics_system.dto.create.ChangeHistoryCreate;
-import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
-import rs.logistics.logistics_system.dto.update.ChangeHistoryUpdate;
-import rs.logistics.logistics_system.entity.ChangeHistory;
-import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
-@PreAuthorize("hasRole('ADMIN')")
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import lombok.RequiredArgsConstructor;
+import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
+import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
+
+@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
 @RestController
 @RequestMapping("/api/history")
 @RequiredArgsConstructor

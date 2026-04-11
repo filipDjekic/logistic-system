@@ -13,6 +13,18 @@ public class TaskSecurity {
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     public boolean isAssignedToCurrentUser(Long taskId) {
-        return taskRepository.findById(taskId).map(task -> task.getAssignedEmployee() != null && task.getAssignedEmployee().getUser() != null && task.getAssignedEmployee().getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())).orElse(false);
+        if (authenticatedUserProvider.isOverlord()) {
+            return true;
+        }
+
+        return taskRepository.findById(taskId)
+                .map(task ->
+                        task.getAssignedEmployee() != null
+                                && task.getAssignedEmployee().getUser() != null
+                                && task.getAssignedEmployee().getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())
+                                && task.getAssignedEmployee().getCompany() != null
+                                && task.getAssignedEmployee().getCompany().getId().equals(authenticatedUserProvider.getAuthenticatedCompanyId())
+                )
+                .orElse(false);
     }
 }

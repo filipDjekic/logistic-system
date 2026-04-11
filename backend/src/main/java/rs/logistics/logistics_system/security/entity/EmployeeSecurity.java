@@ -13,6 +13,22 @@ public class EmployeeSecurity {
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     public boolean isSelf(Long employeeId) {
-        return employeeRepository.findById(employeeId).map(employee -> employee.getUser() != null && employee.getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())).orElse(false);
+        if (authenticatedUserProvider.isOverlord()) {
+            return true;
+        }
+
+        return employeeRepository.findById(employeeId)
+                .map(employee ->
+                        employee.getUser() != null
+                                && employee.getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())
+                                && (
+                                authenticatedUserProvider.isOverlord()
+                                        || (
+                                        employee.getCompany() != null
+                                                && employee.getCompany().getId().equals(authenticatedUserProvider.getAuthenticatedCompanyId())
+                                )
+                        )
+                )
+                .orElse(false);
     }
 }

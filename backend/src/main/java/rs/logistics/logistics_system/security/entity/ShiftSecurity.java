@@ -13,6 +13,18 @@ public class ShiftSecurity {
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     public boolean isOwner(Long shiftId) {
-        return shiftRepository.findById(shiftId).map(shift -> shift.getEmployee() != null && shift.getEmployee().getUser() != null && shift.getEmployee().getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())).orElse(false);
+        if (authenticatedUserProvider.isOverlord()) {
+            return true;
+        }
+
+        return shiftRepository.findById(shiftId)
+                .map(shift ->
+                        shift.getEmployee() != null
+                                && shift.getEmployee().getUser() != null
+                                && shift.getEmployee().getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())
+                                && shift.getEmployee().getCompany() != null
+                                && shift.getEmployee().getCompany().getId().equals(authenticatedUserProvider.getAuthenticatedCompanyId())
+                )
+                .orElse(false);
     }
 }

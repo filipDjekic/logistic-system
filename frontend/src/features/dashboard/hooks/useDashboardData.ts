@@ -46,7 +46,7 @@ function buildCountMap<T extends string>(items: T[]) {
 export function useDashboardData() {
   const auth = useAuthStore();
   const role = auth.user?.role ?? null;
-  const isAdmin = role === ROLES.ADMIN;
+  const isAdmin = role === ROLES.OVERLORD || role === ROLES.COMPANY_ADMIN;
 
   const results = useQueries({
     queries: [

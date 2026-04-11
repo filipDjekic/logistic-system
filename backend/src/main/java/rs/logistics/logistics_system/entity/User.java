@@ -15,7 +15,6 @@ import rs.logistics.logistics_system.enums.UserStatus;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 @Entity
@@ -39,17 +38,17 @@ public class User implements UserDetails {
     @Column(name = "last_name", length = 60, nullable = false)
     private String lastName;
 
-    @Column(name="email", length = 50, nullable = false, unique = true)
+    @Column(name = "email", length = 50, nullable = false, unique = true)
     private String email;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private UserStatus status;
 
-    @Column(name="enabled")
+    @Column(name = "enabled")
     private Boolean enabled;
 
-    @Column(name="created_at", nullable = false)
+    @Column(name = "created_at", nullable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -57,10 +56,13 @@ public class User implements UserDetails {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    //relations
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @OneToOne(mappedBy = "user")
     private Employee employee;
@@ -111,7 +113,7 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_"+role.getName()));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.getName()));
     }
 
     @Override
@@ -131,14 +133,14 @@ public class User implements UserDetails {
 
     @PrePersist
     @PreUpdate
-    private void normalize(){
-        if(email != null){
+    private void normalize() {
+        if (email != null) {
             email = email.trim().toLowerCase();
         }
-        if(firstName != null){
+        if (firstName != null) {
             firstName = firstName.trim();
         }
-        if(lastName != null){
+        if (lastName != null) {
             lastName = lastName.trim();
         }
     }

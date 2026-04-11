@@ -53,16 +53,42 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public StockMovementResponse create(StockMovementCreate dto) {
+        Warehouse warehouse = authenticatedUserProvider.isOverlord()
+                ? _warehouseRepository.findById(dto.getWarehouseId())
+                  .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"))
+                : _warehouseRepository.findByIdAndCompany_Id(
+                dto.getWarehouseId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
 
-        Warehouse warehouse = _warehouseRepository.findById(dto.getWarehouseId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Product product = authenticatedUserProvider.isOverlord()
+                ? _productRepository.findById(dto.getProductId())
+                  .orElseThrow(() -> new ResourceNotFoundException("Product not found"))
+                : _productRepository.findByIdAndCompany_Id(
+                dto.getProductId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-
-        User user = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = _userRepository.findById(authenticatedUserProvider.getAuthenticatedUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         TransportOrder transportOrder = null;
         if (dto.getTransportOrderId() != null) {
-            transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+            transportOrder = authenticatedUserProvider.isOverlord()
+                    ? _transportOrderRepository.findById(dto.getTransportOrderId())
+                      .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"))
+                    : _transportOrderRepository.findByIdAndCreatedBy_Company_Id(
+                    dto.getTransportOrderId(),
+                    authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+            ).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        }
+
+        validateWarehouseAndProductSameCompany(warehouse, product);
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            authenticatedUserProvider.ensureCompanyAccess(
+                    user.getCompany() != null ? user.getCompany().getId() : null
+            );
         }
 
         validateMovementRequest(dto, warehouse, product, transportOrder);
@@ -144,15 +170,26 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     public StockMovementResponse getById(Long id) {
-        StockMovement stockMovement = _stockMovementRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
+        StockMovement stockMovement = authenticatedUserProvider.isOverlord()
+                ? _stockMovementRepository.findById(id)
+                  .orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"))
+                : _stockMovementRepository.findByIdAndWarehouse_Company_Id(
+                id,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
+
         return StockMovementMapper.toResponse(stockMovement);
     }
 
     @Override
     public List<StockMovementResponse> getAll() {
-        return _stockMovementRepository.findAll()
-                .stream()
+        List<StockMovement> data = authenticatedUserProvider.isOverlord()
+                ? _stockMovementRepository.findAll()
+                : _stockMovementRepository.findAllByWarehouse_Company_Id(
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        );
+
+        return data.stream()
                 .map(StockMovementMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -233,24 +270,47 @@ public class StockMovementService implements StockMovementServiceDefinition {
     }
 
     private WarehouseInventory getOrCreateInventoryForMovement(Warehouse warehouse, Product product, StockMovementType movementType) {
-        WarehouseInventory inventory = _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
-                .orElseGet(() -> {
-                    if (movementType != StockMovementType.INBOUND &&
-                            movementType != StockMovementType.TRANSFER_IN &&
-                            movementType != StockMovementType.ADJUSTMENT) {
-                        throw new ResourceNotFoundException("Inventory not found");
-                    }
+        WarehouseInventory inventory = authenticatedUserProvider.isOverlord()
+                ? _warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
+                  .orElseGet(() -> {
+                      if (movementType != StockMovementType.INBOUND &&
+                          movementType != StockMovementType.TRANSFER_IN &&
+                          movementType != StockMovementType.ADJUSTMENT) {
+                          throw new ResourceNotFoundException("Inventory not found");
+                      }
 
-                    WarehouseInventory newInventory = new WarehouseInventory(
-                            warehouse,
-                            product,
-                            BigDecimal.ZERO,
-                            BigDecimal.ZERO
-                    );
-                    newInventory.setReservedQuantity(BigDecimal.ZERO);
+                      WarehouseInventory newInventory = new WarehouseInventory(
+                              warehouse,
+                              product,
+                              BigDecimal.ZERO,
+                              BigDecimal.ZERO
+                      );
+                      newInventory.setReservedQuantity(BigDecimal.ZERO);
 
-                    return _warehouseInventoryRepository.save(newInventory);
-                });
+                      return _warehouseInventoryRepository.save(newInventory);
+                  })
+                : _warehouseInventoryRepository.findByWarehouse_IdAndProduct_IdAndWarehouse_Company_Id(
+                warehouse.getId(),
+                product.getId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        )
+                  .orElseGet(() -> {
+                      if (movementType != StockMovementType.INBOUND &&
+                          movementType != StockMovementType.TRANSFER_IN &&
+                          movementType != StockMovementType.ADJUSTMENT) {
+                          throw new ResourceNotFoundException("Inventory not found");
+                      }
+
+                      WarehouseInventory newInventory = new WarehouseInventory(
+                              warehouse,
+                              product,
+                              BigDecimal.ZERO,
+                              BigDecimal.ZERO
+                      );
+                      newInventory.setReservedQuantity(BigDecimal.ZERO);
+
+                      return _warehouseInventoryRepository.save(newInventory);
+                  });
 
         validateInventoryOperationalContext(inventory);
         return inventory;
@@ -379,4 +439,15 @@ public class StockMovementService implements StockMovementServiceDefinition {
         validateProductOperational(inventory.getProduct());
     }
 
+    private void validateWarehouseAndProductSameCompany(Warehouse warehouse, Product product) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        authenticatedUserProvider.ensureSameCompany(
+                warehouse.getCompany() != null ? warehouse.getCompany().getId() : null,
+                product.getCompany() != null ? product.getCompany().getId() : null,
+                "Warehouse and product must belong to the same company"
+        );
+    }
 }

@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.dto.create;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -39,17 +40,10 @@ public class UserCreate {
     @NotNull
     private UserStatus status;
 
-    public UserCreate(String password,
-                      String firstName,
-                      String lastName,
-                      String email,
-                      Long roleId,
-                      UserStatus status) {
-        this.password = password;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.email = email;
-        this.roleId = roleId;
-        this.status = status;
-    }
+    @Positive
+    private Long companyId;
+
+    @Valid
+    @NotNull
+    private UserEmployeeCreate employee;
 }

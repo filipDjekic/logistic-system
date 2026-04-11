@@ -1,21 +1,27 @@
 package rs.logistics.logistics_system.controller;
 
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.TransportOrderItemCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderItemResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderItemUpdate;
-import rs.logistics.logistics_system.entity.TransportOrderItem;
-import rs.logistics.logistics_system.repository.TransportOrderItemRepository;
 import rs.logistics.logistics_system.service.definition.TransportOrderItemServiceDefinition;
 
-import java.util.List;
-
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
 @RestController
 @RequestMapping("/api/transport_order_items")
 @RequiredArgsConstructor

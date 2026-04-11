@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import rs.logistics.logistics_system.dto.auth.AuthMeResponse;
 import rs.logistics.logistics_system.dto.auth.LoginRequest;
 import rs.logistics.logistics_system.dto.auth.LoginResponse;
+import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.UserRepository;
@@ -41,17 +42,27 @@ public class AuthController {
             throw new ResourceNotFoundException("Authenticated user not found");
         }
 
-        String email = authentication.getName();
-
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String role = user.getRole() != null ? user.getRole().getName() : null;
+        Company company = user.getCompany();
+
+        AuthMeResponse.AuthMeCompanyResponse companyResponse = company == null
+                ? null
+                : new AuthMeResponse.AuthMeCompanyResponse(
+                        company.getId(),
+                        company.getName(),
+                        company.getActive()
+                );
 
         AuthMeResponse response = new AuthMeResponse(
                 user.getId(),
+                user.getFirstName(),
+                user.getLastName(),
                 user.getEmail(),
-                role
+                user.getEnabled(),
+                user.getRole() != null ? user.getRole().getName() : null,
+                companyResponse
         );
 
         return ResponseEntity.ok(response);

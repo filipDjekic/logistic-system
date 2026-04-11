@@ -22,11 +22,24 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Optional<Notification> findByUserIdAndId(Long userId, Long id);
 
+    Optional<Notification> findByIdAndUser_Company_Id(Long id, Long companyId);
+
     Page<Notification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     Page<Notification> findByUserIdAndStatusOrderByCreatedAtDesc(Long userId, NotificationStatus status, Pageable pageable);
 
+    Page<Notification> findByUserIdAndUser_Company_IdOrderByCreatedAtDesc(Long userId, Long companyId, Pageable pageable);
+
+    Page<Notification> findByUserIdAndStatusAndUser_Company_IdOrderByCreatedAtDesc(
+            Long userId,
+            NotificationStatus status,
+            Long companyId,
+            Pageable pageable
+    );
+
     long countByUserIdAndStatus(Long userId, NotificationStatus status);
+
+    long countByUserIdAndStatusAndUser_Company_Id(Long userId, NotificationStatus status, Long companyId);
 
     boolean existsByUserIdAndTitleAndMessageAndTypeAndStatus(Long userId, String title, String message, NotificationType type, NotificationStatus status);
 

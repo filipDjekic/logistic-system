@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.dto.update;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -40,12 +41,6 @@ public class UserUpdate {
     @NotNull
     private UserStatus status;
 
-    public UserUpdate(String firstName, String lastName, String email, Long roleId, Boolean enabled, UserStatus status) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.email = email;
-        this.roleId = roleId;
-        this.enabled = enabled;
-        this.status = status;
-    }
+    @Valid
+    private UserEmployeeUpdate employee;
 }

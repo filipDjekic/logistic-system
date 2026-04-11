@@ -43,12 +43,20 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     private final AuditFacadeDefinition auditFacade;
 
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+
     @Override
     public WarehouseResponse create(WarehouseCreate dto) {
-        Employee employee = _employeeRepository.findById(dto.getEmployeeId()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = getAccessibleEmployee(dto.getEmployeeId());
         validateWarehouseManager(employee);
 
         Warehouse warehouse = WarehouseMapper.toEntity(dto, employee);
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            warehouse.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
+        }
+
+        validateEmployeeCompany(employee);
         Warehouse saved = _warehouseRepository.save(warehouse);
 
         auditFacade.recordCreate("WAREHOUSE", saved.getId());
@@ -64,7 +72,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public WarehouseResponse update(Long id, WarehouseUpdate dto) {
-        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Warehouse warehouse = getWarehouseOrThrow(id);
         validateWarehouseIsActive(warehouse);
 
         String oldName = warehouse.getName();
@@ -90,16 +98,18 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public WarehouseResponse getById(Long id) {
-        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Warehouse warehouse = getWarehouseOrThrow(id);
         return WarehouseMapper.toResponse(warehouse);
     }
 
     @Override
     public WarehouseResponse assignEmployee(Long warehouseId, Long employeeId) {
-        Employee employee = _employeeRepository.findById(employeeId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
-        Warehouse warehouse = _warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Employee employee = getAccessibleEmployee(employeeId);
+        Warehouse warehouse = getWarehouseOrThrow(warehouseId);
+
         validateWarehouseManager(employee);
         validateWarehouseIsActive(warehouse);
+        validateSameCompany(warehouse, employee);
 
         Long oldManagerId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
         warehouse.setManager(employee);
@@ -118,13 +128,17 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public List<WarehouseResponse> getAll() {
-        return _warehouseRepository.findAll().stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
+        List<Warehouse> warehouses = authenticatedUserProvider.isOverlord()
+                ? _warehouseRepository.findAll()
+                : _warehouseRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+
+        return warehouses.stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Warehouse warehouse = getWarehouseOrThrow(id);
 
         validateForDeleting(warehouse);
 
@@ -141,7 +155,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public WarehouseResponse changeStatus(Long warehouseId, WarehouseStatus status) {
-        Warehouse warehouse = _warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Warehouse warehouse = getWarehouseOrThrow(warehouseId);
 
         WarehouseStatus oldStatus = warehouse.getStatus();
         Boolean oldActive = warehouse.getActive();
@@ -187,30 +201,62 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public List<WarehouseInventoryResponse> getInventoryByWarehouse(Long warehouseId) {
-        Warehouse warehouse = _warehouseRepository.findById(warehouseId).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Warehouse warehouse = getWarehouseOrThrow(warehouseId);
 
-        return _warehouseInventoryRepository.findByWarehouse_Id(warehouse.getId()).stream().map(WarehouseInventoryMapper::toResponse).collect(Collectors.toList());
+        return (authenticatedUserProvider.isOverlord()
+                ? _warehouseInventoryRepository.findByWarehouse_Id(warehouse.getId())
+                : _warehouseInventoryRepository.findByWarehouse_IdAndWarehouse_Company_Id(
+                warehouse.getId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ))
+                .stream()
+                .map(WarehouseInventoryMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<TransportOrderResponse> getOutgoingTransportOrders(Long id) {
-        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Warehouse warehouse = getWarehouseOrThrow(id);
 
-        return _transportOrderRepository.findBySourceWarehouseId(warehouse.getId()).stream().map(TransportOrderMapper::toResponse).collect(Collectors.toList());
+        return (authenticatedUserProvider.isOverlord()
+                ? _transportOrderRepository.findBySourceWarehouseId(warehouse.getId())
+                : _transportOrderRepository.findBySourceWarehouseIdAndCreatedBy_Company_Id(
+                warehouse.getId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ))
+                .stream()
+                .map(TransportOrderMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<TransportOrderResponse> getIncomingTransportOrders(Long id) {
-        Warehouse warehouse = _warehouseRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        Warehouse warehouse = getWarehouseOrThrow(id);
 
-        return _transportOrderRepository.findByDestinationWarehouseId(warehouse.getId()).stream().map(TransportOrderMapper::toResponse).collect(Collectors.toList());
+        return (authenticatedUserProvider.isOverlord()
+                ? _transportOrderRepository.findByDestinationWarehouseId(warehouse.getId())
+                : _transportOrderRepository.findByDestinationWarehouseIdAndCreatedBy_Company_Id(
+                warehouse.getId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ))
+                .stream()
+                .map(TransportOrderMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<WarehouseResponse> getByManager(Long managerId) {
-        Employee manager = _employeeRepository.findById(managerId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee manager = getAccessibleEmployee(managerId);
+        validateWarehouseManager(manager);
 
-        return _warehouseRepository.findByManagerId(manager.getId()).stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
+        List<Warehouse> warehouses = authenticatedUserProvider.isOverlord()
+                ? _warehouseRepository.findByManagerId(manager.getId())
+                : _warehouseRepository.findByManagerIdAndCompany_Id(
+                manager.getId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        );
+
+        return warehouses.stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
     }
 
     private void validateWarehouseManager(Employee employee) {
@@ -270,5 +316,47 @@ public class WarehouseService implements WarehouseServiceDefinition {
         if (hasActiveIncomingTransport) {
             throw new BadRequestException("Warehouse cannot be deactivated while it is destination warehouse for active transport orders.");
         }
+    }
+
+    private Warehouse getWarehouseOrThrow(Long id) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _warehouseRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        }
+
+        return _warehouseRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+    }
+
+    private Employee getAccessibleEmployee(Long employeeId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _employeeRepository.findById(employeeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        }
+
+        return _employeeRepository.findByIdAndCompany_Id(employeeId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+    }
+
+    private void validateEmployeeCompany(Employee employee) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        authenticatedUserProvider.ensureCompanyAccess(
+                employee.getCompany() != null ? employee.getCompany().getId() : null
+        );
+    }
+
+    private void validateSameCompany(Warehouse warehouse, Employee employee) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        authenticatedUserProvider.ensureSameCompany(
+                warehouse.getCompany() != null ? warehouse.getCompany().getId() : null,
+                employee.getCompany() != null ? employee.getCompany().getId() : null,
+                "Warehouse manager must belong to the same company"
+        );
     }
 }

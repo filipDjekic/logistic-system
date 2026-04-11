@@ -1,21 +1,24 @@
 package rs.logistics.logistics_system.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.entity.TransportOrder;
-import rs.logistics.logistics_system.enums.TransportOrderStatus;
-
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
+
 public interface TransportOrderRepository extends JpaRepository<TransportOrder, Long> {
 
     Optional<TransportOrder> findByOrderNumber(String orderNumber);
+
+    Optional<TransportOrder> findByIdAndCreatedBy_Company_Id(Long id, Long companyId);
+
+    List<TransportOrder> findAllByCreatedBy_Company_Id(Long companyId);
 
     boolean existsByOrderNumber(String orderNumber);
 
@@ -23,11 +26,19 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     List<TransportOrder> findByStatus(TransportOrderStatus status);
 
+    List<TransportOrder> findByStatusAndCreatedBy_Company_Id(TransportOrderStatus status, Long companyId);
+
     List<TransportOrder> findByVehicleId(Long vehicleId);
+
+    List<TransportOrder> findByVehicleIdAndCreatedBy_Company_Id(Long vehicleId, Long companyId);
 
     List<TransportOrder> findByAssignedEmployeeId(Long assignedEmployeeId);
 
+    List<TransportOrder> findByAssignedEmployeeIdAndCreatedBy_Company_Id(Long assignedEmployeeId, Long companyId);
+
     List<TransportOrder> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    List<TransportOrder> findByCreatedAtBetweenAndCreatedBy_Company_Id(LocalDateTime start, LocalDateTime end, Long companyId);
 
     boolean existsByVehicleIdAndStatusIn(Long vehicleId, List<TransportOrderStatus> status);
 
@@ -39,7 +50,11 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     List<TransportOrder> findBySourceWarehouseId(Long warehouseId);
 
+    List<TransportOrder> findBySourceWarehouseIdAndCreatedBy_Company_Id(Long warehouseId, Long companyId);
+
     List<TransportOrder> findByDestinationWarehouseId(Long warehouseId);
+
+    List<TransportOrder> findByDestinationWarehouseIdAndCreatedBy_Company_Id(Long warehouseId, Long companyId);
 
     @Query("""
         select count(t) > 0

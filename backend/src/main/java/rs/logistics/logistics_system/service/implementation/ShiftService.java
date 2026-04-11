@@ -14,6 +14,7 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.ShiftServiceDefinition;
 
@@ -30,10 +31,11 @@ public class ShiftService implements ShiftServiceDefinition {
     private final EmployeeRepository _employeeRepository;
     private final AuditFacadeDefinition auditFacade;
 
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+
     @Override
     public ShiftResponse create(ShiftCreate dto) {
-        Employee employee = _employeeRepository.findById(dto.getEmployeeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Employee employee = getAccessibleEmployee(dto.getEmployeeId());
 
         validateEmployeeCanBeAssignedToShift(employee);
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
@@ -57,8 +59,7 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse update(Long id, ShiftUpdate dto) {
-        Shift shift = _shiftRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        Shift shift = getShiftOrThrow(id);
 
         validateShiftCanBeModified(shift);
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
@@ -90,24 +91,24 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse getById(Long id) {
-        Shift shift = _shiftRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
-
+        Shift shift = getShiftOrThrow(id);
         return ShiftMapper.toResponse(shift);
     }
 
     @Override
     public List<ShiftResponse> getAll() {
-        return _shiftRepository.findAll()
-                .stream()
+        List<Shift> shifts = authenticatedUserProvider.isOverlord()
+                ? _shiftRepository.findAll()
+                : _shiftRepository.findAllByEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+
+        return shifts.stream()
                 .map(ShiftMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     public void delete(Long id) {
-        Shift shift = _shiftRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        Shift shift = getShiftOrThrow(id);
 
         validateShiftCanBeDeleted(shift);
 
@@ -127,8 +128,15 @@ public class ShiftService implements ShiftServiceDefinition {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
 
-        return _shiftRepository.findShiftsForDay(start, end)
-                .stream()
+        List<Shift> shifts = authenticatedUserProvider.isOverlord()
+                ? _shiftRepository.findShiftsForDay(start, end)
+                : _shiftRepository.findShiftsForDayAndCompany(
+                start,
+                end,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        );
+
+        return shifts.stream()
                 .map(ShiftMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -137,16 +145,22 @@ public class ShiftService implements ShiftServiceDefinition {
     public List<ShiftResponse> getShiftBetweenDates(LocalDateTime start, LocalDateTime end) {
         validateShiftTime(start, end);
 
-        return _shiftRepository.findShiftByBetweenDates(start, end)
-                .stream()
+        List<Shift> shifts = authenticatedUserProvider.isOverlord()
+                ? _shiftRepository.findShiftByBetweenDates(start, end)
+                : _shiftRepository.findShiftByBetweenDatesAndCompany(
+                start,
+                end,
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        );
+
+        return shifts.stream()
                 .map(ShiftMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     public void cancelShift(Long id) {
-        Shift shift = _shiftRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        Shift shift = getShiftOrThrow(id);
 
         validateShiftCanBeCancelled(shift);
 
@@ -165,11 +179,8 @@ public class ShiftService implements ShiftServiceDefinition {
 
     @Override
     public ShiftResponse assignShiftToEmployee(Long shiftId, Long employeeId) {
-        Shift shift = _shiftRepository.findById(shiftId)
-                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
-
-        Employee employee = _employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Shift shift = getShiftOrThrow(shiftId);
+        Employee employee = getAccessibleEmployee(employeeId);
 
         validateEmployeeCanBeAssignedToShift(employee);
         validateShiftCanBeReassigned(shift);
@@ -179,6 +190,14 @@ public class ShiftService implements ShiftServiceDefinition {
                 shift.getStartTime(),
                 shift.getEndTime()
         );
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            authenticatedUserProvider.ensureSameCompany(
+                    shift.getEmployee() != null && shift.getEmployee().getCompany() != null ? shift.getEmployee().getCompany().getId() : null,
+                    employee.getCompany() != null ? employee.getCompany().getId() : null,
+                    "Shift can be reassigned only within the same company"
+            );
+        }
 
         Employee oldEmployee = shift.getEmployee();
         if (oldEmployee != null) {
@@ -203,6 +222,8 @@ public class ShiftService implements ShiftServiceDefinition {
 
         return ShiftMapper.toResponse(updatedShift);
     }
+
+    // helpers
 
     private void validateEmployeeCanBeAssignedToShift(Employee employee) {
         if (!Boolean.TRUE.equals(employee.getActive())) {
@@ -282,5 +303,21 @@ public class ShiftService implements ShiftServiceDefinition {
         if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
             throw new BadRequestException("Shift that has started or already passed cannot be reassigned.");
         }
+    }
+
+    private Shift getShiftOrThrow(Long id) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        }
+
+        return _shiftRepository.findByIdAndEmployee_Company_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+    }
+
+    private Employee getAccessibleEmployee(Long employeeId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _employeeRepository.findById(employeeId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        }
+
+        return _employeeRepository.findByIdAndCompany_Id(employeeId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
 }

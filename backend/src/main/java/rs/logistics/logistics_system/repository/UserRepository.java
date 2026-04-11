@@ -41,4 +41,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
             )
             """)
     boolean hasBusinessReferences(@Param("userId") Long userId);
+
+    Optional<User> findByIdAndCompany_Id(Long id, Long companyId);
+
+    List<User> findAllByCompany_Id(Long companyId);
+
+    List<User> findByStatusAndCompany_Id(UserStatus status, Long companyId);
+
+    List<User> findByRoleIdAndCompany_Id(Long roleId, Long companyId);
 }
