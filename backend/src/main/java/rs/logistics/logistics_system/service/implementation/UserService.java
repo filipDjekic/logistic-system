@@ -27,6 +27,7 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.security.RoleCatalog;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
@@ -48,6 +49,7 @@ public class UserService implements UserServiceDefinition {
         Role role = roleRepository.findById(dto.getRoleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
+        validateSupportedRole(role);
         validateUniqueEmail(dto.getEmail());
         validateUniqueEmployeeData(dto.getEmail(), dto.getEmployee().getJmbg(), null);
 
@@ -85,6 +87,8 @@ public class UserService implements UserServiceDefinition {
     public UserResponse update(Long id, UserUpdate dto) {
         Role role = roleRepository.findById(dto.getRoleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
+
+        validateSupportedRole(role);
 
         User user = getUserOrThrow(id);
 
@@ -264,6 +268,8 @@ public class UserService implements UserServiceDefinition {
         Role newRole = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
+        validateSupportedRole(newRole);
+
         String oldRole = user.getRole().getName();
 
         if (user.getRole().getId().equals(roleId)) {
@@ -287,6 +293,12 @@ public class UserService implements UserServiceDefinition {
         );
 
         return UserMapper.toResponse(updatedUser);
+    }
+
+    private void validateSupportedRole(Role role) {
+        if (role == null || !RoleCatalog.isSupported(role.getName())) {
+            throw new BadRequestException("Unsupported system role");
+        }
     }
 
     private Employee toEmployee(User user, Company company, UserEmployeeCreate employeeData) {

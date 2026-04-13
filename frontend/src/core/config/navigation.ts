@@ -142,7 +142,7 @@ export const navigationItems: NavigationItem[] = [
     key: 'change-history',
     label: 'Change History',
     to: '/change-history',
-    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
     icon: FactCheckRoundedIcon,
   },
 ];
