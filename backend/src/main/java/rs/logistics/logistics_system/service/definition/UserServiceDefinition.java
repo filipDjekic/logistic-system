@@ -4,7 +4,6 @@ import rs.logistics.logistics_system.dto.auth.ChangePasswordRequest;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
-import rs.logistics.logistics_system.entity.Role;
 
 import java.util.List;
 

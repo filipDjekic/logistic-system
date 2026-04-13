@@ -3,7 +3,6 @@ package rs.logistics.logistics_system.service.definition;
 import rs.logistics.logistics_system.dto.create.ShiftCreate;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
-import rs.logistics.logistics_system.entity.Employee;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
