@@ -62,11 +62,11 @@ export default function DashboardPage() {
 
             <Stack direction="row" spacing={1} flexWrap="wrap">
               <Chip label={`Role: ${auth.user?.role ?? '-'}`} />
-              <Chip label={`User ID: ${auth.user?.userId ?? '-'}`} />
-              {dashboard.isAdmin ? (
+              <Chip label={`User ID: ${auth.user?.id ?? '-'}`} />
+              {dashboard.hasExtendedDashboard ? (
                 <Chip
                   icon={<AdminPanelSettingsRoundedIcon />}
-                  label="Admin data scope enabled"
+                  label="Extended data scope enabled"
                   color="primary"
                   variant="outlined"
                 />
@@ -76,7 +76,12 @@ export default function DashboardPage() {
         </Stack>
       </Box>
 
-      <DashboardStatsGrid isAdmin={dashboard.isAdmin} stats={dashboard.stats} />
+      <DashboardStatsGrid
+        canSeeTransportOverview={dashboard.canSeeTransportOverview}
+        canSeeFleetOverview={dashboard.canSeeFleetOverview}
+        canSeeStorageOverview={dashboard.canSeeStorageOverview}
+        stats={dashboard.stats}
+      />
 
       <Box
         sx={{
@@ -84,12 +89,12 @@ export default function DashboardPage() {
           gap: 2,
           gridTemplateColumns: {
             xs: '1fr',
-            xl: dashboard.isAdmin ? 'minmax(0, 1.5fr) minmax(0, 1fr)' : '1fr',
+            xl: dashboard.hasExtendedDashboard ? 'minmax(0, 1.5fr) minmax(0, 1fr)' : '1fr',
           },
         }}
       >
         <Stack spacing={2}>
-          {dashboard.isAdmin ? (
+          {dashboard.canSeeTransportOverview ? (
             <TransportStatusChart
               total={dashboard.transportOrders.length}
               counts={dashboard.transportStatusCounts}
@@ -99,14 +104,18 @@ export default function DashboardPage() {
           <MyTasksCard tasks={dashboard.myTasks} />
         </Stack>
 
-        {dashboard.isAdmin ? (
+        {dashboard.hasExtendedDashboard ? (
           <Stack spacing={2}>
-            <VehicleUsageCard
-              total={dashboard.vehicles.length}
-              counts={dashboard.vehicleStatusCounts}
-            />
+            {dashboard.canSeeFleetOverview ? (
+              <VehicleUsageCard
+                total={dashboard.vehicles.length}
+                counts={dashboard.vehicleStatusCounts}
+              />
+            ) : null}
 
-            <InventoryAlertsCard items={dashboard.inventoryAlerts} />
+            {dashboard.canSeeStorageOverview ? (
+              <InventoryAlertsCard items={dashboard.inventoryAlerts} />
+            ) : null}
           </Stack>
         ) : null}
       </Box>

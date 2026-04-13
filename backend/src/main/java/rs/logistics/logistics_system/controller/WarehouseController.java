@@ -26,7 +26,6 @@ import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
 
-@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
 @RestController
 @RequestMapping("/api/warehouses")
 @RequiredArgsConstructor
@@ -34,65 +33,70 @@ public class WarehouseController {
 
     private final WarehouseServiceDefinition warehouseService;
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PostMapping
     public ResponseEntity<WarehouseResponse> createWarehouse(@Valid @RequestBody WarehouseCreate dto) {
-        WarehouseResponse warehouseResponse = warehouseService.create(dto);
-        return new ResponseEntity<>(warehouseResponse, HttpStatus.CREATED);
+        return new ResponseEntity<>(warehouseService.create(dto), HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<WarehouseResponse> update(@PathVariable Long id,@Valid @RequestBody WarehouseUpdate dto) {
-        WarehouseResponse warehouseResponse = warehouseService.update(id, dto);
-        return new ResponseEntity<>(warehouseResponse, HttpStatus.OK);
+    public ResponseEntity<WarehouseResponse> update(@PathVariable Long id, @Valid @RequestBody WarehouseUpdate dto) {
+        return new ResponseEntity<>(warehouseService.update(id, dto), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/{id}")
     public ResponseEntity<WarehouseResponse> getById(@PathVariable Long id) {
-        WarehouseResponse warehouseResponse = warehouseService.getById(id);
-        return new ResponseEntity<>(warehouseResponse, HttpStatus.OK);
+        return new ResponseEntity<>(warehouseService.getById(id), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
     public ResponseEntity<List<WarehouseResponse>> getAll() {
-        List<WarehouseResponse> response = warehouseService.getAll();
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(warehouseService.getAll(), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         warehouseService.delete(id);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/{id}/inventory")
     public ResponseEntity<List<WarehouseInventoryResponse>> getInventoryByWarehouse(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseService.getInventoryByWarehouse(id));
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/{id}/outgoing-transports")
     public ResponseEntity<List<TransportOrderResponse>> getOutgoingTransports(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseService.getOutgoingTransportOrders(id));
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/{id}/incoming-transports")
     public ResponseEntity<List<TransportOrderResponse>> getIncomingTransports(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseService.getIncomingTransportOrders(id));
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @GetMapping("/manager/{managerId}")
     public ResponseEntity<List<WarehouseResponse>> getByManager(@PathVariable Long managerId) {
         return ResponseEntity.ok(warehouseService.getByManager(managerId));
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping("/manager/assign")
-    public ResponseEntity<Void> assignEmployee(@RequestParam Long employeeId, @RequestParam Long warehouseId){
-        warehouseService.assignEmployee(employeeId, warehouseId);
-        return new ResponseEntity<>(HttpStatus.OK);
+    public ResponseEntity<WarehouseResponse> assignEmployee(@RequestParam Long employeeId, @RequestParam Long warehouseId){
+        return ResponseEntity.ok(warehouseService.assignEmployee(warehouseId, employeeId));
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping("/warehouse/change-status")
     public ResponseEntity<WarehouseResponse> changeWarehouseStatus(@RequestParam Long id, @RequestParam WarehouseStatus status) {
-        WarehouseResponse response = warehouseService.changeStatus(id, status);
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(warehouseService.changeStatus(id, status), HttpStatus.OK);
     }
 }

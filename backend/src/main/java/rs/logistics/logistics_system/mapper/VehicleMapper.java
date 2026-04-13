@@ -8,7 +8,7 @@ import rs.logistics.logistics_system.entity.Vehicle;
 public class VehicleMapper {
 
     public static Vehicle toEntity(VehicleCreate dto) {
-        Vehicle vehicle = new Vehicle(
+        return new Vehicle(
                 dto.getRegistrationNumber(),
                 dto.getBrand(),
                 dto.getModel(),
@@ -18,8 +18,6 @@ public class VehicleMapper {
                 dto.getYearOfProduction(),
                 dto.getStatus()
         );
-
-        return vehicle;
     }
 
     public static void updateEntity(Vehicle vehicle, VehicleUpdate dto){
@@ -34,7 +32,7 @@ public class VehicleMapper {
     }
 
     public static VehicleResponse toResponse(Vehicle vehicle){
-        VehicleResponse response = new VehicleResponse(
+        return new VehicleResponse(
                 vehicle.getId(),
                 vehicle.getRegistrationNumber(),
                 vehicle.getBrand(),
@@ -43,9 +41,10 @@ public class VehicleMapper {
                 vehicle.getType(),
                 vehicle.getFuelType(),
                 vehicle.getYearOfProduction(),
-                vehicle.getStatus()
+                vehicle.getStatus(),
+                vehicle.getActive(),
+                vehicle.getCompany() != null ? vehicle.getCompany().getId() : null,
+                vehicle.getCompany() != null ? vehicle.getCompany().getName() : null
         );
-
-        return  response;
     }
 }

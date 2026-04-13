@@ -1,11 +1,11 @@
 package rs.logistics.logistics_system.dto.response;
 
+import java.math.BigDecimal;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.ProductUnit;
-
-import java.math.BigDecimal;
 
 @Getter
 @Setter
@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 public class ProductResponse {
 
     private Long id;
-
     private String name;
     private String description;
     private String sku;
@@ -21,16 +20,23 @@ public class ProductResponse {
     private BigDecimal price;
     private Boolean fragile;
     private BigDecimal weight;
+    private Boolean active;
+    private Long companyId;
+    private String companyName;
 
     public ProductResponse(
             Long id,
             String name,
-                         String description,
-                         String sku,
-                         ProductUnit unit,
-                         BigDecimal price,
-                         Boolean fragile,
-                         BigDecimal weight) {
+            String description,
+            String sku,
+            ProductUnit unit,
+            BigDecimal price,
+            Boolean fragile,
+            BigDecimal weight,
+            Boolean active,
+            Long companyId,
+            String companyName
+    ) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -39,5 +45,8 @@ public class ProductResponse {
         this.price = price;
         this.fragile = fragile;
         this.weight = weight;
+        this.active = active;
+        this.companyId = companyId;
+        this.companyName = companyName;
     }
 }

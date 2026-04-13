@@ -42,6 +42,8 @@ export default function CompaniesPage() {
       const matchesSearch =
         search.length === 0 ||
         company.name.toLowerCase().includes(search) ||
+        (company.adminFullName ?? '').toLowerCase().includes(search) ||
+        (company.adminEmail ?? '').toLowerCase().includes(search) ||
         String(company.id).includes(search) ||
         String(company.adminUserId ?? '').includes(search) ||
         String(company.adminEmployeeId ?? '').includes(search);
@@ -81,7 +83,7 @@ export default function CompaniesPage() {
             <SearchToolbar
               value={filters.search}
               onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by company name, ID, admin user ID or admin employee ID"
+              placeholder="Search by company name, admin name, admin email, or IDs"
               fullWidth
             />
 
@@ -144,14 +146,10 @@ export default function CompaniesPage() {
                 password: values.adminPassword,
                 firstName: values.adminFirstName,
                 lastName: values.adminLastName,
-                email: values.adminEmail,
-                status: values.adminStatus,
                 employee: {
                   jmbg: values.adminJmbg,
                   phoneNumber: values.adminPhoneNumber,
-                  position: values.adminPosition,
                   employmentDate: values.adminEmploymentDate,
-                  salary: Number(values.adminSalary),
                 },
               },
             });

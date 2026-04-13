@@ -26,6 +26,9 @@ public class CompanyMapper {
                 .orElse(null);
 
         Employee adminEmployee = adminUser != null ? adminUser.getEmployee() : null;
+        String adminFullName = adminUser == null
+                ? null
+                : (adminUser.getFirstName() + " " + adminUser.getLastName()).trim();
 
         return new CompanyResponse(
                 company.getId(),
@@ -34,7 +37,9 @@ public class CompanyMapper {
                 company.getCreatedAt(),
                 company.getUpdatedAt(),
                 adminUser != null ? adminUser.getId() : null,
-                adminEmployee != null ? adminEmployee.getId() : null
+                adminEmployee != null ? adminEmployee.getId() : null,
+                adminFullName,
+                adminUser != null ? adminUser.getEmail() : null
         );
     }
 }

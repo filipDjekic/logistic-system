@@ -142,6 +142,12 @@ export default function VehicleDetailsPage() {
         description={`Vehicle #${vehicle.id} • ${vehicle.registrationNumber}`}
         actions={
           <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate(`/change-history?entityName=VEHICLE&entityId=${vehicle.id}`)}
+            >
+              View history
+            </Button>
             <Button variant="outlined" onClick={() => navigate('/vehicles')}>
               Back to list
             </Button>

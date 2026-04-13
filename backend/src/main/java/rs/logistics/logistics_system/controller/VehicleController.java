@@ -24,7 +24,6 @@ import rs.logistics.logistics_system.dto.update.VehicleUpdate;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
 
-@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
 @RestController
 @RequestMapping("/api/vehicles")
 @RequiredArgsConstructor
@@ -32,39 +31,40 @@ public class VehicleController {
 
     private final VehicleServiceDefinition vehicleService;
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PostMapping
     public ResponseEntity<VehicleResponse> createVehicle(@Valid @RequestBody VehicleCreate dto) {
-        VehicleResponse response = vehicleService.create(dto);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        return new ResponseEntity<>(vehicleService.create(dto), HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<VehicleResponse> updateVehicle(@PathVariable Long id,@Valid @RequestBody VehicleUpdate dto) {
-        VehicleResponse vehicleResponse = vehicleService.update(id, dto);
-        return new ResponseEntity<>(vehicleResponse, HttpStatus.OK);
+    public ResponseEntity<VehicleResponse> updateVehicle(@PathVariable Long id, @Valid @RequestBody VehicleUpdate dto) {
+        return new ResponseEntity<>(vehicleService.update(id, dto), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping("/{id}")
     public ResponseEntity<VehicleResponse> getVehicle(@PathVariable Long id) {
-        VehicleResponse response = vehicleService.getById(id);
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(vehicleService.getById(id), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping
     public ResponseEntity<List<VehicleResponse>> getAllVehicles() {
-        List<VehicleResponse> vehicleResponse = vehicleService.getAll();
-        return new ResponseEntity<>(vehicleResponse, HttpStatus.OK);
+        return new ResponseEntity<>(vehicleService.getAll(), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
         vehicleService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<VehicleResponse> changeStatus(@PathVariable Long id, @RequestParam VehicleStatus status) {
-        VehicleResponse response = vehicleService.changeStatus(id, status);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(vehicleService.changeStatus(id, status));
     }
 }

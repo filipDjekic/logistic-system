@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.mapper;
 
+import java.math.BigDecimal;
+
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.entity.Product;
@@ -7,8 +9,6 @@ import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.Warehouse;
-
-import java.math.BigDecimal;
 
 public class StockMovementMapper {
 
@@ -65,7 +65,11 @@ public class StockMovementMapper {
                 stockMovement.getAvailableBefore(),
                 stockMovement.getAvailableAfter(),
                 stockMovement.getWarehouse().getId(),
+                stockMovement.getWarehouse().getName(),
+                stockMovement.getWarehouse().getCompany() != null ? stockMovement.getWarehouse().getCompany().getId() : null,
                 stockMovement.getProduct().getId(),
+                stockMovement.getProduct().getName(),
+                stockMovement.getProduct().getCompany() != null ? stockMovement.getProduct().getCompany().getId() : null,
                 stockMovement.getCreatedBy().getId(),
                 stockMovement.getTransportOrder() != null ? stockMovement.getTransportOrder().getId() : null,
                 stockMovement.getCreatedAt()

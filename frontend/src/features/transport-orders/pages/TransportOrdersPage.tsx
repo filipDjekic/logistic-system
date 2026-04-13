@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -21,6 +23,13 @@ import { transportOrderPriorityOptions } from '../validation/transportOrderSchem
 const statusOptions = ['ALL', 'CREATED', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'] as const;
 
 export default function TransportOrdersPage() {
+  const auth = useAuthStore();
+
+  const canManage =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.DISPATCHER;
+
   const [filters, setFilters] = useState<TransportOrderFiltersState>({
     search: '',
     status: 'ALL',
@@ -129,9 +138,11 @@ export default function TransportOrdersPage() {
         title="Transport Orders"
         description="Manage transport orders, route assignments, statuses, and related shipment items."
         actions={
-          <Button variant="contained" onClick={() => setDialogOpen(true)}>
-            Create transport order
-          </Button>
+          canManage ? (
+            <Button variant="contained" onClick={() => setDialogOpen(true)}>
+              Create transport order
+            </Button>
+          ) : null
         }
       />
 
@@ -210,39 +221,41 @@ export default function TransportOrdersPage() {
         />
       </SectionCard>
 
-      <TransportOrderFormDialog
-        open={dialogOpen}
-        warehouses={warehousesQuery.data ?? []}
-        vehicles={vehiclesQuery.data ?? []}
-        employees={employeesQuery.data ?? []}
-        loading={
-          createTransportOrderMutation.isPending ||
-          warehousesQuery.isLoading ||
-          vehiclesQuery.isLoading ||
-          employeesQuery.isLoading
-        }
-        onClose={() => setDialogOpen(false)}
-        onSubmit={(values) => {
-          createTransportOrderMutation.mutate(
-            {
-              orderNumber: values.orderNumber.trim(),
-              description: values.description.trim(),
-              orderDate: values.orderDate,
-              departureTime: values.departureTime,
-              plannedArrivalTime: values.plannedArrivalTime,
-              priority: values.priority,
-              notes: (values.notes ?? '').trim() || undefined,
-              sourceWarehouseId: values.sourceWarehouseId,
-              destinationWarehouseId: values.destinationWarehouseId,
-              vehicleId: values.vehicleId,
-              assignedEmployeeId: values.assignedEmployeeId,
-            },
-            {
-              onSuccess: () => setDialogOpen(false),
-            },
-          );
-        }}
-      />
+      {canManage ? (
+        <TransportOrderFormDialog
+          open={dialogOpen}
+          warehouses={warehousesQuery.data ?? []}
+          vehicles={vehiclesQuery.data ?? []}
+          employees={employeesQuery.data ?? []}
+          loading={
+            createTransportOrderMutation.isPending ||
+            warehousesQuery.isLoading ||
+            vehiclesQuery.isLoading ||
+            employeesQuery.isLoading
+          }
+          onClose={() => setDialogOpen(false)}
+          onSubmit={(values) => {
+            createTransportOrderMutation.mutate(
+              {
+                orderNumber: values.orderNumber.trim(),
+                description: values.description.trim(),
+                orderDate: values.orderDate,
+                departureTime: values.departureTime,
+                plannedArrivalTime: values.plannedArrivalTime,
+                priority: values.priority,
+                notes: (values.notes ?? '').trim() || undefined,
+                sourceWarehouseId: values.sourceWarehouseId,
+                destinationWarehouseId: values.destinationWarehouseId,
+                vehicleId: values.vehicleId,
+                assignedEmployeeId: values.assignedEmployeeId,
+              },
+              {
+                onSuccess: () => setDialogOpen(false),
+              },
+            );
+          }}
+        />
+      ) : null}
     </Stack>
   );
 }

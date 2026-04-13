@@ -1,14 +1,14 @@
 package rs.logistics.logistics_system.dto.response;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -35,7 +35,13 @@ public class StockMovementResponse {
     private BigDecimal availableAfter;
 
     private Long warehouseId;
+    private String warehouseName;
+    private Long warehouseCompanyId;
+
     private Long productId;
+    private String productName;
+    private Long productCompanyId;
+
     private Long createdById;
     private Long transportOrderId;
 
@@ -58,7 +64,11 @@ public class StockMovementResponse {
             BigDecimal availableBefore,
             BigDecimal availableAfter,
             Long warehouseId,
+            String warehouseName,
+            Long warehouseCompanyId,
             Long productId,
+            String productName,
+            Long productCompanyId,
             Long createdById,
             Long transportOrderId,
             LocalDateTime createdAt
@@ -79,7 +89,11 @@ public class StockMovementResponse {
         this.availableBefore = availableBefore;
         this.availableAfter = availableAfter;
         this.warehouseId = warehouseId;
+        this.warehouseName = warehouseName;
+        this.warehouseCompanyId = warehouseCompanyId;
         this.productId = productId;
+        this.productName = productName;
+        this.productCompanyId = productCompanyId;
         this.createdById = createdById;
         this.transportOrderId = transportOrderId;
         this.createdAt = createdAt;

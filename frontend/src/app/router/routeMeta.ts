@@ -65,6 +65,26 @@ export const routeMeta = {
     title: 'Vehicle Details',
     breadcrumb: 'Vehicle Details',
   },
+  warehouses: {
+    path: '/warehouses',
+    title: 'Warehouses',
+    breadcrumb: 'Warehouses',
+  },
+  warehouseDetails: {
+    path: '/warehouses/:id',
+    title: 'Warehouse Details',
+    breadcrumb: 'Warehouse Details',
+  },
+  products: {
+    path: '/products',
+    title: 'Products',
+    breadcrumb: 'Products',
+  },
+  productDetails: {
+    path: '/products/:id',
+    title: 'Product Details',
+    breadcrumb: 'Product Details',
+  },
   inventory: {
     path: '/inventory',
     title: 'Inventory',
@@ -79,6 +99,26 @@ export const routeMeta = {
     path: '/stock-movements',
     title: 'Stock Movements',
     breadcrumb: 'Stock Movements',
+  },
+  tasks: {
+    path: '/tasks',
+    title: 'Tasks',
+    breadcrumb: 'Tasks',
+  },
+  taskDetails: {
+    path: '/tasks/:id',
+    title: 'Task Details',
+    breadcrumb: 'Task Details',
+  },
+  roles: {
+    path: '/roles',
+    title: 'Roles',
+    breadcrumb: 'Roles',
+  },
+  roleDetails: {
+    path: '/roles/:id',
+    title: 'Role Details',
+    breadcrumb: 'Role Details',
   },
   employees: {
     path: '/employees',
@@ -129,12 +169,28 @@ export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
     return routeMeta.inventoryDetails;
   }
 
+  if (/^\/warehouses\/\d+$/.test(pathname)) {
+    return routeMeta.warehouseDetails;
+  }
+
+  if (/^\/products\/\d+$/.test(pathname)) {
+    return routeMeta.productDetails;
+  }
+
+  if (/^\/tasks\/\d+$/.test(pathname)) {
+    return routeMeta.taskDetails;
+  }
+
   if (/^\/employees\/\d+$/.test(pathname)) {
     return routeMeta.employeeDetails;
   }
 
   if (/^\/users\/\d+$/.test(pathname)) {
     return routeMeta.userDetails;
+  }
+
+  if (/^\/roles\/\d+$/.test(pathname)) {
+    return routeMeta.roleDetails;
   }
 
   const entries = Object.values(routeMeta);

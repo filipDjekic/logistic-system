@@ -1,14 +1,19 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
+import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Warehouse;
@@ -16,10 +21,12 @@ import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.mapper.WarehouseMapper;
+import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
@@ -27,10 +34,6 @@ import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +43,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
     private final TransportOrderRepository _transportOrderRepository;
     private final EmployeeRepository _employeeRepository;
+    private final CompanyRepository companyRepository;
 
     private final AuditFacadeDefinition auditFacade;
 
@@ -51,20 +55,18 @@ public class WarehouseService implements WarehouseServiceDefinition {
         validateWarehouseManager(employee);
 
         Warehouse warehouse = WarehouseMapper.toEntity(dto, employee);
+        warehouse.setCompany(resolveTargetCompany(dto.getCompanyId()));
 
-        if (!authenticatedUserProvider.isOverlord()) {
-            warehouse.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
-        }
-
-        validateEmployeeCompany(employee);
+        validateEmployeeCompanyForWarehouse(employee, warehouse);
         Warehouse saved = _warehouseRepository.save(warehouse);
 
         auditFacade.recordCreate("WAREHOUSE", saved.getId());
+        auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "company_id", null, saved.getCompany() != null ? saved.getCompany().getId() : null);
         auditFacade.log(
                 "CREATE",
                 "WAREHOUSE",
                 saved.getId(),
-                "WAREHOUSE is created (ID: " + saved.getId() + ")"
+                "WAREHOUSE is created (ID: " + saved.getId() + ", companyId: " + (saved.getCompany() != null ? saved.getCompany().getId() : null) + ")"
         );
 
         return WarehouseMapper.toResponse(saved);
@@ -108,7 +110,6 @@ public class WarehouseService implements WarehouseServiceDefinition {
         Warehouse warehouse = getWarehouseOrThrow(warehouseId);
 
         validateWarehouseManager(employee);
-        validateWarehouseIsActive(warehouse);
         validateSameCompany(warehouse, employee);
 
         Long oldManagerId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
@@ -338,13 +339,11 @@ public class WarehouseService implements WarehouseServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
 
-    private void validateEmployeeCompany(Employee employee) {
-        if (authenticatedUserProvider.isOverlord()) {
-            return;
-        }
-
-        authenticatedUserProvider.ensureCompanyAccess(
-                employee.getCompany() != null ? employee.getCompany().getId() : null
+    private void validateEmployeeCompanyForWarehouse(Employee employee, Warehouse warehouse) {
+        authenticatedUserProvider.ensureSameCompany(
+                warehouse.getCompany() != null ? warehouse.getCompany().getId() : null,
+                employee.getCompany() != null ? employee.getCompany().getId() : null,
+                "Warehouse manager must belong to the same company"
         );
     }
 
@@ -358,5 +357,23 @@ public class WarehouseService implements WarehouseServiceDefinition {
                 employee.getCompany() != null ? employee.getCompany().getId() : null,
                 "Warehouse manager must belong to the same company"
         );
+    }
+
+    private Company resolveTargetCompany(Long companyId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            if (companyId == null) {
+                throw new BadRequestException("companyId is required for OVERLORD warehouse creation");
+            }
+
+            return companyRepository.findById(companyId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
+        }
+
+        Company company = authenticatedUserProvider.getAuthenticatedCompany();
+        if (company == null) {
+            throw new ForbiddenException("Authenticated user is not assigned to a company");
+        }
+
+        return company;
     }
 }

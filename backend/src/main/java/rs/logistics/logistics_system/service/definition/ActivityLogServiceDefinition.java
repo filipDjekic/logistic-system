@@ -1,8 +1,6 @@
 package rs.logistics.logistics_system.service.definition;
 
-import rs.logistics.logistics_system.dto.create.ActivityLogCreate;
 import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
-import rs.logistics.logistics_system.dto.update.ActivityLogUpdate;
 
 import java.time.LocalDateTime;
 import java.util.List;

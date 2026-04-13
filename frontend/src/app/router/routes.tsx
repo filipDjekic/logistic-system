@@ -20,6 +20,14 @@ import ActivityLogsPage from '../../features/activity-logs/pages/ActivityLogsPag
 import ChangeHistoryPage from '../../features/change-history/pages/ChangeHistoryPage';
 import CompaniesPage from '../../features/companies/pages/CompaniesPage';
 import CompanyDetailsPage from '../../features/companies/pages/CompanyDetailsPage';
+import ProductsPage from '../../features/product/pages/ProductsPage';
+import ProductDetailsPage from '../../features/product/pages/ProductDetailsPage';
+import TasksPage from '../../features/tasks/pages/TasksPage';
+import TaskDetailsPage from '../../features/tasks/pages/TaskDetailsPage';
+import WarehousesPage from '../../features/warehouses/pages/WarehousesPage';
+import WarehouseDetailsPage from '../../features/warehouses/pages/WarehouseDetailsPage';
+import RolesPage from '../../features/roles/pages/RolesPage';
+import RoleDetailsPage from '../../features/roles/pages/RoleDetailsPage';
 import { GuestRoute, ProtectedRoute } from './guards';
 import { ALL_ROLES, ROLES } from '../../core/constants/roles';
 import AuthLayout from '../layout/AuthLayout';
@@ -60,6 +68,8 @@ export const routes = [
           { path: '/companies', element: <CompaniesPage /> },
           { path: '/companies/:id', element: <CompanyDetailsPage /> },
           { path: '/activity-logs', element: <ActivityLogsPage /> },
+          { path: '/roles', element: <RolesPage /> },
+          { path: '/roles/:id', element: <RoleDetailsPage /> },
         ],
       },
     ],
@@ -102,6 +112,19 @@ export const routes = [
     ],
   },
   {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/tasks', element: <TasksPage /> },
+          { path: '/tasks/:id', element: <TaskDetailsPage /> },
+        ],
+      },
+    ],
+  },
+
+  {
     element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER]} />,
     children: [
       {
@@ -119,11 +142,23 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
+          { path: '/warehouses', element: <WarehousesPage /> },
+          { path: '/warehouses/:id', element: <WarehouseDetailsPage /> },
+          { path: '/products', element: <ProductsPage /> },
+          { path: '/products/:id', element: <ProductDetailsPage /> },
           { path: '/inventory', element: <InventoryPage /> },
           { path: '/inventory/:warehouseId/:productId', element: <InventoryDetailsPage /> },
           { path: '/stock-movements', element: <StockMovementsPage /> },
-          { path: '/change-history', element: <ChangeHistoryPage /> },
         ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [{ path: '/change-history', element: <ChangeHistoryPage /> }],
       },
     ],
   },

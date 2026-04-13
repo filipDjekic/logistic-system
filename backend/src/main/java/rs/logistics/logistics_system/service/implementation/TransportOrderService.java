@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
+import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
@@ -18,6 +19,7 @@ import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
+import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
@@ -26,13 +28,13 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
-import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
@@ -54,13 +56,13 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final EmployeeRepository _employeeRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
-    private static final List<TransportOrderStatus> ACTIVE_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
     private static final List<TransportOrderStatus> SCHEDULE_BLOCKING_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
     private static final List<TransportOrderStatus> VEHICLE_BUSY_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
 
     private final NotificationServiceDefinition notificationService;
     private final StockMovementServiceDefinition stockMovementService;
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
+    private final TaskServiceDefinition taskService;
     private final AuditFacadeDefinition auditFacade;
 
     @Override
@@ -105,6 +107,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 saved.getId(),
                 "Transport order created (ID: " + saved.getId() + ")"
         );
+
+        createOperationalTaskForNewTransportOrder(saved);
 
         return TransportOrderMapper.toResponse(saved);
     }
@@ -427,6 +431,31 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     }
 
     // HELPERS
+
+
+    private void createOperationalTaskForNewTransportOrder(TransportOrder transportOrder) {
+        if (transportOrder.getAssignedEmployee() == null) {
+            return;
+        }
+
+        LocalDateTime dueDate = transportOrder.getDepartureTime();
+        if (dueDate == null || dueDate.isBefore(LocalDateTime.now())) {
+            dueDate = transportOrder.getPlannedArrivalTime();
+        }
+        if (dueDate == null || dueDate.isBefore(LocalDateTime.now())) {
+            dueDate = LocalDateTime.now().plusHours(1);
+        }
+
+        taskService.create(new TaskCreate(
+                "Transport order " + transportOrder.getOrderNumber(),
+                "Operational task generated automatically for transport order " + transportOrder.getOrderNumber() + ".",
+                dueDate,
+                TaskPriority.valueOf(transportOrder.getPriority().name()),
+                transportOrder.getAssignedEmployee().getId(),
+                transportOrder.getId(),
+                null
+        ));
+    }
 
     private void validateCreateOrUpdateRequest(TransportOrderCreate dto) {
         if (dto.getVehicleId() == null || dto.getAssignedEmployeeId() == null || dto.getSourceWarehouseId() == null || dto.getDestinationWarehouseId() == null) {

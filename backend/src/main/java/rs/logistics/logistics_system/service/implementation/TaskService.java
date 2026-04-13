@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.Employee;
+import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.enums.NotificationType;
@@ -17,6 +18,7 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
@@ -35,6 +37,7 @@ public class TaskService implements TaskServiceDefinition {
     private final TaskRepository _taskRepository;
     private final EmployeeRepository _employeeRepository;
     private final TransportOrderRepository _transportOrderRepository;
+    private final StockMovementRepository stockMovementRepository;
 
     private final NotificationServiceDefinition notificationService;
     private final AuditFacadeDefinition auditFacade;
@@ -48,10 +51,12 @@ public class TaskService implements TaskServiceDefinition {
 
         Employee employee = getActiveEmployee(dto.getAssignedEmployeeId());
         TransportOrder transportOrder = getOptionalTransportOrder(dto.getTransportOrderId());
+        StockMovement stockMovement = getOptionalStockMovement(dto.getStockMovementId());
 
-        validateTaskCompanyContext(employee, transportOrder);
+        validateTaskCompanyContext(employee, transportOrder, stockMovement);
+        validateLinkedProcessContext(transportOrder, stockMovement);
 
-        Task task = TaskMapper.toEntity(dto, employee, transportOrder);
+        Task task = TaskMapper.toEntity(dto, employee, transportOrder, stockMovement);
         task.setStatus(TaskStatus.NEW);
         Task saved = _taskRepository.save(task);
 
@@ -86,8 +91,10 @@ public class TaskService implements TaskServiceDefinition {
         Employee employee = getActiveEmployee(dto.getAssignedEmployeeId());
         Employee oldEmployee = task.getAssignedEmployee();
         TransportOrder transportOrder = getOptionalTransportOrder(dto.getTransportOrderId());
+        StockMovement stockMovement = getOptionalStockMovement(dto.getStockMovementId());
 
-        validateTaskCompanyContext(employee, transportOrder);
+        validateTaskCompanyContext(employee, transportOrder, stockMovement);
+        validateLinkedProcessContext(transportOrder, stockMovement);
 
         if (!task.getAssignedEmployee().getId().equals(employee.getId())) {
             validateReassign(task, employee);
@@ -99,8 +106,9 @@ public class TaskService implements TaskServiceDefinition {
         String oldTitle = task.getTitle();
         String oldDescription = task.getDescription();
         Long oldTransportOrderId = task.getTransportOrder() != null ? task.getTransportOrder().getId() : null;
+        Long oldStockMovementId = task.getStockMovement() != null ? task.getStockMovement().getId() : null;
 
-        TaskMapper.updateEntity(task, dto, employee, transportOrder);
+        TaskMapper.updateEntity(task, dto, employee, transportOrder, stockMovement);
         Task saved = _taskRepository.save(task);
 
         auditFacade.recordFieldChange(
@@ -120,6 +128,13 @@ public class TaskService implements TaskServiceDefinition {
                 "transportOrder",
                 oldTransportOrderId,
                 saved.getTransportOrder() != null ? saved.getTransportOrder().getId() : null
+        );
+        auditFacade.recordFieldChange(
+                "TASK",
+                saved.getId(),
+                "stockMovement",
+                oldStockMovementId,
+                saved.getStockMovement() != null ? saved.getStockMovement().getId() : null
         );
 
         if (oldEmployee != null && !oldEmployee.getId().equals(employee.getId()) && oldEmployee.getUser() != null) {
@@ -189,6 +204,10 @@ public class TaskService implements TaskServiceDefinition {
 
             if (task.getTransportOrder() != null) {
                 throw new BadRequestException("Task linked to a transport order cannot be deleted. Cancel it instead.");
+            }
+
+            if (task.getStockMovement() != null) {
+                throw new BadRequestException("Task linked to a stock movement cannot be deleted. Cancel it instead.");
             }
 
             throw new BadRequestException("Task cannot be deleted because it is already part of operational history. Cancel it instead.");
@@ -392,7 +411,7 @@ public class TaskService implements TaskServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
     }
 
-    private void validateTaskCompanyContext(Employee employee, TransportOrder transportOrder) {
+    private void validateTaskCompanyContext(Employee employee, TransportOrder transportOrder, StockMovement stockMovement) {
         if (authenticatedUserProvider.isOverlord()) {
             return;
         }
@@ -410,6 +429,45 @@ public class TaskService implements TaskServiceDefinition {
                     transportCompanyId,
                     "Task employee and transport order must belong to the same company"
             );
+        }
+
+        if (stockMovement != null) {
+            Long stockMovementCompanyId = stockMovement.getWarehouse() != null && stockMovement.getWarehouse().getCompany() != null
+                    ? stockMovement.getWarehouse().getCompany().getId()
+                    : null;
+
+            authenticatedUserProvider.ensureSameCompany(
+                    employeeCompanyId,
+                    stockMovementCompanyId,
+                    "Task employee and stock movement must belong to the same company"
+            );
+        }
+    }
+
+    private StockMovement getOptionalStockMovement(Long stockMovementId) {
+        if (stockMovementId == null) {
+            return null;
+        }
+
+        return authenticatedUserProvider.isOverlord()
+                ? stockMovementRepository.findById(stockMovementId)
+                    .orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"))
+                : stockMovementRepository.findByIdAndWarehouse_Company_Id(
+                    stockMovementId,
+                    authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                ).orElseThrow(() -> new ResourceNotFoundException("StockMovement not found"));
+    }
+
+    private void validateLinkedProcessContext(TransportOrder transportOrder, StockMovement stockMovement) {
+        if (transportOrder != null && stockMovement != null) {
+            Long taskTransportOrderId = transportOrder.getId();
+            Long stockMovementTransportOrderId = stockMovement.getTransportOrder() != null
+                    ? stockMovement.getTransportOrder().getId()
+                    : null;
+
+            if (stockMovementTransportOrderId != null && !stockMovementTransportOrderId.equals(taskTransportOrderId)) {
+                throw new BadRequestException("Task transport order and stock movement must belong to the same process");
+            }
         }
     }
 }

@@ -38,13 +38,17 @@ public class TaskUpdate {
     @Positive
     private Long transportOrderId;
 
+    @Positive
+    private Long stockMovementId;
+
     public TaskUpdate(Long id,
                       String title,
                       String description,
                       LocalDateTime dueDate,
                       TaskPriority priority,
                       Long assignedEmployeeId,
-                      Long transportOrderId) {
+                      Long transportOrderId,
+                      Long stockMovementId) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -52,5 +56,6 @@ public class TaskUpdate {
         this.priority = priority;
         this.assignedEmployeeId = assignedEmployeeId;
         this.transportOrderId = transportOrderId;
+        this.stockMovementId = stockMovementId;
     }
 }

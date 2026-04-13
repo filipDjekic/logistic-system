@@ -64,6 +64,10 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         Employee employee = EmployeeMapper.toEntity(dto, user);
 
+        if (user != null) {
+            employee.setCompany(user.getCompany());
+        }
+
         if (!authenticatedUserProvider.isOverlord()) {
             Company company = authenticatedUserProvider.getAuthenticatedCompany();
 
@@ -82,11 +86,14 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         Employee saved = _employeeRepository.save(employee);
 
-        auditFacade.recordCreate("EMPLOYEE", saved.getId());
+        auditFacade.recordCreate("EMPLOYEE", saved.getId(), saved.getEmail());
+        auditFacade.recordFieldChange("EMPLOYEE", saved.getId(), "user_id", null, saved.getUser() != null ? saved.getUser().getId() : null);
+        auditFacade.recordFieldChange("EMPLOYEE", saved.getId(), "company_id", null, saved.getCompany() != null ? saved.getCompany().getId() : null);
         auditFacade.log(
                 "CREATE",
                 "EMPLOYEE",
                 saved.getId(),
+                saved.getEmail(),
                 "EMPLOYEE is created (ID: " + saved.getId() + ")"
         );
 
@@ -113,8 +120,9 @@ public class EmployeeService implements EmployeeServiceDefinition {
         );
         user.setEnabled(true);
 
+        Company company = null;
         if (!authenticatedUserProvider.isOverlord()) {
-            Company company = authenticatedUserProvider.getAuthenticatedCompany();
+            company = authenticatedUserProvider.getAuthenticatedCompany();
 
             if (company == null) {
                 throw new ForbiddenException("Authenticated user is not assigned to a company");
@@ -136,30 +144,30 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 dto.getSalary(),
                 savedUser
         );
-
-        if (!authenticatedUserProvider.isOverlord()) {
-            employee.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
-        }
+        employee.setCompany(company != null ? company : savedUser.getCompany());
 
         Employee savedEmployee = _employeeRepository.save(employee);
 
-        auditFacade.recordCreate("USER", savedUser.getId());
+        auditFacade.recordCreate("USER", savedUser.getId(), savedUser.getEmail());
+        auditFacade.recordFieldChange("USER", savedUser.getId(), "company_id", null, savedUser.getCompany() != null ? savedUser.getCompany().getId() : null);
         auditFacade.log(
                 "CREATE",
                 "USER",
                 savedUser.getId(),
+                savedUser.getEmail(),
                 "USER is created through employee onboarding flow (ID: " + savedUser.getId() + ")"
         );
 
-        auditFacade.recordCreate("EMPLOYEE", savedEmployee.getId());
+        auditFacade.recordCreate("EMPLOYEE", savedEmployee.getId(), savedEmployee.getEmail());
+        auditFacade.recordFieldChange("EMPLOYEE", savedEmployee.getId(), "user_id", null, savedUser.getId());
+        auditFacade.recordFieldChange("EMPLOYEE", savedEmployee.getId(), "company_id", null, savedEmployee.getCompany() != null ? savedEmployee.getCompany().getId() : null);
         auditFacade.log(
                 "CREATE",
                 "EMPLOYEE",
                 savedEmployee.getId(),
+                savedEmployee.getEmail(),
                 "EMPLOYEE is created together with USER (ID: " + savedEmployee.getId() + ")"
         );
-
-        auditFacade.recordFieldChange("EMPLOYEE", savedEmployee.getId(), "userId", null, savedUser.getId());
 
         return EmployeeMapper.toResponse(savedEmployee);
     }
@@ -192,8 +200,13 @@ public class EmployeeService implements EmployeeServiceDefinition {
         String oldJmbg = employee.getJmbg();
         String oldEmail = employee.getEmail();
         Boolean oldActive = employee.getActive();
+        Long oldCompanyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
 
         EmployeeMapper.updateEntity(dto, employee, user);
+
+        if (user != null) {
+            employee.setCompany(user.getCompany());
+        }
 
         if (!authenticatedUserProvider.isOverlord()) {
             employee.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
@@ -207,20 +220,23 @@ public class EmployeeService implements EmployeeServiceDefinition {
             userService.disableUser(updated.getUser().getId());
         }
 
-        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "userId", oldUserId,
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "user_id", oldUserId,
                 updated.getUser() != null ? updated.getUser().getId() : null);
-        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "firstName", oldFirstName, updated.getFirstName());
-        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "lastName", oldLastName, updated.getLastName());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "first_name", oldFirstName, updated.getFirstName());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "last_name", oldLastName, updated.getLastName());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "position", oldPosition, updated.getPosition());
-        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "phoneNumber", oldPhoneNumber, updated.getPhoneNumber());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "phone_number", oldPhoneNumber, updated.getPhoneNumber());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "jmbg", oldJmbg, updated.getJmbg());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "email", oldEmail, updated.getEmail());
         auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "active", oldActive, updated.getActive());
+        auditFacade.recordFieldChange("EMPLOYEE", updated.getId(), "company_id", oldCompanyId,
+                updated.getCompany() != null ? updated.getCompany().getId() : null);
 
         auditFacade.log(
                 "UPDATE",
                 "EMPLOYEE",
                 updated.getId(),
+                updated.getEmail(),
                 "EMPLOYEE is updated (ID: " + updated.getId() + ")"
         );
 
@@ -268,11 +284,12 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         _employeeRepository.delete(employee);
 
-        auditFacade.recordDelete("EMPLOYEE", id);
+        auditFacade.recordDelete("EMPLOYEE", id, employee.getEmail());
         auditFacade.log(
                 "DELETE",
                 "EMPLOYEE",
                 id,
+                employee.getEmail(),
                 "EMPLOYEE is deleted (ID: " + id + ")"
         );
     }
@@ -331,26 +348,23 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 "TERMINATE",
                 "EMPLOYEE",
                 id,
+                employee.getEmail(),
                 "EMPLOYEE was terminated (ID: " + id + ")"
         );
     }
-
-    // helpers
 
     private User resolveOptionalUser(Long userId) {
         if (userId == null) {
             return null;
         }
 
-        User user = authenticatedUserProvider.isOverlord()
+        return authenticatedUserProvider.isOverlord()
                 ? _userRepository.findById(userId)
-                  .orElseThrow(() -> new ResourceNotFoundException("User not found"))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"))
                 : _userRepository.findByIdAndCompany_Id(
                 userId,
                 authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
         ).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        return user;
     }
 
     private void validateUserNotAlreadyAssigned(Long userId) {

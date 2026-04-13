@@ -24,9 +24,7 @@ export const tasksApi = {
   },
 
   update(id: number, payload: TaskUpdateRequest) {
-    return apiClient
-      .put<TaskResponse>(`/api/tasks/${id}`, payload)
-      .then((response) => response.data);
+    return apiClient.put<TaskResponse>(`/api/tasks/${id}`, payload).then((response) => response.data);
   },
 
   updateStatus(id: number, status: TaskStatus) {
@@ -43,5 +41,9 @@ export const tasksApi = {
     return apiClient
       .patch<TaskResponse>(`/api/tasks/${id}/employee/${employeeId}`)
       .then((response) => response.data);
+  },
+
+  delete(id: number) {
+    return apiClient.delete<void>(`/api/tasks/${id}`).then((response) => response.data);
   },
 };

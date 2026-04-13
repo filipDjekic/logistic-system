@@ -57,16 +57,19 @@ public class Task {
     @JoinColumn(name = "transport_order_id")
     private TransportOrder transportOrder;
 
-    public Task(String title, String description, LocalDateTime dueDate, TaskPriority priority, Employee assignedEmployee, TransportOrder transportOrder) {
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "stock_movement_id")
+    private StockMovement stockMovement;
+
+    public Task(String title, String description, LocalDateTime dueDate, TaskPriority priority, Employee assignedEmployee, TransportOrder transportOrder, StockMovement stockMovement) {
         this.title = title;
         this.description = description;
         this.dueDate = dueDate;
         this.priority = priority;
         this.assignedEmployee = assignedEmployee;
         this.transportOrder = transportOrder;
+        this.stockMovement = stockMovement;
     }
-
-    // methods
 
     public boolean isFinalStatus(){
         return this.status == TaskStatus.COMPLETED || this.status == TaskStatus.CANCELLED;
@@ -97,7 +100,7 @@ public class Task {
             return true;
         }
 
-        if (this.transportOrder != null) {
+        if (this.transportOrder != null || this.stockMovement != null) {
             return true;
         }
 

@@ -11,9 +11,11 @@ export function useCreateCompany() {
 
   return useMutation({
     mutationFn: (payload: CompanyCreateRequest) => companiesApi.create(payload),
-    onSuccess: async () => {
+    onSuccess: async (createdCompany) => {
       showSnackbar({
-        message: 'Company created successfully.',
+        message: createdCompany.adminEmail
+          ? `Company created successfully. Bootstrap admin email: ${createdCompany.adminEmail}`
+          : 'Company created successfully.',
         severity: 'success',
       });
 

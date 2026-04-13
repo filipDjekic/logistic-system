@@ -1,130 +1,121 @@
-import { Button, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Stack, Typography } from '@mui/material';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 import type { InventoryListRow } from '../types/inventory.types';
 import InventoryStatusChip from './InventoryStatusChip';
 
-type InventoryTableProps = {
+type Props = {
   rows: InventoryListRow[];
-  loading?: boolean;
-  error?: boolean;
-  onRetry?: () => void;
-  emptyTitle?: string;
-  emptyDescription?: string;
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+  onEdit: (row: InventoryListRow) => void;
+  onDelete: (row: InventoryListRow) => void;
+  canManage: boolean;
 };
-
-function formatQuantity(value: number, unit: string) {
-  return `${value} ${unit}`;
-}
 
 export default function InventoryTable({
   rows,
-  loading = false,
-  error = false,
+  loading,
+  error,
   onRetry,
-  emptyTitle,
-  emptyDescription,
-}: InventoryTableProps) {
+  onEdit,
+  onDelete,
+  canManage,
+}: Props) {
   const columns: DataTableColumn<InventoryListRow>[] = [
     {
-      id: 'warehouse',
+      id: 'warehouseName',
       header: 'Warehouse',
-      minWidth: 220,
-      render: (row) => (
-        <Stack spacing={0.25}>
-          <Typography variant="body2" fontWeight={600}>
-            {row.warehouseName}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {row.warehouseCity} · #{row.warehouseId}
-          </Typography>
-        </Stack>
-      ),
+      accessor: 'warehouseName',
+      minWidth: 160,
     },
     {
-      id: 'product',
+      id: 'productName',
       header: 'Product',
-      minWidth: 240,
-      render: (row) => (
-        <Stack spacing={0.25}>
-          <Typography variant="body2" fontWeight={600}>
-            {row.productName}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {row.productSku} · #{row.productId}
-          </Typography>
-        </Stack>
-      ),
+      accessor: 'productName',
+      minWidth: 160,
     },
     {
       id: 'quantity',
-      header: 'Quantity',
-      minWidth: 140,
-      nowrap: true,
-      render: (row) => formatQuantity(row.quantity, row.productUnit),
+      header: 'Total',
+      accessor: 'quantity',
+      minWidth: 100,
     },
     {
       id: 'reservedQuantity',
       header: 'Reserved',
-      minWidth: 140,
-      nowrap: true,
-      render: (row) => formatQuantity(row.reservedQuantity, row.productUnit),
+      accessor: 'reservedQuantity',
+      minWidth: 100,
     },
     {
       id: 'availableQuantity',
       header: 'Available',
-      minWidth: 140,
-      nowrap: true,
-      render: (row) => formatQuantity(row.availableQuantity, row.productUnit),
+      accessor: 'availableQuantity',
+      minWidth: 100,
     },
     {
       id: 'minStockLevel',
       header: 'Min stock',
-      minWidth: 140,
-      nowrap: true,
-      render: (row) =>
-        row.minStockLevel === null
-          ? '—'
-          : formatQuantity(row.minStockLevel, row.productUnit),
+      accessor: 'minStockLevel',
+      minWidth: 100,
     },
     {
       id: 'status',
       header: 'Status',
-      minWidth: 140,
+      minWidth: 120,
       render: (row) => <InventoryStatusChip status={row.derivedStatus} />,
     },
-    {
-      id: 'actions',
-      header: 'Actions',
-      align: 'right',
-      minWidth: 140,
-      render: (row) => (
-        <Button
-          component={RouterLink}
-          to={`/inventory/${row.warehouseId}/${row.productId}`}
-          variant="text"
-          size="small"
-        >
-          Details
-        </Button>
-      ),
-    },
+    ...(canManage
+      ? [
+          {
+            id: 'actions',
+            header: 'Actions',
+            minWidth: 160,
+            render: (row: InventoryListRow) => (
+              <Stack direction="row" spacing={1.5}>
+                <Typography
+                  component="button"
+                  sx={{
+                    border: 0,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    color: 'primary.main',
+                    p: 0,
+                  }}
+                  onClick={() => onEdit(row)}
+                >
+                  Edit
+                </Typography>
+
+                <Typography
+                  component="button"
+                  sx={{
+                    border: 0,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    color: 'error.main',
+                    p: 0,
+                  }}
+                  onClick={() => onDelete(row)}
+                >
+                  Delete
+                </Typography>
+              </Stack>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
-    <DataTable
-      columns={columns}
+    <DataTable<InventoryListRow>
       rows={rows}
-      getRowId={(row) => `${row.warehouseId}-${row.productId}`}
       loading={loading}
       error={error}
       onRetry={onRetry}
-      emptyTitle={emptyTitle ?? 'No inventory records found'}
-      emptyDescription={
-        emptyDescription ?? 'There are no inventory records for the current filters.'
-      }
-      minWidth={1280}
+      getRowId={(row) => `${row.warehouseId}-${row.productId}`}
+      columns={columns}
     />
   );
 }

@@ -1,5 +1,29 @@
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
 
+export type EmployeePosition =
+  | 'MANAGER'
+  | 'DISPATCHER'
+  | 'DRIVER'
+  | 'WAREHOUSE_OPERATOR'
+  | 'ADMINISTRATIVE_WORKER';
+
+export type UserCompanySummary = {
+  id: number;
+  name: string;
+  active: boolean;
+};
+
+export type UserEmployeeSummary = {
+  id: number;
+  jmbg: string;
+  phoneNumber: string;
+  position: EmployeePosition;
+  employmentDate: string;
+  salary: number;
+  active: boolean;
+  companyId: number | null;
+};
+
 export type UserResponse = {
   id: number;
   firstName: string;
@@ -11,6 +35,25 @@ export type UserResponse = {
   roleName: string;
   createdAt: string;
   updatedAt: string | null;
+  company: UserCompanySummary | null;
+  employee: UserEmployeeSummary | null;
+};
+
+export type UserEmployeeCreateRequest = {
+  jmbg: string;
+  phoneNumber: string;
+  position: EmployeePosition;
+  employmentDate: string;
+  salary: number;
+};
+
+export type UserEmployeeUpdateRequest = {
+  jmbg: string;
+  phoneNumber: string;
+  position: EmployeePosition;
+  employmentDate: string;
+  salary: number;
+  active: boolean;
 };
 
 export type UserCreateRequest = {
@@ -20,6 +63,7 @@ export type UserCreateRequest = {
   email: string;
   roleId: number;
   status: UserStatus;
+  employee: UserEmployeeCreateRequest;
 };
 
 export type UserUpdateRequest = {
@@ -30,6 +74,7 @@ export type UserUpdateRequest = {
   roleId: number;
   enabled: boolean;
   status: UserStatus;
+  employee?: UserEmployeeUpdateRequest;
 };
 
 export type UserFiltersState = {
@@ -45,6 +90,11 @@ export type CreateUserFormValues = {
   email: string;
   roleId: string;
   status: UserStatus;
+  employeeJmbg: string;
+  employeePhoneNumber: string;
+  employeePosition: EmployeePosition;
+  employeeEmploymentDate: string;
+  employeeSalary: string;
 };
 
 export type UpdateUserFormValues = {
@@ -54,4 +104,10 @@ export type UpdateUserFormValues = {
   roleId: string;
   enabled: boolean;
   status: UserStatus;
+  employeeJmbg: string;
+  employeePhoneNumber: string;
+  employeePosition: EmployeePosition;
+  employeeEmploymentDate: string;
+  employeeSalary: string;
+  employeeActive: boolean;
 };

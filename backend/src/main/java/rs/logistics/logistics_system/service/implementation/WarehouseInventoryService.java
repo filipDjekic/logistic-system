@@ -1,29 +1,34 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.entity.Product;
+import rs.logistics.logistics_system.entity.StockMovement;
+import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
-import rs.logistics.logistics_system.enums.NotificationType;
+import rs.logistics.logistics_system.enums.StockMovementReasonCode;
+import rs.logistics.logistics_system.enums.StockMovementReferenceType;
+import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.exception.BadRequestException;
-import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.repository.ProductRepository;
+import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,37 +37,47 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final WarehouseInventoryRepository warehouseInventoryRepository;
     private final WarehouseRepository warehouseRepository;
     private final ProductRepository productRepository;
-
-    private final NotificationService notificationService;
+    private final StockMovementRepository stockMovementRepository;
     private final AuditFacadeDefinition auditFacade;
-
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
     @Transactional
     public WarehouseInventoryResponse create(WarehouseInventoryCreate dto) {
-        Warehouse warehouse = getValidatedOperationalWarehouse(dto.getWarehouseId());
-        Product product = getValidatedOperationalProduct(dto.getProductId());
+        Warehouse warehouse = getAccessibleWarehouse(dto.getWarehouseId());
+        Product product = getAccessibleProduct(dto.getProductId());
 
         validateSameCompany(warehouse, product);
-        checkIfExists(dto.getWarehouseId(), dto.getProductId());
-        checkQuantity(dto.getQuantity());
 
-        WarehouseInventory inventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
-        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
+        if (warehouseInventoryRepository.existsByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())) {
+            throw new BadRequestException("Warehouse inventory already exists for selected warehouse and product");
+        }
 
-        String entityIdentifier = inventoryAuditIdentifier(saved);
+        WarehouseInventory warehouseInventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
+        warehouseInventory.setReservedQuantity(BigDecimal.ZERO);
 
-        auditFacade.recordCreate("WAREHOUSE_INVENTORY", saved.getId().getWarehouseId(), entityIdentifier);
+        WarehouseInventory saved = warehouseInventoryRepository.save(warehouseInventory);
+
+        if (defaultZero(saved.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
+            recordInventoryMovement(
+                    saved,
+                    StockMovementType.INBOUND,
+                    StockMovementReasonCode.INITIAL_STOCK,
+                    "Initial inventory record created",
+                    BigDecimal.ZERO,
+                    saved.getQuantity(),
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO
+            );
+        }
+
+        auditFacade.recordCreate("WAREHOUSE_INVENTORY", saved.getWarehouse().getId());
         auditFacade.log(
                 "CREATE",
                 "WAREHOUSE_INVENTORY",
-                saved.getId().getWarehouseId(),
-                entityIdentifier,
-                "WAREHOUSE INVENTORY is created (WAREHOUSE ID: " + saved.getId().getWarehouseId() + " | PRODUCT ID: " + saved.getId().getProductId() + ")"
+                saved.getWarehouse().getId(),
+                "Warehouse inventory created for warehouseId=" + warehouse.getId() + ", productId=" + product.getId()
         );
-
-        notifyLowStockIfStateChanged(null, null, saved);
 
         return WarehouseInventoryMapper.toResponse(saved);
     }
@@ -70,293 +85,266 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Override
     @Transactional
     public WarehouseInventoryResponse update(Long warehouseId, Long productId, WarehouseInventoryUpdate dto) {
-        Warehouse warehouse = getValidatedOperationalWarehouse(warehouseId);
-        Product product = getValidatedOperationalProduct(productId);
+        Warehouse warehouse = getAccessibleWarehouse(warehouseId);
+        Product product = getAccessibleProduct(productId);
 
         validateSameCompany(warehouse, product);
 
-        WarehouseInventory inventory = getInventoryOrThrow(warehouseId, productId);
+        WarehouseInventory inventory = warehouseInventoryRepository
+                .findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
 
-        validateInventoryOperationalContext(inventory);
-        checkQuantity(dto.getQuantity());
+        BigDecimal oldQuantity = defaultZero(inventory.getQuantity());
+        BigDecimal oldReserved = defaultZero(inventory.getReservedQuantity());
+        BigDecimal oldMinStock = inventory.getMinStockLevel();
 
-        if (dto.getQuantity().compareTo(inventory.getReservedQuantity()) < 0) {
-            throw new BadRequestException("Total quantity cannot be lower than reserved quantity");
+        if (dto.getQuantity().compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Quantity cannot be negative");
         }
 
-        BigDecimal oldQuantity = inventory.getQuantity();
-        BigDecimal oldMinStockLevel = inventory.getMinStockLevel();
+        BigDecimal reserved = defaultZero(inventory.getReservedQuantity());
+        if (dto.getQuantity().compareTo(reserved) < 0) {
+            throw new BadRequestException("Quantity cannot be less than reserved quantity");
+        }
+
+        dto.setWarehouseId(warehouseId);
+        dto.setProductId(productId);
 
         WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
         WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
-        String entityIdentifier = inventoryAuditIdentifier(saved);
+        BigDecimal newQuantity = defaultZero(saved.getQuantity());
+        BigDecimal newReserved = defaultZero(saved.getReservedQuantity());
 
-        auditFacade.recordFieldChange(
-                "WAREHOUSE_INVENTORY",
-                saved.getId().getWarehouseId(),
-                entityIdentifier,
-                "quantity",
-                oldQuantity,
-                saved.getQuantity()
-        );
-        auditFacade.recordFieldChange(
-                "WAREHOUSE_INVENTORY",
-                saved.getId().getWarehouseId(),
-                entityIdentifier,
-                "minStockLevel",
-                oldMinStockLevel,
-                saved.getMinStockLevel()
-        );
+        if (oldQuantity.compareTo(newQuantity) != 0 || oldReserved.compareTo(newReserved) != 0) {
+            recordInventoryMovement(
+                    saved,
+                    StockMovementType.ADJUSTMENT,
+                    StockMovementReasonCode.INVENTORY_ADJUSTMENT,
+                    "Inventory record updated",
+                    oldQuantity,
+                    newQuantity,
+                    oldReserved,
+                    newReserved
+            );
+        }
 
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), "quantity", oldQuantity, saved.getQuantity());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), "reservedQuantity", oldReserved, saved.getReservedQuantity());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), "minStockLevel", oldMinStock, saved.getMinStockLevel());
         auditFacade.log(
                 "UPDATE",
                 "WAREHOUSE_INVENTORY",
-                saved.getId().getWarehouseId(),
-                entityIdentifier,
-                "WAREHOUSE INVENTORY is updated (WAREHOUSE ID: " + saved.getId().getWarehouseId() + " | PRODUCT ID: " + saved.getId().getProductId() + ")"
+                warehouse.getId(),
+                "Warehouse inventory updated for warehouseId=" + warehouse.getId() + ", productId=" + product.getId()
         );
-
-        notifyLowStockIfStateChanged(oldQuantity, oldMinStockLevel, saved);
 
         return WarehouseInventoryMapper.toResponse(saved);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public WarehouseInventoryResponse findByWarehouseAndProduct(Long warehouseId, Long productId) {
-        WarehouseInventory inventory = getInventoryOrThrow(warehouseId, productId);
+        Warehouse warehouse = getAccessibleWarehouse(warehouseId);
+        Product product = getAccessibleProduct(productId);
+
+        validateSameCompany(warehouse, product);
+
+        WarehouseInventory inventory = warehouseInventoryRepository
+                .findByWarehouse_IdAndProduct_Id(warehouseId, productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
+
         return WarehouseInventoryMapper.toResponse(inventory);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<WarehouseInventoryResponse> findByWarehouse(Long warehouseId) {
-        List<WarehouseInventory> data = authenticatedUserProvider.isOverlord()
+        getAccessibleWarehouse(warehouseId);
+
+        List<WarehouseInventory> inventoryList = authenticatedUserProvider.isOverlord()
                 ? warehouseInventoryRepository.findByWarehouse_Id(warehouseId)
                 : warehouseInventoryRepository.findByWarehouse_IdAndWarehouse_Company_Id(
-                warehouseId,
-                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-        );
+                        warehouseId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                );
 
-        return data.stream().map(WarehouseInventoryMapper::toResponse).collect(Collectors.toList());
+        return inventoryList.stream()
+                .map(WarehouseInventoryMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<WarehouseInventoryResponse> findByProduct(Long productId) {
-        List<WarehouseInventory> data = authenticatedUserProvider.isOverlord()
+        getAccessibleProduct(productId);
+
+        List<WarehouseInventory> inventoryList = authenticatedUserProvider.isOverlord()
                 ? warehouseInventoryRepository.findByProduct_Id(productId)
                 : warehouseInventoryRepository.findByProduct_IdAndProduct_Company_Id(
-                productId,
-                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-        );
+                        productId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                );
 
-        return data.stream().map(WarehouseInventoryMapper::toResponse).collect(Collectors.toList());
+        return inventoryList.stream()
+                .map(WarehouseInventoryMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public void delete(Long warehouseId, Long productId) {
-        WarehouseInventory inventory = getInventoryOrThrow(warehouseId, productId);
+        Warehouse warehouse = getAccessibleWarehouse(warehouseId);
+        Product product = getAccessibleProduct(productId);
 
-        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
-        BigDecimal reservedQuantity = inventory.getReservedQuantity() == null ? BigDecimal.ZERO : inventory.getReservedQuantity();
+        validateSameCompany(warehouse, product);
 
-        if (quantity.compareTo(BigDecimal.ZERO) > 0 || reservedQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            throw new BadRequestException(
-                    "Warehouse inventory cannot be deleted while stock or active reservations exist.\n" +
-                            "Inventory state must not disappear from the system.\n" +
-                            "Set quantity and reserved quantity to zero before deletion."
-            );
+        WarehouseInventory inventory = warehouseInventoryRepository
+                .findByWarehouse_IdAndProduct_Id(warehouseId, productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
+
+        BigDecimal reserved = defaultZero(inventory.getReservedQuantity());
+        BigDecimal quantity = defaultZero(inventory.getQuantity());
+
+        if (reserved.compareTo(BigDecimal.ZERO) > 0) {
+            throw new BadRequestException("Warehouse inventory cannot be deleted while it has reserved quantity");
         }
 
-        String entityIdentifier = inventoryAuditIdentifier(inventory);
+        if (quantity.compareTo(BigDecimal.ZERO) > 0) {
+            throw new BadRequestException("Warehouse inventory cannot be deleted while quantity is greater than zero");
+        }
 
-        auditFacade.recordDelete("WAREHOUSE_INVENTORY", inventory.getId().getWarehouseId(), entityIdentifier);
+        warehouseInventoryRepository.delete(inventory);
+
+        auditFacade.recordDelete("WAREHOUSE_INVENTORY", warehouseId);
         auditFacade.log(
                 "DELETE",
                 "WAREHOUSE_INVENTORY",
-                inventory.getId().getWarehouseId(),
-                entityIdentifier,
-                "WAREHOUSE INVENTORY is deleted (WAREHOUSE ID: " + inventory.getId().getWarehouseId() + " | PRODUCT ID: " + inventory.getId().getProductId() + ")"
+                warehouseId,
+                "Warehouse inventory deleted for warehouseId=" + warehouseId + ", productId=" + productId
         );
-
-        warehouseInventoryRepository.delete(inventory);
     }
 
     @Override
     @Transactional
     public void reserveStock(Long warehouseId, Long productId, BigDecimal quantity) {
-        checkMovementQuantity(quantity);
-        getValidatedOperationalWarehouse(warehouseId);
-        getValidatedOperationalProduct(productId);
+        WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        BigDecimal requested = positiveQuantity(quantity, "Reserve quantity must be greater than zero");
+        BigDecimal quantityBefore = defaultZero(inventory.getQuantity());
+        BigDecimal reservedBefore = defaultZero(inventory.getReservedQuantity());
+        BigDecimal available = quantityBefore.subtract(reservedBefore);
 
-        validateInventoryOperationalContext(inventory);
+        if (available.compareTo(requested) < 0) {
+            throw new BadRequestException("Not enough available quantity to reserve");
+        }
 
-        BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
-        inventory.reserve(quantity);
+        inventory.setReservedQuantity(reservedBefore.add(requested));
+        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
-        String entityIdentifier = inventoryAuditIdentifier(inventory);
-
-        auditFacade.recordFieldChange(
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "reservedQuantity",
-                oldReservedQuantity,
-                inventory.getReservedQuantity()
-        );
-        auditFacade.log(
-                "RESERVE_STOCK",
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "Reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
+        recordInventoryMovement(
+                saved,
+                StockMovementType.ADJUSTMENT,
+                StockMovementReasonCode.CORRECTION,
+                "Reserved quantity increased",
+                quantityBefore,
+                quantityBefore,
+                reservedBefore,
+                saved.getReservedQuantity()
         );
 
-        warehouseInventoryRepository.save(inventory);
+        checkLowStockAndNotify(saved);
     }
 
     @Override
     @Transactional
     public void releaseReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
-        checkMovementQuantity(quantity);
-        getValidatedOperationalWarehouse(warehouseId);
-        getValidatedOperationalProduct(productId);
+        WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        BigDecimal requested = positiveQuantity(quantity, "Release quantity must be greater than zero");
+        BigDecimal quantityBefore = defaultZero(inventory.getQuantity());
+        BigDecimal reservedBefore = defaultZero(inventory.getReservedQuantity());
 
-        validateInventoryOperationalContext(inventory);
+        if (reservedBefore.compareTo(requested) < 0) {
+            throw new BadRequestException("Not enough reserved quantity to release");
+        }
 
-        BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
-        inventory.release(quantity);
+        inventory.setReservedQuantity(reservedBefore.subtract(requested));
+        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
-        String entityIdentifier = inventoryAuditIdentifier(inventory);
-
-        auditFacade.recordFieldChange(
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "reservedQuantity",
-                oldReservedQuantity,
-                inventory.getReservedQuantity()
+        recordInventoryMovement(
+                saved,
+                StockMovementType.ADJUSTMENT,
+                StockMovementReasonCode.CORRECTION,
+                "Reserved quantity released",
+                quantityBefore,
+                quantityBefore,
+                reservedBefore,
+                saved.getReservedQuantity()
         );
-        auditFacade.log(
-                "RELEASE_RESERVED_STOCK",
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "Released reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
-        );
-
-        warehouseInventoryRepository.save(inventory);
     }
 
     @Override
     @Transactional
     public void moveOutReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
-        checkMovementQuantity(quantity);
-        getValidatedOperationalWarehouse(warehouseId);
-        getValidatedOperationalProduct(productId);
+        WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+        BigDecimal requested = positiveQuantity(quantity, "Move-out quantity must be greater than zero");
+        BigDecimal reserved = defaultZero(inventory.getReservedQuantity());
+        BigDecimal current = defaultZero(inventory.getQuantity());
 
-        validateInventoryOperationalContext(inventory);
-
-        BigDecimal oldQuantity = inventory.getQuantity();
-        BigDecimal oldReservedQuantity = inventory.getReservedQuantity();
-
-        BigDecimal reserved = inventory.getReservedQuantity() == null ? BigDecimal.ZERO : inventory.getReservedQuantity();
-
-        if (reserved.compareTo(quantity) < 0) {
-            throw new BadRequestException("Not enough reserved stock");
+        if (reserved.compareTo(requested) < 0) {
+            throw new BadRequestException("Not enough reserved quantity to move out");
         }
 
-        inventory.moveOutReserved(quantity);
+        if (current.compareTo(requested) < 0) {
+            throw new BadRequestException("Not enough total quantity to move out");
+        }
 
-        BigDecimal oldMinStockLevel = inventory.getMinStockLevel();
+        BigDecimal quantityBefore = current;
+        BigDecimal reservedBefore = reserved;
 
-        String entityIdentifier = inventoryAuditIdentifier(inventory);
+        inventory.setReservedQuantity(reserved.subtract(requested));
+        inventory.setQuantity(current.subtract(requested));
 
-        auditFacade.recordFieldChange(
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "quantity",
-                oldQuantity,
-                inventory.getQuantity()
-        );
-        auditFacade.recordFieldChange(
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "reservedQuantity",
-                oldReservedQuantity,
-                inventory.getReservedQuantity()
-        );
-        auditFacade.log(
-                "MOVE_OUT_RESERVED_STOCK",
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "Moved out reserved stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
+        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
+
+        recordInventoryMovement(
+                saved,
+                StockMovementType.OUTBOUND,
+                StockMovementReasonCode.MANUAL_OUTBOUND,
+                "Reserved stock moved out",
+                quantityBefore,
+                saved.getQuantity(),
+                reservedBefore,
+                saved.getReservedQuantity()
         );
 
-        notifyLowStockIfStateChanged(oldQuantity, oldMinStockLevel, inventory);
-
-        warehouseInventoryRepository.save(inventory);
+        checkLowStockAndNotify(saved);
     }
 
     @Override
     @Transactional
     public void moveInStock(Long warehouseId, Long productId, BigDecimal quantity) {
-        checkMovementQuantity(quantity);
+        WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
-        Warehouse warehouse = getValidatedOperationalWarehouse(warehouseId);
-        Product product = getValidatedOperationalProduct(productId);
+        BigDecimal requested = positiveQuantity(quantity, "Move-in quantity must be greater than zero");
+        BigDecimal quantityBefore = defaultZero(inventory.getQuantity());
+        BigDecimal reservedBefore = defaultZero(inventory.getReservedQuantity());
 
-        final boolean[] newlyCreated = {false};
+        inventory.setQuantity(quantityBefore.add(requested));
+        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
-        WarehouseInventory inventory = warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId).orElseGet(() -> {
-                    WarehouseInventory newInventory = new WarehouseInventory(
-                            warehouse,
-                            product,
-                            BigDecimal.ZERO,
-                            BigDecimal.ZERO
-                    );
-                    newInventory.setReservedQuantity(BigDecimal.ZERO);
-                    newlyCreated[0] = true;
-                    return warehouseInventoryRepository.save(newInventory);
-                });
-
-        validateInventoryOperationalContext(inventory);
-
-        BigDecimal oldQuantity = inventory.getQuantity();
-        inventory.increase(quantity);
-
-        String entityIdentifier = inventoryAuditIdentifier(inventory);
-
-        if (newlyCreated[0]) {
-            auditFacade.recordCreate("WAREHOUSE_INVENTORY", warehouseId, entityIdentifier);
-        }
-
-        auditFacade.recordFieldChange(
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "quantity",
-                oldQuantity,
-                inventory.getQuantity()
+        recordInventoryMovement(
+                saved,
+                StockMovementType.INBOUND,
+                StockMovementReasonCode.MANUAL_INBOUND,
+                "Stock moved in",
+                quantityBefore,
+                saved.getQuantity(),
+                reservedBefore,
+                saved.getReservedQuantity()
         );
-        auditFacade.log(
-                "MOVE_IN_STOCK",
-                "WAREHOUSE_INVENTORY",
-                warehouseId,
-                entityIdentifier,
-                "Moved in stock for PRODUCT ID: " + productId + " in WAREHOUSE ID: " + warehouseId + " by quantity " + quantity
-        );
-
-        warehouseInventoryRepository.save(inventory);
     }
 
     @Override
@@ -365,215 +353,113 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             return;
         }
 
-        if (!isLowStockNotificationEligible(inventory)) {
-            return;
-        }
-
-        createLowStockNotification(inventory);
-    }
-
-
-    // helpers
-
-    private void checkIfExists(Long warehouseId, Long productId) {
-        if(warehouseInventoryRepository.existsByWarehouse_IdAndProduct_Id(warehouseId, productId)) {
-            throw new ConflictException("Warehouse inventory already exists");
-        }
-    }
-
-    private void checkQuantity(BigDecimal quantity) {
-        if(quantity.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Quantity cannot be less than zero");
-        }
-    }
-
-    private void checkMovementQuantity(BigDecimal quantity) {
-        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BadRequestException("Quantity must be greater than zero");
-        }
-    }
-
-    private void notifyLowStockIfNeeded(WarehouseInventory inventory) {
-        if (inventory == null) {
-            return;
-        }
-
-        BigDecimal quantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
-        BigDecimal minStockLevel = inventory.getMinStockLevel();
-
-        if (minStockLevel == null) {
-            return;
-        }
+        BigDecimal quantity = defaultZero(inventory.getQuantity());
+        BigDecimal minStockLevel = defaultZero(inventory.getMinStockLevel());
 
         if (quantity.compareTo(minStockLevel) <= 0) {
-            if (inventory.getWarehouse() != null && inventory.getWarehouse().getManager() != null && inventory.getWarehouse().getManager().getUser() != null) {
-
-                notificationService.createSystemNotification(
-                        inventory.getWarehouse().getManager().getUser().getId(),
-                        "Low stock alert",
-                        "Product '" + inventory.getProduct().getName() + "' is low on stock in warehouse '" +
-                                inventory.getWarehouse().getName() + "'. Current quantity: " + quantity,
-                        NotificationType.WARNING
-                );
-            }
+            auditFacade.log(
+                    "LOW_STOCK",
+                    "WAREHOUSE_INVENTORY",
+                    inventory.getWarehouse().getId(),
+                    "Low stock detected for warehouseId=" + inventory.getWarehouse().getId()
+                            + ", productId=" + inventory.getProduct().getId()
+            );
         }
     }
 
-    private String inventoryAuditIdentifier(WarehouseInventory inventory) {
-        return inventory.getId().toAuditIdentifier();
+    private WarehouseInventory getInventoryForUpdate(Long warehouseId, Long productId) {
+        Warehouse warehouse = getAccessibleWarehouse(warehouseId);
+        Product product = getAccessibleProduct(productId);
+        validateSameCompany(warehouse, product);
+
+        return warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
     }
 
-    private void validateWarehouseOperational(Warehouse warehouse) {
-        if (warehouse == null || warehouse.getId() == null) {
-            throw new BadRequestException("Warehouse is required");
-        }
-
-        if (!warehouse.isOperational()) {
-            throw new BadRequestException("Warehouse is not operational for inventory operations");
-        }
-    }
-
-    private void validateProductOperational(Product product) {
-        if (product == null || product.getId() == null) {
-            throw new BadRequestException("Product is required");
-        }
-
-        if (!product.isOperational()) {
-            throw new BadRequestException("Product is not active");
-        }
-    }
-
-    private void validateInventoryOperationalContext(WarehouseInventory inventory) {
-        if (inventory == null) {
-            throw new BadRequestException("Warehouse inventory is required");
-        }
-
-        validateWarehouseOperational(inventory.getWarehouse());
-        validateProductOperational(inventory.getProduct());
-    }
-
-    private void notifyLowStockIfStateChanged(BigDecimal previousQuantity, BigDecimal previousMinStockLevel, WarehouseInventory inventory) {
-        if (inventory == null) {
-            return;
-        }
-
-        BigDecimal currentQuantity = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
-        BigDecimal currentMinStockLevel = inventory.getMinStockLevel();
-
-        boolean wasLowStock = previousQuantity != null
-                && previousMinStockLevel != null
-                && previousQuantity.compareTo(previousMinStockLevel) <= 0;
-
-        boolean isLowStockNow = currentMinStockLevel != null
-                && currentQuantity.compareTo(currentMinStockLevel) <= 0;
-
-        if (!isLowStockNow || wasLowStock) {
-            return;
-        }
-
-        if (!isLowStockNotificationEligible(inventory)) {
-            return;
-        }
-
-        createLowStockNotification(inventory);
-    }
-
-    private boolean isLowStockNotificationEligible(WarehouseInventory inventory) {
-        if (inventory == null) {
-            return false;
-        }
-
-        if (inventory.getMinStockLevel() == null) {
-            return false;
-        }
-
-        if (inventory.getQuantity() == null) {
-            return BigDecimal.ZERO.compareTo(inventory.getMinStockLevel()) <= 0
-                    && inventory.getWarehouse() != null
-                    && inventory.getWarehouse().getManager() != null
-                    && inventory.getWarehouse().getManager().getUser() != null
-                    && inventory.getProduct() != null
-                    && inventory.getProduct().getName() != null;
-        }
-
-        if (inventory.getQuantity().compareTo(inventory.getMinStockLevel()) > 0) {
-            return false;
-        }
-
-        return inventory.getWarehouse() != null
-                && inventory.getWarehouse().getManager() != null
-                && inventory.getWarehouse().getManager().getUser() != null
-                && inventory.getProduct() != null
-                && inventory.getProduct().getName() != null
-                && inventory.getWarehouse().getName() != null;
-    }
-
-    private void createLowStockNotification(WarehouseInventory inventory) {
-        notificationService.createSystemNotification(
-                inventory.getWarehouse().getManager().getUser().getId(),
-                "Low stock alert",
-                "Product '" + inventory.getProduct().getName()
-                        + "' is at or below minimum stock level in warehouse '"
-                        + inventory.getWarehouse().getName() + "'.",
-                NotificationType.WARNING
-        );
-    }
-
-    private WarehouseInventory getInventoryOrThrow(Long warehouseId, Long productId) {
+    private Warehouse getAccessibleWarehouse(Long warehouseId) {
         if (authenticatedUserProvider.isOverlord()) {
-            return warehouseInventoryRepository.findByWarehouse_IdAndProduct_Id(warehouseId, productId)
-                    .orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
+            return warehouseRepository.findById(warehouseId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         }
 
-        return warehouseInventoryRepository.findByWarehouse_IdAndProduct_IdAndWarehouse_Company_Id(
+        return warehouseRepository.findByIdAndCompany_Id(
                         warehouseId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+    }
+
+    private Product getAccessibleProduct(Long productId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        }
+
+        return productRepository.findByIdAndCompany_Id(
                         productId,
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 )
-                .orElseThrow(() -> new ResourceNotFoundException("WarehouseInventory not found"));
-    }
-
-    private Warehouse getValidatedOperationalWarehouse(Long warehouseId) {
-        Warehouse warehouse = authenticatedUserProvider.isOverlord()
-                ? warehouseRepository.findById(warehouseId)
-                  .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"))
-                : warehouseRepository.findByIdAndCompany_Id(
-                warehouseId,
-                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-        ).orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-
-        if (!Boolean.TRUE.equals(warehouse.getActive()) || warehouse.getStatus() == null) {
-            throw new BadRequestException("Warehouse is not operational");
-        }
-
-        return warehouse;
-    }
-
-    private Product getValidatedOperationalProduct(Long productId) {
-        Product product = authenticatedUserProvider.isOverlord()
-                ? productRepository.findById(productId)
-                  .orElseThrow(() -> new ResourceNotFoundException("Product not found"))
-                : productRepository.findByIdAndCompany_Id(
-                productId,
-                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-        ).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-
-        if (!Boolean.TRUE.equals(product.getActive())) {
-            throw new BadRequestException("Product is not active");
-        }
-
-        return product;
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
     }
 
     private void validateSameCompany(Warehouse warehouse, Product product) {
-        if (authenticatedUserProvider.isOverlord()) {
+        Long warehouseCompanyId = warehouse.getCompany() != null ? warehouse.getCompany().getId() : null;
+        Long productCompanyId = product.getCompany() != null ? product.getCompany().getId() : null;
+
+        authenticatedUserProvider.ensureSameCompany(
+                warehouseCompanyId,
+                productCompanyId,
+                "Warehouse and product must belong to the same company"
+        );
+    }
+
+    private void recordInventoryMovement(
+            WarehouseInventory inventory,
+            StockMovementType movementType,
+            StockMovementReasonCode reasonCode,
+            String note,
+            BigDecimal quantityBefore,
+            BigDecimal quantityAfter,
+            BigDecimal reservedBefore,
+            BigDecimal reservedAfter
+    ) {
+        User currentUser = authenticatedUserProvider.getAuthenticatedUser();
+        if (currentUser == null) {
             return;
         }
 
-        authenticatedUserProvider.ensureSameCompany(
-                warehouse.getCompany() != null ? warehouse.getCompany().getId() : null,
-                product.getCompany() != null ? product.getCompany().getId() : null,
-                "Warehouse and product must belong to the same company"
-        );
+        StockMovement movement = new StockMovement();
+        movement.setMovementType(movementType);
+        movement.setQuantity(quantityAfter.subtract(quantityBefore).abs());
+        movement.setReasonCode(reasonCode);
+        movement.setReasonDescription(note);
+        movement.setReferenceType(StockMovementReferenceType.SYSTEM);
+        movement.setReferenceId(inventory.getWarehouse().getId());
+        movement.setReferenceNumber(null);
+        movement.setReferenceNote(note);
+        movement.setQuantityBefore(quantityBefore);
+        movement.setQuantityAfter(quantityAfter);
+        movement.setReservedBefore(reservedBefore);
+        movement.setReservedAfter(reservedAfter);
+        movement.setAvailableBefore(quantityBefore.subtract(reservedBefore));
+        movement.setAvailableAfter(quantityAfter.subtract(reservedAfter));
+        movement.setWarehouse(inventory.getWarehouse());
+        movement.setProduct(inventory.getProduct());
+        movement.setCreatedBy(currentUser);
+        movement.setTransportOrder(null);
+
+        stockMovementRepository.save(movement);
+    }
+
+    private BigDecimal positiveQuantity(BigDecimal quantity, String message) {
+        BigDecimal value = defaultZero(quantity);
+        if (value.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException(message);
+        }
+        return value;
+    }
+
+    private BigDecimal defaultZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

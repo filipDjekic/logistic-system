@@ -21,7 +21,6 @@ import rs.logistics.logistics_system.dto.response.ProductResponse;
 import rs.logistics.logistics_system.dto.update.ProductUpdate;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
 
-@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
@@ -29,30 +28,31 @@ public class ProductController {
 
     private final ProductServiceDefinition productService;
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody ProductCreate dto) {
-        ProductResponse response = productService.create(dto);
-        return new  ResponseEntity<>(response, HttpStatus.CREATED);
+        return new ResponseEntity<>(productService.create(dto), HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PutMapping("/{id}")
-    public ResponseEntity<ProductResponse> updateProduct(@PathVariable Long id,@Valid @RequestBody ProductUpdate dto) {
-        ProductResponse response = productService.update(id, dto);
-        return new  ResponseEntity<>(response, HttpStatus.OK);
+    public ResponseEntity<ProductResponse> updateProduct(@PathVariable Long id, @Valid @RequestBody ProductUpdate dto) {
+        return new ResponseEntity<>(productService.update(id, dto), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProduct(@PathVariable Long id) {
-        ProductResponse response = productService.getById(id);
-        return new  ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(productService.getById(id), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
     public ResponseEntity<List<ProductResponse>> getAll() {
-        List<ProductResponse> response = productService.getAll();
-        return new  ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(productService.getAll(), HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.delete(id);

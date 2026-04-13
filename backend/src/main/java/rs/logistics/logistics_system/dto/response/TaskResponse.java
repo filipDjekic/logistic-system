@@ -18,13 +18,14 @@ public class TaskResponse {
     private String title;
     private String description;
     private LocalDateTime dueDate;
-    private TaskPriority priority;;
+    private TaskPriority priority;
     private TaskStatus status;
 
     private Long assignedEmployeeId;
     private Long transportOrderId;
+    private Long stockMovementId;
 
-    public TaskResponse(Long id, String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskStatus status, Long assignedEmployeeId, Long transportOrderId) {
+    public TaskResponse(Long id, String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskStatus status, Long assignedEmployeeId, Long transportOrderId, Long stockMovementId) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -33,5 +34,6 @@ public class TaskResponse {
         this.status = status;
         this.assignedEmployeeId = assignedEmployeeId;
         this.transportOrderId = transportOrderId;
+        this.stockMovementId = stockMovementId;
     }
 }

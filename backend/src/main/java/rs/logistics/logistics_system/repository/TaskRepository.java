@@ -42,6 +42,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             where t.id = :taskId
             and t.status = :status
             and t.transportOrder is null
+            and t.stockMovement is null
             and (t.updatedAt is null or t.updatedAt = t.createdAt)
             """)
     boolean canBeHardDeleted(@Param("taskId") Long taskId, @Param("status") TaskStatus status);

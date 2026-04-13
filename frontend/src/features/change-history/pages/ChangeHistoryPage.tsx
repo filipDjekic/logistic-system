@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -11,24 +12,63 @@ import {
   type ChangeHistoryFiltersState,
 } from '../types/changeHistory.types';
 
+function getInitialFilters(searchParams: URLSearchParams): ChangeHistoryFiltersState {
+  const rawChangeType = searchParams.get('changeType');
+  const changeType = changeTypeOptions.includes(rawChangeType as never)
+    ? (rawChangeType as ChangeHistoryFiltersState['changeType'])
+    : 'ALL';
+
+  return {
+    search: searchParams.get('search') ?? '',
+    changeType,
+    entityName: searchParams.get('entityName') ?? '',
+    entityId: searchParams.get('entityId') ?? '',
+    userId: searchParams.get('userId') ?? '',
+  };
+}
+
 export default function ChangeHistoryPage() {
-  const [filters, setFilters] = useState<ChangeHistoryFiltersState>({
-    search: '',
-    changeType: 'ALL',
-    entityName: '',
-    userId: '',
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filters, setFilters] = useState<ChangeHistoryFiltersState>(() => getInitialFilters(searchParams));
 
   const changeHistoryQuery = useChangeHistory(true);
 
   const debouncedSearch = useDebounce(filters.search, 300);
   const debouncedEntityName = useDebounce(filters.entityName, 300);
+  const debouncedEntityId = useDebounce(filters.entityId, 300);
   const debouncedUserId = useDebounce(filters.userId, 300);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (filters.search.trim()) {
+      nextParams.set('search', filters.search.trim());
+    }
+
+    if (filters.changeType !== 'ALL') {
+      nextParams.set('changeType', filters.changeType);
+    }
+
+    if (filters.entityName.trim()) {
+      nextParams.set('entityName', filters.entityName.trim());
+    }
+
+    if (filters.entityId.trim()) {
+      nextParams.set('entityId', filters.entityId.trim());
+    }
+
+    if (filters.userId.trim()) {
+      nextParams.set('userId', filters.userId.trim());
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [filters, setSearchParams]);
 
   const filteredRows = useMemo(() => {
     const rows = changeHistoryQuery.data ?? [];
     const search = debouncedSearch.trim().toLowerCase();
     const entityName = debouncedEntityName.trim().toLowerCase();
+    const entityId = debouncedEntityId.trim();
     const userId = debouncedUserId.trim();
 
     return rows.filter((row) => {
@@ -37,6 +77,9 @@ export default function ChangeHistoryPage() {
 
       const matchesEntityName =
         entityName.length === 0 || row.entityName.toLowerCase().includes(entityName);
+
+      const matchesEntityId =
+        entityId.length === 0 || String(row.entityId).includes(entityId);
 
       const matchesUserId =
         userId.length === 0 || String(row.userId).includes(userId);
@@ -52,27 +95,38 @@ export default function ChangeHistoryPage() {
         String(row.entityId).includes(search) ||
         String(row.userId).includes(search);
 
-      return matchesChangeType && matchesEntityName && matchesUserId && matchesSearch;
+      return (
+        matchesChangeType
+        && matchesEntityName
+        && matchesEntityId
+        && matchesUserId
+        && matchesSearch
+      );
     });
   }, [
     changeHistoryQuery.data,
+    debouncedEntityId,
     debouncedEntityName,
     debouncedSearch,
     debouncedUserId,
     filters.changeType,
   ]);
 
+  const isContextView = Boolean(filters.entityName.trim() || filters.entityId.trim() || filters.userId.trim());
+
   return (
     <Stack spacing={3}>
       <PageHeader
-        overline="Administration"
+        overline={isContextView ? 'Entity context' : 'Administration'}
         title="Change History"
-        description="Review confirmed backend change history records for important entity updates."
+        description={isContextView
+          ? 'Review change history for the selected entity context.'
+          : 'Review confirmed backend change history records for important entity updates.'}
       />
 
       <SectionCard
         title="Change history list"
-        description="Current backend confirms entity name, entity ID, change type, field name, old/new value and user ID."
+        description="History results are filtered again in the backend by entity access, not only by company."
       >
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5}>
@@ -116,6 +170,16 @@ export default function ChangeHistoryPage() {
 
             <TextField
               size="small"
+              label="Entity ID"
+              value={filters.entityId}
+              onChange={(event) =>
+                setFilters((prev) => ({ ...prev, entityId: event.target.value }))
+              }
+              sx={{ minWidth: { xs: '100%', lg: 140 } }}
+            />
+
+            <TextField
+              size="small"
               label="User ID"
               value={filters.userId}
               onChange={(event) =>
@@ -132,6 +196,21 @@ export default function ChangeHistoryPage() {
               disabled={changeHistoryQuery.isFetching}
             >
               Refresh
+            </Button>
+
+            <Button
+              variant="text"
+              onClick={() => {
+                setFilters({
+                  search: '',
+                  changeType: 'ALL',
+                  entityName: '',
+                  entityId: '',
+                  userId: '',
+                });
+              }}
+            >
+              Clear
             </Button>
           </Stack>
 

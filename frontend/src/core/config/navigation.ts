@@ -10,6 +10,10 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
+import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
+import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
+import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { ALL_ROLES, ROLES, type Role } from '../constants/roles';
 
@@ -72,10 +76,24 @@ export const navigationItems: NavigationItem[] = [
     icon: DirectionsCarFilledRoundedIcon,
   },
   {
+    key: 'warehouses',
+    label: 'Warehouses',
+    to: '/warehouses',
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
+    icon: WarehouseRoundedIcon,
+  },
+  {
+    key: 'products',
+    label: 'Products',
+    to: '/products',
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
+    icon: CategoryRoundedIcon,
+  },
+  {
     key: 'inventory',
     label: 'Inventory',
     to: '/inventory',
-    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
     icon: Inventory2RoundedIcon,
   },
   {
@@ -93,11 +111,25 @@ export const navigationItems: NavigationItem[] = [
     icon: GroupsRoundedIcon,
   },
   {
+    key: 'tasks',
+    label: 'Tasks',
+    to: '/tasks',
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER],
+    icon: AssignmentRoundedIcon,
+  },
+  {
     key: 'users',
     label: 'Users',
     to: '/users',
     roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN],
     icon: GroupsRoundedIcon,
+  },
+  {
+    key: 'roles',
+    label: 'Roles',
+    to: '/roles',
+    roles: [ROLES.OVERLORD],
+    icon: AdminPanelSettingsRoundedIcon,
   },
   {
     key: 'activity-logs',
@@ -110,7 +142,7 @@ export const navigationItems: NavigationItem[] = [
     key: 'change-history',
     label: 'Change History',
     to: '/change-history',
-    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
+    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER],
     icon: FactCheckRoundedIcon,
   },
 ];

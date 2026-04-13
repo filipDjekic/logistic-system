@@ -17,7 +17,10 @@ export type EmployeeResponse = {
   position: EmployeePosition;
   employmentDate: string;
   salary: number;
+  active: boolean;
   userId: number | null;
+  companyId: number | null;
+  companyName: string | null;
 };
 
 export type EmployeeCreateRequest = {

@@ -5,8 +5,6 @@ import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
-import rs.logistics.logistics_system.entity.Employee;
-import rs.logistics.logistics_system.entity.WarehouseInventory;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 
 import java.util.List;

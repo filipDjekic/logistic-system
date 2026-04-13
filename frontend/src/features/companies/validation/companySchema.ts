@@ -1,16 +1,38 @@
 import { z } from 'zod';
 
-export const companyAdminPositionOptions = [
-  'MANAGER',
-  'DISPATCHER',
-  'DRIVER',
-  'WAREHOUSE_OPERATOR',
-  'ADMINISTRATIVE_WORKER',
-] as const;
+function slugifySegment(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
 
-export const companyAdminStatusOptions = ['ACTIVE', 'INACTIVE', 'BLOCKED'] as const;
+function normalizeUsernamePart(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+}
 
-const emailPattern = /^[a-z]+\.[a-z]+@[a-z]+\.[a-z]+\.[a-z]{2,}$/;
+export function buildBootstrapAdminPreview(companyName: string, firstName: string, lastName: string) {
+  const first = normalizeUsernamePart(firstName) || 'admin';
+  const last = normalizeUsernamePart(lastName) || 'user';
+  const username = `${first}.${last}`.replace(/\.+/g, '.').replace(/^\.|\.$/g, '');
+  const companySegment = slugifySegment(companyName) || 'company';
+
+  return {
+    role: 'COMPANY_ADMIN' as const,
+    status: 'ACTIVE' as const,
+    position: 'MANAGER' as const,
+    username,
+    email: `${username}@${companySegment}.sektor.rs`,
+  };
+}
 
 export const companySchema = z.object({
   name: z
@@ -22,34 +44,15 @@ export const companySchema = z.object({
 
   adminFirstName: z.string().trim().min(1, 'First name is required').max(60),
   adminLastName: z.string().trim().min(1, 'Last name is required').max(60),
-  adminEmail: z
-    .string()
-    .trim()
-    .min(1, 'Email is required')
-    .max(50)
-    .email('Email is not valid')
-    .regex(
-      emailPattern,
-      'Email must be in format firstName.lastName@firm.sector.countryCode',
-    ),
   adminPassword: z
     .string()
     .trim()
     .min(8, 'Password must be at least 8 characters')
     .max(255),
-  adminStatus: z.enum(companyAdminStatusOptions),
 
   adminJmbg: z.string().trim().min(1, 'JMBG is required').max(13),
   adminPhoneNumber: z.string().trim().min(1, 'Phone number is required').max(20),
-  adminPosition: z.enum(companyAdminPositionOptions),
   adminEmploymentDate: z.string().trim().min(1, 'Employment date is required'),
-  adminSalary: z
-    .string()
-    .trim()
-    .min(1, 'Salary is required')
-    .refine((value) => !Number.isNaN(Number(value)) && Number(value) > 0, {
-      message: 'Salary must be greater than 0',
-    }),
 });
 
 export type CompanySchemaValues = z.infer<typeof companySchema>;

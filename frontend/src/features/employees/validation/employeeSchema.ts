@@ -35,8 +35,7 @@ const employeeFormSchemaBase = z.object({
     .string()
     .trim()
     .min(1, 'Email is required')
-    .email('Email is not valid')
-    .max(50, 'Email must be at most 50 characters'),
+    .email('Email is not valid'),
   position: z.enum(employeePositionOptions, {
     message: 'Position is required',
   }),
@@ -65,6 +64,14 @@ export type EmployeeFormValues = z.infer<typeof employeeFormSchemaBase>;
 export function getEmployeeFormSchema(mode: 'create' | 'edit') {
   return employeeFormSchemaBase.superRefine((values, ctx) => {
     if (mode === 'create') {
+      if (values.email.length > 50) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['email'],
+          message: 'Email must be at most 50 characters',
+        });
+      }
+
       if (values.password.length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -95,6 +102,14 @@ export function getEmployeeFormSchema(mode: 'create' | 'edit') {
     }
 
     if (mode === 'edit') {
+      if (values.email.length > 30) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['email'],
+          message: 'Email must be at most 30 characters',
+        });
+      }
+
       if (
         values.userId.length > 0 &&
         (Number.isNaN(Number(values.userId)) || Number(values.userId) <= 0)

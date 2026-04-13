@@ -90,6 +90,9 @@ public class StockMovement {
     @JoinColumn(name = "transport_order_id")
     private TransportOrder transportOrder;
 
+    @OneToMany(mappedBy = "stockMovement")
+    private java.util.List<Task> tasks;
+
     public StockMovement(
             StockMovementType movementType,
             BigDecimal quantity,

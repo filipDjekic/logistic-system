@@ -41,13 +41,17 @@ public class ProductCreate {
     @Positive
     private BigDecimal weight;
 
+    @Positive
+    private Long companyId;
+
     public ProductCreate(String name,
                          String description,
                          String sku,
                          ProductUnit unit,
                          BigDecimal price,
                          Boolean fragile,
-                         BigDecimal weight) {
+                         BigDecimal weight,
+                         Long companyId) {
         this.name = name;
         this.description = description;
         this.sku = sku;
@@ -55,5 +59,6 @@ public class ProductCreate {
         this.price = price;
         this.fragile = fragile;
         this.weight = weight;
+        this.companyId = companyId;
     }
 }

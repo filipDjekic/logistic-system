@@ -11,6 +11,7 @@ export type TaskResponse = {
   status: TaskStatus;
   assignedEmployeeId: number;
   transportOrderId: number | null;
+  stockMovementId: number | null;
 };
 
 export type TaskCreateRequest = {
@@ -20,6 +21,7 @@ export type TaskCreateRequest = {
   priority: TaskPriority;
   assignedEmployeeId: number;
   transportOrderId?: number | null;
+  stockMovementId?: number | null;
 };
 
 export type TaskUpdateRequest = {
@@ -30,12 +32,21 @@ export type TaskUpdateRequest = {
   priority: TaskPriority;
   assignedEmployeeId: number;
   transportOrderId?: number | null;
+  stockMovementId?: number | null;
 };
-
-export type TaskStatusUpdateRequest = TaskStatus;
 
 export type TaskFiltersState = {
   search: string;
   status: TaskStatus | 'ALL';
   priority: TaskPriority | 'ALL';
+};
+
+export type TaskFormValues = {
+  title: string;
+  description: string;
+  dueDate: string;
+  priority: TaskPriority;
+  assignedEmployeeId: number | '';
+  transportOrderId: number | '';
+  stockMovementId: number | '';
 };

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -15,6 +17,11 @@ import type {
 import { vehicleStatusOptions } from '../validation/vehicleSchema';
 
 export default function VehiclesPage() {
+  const auth = useAuthStore();
+
+  const canManage =
+    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+
   const [filters, setFilters] = useState<VehicleFiltersState>({
     search: '',
     status: 'ALL',
@@ -59,22 +66,24 @@ export default function VehiclesPage() {
         title="Vehicles"
         description="Manage fleet records and review vehicle availability."
         actions={
-          <Button
-            variant="contained"
-            onClick={() => {
-              setDialogMode('create');
-              setSelectedVehicle(null);
-              setDialogOpen(true);
-            }}
-          >
-            Create vehicle
-          </Button>
+          canManage ? (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setDialogMode('create');
+                setSelectedVehicle(null);
+                setDialogOpen(true);
+              }}
+            >
+              Create vehicle
+            </Button>
+          ) : null
         }
       />
 
       <SectionCard
         title="Vehicle list"
-        description="Review vehicle records using confirmed backend fields and status values."
+        description="Vehicle data is loaded through backend company-scoped endpoints."
       >
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
@@ -129,52 +138,53 @@ export default function VehiclesPage() {
               setSelectedVehicle(vehicle);
               setDialogOpen(true);
             }}
-            emptyTitle="No vehicles found"
-            emptyDescription="There are no vehicles for the current filter combination."
+            canManage={canManage}
           />
         </Stack>
       </SectionCard>
 
-      <VehicleFormDialog
-        open={dialogOpen}
-        mode={dialogMode}
-        initialData={selectedVehicle}
-        loading={isSaving}
-        onClose={() => setDialogOpen(false)}
-        onSubmit={(values) => {
-          if (dialogMode === 'create') {
-            createVehicleMutation.mutate({
-              registrationNumber: values.registrationNumber,
-              brand: values.brand,
-              model: values.model,
-              type: values.type,
-              capacity: Number(values.capacity),
-              fuelType: values.fuelType,
-              yearOfProduction: Number(values.yearOfProduction),
-              status: values.status,
+      {canManage ? (
+        <VehicleFormDialog
+          open={dialogOpen}
+          mode={dialogMode}
+          initialData={selectedVehicle}
+          loading={isSaving}
+          onClose={() => setDialogOpen(false)}
+          onSubmit={(values) => {
+            if (dialogMode === 'create') {
+              createVehicleMutation.mutate({
+                registrationNumber: values.registrationNumber,
+                brand: values.brand,
+                model: values.model,
+                type: values.type,
+                capacity: Number(values.capacity),
+                fuelType: values.fuelType,
+                yearOfProduction: Number(values.yearOfProduction),
+                status: values.status,
+              });
+              return;
+            }
+
+            if (!selectedVehicle) {
+              return;
+            }
+
+            updateVehicleMutation.mutate({
+              id: selectedVehicle.id,
+              data: {
+                registrationNumber: values.registrationNumber,
+                brand: values.brand,
+                model: values.model,
+                type: values.type,
+                capacity: Number(values.capacity),
+                fuelType: values.fuelType,
+                yearOfProduction: Number(values.yearOfProduction),
+                status: values.status,
+              },
             });
-            return;
-          }
-
-          if (!selectedVehicle) {
-            return;
-          }
-
-          updateVehicleMutation.mutate({
-            id: selectedVehicle.id,
-            data: {
-              registrationNumber: values.registrationNumber,
-              brand: values.brand,
-              model: values.model,
-              type: values.type,
-              capacity: Number(values.capacity),
-              fuelType: values.fuelType,
-              yearOfProduction: Number(values.yearOfProduction),
-              status: values.status,
-            },
-          });
-        }}
-      />
+          }}
+        />
+      ) : null}
     </Stack>
   );
 }

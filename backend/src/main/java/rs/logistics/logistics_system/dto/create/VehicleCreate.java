@@ -1,12 +1,16 @@
 package rs.logistics.logistics_system.dto.create;
 
-import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.VehicleStatus;
-
-import java.math.BigDecimal;
 
 @Getter
 @Setter
@@ -44,6 +48,9 @@ public class VehicleCreate {
     @NotNull
     private VehicleStatus status;
 
+    @Positive
+    private Long companyId;
+
     public VehicleCreate(String registrationNumber,
                          String brand,
                          String model,
@@ -51,7 +58,8 @@ public class VehicleCreate {
                          BigDecimal capacity,
                          String fuelType,
                          Integer yearOfProduction,
-                         VehicleStatus status) {
+                         VehicleStatus status,
+                         Long companyId) {
         this.registrationNumber = registrationNumber;
         this.brand = brand;
         this.model = model;
@@ -60,5 +68,6 @@ public class VehicleCreate {
         this.fuelType = fuelType;
         this.yearOfProduction = yearOfProduction;
         this.status = status;
+        this.companyId = companyId;
     }
 }

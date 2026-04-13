@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.dto.create;
 
+import java.math.BigDecimal;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -8,8 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
-
-import java.math.BigDecimal;
 
 @Getter
 @Setter
@@ -39,12 +39,22 @@ public class WarehouseCreate {
     @Positive
     private Long employeeId;
 
-    public WarehouseCreate(String name, String address, String city, BigDecimal capacity, WarehouseStatus status, Long employeeId) {
-        this.name  = name;
+    @Positive
+    private Long companyId;
+
+    public WarehouseCreate(String name,
+                           String address,
+                           String city,
+                           BigDecimal capacity,
+                           WarehouseStatus status,
+                           Long employeeId,
+                           Long companyId) {
+        this.name = name;
         this.address = address;
         this.city = city;
         this.capacity = capacity;
         this.status = status;
         this.employeeId = employeeId;
+        this.companyId = companyId;
     }
 }

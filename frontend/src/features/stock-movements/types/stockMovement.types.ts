@@ -28,24 +28,18 @@ export type StockMovementReferenceType =
 
 export type StockMovementResponse = {
   id: number;
-  movementType: StockMovementType;
+  movementType: string;
   quantity: number;
-  reasonCode: StockMovementReasonCode;
-  reasonDescription: string | null;
-  referenceType: StockMovementReferenceType;
-  referenceId: number | null;
-  referenceNumber: string | null;
-  referenceNote: string | null;
+
+  warehouseId: number;
+  warehouseName: string;
+
+  productId: number;
+  productName: string;
+
   quantityBefore: number;
   quantityAfter: number;
-  reservedBefore: number;
-  reservedAfter: number;
-  availableBefore: number;
-  availableAfter: number;
-  warehouseId: number;
-  productId: number;
-  createdById: number;
-  transportOrderId: number | null;
+
   createdAt: string;
 };
 

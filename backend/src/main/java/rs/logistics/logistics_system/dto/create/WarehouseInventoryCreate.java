@@ -1,14 +1,13 @@
 package rs.logistics.logistics_system.dto.create;
 
+import java.math.BigDecimal;
+
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import rs.logistics.logistics_system.entity.Product;
-
-import java.math.BigDecimal;
 
 @Getter
 @Setter

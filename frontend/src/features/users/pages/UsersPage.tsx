@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useAuthStore } from '../../../core/auth/authStore';
-import { ROLES } from '../../../core/constants/roles';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import { useRoles } from '../../roles/hooks/useRoles';
 import UserFormDialog from '../components/UserFormDialog';
 import UsersTable from '../components/UsersTable';
@@ -21,7 +21,8 @@ import { userStatusOptions } from '../validation/userSchema';
 
 export default function UsersPage() {
   const auth = useAuthStore();
-  const isAdmin = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.OVERLORD;
+  const isAdmin =
+    auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.OVERLORD;
 
   const [filters, setFilters] = useState<UserFiltersState>({
     search: '',
@@ -56,7 +57,10 @@ export default function UsersPage() {
         user.email.toLowerCase().includes(search) ||
         user.roleName.toLowerCase().includes(search) ||
         user.status.toLowerCase().includes(search) ||
-        String(user.id).includes(search);
+        String(user.id).includes(search) ||
+        user.company?.name.toLowerCase().includes(search) ||
+        user.employee?.position.toLowerCase().includes(search) ||
+        user.employee?.jmbg.includes(search);
 
       return matchesStatus && matchesEnabled && matchesSearch;
     });
@@ -71,7 +75,7 @@ export default function UsersPage() {
         title="Users"
         description={
           isAdmin
-            ? 'Manage user accounts and review assigned roles.'
+            ? 'Manage user accounts together with their linked employee profiles.'
             : 'Review user accounts. Access is limited by the current backend authorization rules.'
         }
         actions={
@@ -92,14 +96,14 @@ export default function UsersPage() {
 
       <SectionCard
         title="User list"
-        description="List view is available to OVERLORD, COMPANY_ADMIN and HR_MANAGER. Create/edit is limited by current backend authorization."
+        description="Each business user should be created together with the linked employee profile."
       >
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
             <SearchToolbar
               value={filters.search}
               onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by name, email, role, status or ID"
+              placeholder="Search by name, email, role, company, employee position, JMBG or ID"
               fullWidth
             />
 
@@ -189,6 +193,13 @@ export default function UsersPage() {
               email: values.email,
               roleId: Number(values.roleId),
               status: values.status,
+              employee: {
+                jmbg: values.employeeJmbg,
+                phoneNumber: values.employeePhoneNumber,
+                position: values.employeePosition,
+                employmentDate: values.employeeEmploymentDate,
+                salary: Number(values.employeeSalary),
+              },
             });
           }}
           onSubmitUpdate={(values: UpdateUserFormValues) => {
@@ -205,6 +216,14 @@ export default function UsersPage() {
                 roleId: Number(values.roleId),
                 enabled: values.enabled,
                 status: values.status,
+                employee: {
+                  jmbg: values.employeeJmbg,
+                  phoneNumber: values.employeePhoneNumber,
+                  position: values.employeePosition,
+                  employmentDate: values.employeeEmploymentDate,
+                  salary: Number(values.employeeSalary),
+                  active: values.employeeActive,
+                },
               },
             });
           }}

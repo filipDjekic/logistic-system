@@ -8,7 +8,7 @@ import rs.logistics.logistics_system.entity.Product;
 public class ProductMapper {
 
     public static Product toEntity(ProductCreate dto) {
-        Product product = new Product(
+        return new Product(
                 dto.getName(),
                 dto.getDescription(),
                 dto.getSku(),
@@ -17,7 +17,6 @@ public class ProductMapper {
                 dto.getFragile(),
                 dto.getWeight()
         );
-        return product;
     }
 
     public static void updateEntity(ProductUpdate dto, Product product) {
@@ -31,7 +30,7 @@ public class ProductMapper {
     }
 
     public static ProductResponse toResponse(Product product) {
-        ProductResponse response = new ProductResponse(
+        return new ProductResponse(
                 product.getId(),
                 product.getName(),
                 product.getDescription(),
@@ -39,8 +38,10 @@ public class ProductMapper {
                 product.getUnit(),
                 product.getPrice(),
                 product.getFragile(),
-                product.getWeight()
+                product.getWeight(),
+                product.getActive(),
+                product.getCompany() != null ? product.getCompany().getId() : null,
+                product.getCompany() != null ? product.getCompany().getName() : null
         );
-        return response;
     }
 }

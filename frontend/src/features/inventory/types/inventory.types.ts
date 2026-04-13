@@ -2,10 +2,31 @@ export type WarehouseStatus = 'ACTIVE' | 'INACTIVE' | 'FULL' | 'UNDER_MAINTENANC
 
 export type WarehouseInventoryResponse = {
   warehouseId: number;
+  warehouseName: string;
+  warehouseCompanyId: number | null;
+
   productId: number;
+  productName: string;
+  productCompanyId: number | null;
+
   quantity: number;
   reservedQuantity: number;
-  minStockLevel: number | null;
+  availableQuantity: number;
+  minStockLevel: number;
+};
+
+export type WarehouseInventoryCreateRequest = {
+  warehouseId: number;
+  productId: number;
+  quantity: number;
+  minStockLevel: number;
+};
+
+export type WarehouseInventoryUpdateRequest = {
+  warehouseId?: number;
+  productId?: number;
+  quantity: number;
+  minStockLevel: number;
 };
 
 export type InventoryWarehouseOption = {
@@ -55,4 +76,11 @@ export type InventoryRecordDetails = {
   record: InventoryListRow;
   warehouse: InventoryWarehouseOption | null;
   product: InventoryProductOption | null;
+};
+
+export type InventoryFormValues = {
+  warehouseId: number | '';
+  productId: number | '';
+  quantity: number | '';
+  minStockLevel: number | '';
 };

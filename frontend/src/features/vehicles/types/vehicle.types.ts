@@ -14,6 +14,9 @@ export type VehicleResponse = {
   fuelType: string;
   yearOfProduction: number;
   status: VehicleStatus;
+  active?: boolean;
+  companyId?: number | null;
+  companyName?: string | null;
 };
 
 export type VehicleCreateRequest = {

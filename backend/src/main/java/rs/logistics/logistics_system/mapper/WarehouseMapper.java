@@ -28,6 +28,9 @@ public class WarehouseMapper {
 
     public static WarehouseResponse toResponse(Warehouse warehouse) {
         Long employeeId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
+        String managerName = warehouse.getManager() != null
+                ? warehouse.getManager().getFirstName() + " " + warehouse.getManager().getLastName()
+                : null;
 
         return new WarehouseResponse(
                 warehouse.getId(),
@@ -36,7 +39,11 @@ public class WarehouseMapper {
                 warehouse.getCity(),
                 warehouse.getCapacity(),
                 warehouse.getStatus(),
-                employeeId
+                warehouse.getActive(),
+                employeeId,
+                managerName,
+                warehouse.getCompany() != null ? warehouse.getCompany().getId() : null,
+                warehouse.getCompany() != null ? warehouse.getCompany().getName() : null
         );
     }
 }

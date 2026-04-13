@@ -3,6 +3,7 @@ package rs.logistics.logistics_system.controller;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 
-@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
+@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
 @RestController
 @RequestMapping("/api/history")
 @RequiredArgsConstructor
@@ -48,8 +49,11 @@ public class ChangeHistoryController {
     }
 
     @GetMapping("/{start_date}/{end_date}")
-    public ResponseEntity<List<ChangeHistoryResponse>> getByBetweenDate(@PathVariable LocalDateTime start_date, @PathVariable LocalDateTime end_date){
-        List<ChangeHistoryResponse> responses = changeHistoryService.getByBetweenDate(start_date, end_date);
+    public ResponseEntity<List<ChangeHistoryResponse>> getByBetweenDate(
+            @PathVariable("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @PathVariable("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate
+    ){
+        List<ChangeHistoryResponse> responses = changeHistoryService.getByBetweenDate(startDate, endDate);
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 

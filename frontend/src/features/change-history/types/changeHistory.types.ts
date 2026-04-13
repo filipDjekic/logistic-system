@@ -15,6 +15,7 @@ export type ChangeHistoryFiltersState = {
   search: string;
   changeType: ChangeType | 'ALL';
   entityName: string;
+  entityId: string;
   userId: string;
 };
 

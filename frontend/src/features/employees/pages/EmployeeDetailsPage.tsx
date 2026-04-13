@@ -1,12 +1,6 @@
 import { useMemo } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import {
-  Alert,
-  Button,
-  Grid,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -248,9 +242,17 @@ export default function EmployeeDetailsPage() {
             </Button>
 
             <Button
+              variant="outlined"
+              component={RouterLink}
+              to={`/change-history?entityName=EMPLOYEE&entityId=${employee.id}`}
+            >
+              View history
+            </Button>
+
+            <Button
               variant="contained"
               color="warning"
-              disabled={terminateMutation.isPending}
+              disabled={terminateMutation.isPending || !employee.active}
               onClick={() => terminateMutation.mutate(employee.id)}
             >
               Terminate employee
@@ -258,12 +260,6 @@ export default function EmployeeDetailsPage() {
           </Stack>
         }
       />
-
-      <Alert severity="info">
-        The backend supports employee termination, but the current employee response does not expose
-        the employee active flag. Because of that, this screen can execute terminate action, but it
-        cannot render a confirmed active/inactive chip after refetch.
-      </Alert>
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, lg: 7 }}>
@@ -296,6 +292,15 @@ export default function EmployeeDetailsPage() {
               <Grid size={{ xs: 12, md: 6 }}>
                 <InfoRow label="Salary" value={formatCurrency(employee.salary)} />
               </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <InfoRow
+                  label="Active"
+                  value={<StatusChip value={employee.active ? 'ACTIVE' : 'INACTIVE'} />}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <InfoRow label="Company" value={employee.companyName ?? '—'} />
+              </Grid>
               <Grid size={{ xs: 12 }}>
                 <InfoRow
                   label="Linked user"
@@ -320,7 +325,16 @@ export default function EmployeeDetailsPage() {
             <Stack spacing={2}>
               <InfoRow label="User ID" value={employee.userId ?? '—'} />
               <InfoRow label="Role" value={linkedUser?.roleName ?? '—'} />
-              <InfoRow label="Enabled" value={linkedUser ? String(linkedUser.enabled) : '—'} />
+              <InfoRow
+                label="Enabled"
+                value={
+                  linkedUser ? (
+                    <StatusChip value={linkedUser.enabled ? 'ACTIVE' : 'INACTIVE'} />
+                  ) : (
+                    '—'
+                  )
+                }
+              />
               <InfoRow label="User status" value={linkedUser?.status ?? '—'} />
             </Stack>
           </SectionCard>
@@ -342,12 +356,11 @@ export default function EmployeeDetailsPage() {
           }}
           emptyTitle="No tasks found"
           emptyDescription="This employee currently has no assigned tasks."
-          minWidth={980}
         />
       </SectionCard>
 
       <SectionCard
-        title="Shift history"
+        title="Assigned shifts"
         description="Uses the confirmed employee shifts endpoint."
       >
         <DataTable
@@ -360,8 +373,7 @@ export default function EmployeeDetailsPage() {
             void shiftsQuery.refetch();
           }}
           emptyTitle="No shifts found"
-          emptyDescription="This employee currently has no recorded shifts."
-          minWidth={900}
+          emptyDescription="This employee currently has no assigned shifts."
         />
       </SectionCard>
     </Stack>

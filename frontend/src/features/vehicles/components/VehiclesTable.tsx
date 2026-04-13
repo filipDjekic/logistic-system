@@ -1,127 +1,107 @@
-import { Button, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Stack, Typography } from '@mui/material';
 import DataTable from '../../../shared/components/DataTable/DataTable';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 import type { VehicleResponse } from '../types/vehicle.types';
-import VehicleStatusChip from './VehicleStatusChip';
 
-type VehiclesTableProps = {
+type Props = {
   rows: VehicleResponse[];
-  loading?: boolean;
-  error?: boolean;
-  onRetry?: () => void;
-  onEdit?: (vehicle: VehicleResponse) => void;
-  emptyTitle?: string;
-  emptyDescription?: string;
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+  onEdit: (vehicle: VehicleResponse) => void;
+  canManage: boolean;
 };
-
-function formatCapacity(value: number) {
-  return `${value} kg`;
-}
 
 export default function VehiclesTable({
   rows,
-  loading = false,
-  error = false,
+  loading,
+  error,
   onRetry,
   onEdit,
-  emptyTitle,
-  emptyDescription,
-}: VehiclesTableProps) {
+  canManage,
+}: Props) {
   const columns: DataTableColumn<VehicleResponse>[] = [
     {
       id: 'registrationNumber',
       header: 'Registration',
-      minWidth: 160,
-      nowrap: true,
-      render: (row) => (
-        <Typography variant="body2" fontWeight={700}>
-          {row.registrationNumber}
-        </Typography>
-      ),
+      accessor: 'registrationNumber',
+      minWidth: 140,
     },
     {
-      id: 'vehicle',
-      header: 'Vehicle',
-      minWidth: 220,
-      render: (row) => (
-        <Stack spacing={0.25}>
-          <Typography variant="body2" fontWeight={600}>
-            {row.brand} {row.model}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {row.type}
-          </Typography>
-        </Stack>
-      ),
+      id: 'brand',
+      header: 'Brand',
+      accessor: 'brand',
+      minWidth: 120,
+    },
+    {
+      id: 'model',
+      header: 'Model',
+      accessor: 'model',
+      minWidth: 120,
+    },
+    {
+      id: 'type',
+      header: 'Type',
+      accessor: 'type',
+      minWidth: 120,
     },
     {
       id: 'capacity',
       header: 'Capacity',
-      minWidth: 120,
-      nowrap: true,
-      render: (row) => formatCapacity(row.capacity),
-    },
-    {
-      id: 'fuelType',
-      header: 'Fuel',
-      minWidth: 140,
-      render: (row) => row.fuelType,
-    },
-    {
-      id: 'yearOfProduction',
-      header: 'Year',
+      accessor: 'capacity',
       minWidth: 100,
-      nowrap: true,
-      render: (row) => row.yearOfProduction,
+    },
+    {
+      id: 'company',
+      header: 'Company',
+      minWidth: 140,
+      render: (row) => <Typography variant="body2">{row.companyName ?? '—'}</Typography>,
     },
     {
       id: 'status',
       header: 'Status',
-      minWidth: 150,
-      render: (row) => <VehicleStatusChip status={row.status} />,
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      align: 'right',
-      minWidth: 180,
+      minWidth: 130,
       render: (row) => (
-        <Stack direction="row" spacing={1} justifyContent="flex-end">
-          <Button
-            component={RouterLink}
-            to={`/vehicles/${row.id}`}
-            variant="text"
-            size="small"
-          >
-            Details
-          </Button>
-
-          <Button
-            variant="text"
-            size="small"
-            onClick={() => onEdit?.(row)}
-          >
-            Edit
-          </Button>
+        <Stack direction="row" spacing={1}>
+          <StatusChip value={row.status} />
         </Stack>
       ),
     },
+    ...(canManage
+      ? [
+          {
+            id: 'actions',
+            header: 'Actions',
+            minWidth: 120,
+            render: (row: VehicleResponse) => (
+              <Typography
+                component="button"
+                sx={{
+                  border: 0,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: 'primary.main',
+                  p: 0,
+                }}
+                onClick={() => onEdit(row)}
+              >
+                Edit
+              </Typography>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
-    <DataTable
-      columns={columns}
+    <DataTable<VehicleResponse>
       rows={rows}
-      getRowId={(row) => row.id}
       loading={loading}
       error={error}
       onRetry={onRetry}
-      emptyTitle={emptyTitle ?? 'No vehicles found'}
-      emptyDescription={
-        emptyDescription ?? 'There are no vehicles for the current filter combination.'
-      }
-      minWidth={1100}
+      getRowId={(row) => row.id}
+      columns={columns}
     />
   );
 }

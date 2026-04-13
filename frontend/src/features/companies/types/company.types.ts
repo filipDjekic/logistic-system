@@ -1,4 +1,3 @@
-import type { EmployeePosition } from '../../employees/types/employee.types';
 import type { UserStatus } from '../../users/types/user.types';
 
 export type CompanyResponse = {
@@ -9,22 +8,20 @@ export type CompanyResponse = {
   updatedAt: string | null;
   adminUserId: number | null;
   adminEmployeeId: number | null;
+  adminFullName: string | null;
+  adminEmail: string | null;
 };
 
 export type CompanyAdminEmployeeRequest = {
   jmbg: string;
   phoneNumber: string;
-  position: EmployeePosition;
   employmentDate: string;
-  salary: number;
 };
 
 export type CompanyAdminRequest = {
   password: string;
   firstName: string;
   lastName: string;
-  email: string;
-  status: UserStatus;
   employee: CompanyAdminEmployeeRequest;
 };
 
@@ -36,4 +33,12 @@ export type CompanyCreateRequest = {
 export type CompanyUpdateRequest = {
   name: string;
   active: boolean;
+};
+
+export type BootstrapAdminPreview = {
+  role: 'COMPANY_ADMIN';
+  status: UserStatus;
+  position: 'MANAGER';
+  username: string;
+  email: string;
 };

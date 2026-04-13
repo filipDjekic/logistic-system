@@ -2,7 +2,9 @@ import { apiClient } from '../../../core/api/client';
 import type {
   InventoryProductOption,
   InventoryWarehouseOption,
+  WarehouseInventoryCreateRequest,
   WarehouseInventoryResponse,
+  WarehouseInventoryUpdateRequest,
 } from '../types/inventory.types';
 
 export const inventoryApi = {
@@ -16,6 +18,29 @@ export const inventoryApi = {
     return apiClient
       .get<WarehouseInventoryResponse[]>(`/api/warehouse-inventory/warehouse/${warehouseId}`)
       .then((response) => response.data);
+  },
+
+  createInventoryRecord(data: WarehouseInventoryCreateRequest) {
+    return apiClient
+      .post<WarehouseInventoryResponse>('/api/warehouse-inventory', data)
+      .then((response) => response.data);
+  },
+
+  updateInventoryRecord(
+    warehouseId: number,
+    productId: number,
+    data: WarehouseInventoryUpdateRequest,
+  ) {
+    return apiClient
+      .put<WarehouseInventoryResponse>(
+        `/api/warehouse-inventory/${warehouseId}/${productId}`,
+        data,
+      )
+      .then((response) => response.data);
+  },
+
+  deleteInventoryRecord(warehouseId: number, productId: number) {
+    return apiClient.delete(`/api/warehouse-inventory/${warehouseId}/${productId}`);
   },
 
   getWarehouses() {

@@ -1,11 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import {
-  Button,
-  Grid,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -46,6 +41,14 @@ function formatDateTime(value: string | null | undefined) {
   }
 
   return new Date(value).toLocaleString();
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) {
+    return '—';
+  }
+
+  return new Date(value).toLocaleDateString();
 }
 
 export default function UserDetailsPage() {
@@ -147,6 +150,14 @@ export default function UserDetailsPage() {
               Back to list
             </Button>
 
+            <Button
+              variant="outlined"
+              component={RouterLink}
+              to={`/change-history?entityName=USER&entityId=${user.id}`}
+            >
+              View history
+            </Button>
+
             <Button variant="outlined" onClick={() => setEditOpen(true)}>
               Edit user
             </Button>
@@ -167,7 +178,7 @@ export default function UserDetailsPage() {
         <Grid size={{ xs: 12, lg: 8 }}>
           <SectionCard
             title="User overview"
-            description="Confirmed fields from UserResponse."
+            description="User, company and linked employee fields returned by the backend."
           >
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
@@ -192,10 +203,72 @@ export default function UserDetailsPage() {
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
+                <InfoRow label="Company" value={user.company?.name ?? '—'} />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <InfoRow
+                  label="Company active"
+                  value={
+                    user.company ? (
+                      <StatusChip value={user.company.active ? 'ACTIVE' : 'INACTIVE'} />
+                    ) : (
+                      '—'
+                    )
+                  }
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <InfoRow label="Created at" value={formatDateTime(user.createdAt)} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <InfoRow label="Updated at" value={formatDateTime(user.updatedAt)} />
+              </Grid>
+            </Grid>
+          </SectionCard>
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <SectionCard
+            title="Linked employee"
+            description="Employee profile created together with the user."
+          >
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12 }}>
+                <InfoRow label="JMBG" value={user.employee?.jmbg ?? '—'} />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <InfoRow label="Phone number" value={user.employee?.phoneNumber ?? '—'} />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <InfoRow label="Position" value={user.employee?.position ?? '—'} />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <InfoRow
+                  label="Employment date"
+                  value={formatDate(user.employee?.employmentDate)}
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <InfoRow
+                  label="Salary"
+                  value={
+                    user.employee?.salary != null ? String(user.employee.salary) : '—'
+                  }
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <InfoRow
+                  label="Employee active"
+                  value={
+                    user.employee ? (
+                      <StatusChip
+                        value={user.employee.active ? 'ACTIVE' : 'INACTIVE'}
+                      />
+                    ) : (
+                      '—'
+                    )
+                  }
+                />
               </Grid>
             </Grid>
           </SectionCard>
@@ -220,6 +293,14 @@ export default function UserDetailsPage() {
               roleId: Number(values.roleId),
               enabled: values.enabled,
               status: values.status,
+              employee: {
+                jmbg: values.employeeJmbg,
+                phoneNumber: values.employeePhoneNumber,
+                position: values.employeePosition,
+                employmentDate: values.employeeEmploymentDate,
+                salary: Number(values.employeeSalary),
+                active: values.employeeActive,
+              },
             },
           });
           setEditOpen(false);

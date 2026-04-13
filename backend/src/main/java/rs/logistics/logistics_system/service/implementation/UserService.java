@@ -112,6 +112,7 @@ public class UserService implements UserServiceDefinition {
         User updatedUser = userRepository.save(user);
 
         syncLinkedEmployee(updatedUser, dto.getEmployee());
+        updatedUser = userRepository.save(updatedUser);
 
         auditFacade.recordFieldChange("USER", updatedUser.getId(), "email", oldEmail, updatedUser.getEmail());
         auditFacade.recordFieldChange("USER", updatedUser.getId(), "first_name", oldFirstName, updatedUser.getFirstName());
@@ -154,8 +155,12 @@ public class UserService implements UserServiceDefinition {
 
         validateLastEnabledOverlordNotRemoved(user);
 
+        if (user.getEmployee() != null) {
+            throw new BadRequestException("User cannot be deleted while linked employee exists. Disable user instead.");
+        }
+
         if (userRepository.hasBusinessReferences(id)) {
-            throw new BadRequestException("User cannot be deleted because it already has employee, history or system references. Disable user instead.");
+            throw new BadRequestException("User cannot be deleted because it already has history or system references. Disable user instead.");
         }
 
         userRepository.delete(user);
@@ -196,6 +201,7 @@ public class UserService implements UserServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void disableUser(Long id) {
         User user = getUserOrThrow(id);
 
@@ -219,6 +225,7 @@ public class UserService implements UserServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void changePassword(Long id, ChangePasswordRequest request) {
         User user = getUserOrThrow(id);
 
@@ -250,6 +257,7 @@ public class UserService implements UserServiceDefinition {
     }
 
     @Override
+    @Transactional
     public UserResponse assignRole(Long id, Long roleId) {
         User user = getUserOrThrow(id);
 
@@ -260,6 +268,11 @@ public class UserService implements UserServiceDefinition {
 
         if (user.getRole().getId().equals(roleId)) {
             throw new BadRequestException("User already has this role");
+        }
+
+        if ("OVERLORD".equalsIgnoreCase(oldRole)) {
+            validateLastEnabledOverlordNotRemoved(user);
+            throw new BadRequestException("OVERLORD can't change role through this flow.");
         }
 
         user.setRole(newRole);
@@ -305,6 +318,8 @@ public class UserService implements UserServiceDefinition {
 
         validateUniqueEmployeeData(user.getEmail(), employeeDto.getJmbg(), employee.getId());
 
+        String oldFirstName = employee.getFirstName();
+        String oldLastName = employee.getLastName();
         String oldEmail = employee.getEmail();
         String oldJmbg = employee.getJmbg();
         String oldPhoneNumber = employee.getPhoneNumber();
@@ -312,6 +327,7 @@ public class UserService implements UserServiceDefinition {
         Object oldEmploymentDate = employee.getEmploymentDate();
         Object oldSalary = employee.getSalary();
         Boolean oldActive = employee.getActive();
+        Long oldCompanyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
 
         employee.setFirstName(user.getFirstName());
         employee.setLastName(user.getLastName());
@@ -328,9 +344,10 @@ public class UserService implements UserServiceDefinition {
 
         if (Boolean.FALSE.equals(employee.getActive()) && Boolean.TRUE.equals(user.getEnabled())) {
             user.setEnabled(false);
-            userRepository.save(user);
         }
 
+        auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "first_name", oldFirstName, employee.getFirstName());
+        auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "last_name", oldLastName, employee.getLastName());
         auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "email", oldEmail, employee.getEmail());
         auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "jmbg", oldJmbg, employee.getJmbg());
         auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "phone_number", oldPhoneNumber, employee.getPhoneNumber());
@@ -338,6 +355,13 @@ public class UserService implements UserServiceDefinition {
         auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "employment_date", oldEmploymentDate, employee.getEmploymentDate());
         auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "salary", oldSalary, employee.getSalary());
         auditFacade.recordFieldChange("EMPLOYEE", employee.getId(), "active", oldActive, employee.getActive());
+        auditFacade.recordFieldChange(
+                "EMPLOYEE",
+                employee.getId(),
+                "company_id",
+                oldCompanyId,
+                employee.getCompany() != null ? employee.getCompany().getId() : null
+        );
     }
 
     private Company resolveTargetCompany(Long companyId) {
@@ -387,7 +411,7 @@ public class UserService implements UserServiceDefinition {
 
     private void validateUniqueEmployeeData(String email, String jmbg, Long employeeId) {
         String normalizedEmail = normalizeEmail(email);
-        String normalizedJmbg = jmbg == null ? null : jmbg.trim();
+        String normalizedJmbg = normalizeJmbg(jmbg);
 
         if (employeeId == null) {
             if (employeeRepository.existsByEmailIgnoreCase(normalizedEmail)) {
@@ -414,7 +438,16 @@ public class UserService implements UserServiceDefinition {
         if (email == null || email.isBlank()) {
             throw new BadRequestException("Email is required");
         }
+
         return email.trim().toLowerCase();
+    }
+
+    private String normalizeJmbg(String jmbg) {
+        if (jmbg == null || jmbg.isBlank()) {
+            throw new BadRequestException("JMBG is required");
+        }
+
+        return jmbg.trim();
     }
 
     private void validateLastEnabledOverlordNotRemoved(User user) {

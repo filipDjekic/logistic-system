@@ -1,11 +1,11 @@
 package rs.logistics.logistics_system.dto.response;
 
+import java.math.BigDecimal;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.VehicleStatus;
-
-import java.math.BigDecimal;
 
 @Getter
 @Setter
@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 public class VehicleResponse {
 
     private Long id;
-
     private String registrationNumber;
     private String brand;
     private String model;
@@ -22,6 +21,9 @@ public class VehicleResponse {
     private String fuelType;
     private Integer yearOfProduction;
     private VehicleStatus status;
+    private Boolean active;
+    private Long companyId;
+    private String companyName;
 
     public VehicleResponse(
             Long id,
@@ -32,7 +34,11 @@ public class VehicleResponse {
             String type,
             String fuelType,
             Integer yearOfProduction,
-            VehicleStatus status) {
+            VehicleStatus status,
+            Boolean active,
+            Long companyId,
+            String companyName
+    ) {
         this.id = id;
         this.registrationNumber = registrationNumber;
         this.brand = brand;
@@ -42,5 +48,8 @@ public class VehicleResponse {
         this.fuelType = fuelType;
         this.yearOfProduction = yearOfProduction;
         this.status = status;
+        this.active = active;
+        this.companyId = companyId;
+        this.companyName = companyName;
     }
 }

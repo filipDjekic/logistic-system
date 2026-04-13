@@ -7,9 +7,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import rs.logistics.logistics_system.entity.WarehouseInventoryId;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Setter

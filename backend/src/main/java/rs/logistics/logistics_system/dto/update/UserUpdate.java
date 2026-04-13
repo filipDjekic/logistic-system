@@ -1,7 +1,9 @@
 package rs.logistics.logistics_system.dto.update;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,24 +17,16 @@ public class UserUpdate {
     private Long id;
 
     @NotBlank
-    @Size(min = 1, max = 60)
     private String firstName;
 
     @NotBlank
-    @Size(min = 1, max = 60)
     private String lastName;
 
     @NotBlank
     @Email
-    @Pattern(
-            regexp = "^[a-z]+\\.[a-z]+@[a-z]+\\.[a-z]+\\.[a-z]{2,}$",
-            message = "Email must be in format firstName.lastName@firm.sector.countryCode"
-    )
-    @Size(min = 1, max = 50)
     private String email;
 
     @NotNull
-    @Positive
     private Long roleId;
 
     @NotNull

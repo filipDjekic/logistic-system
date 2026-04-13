@@ -30,12 +30,30 @@ export default function CompaniesTable({
     {
       id: 'name',
       header: 'Company',
-      minWidth: 280,
+      minWidth: 260,
       render: (row) => (
         <Typography variant="body2" fontWeight={700}>
           {row.name}
         </Typography>
       ),
+    },
+    {
+      id: 'bootstrapAdmin',
+      header: 'Bootstrap admin',
+      minWidth: 260,
+      render: (row) =>
+        row.adminFullName || row.adminEmail ? (
+          <Stack spacing={0.25}>
+            <Typography variant="body2" fontWeight={600}>
+              {row.adminFullName ?? '—'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {row.adminEmail ?? '—'}
+            </Typography>
+          </Stack>
+        ) : (
+          '—'
+        ),
     },
     {
       id: 'active',
@@ -83,7 +101,7 @@ export default function CompaniesTable({
       onRetry={onRetry}
       emptyTitle="No companies found"
       emptyDescription="There are no companies in the system yet."
-      minWidth={900}
+      minWidth={1100}
     />
   );
 }

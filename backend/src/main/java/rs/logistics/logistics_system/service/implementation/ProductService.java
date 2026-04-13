@@ -1,8 +1,12 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.ProductCreate;
 import rs.logistics.logistics_system.dto.response.ProductResponse;
 import rs.logistics.logistics_system.dto.update.ProductUpdate;
@@ -12,19 +16,18 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ProductMapper;
+import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService implements ProductServiceDefinition {
 
     private final ProductRepository _productRepository;
+    private final CompanyRepository companyRepository;
     private final AuditFacadeDefinition auditFacade;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
@@ -33,23 +36,17 @@ public class ProductService implements ProductServiceDefinition {
         validateSkuForCreate(dto.getSku());
 
         Product product = ProductMapper.toEntity(dto);
-
-        if (!authenticatedUserProvider.isOverlord()) {
-            Company company = authenticatedUserProvider.getAuthenticatedCompany();
-            if (company == null) {
-                throw new ForbiddenException("Authenticated user is not assigned to a company");
-            }
-            product.setCompany(company);
-        }
+        product.setCompany(resolveTargetCompany(dto.getCompanyId()));
 
         Product saved = _productRepository.save(product);
 
         auditFacade.recordCreate("PRODUCT", saved.getId());
+        auditFacade.recordFieldChange("PRODUCT", saved.getId(), "company_id", null, saved.getCompany() != null ? saved.getCompany().getId() : null);
         auditFacade.log(
                 "CREATE",
                 "PRODUCT",
                 saved.getId(),
-                "PRODUCT is created (ID: " + saved.getId() + ")"
+                "PRODUCT is created (ID: " + saved.getId() + ", companyId: " + (saved.getCompany() != null ? saved.getCompany().getId() : null) + ")"
         );
 
         return ProductMapper.toResponse(saved);
@@ -166,6 +163,24 @@ public class ProductService implements ProductServiceDefinition {
 
         return _productRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+    }
+
+    private Company resolveTargetCompany(Long companyId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            if (companyId == null) {
+                throw new BadRequestException("companyId is required for OVERLORD product creation");
+            }
+
+            return companyRepository.findById(companyId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
+        }
+
+        Company company = authenticatedUserProvider.getAuthenticatedCompany();
+        if (company == null) {
+            throw new ForbiddenException("Authenticated user is not assigned to a company");
+        }
+
+        return company;
     }
 
     private void validateSkuForCreate(String sku) {

@@ -10,6 +10,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import EmptyState from '../../../shared/components/EmptyState/EmptyState';
@@ -74,11 +76,17 @@ const itemDefaultValues: TransportOrderItemSchemaValues = {
 
 export default function TransportOrderDetailsPage() {
   const params = useParams();
+  const auth = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
   const transportOrderId = Number(params.id);
+
+  const canManageOrder =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.DISPATCHER;
 
   const transportOrderQuery = useTransportOrder(
     Number.isFinite(transportOrderId) ? transportOrderId : null,
@@ -209,7 +217,7 @@ export default function TransportOrderDetailsPage() {
 
   const transportOrder = transportOrderQuery.data;
   const nextStatuses = transportOrder ? getAllowedNextStatuses(transportOrder.status) : [];
-  const isEditableItems = transportOrder?.status === 'CREATED';
+  const isEditableItems = canManageOrder && transportOrder?.status === 'CREATED';
 
   if (!Number.isFinite(transportOrderId)) {
     return (
@@ -266,9 +274,17 @@ export default function TransportOrderDetailsPage() {
         title={`Transport Order ${transportOrder.orderNumber}`}
         description={transportOrder.description}
         actions={
-          <Button variant="outlined" onClick={() => navigate('/transport-orders')}>
-            Back to list
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate(`/change-history?entityName=TRANSPORT_ORDER&entityId=${transportOrder.id}`)}
+            >
+              View history
+            </Button>
+            <Button variant="outlined" onClick={() => navigate('/transport-orders')}>
+              Back to list
+            </Button>
+          </Stack>
         }
       />
 
@@ -406,7 +422,12 @@ export default function TransportOrderDetailsPage() {
 
         <Grid size={{ xs: 12, lg: 4 }}>
           <SectionCard title="Status actions" description="Allowed transitions follow backend service rules.">
-            {nextStatuses.length === 0 ? (
+            {!canManageOrder ? (
+              <EmptyState
+                title="No status actions available"
+                description="Your role can review the order but cannot change its status."
+              />
+            ) : nextStatuses.length === 0 ? (
               <EmptyState
                 title="No more status actions"
                 description="This transport order is already in a terminal state."

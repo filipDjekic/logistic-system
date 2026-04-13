@@ -2,6 +2,14 @@ import { z } from 'zod';
 
 export const userStatusOptions = ['ACTIVE', 'INACTIVE', 'BLOCKED'] as const;
 
+export const employeePositionOptions = [
+  'MANAGER',
+  'DISPATCHER',
+  'DRIVER',
+  'WAREHOUSE_OPERATOR',
+  'ADMINISTRATIVE_WORKER',
+] as const;
+
 const emailPattern = /^[a-z]+\.[a-z]+@[a-z]+\.[a-z]+\.[a-z]{2,}$/;
 
 const roleIdSchema = z
@@ -10,6 +18,14 @@ const roleIdSchema = z
   .min(1, 'Role is required')
   .refine((value) => !Number.isNaN(Number(value)) && Number(value) > 0, {
     message: 'Selected role is not valid',
+  });
+
+const salarySchema = z
+  .string()
+  .trim()
+  .min(1, 'Salary is required')
+  .refine((value) => !Number.isNaN(Number(value)) && Number(value) > 0, {
+    message: 'Salary must be greater than 0',
   });
 
 export const createUserSchema = z.object({
@@ -42,6 +58,24 @@ export const createUserSchema = z.object({
   status: z.enum(userStatusOptions, {
     message: 'Status is required',
   }),
+  employeeJmbg: z
+    .string()
+    .trim()
+    .min(1, 'JMBG is required')
+    .max(13, 'JMBG must be at most 13 characters'),
+  employeePhoneNumber: z
+    .string()
+    .trim()
+    .min(1, 'Phone number is required')
+    .max(20, 'Phone number must be at most 20 characters'),
+  employeePosition: z.enum(employeePositionOptions, {
+    message: 'Employee position is required',
+  }),
+  employeeEmploymentDate: z
+    .string()
+    .trim()
+    .min(1, 'Employment date is required'),
+  employeeSalary: salarySchema,
 });
 
 export const updateUserSchema = z.object({
@@ -70,6 +104,25 @@ export const updateUserSchema = z.object({
   status: z.enum(userStatusOptions, {
     message: 'Status is required',
   }),
+  employeeJmbg: z
+    .string()
+    .trim()
+    .min(1, 'JMBG is required')
+    .max(13, 'JMBG must be at most 13 characters'),
+  employeePhoneNumber: z
+    .string()
+    .trim()
+    .min(1, 'Phone number is required')
+    .max(20, 'Phone number must be at most 20 characters'),
+  employeePosition: z.enum(employeePositionOptions, {
+    message: 'Employee position is required',
+  }),
+  employeeEmploymentDate: z
+    .string()
+    .trim()
+    .min(1, 'Employment date is required'),
+  employeeSalary: salarySchema,
+  employeeActive: z.boolean(),
 });
 
 export type CreateUserFormSchemaValues = z.infer<typeof createUserSchema>;

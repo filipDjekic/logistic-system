@@ -7,7 +7,9 @@ import { Box } from '@mui/material';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
 
 type DashboardStatsGridProps = {
-  isAdmin: boolean;
+  canSeeTransportOverview: boolean;
+  canSeeFleetOverview: boolean;
+  canSeeStorageOverview: boolean;
   stats: {
     myTasksOpen: number;
     myTasksCompleted: number;
@@ -19,7 +21,9 @@ type DashboardStatsGridProps = {
 };
 
 export default function DashboardStatsGrid({
-  isAdmin,
+  canSeeTransportOverview,
+  canSeeFleetOverview,
+  canSeeStorageOverview,
   stats,
 }: DashboardStatsGridProps) {
   const items = [
@@ -47,33 +51,35 @@ export default function DashboardStatsGrid({
       icon: <NotificationsRoundedIcon fontSize="small" />,
       accent: 'warning' as const,
     },
-    ...(isAdmin
-      ? [
-          {
-            key: 'transportOrders',
-            title: 'Transport orders',
-            value: stats.transportOrdersTotal,
-            subtitle: 'All transport orders in the system',
-            icon: <LocalShippingRoundedIcon fontSize="small" />,
-            accent: 'primary' as const,
-          },
-          {
-            key: 'vehicles',
-            title: 'Vehicles',
-            value: stats.vehiclesTotal,
-            subtitle: 'Registered fleet vehicles',
-            icon: <DirectionsCarRoundedIcon fontSize="small" />,
-            accent: 'info' as const,
-          },
-          {
-            key: 'inventoryAlerts',
-            title: 'Low-stock alerts',
-            value: stats.inventoryAlertsCount,
-            subtitle: 'Inventory rows at or below min stock',
-            icon: <WarningAmberRoundedIcon fontSize="small" />,
-            accent: 'error' as const,
-          },
-        ]
+    ...(canSeeTransportOverview
+      ? [{
+          key: 'transportOrders',
+          title: 'Transport orders',
+          value: stats.transportOrdersTotal,
+          subtitle: 'Visible transport orders in your scope',
+          icon: <LocalShippingRoundedIcon fontSize="small" />,
+          accent: 'primary' as const,
+        }]
+      : []),
+    ...(canSeeFleetOverview
+      ? [{
+          key: 'vehicles',
+          title: 'Vehicles',
+          value: stats.vehiclesTotal,
+          subtitle: 'Visible fleet vehicles in your scope',
+          icon: <DirectionsCarRoundedIcon fontSize="small" />,
+          accent: 'info' as const,
+        }]
+      : []),
+    ...(canSeeStorageOverview
+      ? [{
+          key: 'inventoryAlerts',
+          title: 'Low-stock alerts',
+          value: stats.inventoryAlertsCount,
+          subtitle: 'Inventory rows at or below min stock',
+          icon: <WarningAmberRoundedIcon fontSize="small" />,
+          accent: 'error' as const,
+        }]
       : []),
   ];
 
@@ -85,7 +91,7 @@ export default function DashboardStatsGrid({
         gridTemplateColumns: {
           xs: '1fr',
           sm: 'repeat(2, minmax(0, 1fr))',
-          xl: isAdmin ? 'repeat(6, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+          xl: `repeat(${Math.min(Math.max(items.length, 1), 6)}, minmax(0, 1fr))`,
         },
       }}
     >

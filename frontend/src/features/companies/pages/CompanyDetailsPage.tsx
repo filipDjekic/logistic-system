@@ -1,11 +1,12 @@
-import { Navigate, useParams } from 'react-router-dom';
-import { Stack, Typography } from '@mui/material';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Alert, Button, Stack, Typography } from '@mui/material';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import { useCompany } from '../hooks/useCompany';
 
 export default function CompanyDetailsPage() {
   const params = useParams();
+  const navigate = useNavigate();
   const id = Number(params.id);
   const isValidId = Number.isInteger(id) && id > 0;
 
@@ -42,6 +43,19 @@ export default function CompanyDetailsPage() {
         overline="Organization"
         title={company.name}
         description="Company root record used for future ownership and scoping."
+        actions={
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate(`/change-history?entityName=COMPANY&entityId=${company.id}`)}
+            >
+              View history
+            </Button>
+            <Button variant="outlined" onClick={() => navigate('/companies')}>
+              Back to list
+            </Button>
+          </Stack>
+        }
       />
 
       <SectionCard title="General information">
@@ -54,6 +68,26 @@ export default function CompanyDetailsPage() {
           </Typography>
           <Typography variant="body2">
             <strong>Status:</strong> {company.active ? 'Active' : 'Inactive'}
+          </Typography>
+        </Stack>
+      </SectionCard>
+
+      <SectionCard title="Bootstrap company admin">
+        <Stack spacing={1.5}>
+          <Alert severity="info">
+            This company was created together with an automatically generated COMPANY_ADMIN account.
+          </Alert>
+          <Typography variant="body2">
+            <strong>Admin user ID:</strong> {company.adminUserId ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Admin employee ID:</strong> {company.adminEmployeeId ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Admin full name:</strong> {company.adminFullName ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Admin email:</strong> {company.adminEmail ?? '—'}
           </Typography>
         </Stack>
       </SectionCard>

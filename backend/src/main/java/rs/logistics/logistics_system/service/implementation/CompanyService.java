@@ -1,6 +1,9 @@
 package rs.logistics.logistics_system.service.implementation;
 
+import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -10,13 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.CompanyAdminCreate;
 import rs.logistics.logistics_system.dto.create.CompanyCreate;
-import rs.logistics.logistics_system.dto.create.UserEmployeeCreate;
 import rs.logistics.logistics_system.dto.response.CompanyResponse;
 import rs.logistics.logistics_system.dto.update.CompanyUpdate;
 import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.UserStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -31,6 +35,11 @@ import rs.logistics.logistics_system.service.definition.CompanyServiceDefinition
 @Service
 @RequiredArgsConstructor
 public class CompanyService implements CompanyServiceDefinition {
+
+    private static final EmployeePosition BOOTSTRAP_ADMIN_POSITION = EmployeePosition.MANAGER;
+    private static final BigDecimal BOOTSTRAP_ADMIN_SALARY = BigDecimal.ONE;
+    private static final UserStatus BOOTSTRAP_ADMIN_STATUS = UserStatus.ACTIVE;
+    private static final String ROLE_COMPANY_ADMIN = "COMPANY_ADMIN";
 
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
@@ -48,15 +57,18 @@ public class CompanyService implements CompanyServiceDefinition {
         Company company = CompanyMapper.toEntity(dto);
         Company savedCompany = companyRepository.save(company);
 
-        Role companyAdminRole = roleRepository.findByName("COMPANY_ADMIN")
+        Role companyAdminRole = roleRepository.findByName(ROLE_COMPANY_ADMIN)
                 .orElseThrow(() -> new ResourceNotFoundException("COMPANY_ADMIN role not found"));
+
+        String generatedUsername = generateUniqueUsername(dto.getAdmin().getFirstName(), dto.getAdmin().getLastName());
+        String generatedEmail = generateUniqueEmail(generatedUsername, dto.getName());
 
         User adminUser = new User(
                 passwordEncoder.encode(dto.getAdmin().getPassword()),
                 dto.getAdmin().getFirstName(),
                 dto.getAdmin().getLastName(),
-                dto.getAdmin().getEmail(),
-                dto.getAdmin().getStatus(),
+                generatedEmail,
+                BOOTSTRAP_ADMIN_STATUS,
                 companyAdminRole
         );
         adminUser.setEnabled(true);
@@ -64,7 +76,7 @@ public class CompanyService implements CompanyServiceDefinition {
 
         User savedAdminUser = userRepository.save(adminUser);
 
-        Employee adminEmployee = toEmployee(savedCompany, savedAdminUser, dto.getAdmin(), dto.getAdmin().getEmployee());
+        Employee adminEmployee = toEmployee(savedCompany, savedAdminUser, dto.getAdmin(), generatedEmail);
         Employee savedAdminEmployee = employeeRepository.save(adminEmployee);
 
         auditFacade.recordCreate("COMPANY", savedCompany.getId(), savedCompany.getName());
@@ -73,28 +85,34 @@ public class CompanyService implements CompanyServiceDefinition {
                 "COMPANY",
                 savedCompany.getId(),
                 savedCompany.getName(),
-                "COMPANY is created with bootstrap COMPANY_ADMIN (companyId=" + savedCompany.getId() + ", adminUserId=" + savedAdminUser.getId() + ")"
+                "COMPANY is created with bootstrap COMPANY_ADMIN (companyId=" + savedCompany.getId()
+                        + ", adminUserId=" + savedAdminUser.getId()
+                        + ", generatedUsername=" + generatedUsername
+                        + ", generatedEmail=" + generatedEmail + ")"
         );
 
         auditFacade.recordCreate("USER", savedAdminUser.getId(), savedAdminUser.getEmail());
         auditFacade.recordFieldChange("USER", savedAdminUser.getId(), "company_id", null, savedCompany.getId());
+        auditFacade.recordFieldChange("USER", savedAdminUser.getId(), "role", null, ROLE_COMPANY_ADMIN);
+        auditFacade.recordFieldChange("USER", savedAdminUser.getId(), "status", null, BOOTSTRAP_ADMIN_STATUS.name());
         auditFacade.log(
                 "CREATE",
                 "USER",
                 savedAdminUser.getId(),
                 savedAdminUser.getEmail(),
-                "Bootstrap COMPANY_ADMIN user created for company " + savedCompany.getName()
+                "Bootstrap COMPANY_ADMIN user created automatically for company " + savedCompany.getName()
         );
 
         auditFacade.recordCreate("EMPLOYEE", savedAdminEmployee.getId(), savedAdminEmployee.getEmail());
         auditFacade.recordFieldChange("EMPLOYEE", savedAdminEmployee.getId(), "user_id", null, savedAdminUser.getId());
         auditFacade.recordFieldChange("EMPLOYEE", savedAdminEmployee.getId(), "company_id", null, savedCompany.getId());
+        auditFacade.recordFieldChange("EMPLOYEE", savedAdminEmployee.getId(), "position", null, BOOTSTRAP_ADMIN_POSITION.name());
         auditFacade.log(
                 "CREATE",
                 "EMPLOYEE",
                 savedAdminEmployee.getId(),
                 savedAdminEmployee.getEmail(),
-                "Bootstrap employee created for company admin"
+                "Bootstrap employee created automatically for company admin"
         );
 
         return CompanyMapper.toResponse(savedCompany);
@@ -165,16 +183,16 @@ public class CompanyService implements CompanyServiceDefinition {
         );
     }
 
-    private Employee toEmployee(Company company, User user, CompanyAdminCreate admin, UserEmployeeCreate employeeData) {
+    private Employee toEmployee(Company company, User user, CompanyAdminCreate admin, String generatedEmail) {
         Employee employee = new Employee(
                 admin.getFirstName(),
                 admin.getLastName(),
-                employeeData.getJmbg(),
-                employeeData.getPhoneNumber(),
-                admin.getEmail(),
-                employeeData.getPosition(),
-                employeeData.getEmploymentDate(),
-                employeeData.getSalary(),
+                admin.getJmbg(),
+                admin.getPhoneNumber(),
+                generatedEmail,
+                BOOTSTRAP_ADMIN_POSITION,
+                admin.getEmploymentDate(),
+                BOOTSTRAP_ADMIN_SALARY,
                 user
         );
         employee.setCompany(company);
@@ -195,34 +213,105 @@ public class CompanyService implements CompanyServiceDefinition {
     }
 
     private void validateAdminUniqueness(CompanyAdminCreate admin) {
-        if (userRepository.existsByEmailIgnoreCase(admin.getEmail())) {
-            throw new ConflictException("User with this email already exists");
-        }
-
-        if (employeeRepository.existsByEmailIgnoreCase(admin.getEmail())) {
-            throw new ConflictException("Employee with this email already exists");
-        }
-
-        if (employeeRepository.existsByJmbg(admin.getEmployee().getJmbg().trim())) {
+        if (employeeRepository.existsByJmbg(admin.getJmbg().trim())) {
             throw new ConflictException("Employee with this JMBG already exists");
         }
     }
 
     private void validateDelete(Company company) {
         if (!company.getUsers().isEmpty()) {
-            throw new BadRequestException("Company cannot be deleted because it has users");
+            throw new BadRequestException("Company cannot be deleted while it still has users");
         }
 
         if (!company.getEmployees().isEmpty()) {
-            throw new BadRequestException("Company cannot be deleted because it has employees");
+            throw new BadRequestException("Company cannot be deleted while it still has employees");
         }
 
         if (!company.getVehicles().isEmpty()) {
-            throw new BadRequestException("Company cannot be deleted because it has vehicles");
+            throw new BadRequestException("Company cannot be deleted while it still has vehicles");
         }
 
         if (!company.getWarehouses().isEmpty()) {
-            throw new BadRequestException("Company cannot be deleted because it has warehouses");
+            throw new BadRequestException("Company cannot be deleted while it still has warehouses");
         }
+
+        if (!company.getProducts().isEmpty()) {
+            throw new BadRequestException("Company cannot be deleted while it still has products");
+        }
+    }
+
+    private String generateUniqueUsername(String firstName, String lastName) {
+        String base = buildBaseUsername(firstName, lastName);
+        String candidate = base;
+        int suffix = 1;
+
+        while (emailLocalPartExists(candidate)) {
+            candidate = base + suffix;
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private String generateUniqueEmail(String username, String companyName) {
+        String domain = buildCompanyDomain(companyName);
+        String candidate = username + "@" + domain;
+        int suffix = 1;
+
+        while (userRepository.existsByEmailIgnoreCase(candidate) || employeeRepository.existsByEmailIgnoreCase(candidate)) {
+            candidate = username + suffix + "@" + domain;
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private boolean emailLocalPartExists(String localPart) {
+        return userRepository.findAll().stream()
+                .map(User::getEmail)
+                .filter(email -> email != null && email.contains("@"))
+                .map(email -> email.substring(0, email.indexOf('@')))
+                .anyMatch(existing -> existing.equalsIgnoreCase(localPart));
+    }
+
+    private String buildBaseUsername(String firstName, String lastName) {
+        String normalizedFirstName = normalizeForUsername(firstName, false);
+        String normalizedLastName = normalizeForUsername(lastName, false);
+
+        String joined = (normalizedFirstName + "." + normalizedLastName)
+                .replaceAll("\\.+", ".")
+                .replaceAll("^\\.|\\.$", "");
+
+        if (joined.isBlank()) {
+            throw new BadRequestException("Unable to generate bootstrap admin username");
+        }
+
+        return joined.length() > 40 ? joined.substring(0, 40) : joined;
+    }
+
+    private String buildCompanyDomain(String companyName) {
+        String companySlug = normalizeForUsername(companyName, true);
+
+        if (companySlug.isBlank()) {
+            throw new BadRequestException("Unable to generate company admin email domain");
+        }
+
+        return companySlug + ".sektor.rs";
+    }
+
+    private String normalizeForUsername(String value, boolean allowHyphen) {
+        String normalized = Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+
+        normalized = allowHyphen
+                ? normalized.replaceAll("[^a-z0-9]+", "-")
+                : normalized.replaceAll("[^a-z0-9]+", ".");
+
+        normalized = normalized
+                .replaceAll("[-.]{2,}", allowHyphen ? "-" : ".")
+                .replaceAll("^[-.]+|[-.]+$", "");
+
+        return normalized;
     }
 }

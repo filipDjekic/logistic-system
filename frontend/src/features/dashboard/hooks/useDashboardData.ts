@@ -46,7 +46,22 @@ function buildCountMap<T extends string>(items: T[]) {
 export function useDashboardData() {
   const auth = useAuthStore();
   const role = auth.user?.role ?? null;
-  const isAdmin = role === ROLES.OVERLORD || role === ROLES.COMPANY_ADMIN;
+  const canSeeTransportOverview =
+    role === ROLES.OVERLORD ||
+    role === ROLES.COMPANY_ADMIN ||
+    role === ROLES.DISPATCHER ||
+    role === ROLES.DRIVER;
+  const canSeeFleetOverview =
+    role === ROLES.OVERLORD ||
+    role === ROLES.COMPANY_ADMIN ||
+    role === ROLES.DISPATCHER;
+  const canSeeStorageOverview =
+    role === ROLES.OVERLORD ||
+    role === ROLES.COMPANY_ADMIN ||
+    role === ROLES.WAREHOUSE_MANAGER ||
+    role === ROLES.DISPATCHER;
+  const hasExtendedDashboard =
+    canSeeTransportOverview || canSeeFleetOverview || canSeeStorageOverview;
 
   const results = useQueries({
     queries: [
@@ -61,17 +76,17 @@ export function useDashboardData() {
       {
         queryKey: ['dashboard', 'transport-orders'],
         queryFn: dashboardApi.getTransportOrders,
-        enabled: isAdmin,
+        enabled: canSeeTransportOverview,
       },
       {
         queryKey: ['dashboard', 'vehicles'],
         queryFn: dashboardApi.getVehicles,
-        enabled: isAdmin,
+        enabled: canSeeFleetOverview,
       },
       {
         queryKey: ['dashboard', 'warehouses'],
         queryFn: dashboardApi.getWarehouses,
-        enabled: isAdmin,
+        enabled: canSeeStorageOverview,
       },
     ],
   });
@@ -90,39 +105,36 @@ export function useDashboardData() {
     queries: warehouses.map((warehouse) => ({
       queryKey: ['dashboard', 'warehouse-inventory', warehouse.id],
       queryFn: () => dashboardApi.getWarehouseInventory(warehouse.id),
-      enabled: isAdmin,
+      enabled: canSeeStorageOverview,
     })),
   });
 
   const isLoading =
     myTasksQuery.isLoading ||
     unreadNotificationsCountQuery.isLoading ||
-    (isAdmin &&
-      (transportOrdersQuery.isLoading ||
-        vehiclesQuery.isLoading ||
-        warehousesQuery.isLoading ||
-        inventoryQueries.some((query) => query.isLoading)));
+    ((canSeeTransportOverview || canSeeFleetOverview || canSeeStorageOverview) &&
+      ((canSeeTransportOverview && transportOrdersQuery.isLoading) ||
+        (canSeeFleetOverview && vehiclesQuery.isLoading) ||
+        (canSeeStorageOverview && warehousesQuery.isLoading) ||
+        (canSeeStorageOverview && inventoryQueries.some((query) => query.isLoading))));
 
   const isError =
     myTasksQuery.isError ||
     unreadNotificationsCountQuery.isError ||
-    (isAdmin &&
-      (transportOrdersQuery.isError ||
-        vehiclesQuery.isError ||
-        warehousesQuery.isError ||
-        inventoryQueries.some((query) => query.isError)));
+    ((canSeeTransportOverview || canSeeFleetOverview || canSeeStorageOverview) &&
+      ((canSeeTransportOverview && transportOrdersQuery.isError) ||
+        (canSeeFleetOverview && vehiclesQuery.isError) ||
+        (canSeeStorageOverview && warehousesQuery.isError) ||
+        (canSeeStorageOverview && inventoryQueries.some((query) => query.isError))));
 
   const refetch = async () => {
     await Promise.all([
       myTasksQuery.refetch(),
       unreadNotificationsCountQuery.refetch(),
-      ...(isAdmin
-        ? [
-            transportOrdersQuery.refetch(),
-            vehiclesQuery.refetch(),
-            warehousesQuery.refetch(),
-            ...inventoryQueries.map((query) => query.refetch()),
-          ]
+      ...(canSeeTransportOverview ? [transportOrdersQuery.refetch()] : []),
+      ...(canSeeFleetOverview ? [vehiclesQuery.refetch()] : []),
+      ...(canSeeStorageOverview
+        ? [warehousesQuery.refetch(), ...inventoryQueries.map((query) => query.refetch())]
         : []),
     ]);
   };
@@ -185,7 +197,10 @@ export function useDashboardData() {
 
   return {
     role,
-    isAdmin,
+    canSeeTransportOverview,
+    canSeeFleetOverview,
+    canSeeStorageOverview,
+    hasExtendedDashboard,
     isLoading,
     isError,
     refetch,

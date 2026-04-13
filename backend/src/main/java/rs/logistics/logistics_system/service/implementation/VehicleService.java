@@ -1,11 +1,18 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
+import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
@@ -13,16 +20,12 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.VehicleMapper;
+import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
-
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,11 +33,12 @@ public class VehicleService implements VehicleServiceDefinition {
 
     private final VehicleRepository vehicleRepository;
     private final TransportOrderRepository transportOrderRepository;
+    private final CompanyRepository companyRepository;
     private final AuditFacadeDefinition auditFacade;
-
-    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
-
     private final AuthenticatedUserProvider authenticatedUserProvider;
+
+    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES =
+            Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
 
     @Transactional
     @Override
@@ -42,22 +46,17 @@ public class VehicleService implements VehicleServiceDefinition {
         validateUniqueRegistrationNumber(dto.getRegistrationNumber());
 
         Vehicle vehicle = VehicleMapper.toEntity(dto);
-
-        if (!authenticatedUserProvider.isOverlord()) {
-            if (authenticatedUserProvider.getAuthenticatedCompany() == null) {
-                throw new ForbiddenException("Authenticated user is not assigned to a company");
-            }
-            vehicle.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
-        }
+        vehicle.setCompany(resolveTargetCompany(dto.getCompanyId()));
 
         Vehicle saved = vehicleRepository.save(vehicle);
 
         auditFacade.recordCreate("VEHICLE", saved.getId());
+        auditFacade.recordFieldChange("VEHICLE", saved.getId(), "company_id", null, saved.getCompany() != null ? saved.getCompany().getId() : null);
         auditFacade.log(
                 "CREATE",
                 "VEHICLE",
                 saved.getId(),
-                "Vehicle created (ID: " + saved.getId() + ")"
+                "Vehicle created (ID: " + saved.getId() + ", companyId: " + (saved.getCompany() != null ? saved.getCompany().getId() : null) + ")"
         );
 
         return VehicleMapper.toResponse(saved);
@@ -74,6 +73,7 @@ public class VehicleService implements VehicleServiceDefinition {
         String oldBrand = vehicle.getBrand();
         String oldModel = vehicle.getModel();
         BigDecimal oldCapacity = vehicle.getCapacity();
+        Object oldStatus = vehicle.getStatus();
 
         VehicleMapper.updateEntity(vehicle, dto);
         Vehicle updated = vehicleRepository.save(vehicle);
@@ -82,6 +82,7 @@ public class VehicleService implements VehicleServiceDefinition {
         auditFacade.recordFieldChange("VEHICLE", updated.getId(), "brand", oldBrand, updated.getBrand());
         auditFacade.recordFieldChange("VEHICLE", updated.getId(), "model", oldModel, updated.getModel());
         auditFacade.recordFieldChange("VEHICLE", updated.getId(), "capacity", oldCapacity, updated.getCapacity());
+        auditFacade.recordFieldChange("VEHICLE", updated.getId(), "status", oldStatus, updated.getStatus());
 
         auditFacade.log(
                 "UPDATE",
@@ -95,8 +96,7 @@ public class VehicleService implements VehicleServiceDefinition {
 
     @Override
     public VehicleResponse getById(Long id) {
-        Vehicle vehicle = findVehicleById(id);
-        return VehicleMapper.toResponse(vehicle);
+        return VehicleMapper.toResponse(findVehicleById(id));
     }
 
     @Override
@@ -153,12 +153,7 @@ public class VehicleService implements VehicleServiceDefinition {
         validateStatusChangeAgainstActiveTransport(vehicle, newStatus);
 
         vehicle.setStatus(newStatus);
-
-        if (newStatus == VehicleStatus.OUT_OF_SERVICE) {
-            vehicle.setActive(false);
-        } else {
-            vehicle.setActive(true);
-        }
+        vehicle.setActive(newStatus != VehicleStatus.OUT_OF_SERVICE);
 
         Vehicle updated = vehicleRepository.save(vehicle);
 
@@ -174,8 +169,6 @@ public class VehicleService implements VehicleServiceDefinition {
         return VehicleMapper.toResponse(updated);
     }
 
-    // helpers
-
     private Vehicle findVehicleById(Long id) {
         if (authenticatedUserProvider.isOverlord()) {
             return vehicleRepository.findById(id)
@@ -186,42 +179,57 @@ public class VehicleService implements VehicleServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
     }
 
+    private Company resolveTargetCompany(Long companyId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            if (companyId == null) {
+                throw new BadRequestException("companyId is required for OVERLORD vehicle creation");
+            }
+
+            return companyRepository.findById(companyId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
+        }
+
+        Company company = authenticatedUserProvider.getAuthenticatedCompany();
+        if (company == null) {
+            throw new ForbiddenException("Authenticated user is not assigned to a company");
+        }
+
+        return company;
+    }
+
     private boolean hasActiveTransport(Long vehicleId) {
         return transportOrderRepository.existsByVehicleIdAndStatusIn(vehicleId, ACTIVE_TRANSPORT_STATUSES);
     }
 
+    private boolean hasAnyTransportHistory(Long vehicleId) {
+        return transportOrderRepository.existsByVehicleId(vehicleId);
+    }
+
     private void validateStatusTransition(VehicleStatus currentStatus, VehicleStatus newStatus) {
         switch (currentStatus) {
-            case AVAILABLE:
+            case AVAILABLE -> {
                 if (newStatus != VehicleStatus.IN_USE
                         && newStatus != VehicleStatus.MAINTENANCE
                         && newStatus != VehicleStatus.OUT_OF_SERVICE) {
                     throw new BadRequestException("Vehicle in AVAILABLE status cannot change to " + newStatus);
                 }
-                break;
-
-            case IN_USE:
+            }
+            case IN_USE -> {
                 if (newStatus != VehicleStatus.AVAILABLE) {
                     throw new BadRequestException("Vehicle in IN_USE status can only change to AVAILABLE");
                 }
-                break;
-
-            case MAINTENANCE:
-                if (newStatus != VehicleStatus.AVAILABLE
-                        && newStatus != VehicleStatus.OUT_OF_SERVICE) {
+            }
+            case MAINTENANCE -> {
+                if (newStatus != VehicleStatus.AVAILABLE && newStatus != VehicleStatus.OUT_OF_SERVICE) {
                     throw new BadRequestException("Vehicle in MAINTENANCE status cannot change to " + newStatus);
                 }
-                break;
-
-            case OUT_OF_SERVICE:
-                if (newStatus != VehicleStatus.AVAILABLE
-                        && newStatus != VehicleStatus.MAINTENANCE) {
+            }
+            case OUT_OF_SERVICE -> {
+                if (newStatus != VehicleStatus.AVAILABLE && newStatus != VehicleStatus.MAINTENANCE) {
                     throw new BadRequestException("Vehicle in OUT_OF_SERVICE status cannot change to " + newStatus);
                 }
-                break;
-
-            default:
-                throw new BadRequestException("Unsupported current vehicle status");
+            }
+            default -> throw new BadRequestException("Unsupported current vehicle status");
         }
     }
 
@@ -237,27 +245,15 @@ public class VehicleService implements VehicleServiceDefinition {
         }
     }
 
-    private boolean hasAnyTransportHistory(Long vehicleId) {
-        return transportOrderRepository.existsByVehicleId(vehicleId);
-    }
-
     private void validateUniqueRegistrationNumber(String registrationNumber) {
-        if (registrationNumber == null || registrationNumber.isBlank()) {
-            throw new BadRequestException("Registration number is required");
-        }
-
-        if (vehicleRepository.existsByRegistrationNumberIgnoreCase(registrationNumber.trim())) {
-            throw new BadRequestException("Vehicle with this registration number already exists");
+        if (vehicleRepository.existsByRegistrationNumberIgnoreCase(registrationNumber)) {
+            throw new BadRequestException("Vehicle registration number already exists");
         }
     }
 
-    private void validateUniqueRegistrationNumberForUpdate(Long vehicleId, String registrationNumber) {
-        if (registrationNumber == null || registrationNumber.isBlank()) {
-            throw new BadRequestException("Registration number is required");
-        }
-
-        if (vehicleRepository.existsByRegistrationNumberIgnoreCaseAndIdNot(registrationNumber.trim(), vehicleId)) {
-            throw new BadRequestException("Vehicle with this registration number already exists");
+    private void validateUniqueRegistrationNumberForUpdate(Long id, String registrationNumber) {
+        if (vehicleRepository.existsByRegistrationNumberIgnoreCaseAndIdNot(registrationNumber, id)) {
+            throw new BadRequestException("Vehicle registration number already exists");
         }
     }
 }

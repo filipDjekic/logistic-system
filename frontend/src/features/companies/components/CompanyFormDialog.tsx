@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   Alert,
   Button,
@@ -12,15 +12,13 @@ import {
   Typography,
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormTextField from '../../../shared/components/Form/Form';
-import FormSelect from '../../../shared/components/Form/FormSelect';
 import type { CompanyResponse } from '../types/company.types';
 import {
-  companyAdminPositionOptions,
-  companyAdminStatusOptions,
+  buildBootstrapAdminPreview,
   companySchema,
   type CompanySchemaValues,
 } from '../validation/companySchema';
@@ -39,14 +37,10 @@ const defaultValues: CompanySchemaValues = {
   active: true,
   adminFirstName: '',
   adminLastName: '',
-  adminEmail: '',
   adminPassword: '',
-  adminStatus: 'ACTIVE',
   adminJmbg: '',
   adminPhoneNumber: '',
-  adminPosition: 'MANAGER',
   adminEmploymentDate: '',
-  adminSalary: '',
 };
 
 export default function CompanyFormDialog({
@@ -79,15 +73,14 @@ export default function CompanyFormDialog({
     form.reset(defaultValues);
   }, [form, initialData, mode, open]);
 
-  const positionOptions = companyAdminPositionOptions.map((value) => ({
-    value,
-    label: value,
-  }));
+  const companyName = useWatch({ control: form.control, name: 'name' });
+  const adminFirstName = useWatch({ control: form.control, name: 'adminFirstName' });
+  const adminLastName = useWatch({ control: form.control, name: 'adminLastName' });
 
-  const statusOptions = companyAdminStatusOptions.map((value) => ({
-    value,
-    label: value,
-  }));
+  const preview = useMemo(
+    () => buildBootstrapAdminPreview(companyName ?? '', adminFirstName ?? '', adminLastName ?? ''),
+    [adminFirstName, adminLastName, companyName],
+  );
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
@@ -97,8 +90,7 @@ export default function CompanyFormDialog({
         <Stack spacing={3} sx={{ pt: 1 }}>
           {mode === 'create' ? (
             <Alert severity="info">
-              Creating a company also creates the initial COMPANY_ADMIN user and linked
-              employee profile.
+              Creating a company automatically creates the initial COMPANY_ADMIN user and linked employee profile.
             </Alert>
           ) : null}
 
@@ -157,29 +149,10 @@ export default function CompanyFormDialog({
 
                   <Grid size={{ xs: 12, md: 6 }}>
                     <FormTextField
-                      name="adminEmail"
-                      control={form.control}
-                      label="Email"
-                      required
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormTextField
                       name="adminPassword"
                       control={form.control}
                       label="Password"
                       type="password"
-                      required
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormSelect
-                      name="adminStatus"
-                      control={form.control}
-                      label="User status"
-                      options={statusOptions}
                       required
                     />
                   </Grid>
@@ -203,16 +176,6 @@ export default function CompanyFormDialog({
                   </Grid>
 
                   <Grid size={{ xs: 12, md: 6 }}>
-                    <FormSelect
-                      name="adminPosition"
-                      control={form.control}
-                      label="Employee position"
-                      options={positionOptions}
-                      required
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
                     <FormDatePicker
                       name="adminEmploymentDate"
                       control={form.control}
@@ -221,17 +184,27 @@ export default function CompanyFormDialog({
                       required
                     />
                   </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormTextField
-                      name="adminSalary"
-                      control={form.control}
-                      label="Salary"
-                      type="number"
-                      required
-                    />
-                  </Grid>
                 </Grid>
+
+                <Alert severity="success" variant="outlined">
+                  <Stack spacing={0.5}>
+                    <Typography variant="body2">
+                      <strong>Assigned role:</strong> {preview.role}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Assigned user status:</strong> {preview.status}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Assigned employee position:</strong> {preview.position}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Generated username:</strong> {preview.username}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Generated email:</strong> {preview.email}
+                    </Typography>
+                  </Stack>
+                </Alert>
               </Stack>
             </>
           ) : null}

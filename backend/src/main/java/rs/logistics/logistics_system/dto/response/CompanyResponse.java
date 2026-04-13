@@ -18,6 +18,8 @@ public class CompanyResponse {
     private LocalDateTime updatedAt;
     private Long adminUserId;
     private Long adminEmployeeId;
+    private String adminFullName;
+    private String adminEmail;
 
     public CompanyResponse(
             Long id,
@@ -26,7 +28,9 @@ public class CompanyResponse {
             LocalDateTime createdAt,
             LocalDateTime updatedAt,
             Long adminUserId,
-            Long adminEmployeeId
+            Long adminEmployeeId,
+            String adminFullName,
+            String adminEmail
     ) {
         this.id = id;
         this.name = name;
@@ -35,5 +39,7 @@ public class CompanyResponse {
         this.updatedAt = updatedAt;
         this.adminUserId = adminUserId;
         this.adminEmployeeId = adminEmployeeId;
+        this.adminFullName = adminFullName;
+        this.adminEmail = adminEmail;
     }
 }

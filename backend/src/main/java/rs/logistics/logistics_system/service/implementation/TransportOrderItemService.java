@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.TransportOrderItemRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.TransportOrderItemServiceDefinition;
 
 import java.math.BigDecimal;
@@ -33,6 +34,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     private final TransportOrderRepository _transportOrderRepository;
     private final ProductRepository _productRepository;
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
     @Transactional
@@ -40,12 +42,13 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         validateRequestedQuantity(dto.getQuantity());
 
-        TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
+        TransportOrder transportOrder = getTransportOrderOrThrow(dto.getTransportOrderId());
 
         validateTransportOrderEditable(transportOrder);
 
-        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
+        Product product = getProductOrThrow(dto.getProductId());
         validateProductWeight(product);
+        validateSharedCompanyContext(transportOrder, product);
 
         validateInventoryContextForTransportOrder(transportOrder, product);
 
@@ -53,7 +56,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
             throw new ConflictException("Transport Order Item Already Exists");
         }
 
-        WarehouseInventory warehouseInventory = _warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(transportOrder.getSourceWarehouse().getId(), product.getId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse Inventory Not Found"));
+        WarehouseInventory warehouseInventory = getWarehouseInventoryForTransportOrder(transportOrder, product);
 
         validateAvailableQuantity(warehouseInventory, dto.getQuantity());
 
@@ -75,24 +78,26 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         validateRequestedQuantity(dto.getQuantity());
 
-        TransportOrder transportOrder = _transportOrderRepository.findById(dto.getTransportOrderId()).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
+        TransportOrder transportOrderItemTargetOrder = getTransportOrderOrThrow(dto.getTransportOrderId());
 
-        validateTransportOrderEditable(transportOrder);
+        validateTransportOrderEditable(transportOrderItemTargetOrder);
 
-        Product product = _productRepository.findById(dto.getProductId()).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
+        Product product = getProductOrThrow(dto.getProductId());
         validateProductWeight(product);
+        validateSharedCompanyContext(transportOrderItemTargetOrder, product);
 
-        validateInventoryContextForTransportOrder(transportOrder, product);
+        validateInventoryContextForTransportOrder(transportOrderItemTargetOrder, product);
 
-        TransportOrderItem transportOrderItem = _transportOrderItemRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport Order Item Not Found"));
+        TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
 
         if (_transportOrderItemRepository.existsByTransportOrderIdAndProductIdAndIdNot(dto.getTransportOrderId(), dto.getProductId(), id)) {
             throw new ConflictException("Transport Order Item Already Exists");
         }
 
         TransportOrder previousTransportOrder = transportOrderItem.getTransportOrder();
+        validateSharedCompanyContext(previousTransportOrder, transportOrderItem.getProduct());
 
-        WarehouseInventory warehouseInventory = _warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(transportOrder.getSourceWarehouse().getId(), product.getId()).orElseThrow(() -> new ResourceNotFoundException("Warehouse Inventory Not Found"));
+        WarehouseInventory warehouseInventory = getWarehouseInventoryForTransportOrder(transportOrderItemTargetOrder, product);
 
         BigDecimal currentReservedByThisItem = BigDecimal.ZERO;
         if (transportOrderItem.getProduct().getId().equals(product.getId())) {
@@ -105,41 +110,47 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
             throw new BadRequestException("Not enough available stock");
         }
 
-        validateProjectedVehicleCapacityOnUpdate(transportOrderItem, transportOrder, product, dto.getQuantity());
+        validateProjectedVehicleCapacityOnUpdate(transportOrderItem, transportOrderItemTargetOrder, product, dto.getQuantity());
 
-        TransportOrderItemMapper.updateEntity(dto, transportOrderItem, transportOrder, product);
+        TransportOrderItemMapper.updateEntity(dto, transportOrderItem, transportOrderItemTargetOrder, product);
 
         TransportOrderItem updated = _transportOrderItemRepository.save(transportOrderItem);
 
-        if (previousTransportOrder != null && !previousTransportOrder.getId().equals(transportOrder.getId())) {
+        if (previousTransportOrder != null && !previousTransportOrder.getId().equals(transportOrderItemTargetOrder.getId())) {
             previousTransportOrder.getTransportOrderItems().removeIf(item -> item.getId().equals(updated.getId()));
             recalculateAndPersistOrderTotalWeight(previousTransportOrder);
 
-            transportOrder.getTransportOrderItems().add(updated);
+            transportOrderItemTargetOrder.getTransportOrderItems().add(updated);
         }
 
-        recalculateAndPersistOrderTotalWeight(transportOrder);
+        recalculateAndPersistOrderTotalWeight(transportOrderItemTargetOrder);
 
         return TransportOrderItemMapper.toResponse(updated);
     }
 
     @Override
     public TransportOrderItemResponse getById(Long id) {
-        TransportOrderItem transportOrderItem = _transportOrderItemRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport Order Item Not Found"));
+        TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
         return TransportOrderItemMapper.toResponse(transportOrderItem);
     }
 
     @Override
     public List<TransportOrderItemResponse> getAll() {
-        return _transportOrderItemRepository.findAll().stream().map(TransportOrderItemMapper::toResponse).collect(Collectors.toList());
+        List<TransportOrderItem> items = authenticatedUserProvider.isOverlord()
+                ? _transportOrderItemRepository.findAll()
+                : _transportOrderItemRepository.findAllByTransportOrder_CreatedBy_Company_Id(
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                );
+
+        return items.stream().map(TransportOrderItemMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
-        TransportOrderItem transportOrderItem = _transportOrderItemRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport Order Item Not Found"));
+        TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
 
-        TransportOrder transportOrder = _transportOrderRepository.findById(transportOrderItem.getTransportOrder().getId()).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
+        TransportOrder transportOrder = getTransportOrderOrThrow(transportOrderItem.getTransportOrder().getId());
 
         validateTransportOrderEditable(transportOrder);
 
@@ -148,7 +159,65 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         recalculateAndPersistOrderTotalWeight(transportOrder);
     }
 
-    // helpers
+    private TransportOrder getTransportOrderOrThrow(Long transportOrderId) {
+        return authenticatedUserProvider.isOverlord()
+                ? _transportOrderRepository.findById(transportOrderId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"))
+                : _transportOrderRepository.findByIdAndCreatedBy_Company_Id(
+                        transportOrderId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                ).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
+    }
+
+    private Product getProductOrThrow(Long productId) {
+        return authenticatedUserProvider.isOverlord()
+                ? _productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product Not Found"))
+                : _productRepository.findByIdAndCompany_Id(
+                        productId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                ).orElseThrow(() -> new ResourceNotFoundException("Product Not Found"));
+    }
+
+    private TransportOrderItem getTransportOrderItemOrThrow(Long id) {
+        return authenticatedUserProvider.isOverlord()
+                ? _transportOrderItemRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Transport Order Item Not Found"))
+                : _transportOrderItemRepository.findByIdAndTransportOrder_CreatedBy_Company_Id(
+                        id,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                ).orElseThrow(() -> new ResourceNotFoundException("Transport Order Item Not Found"));
+    }
+
+    private WarehouseInventory getWarehouseInventoryForTransportOrder(TransportOrder transportOrder, Product product) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(
+                    transportOrder.getSourceWarehouse().getId(),
+                    product.getId()
+            ).orElseThrow(() -> new ResourceNotFoundException("Warehouse Inventory Not Found"));
+        }
+
+        return _warehouseInventoryRepository.findByWarehouse_IdAndProduct_IdAndWarehouse_Company_Id(
+                transportOrder.getSourceWarehouse().getId(),
+                product.getId(),
+                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+        ).orElseThrow(() -> new ResourceNotFoundException("Warehouse Inventory Not Found"));
+    }
+
+    private void validateSharedCompanyContext(TransportOrder transportOrder, Product product) {
+        if (transportOrder == null || product == null) {
+            throw new BadRequestException("Transport order and product are required");
+        }
+
+        Long transportCompanyId = transportOrder.getCreatedBy() != null && transportOrder.getCreatedBy().getCompany() != null
+                ? transportOrder.getCreatedBy().getCompany().getId()
+                : null;
+        Long productCompanyId = product.getCompany() != null ? product.getCompany().getId() : null;
+
+        if (transportCompanyId == null || productCompanyId == null || !transportCompanyId.equals(productCompanyId)) {
+            throw new BadRequestException("Transport order and product must belong to the same company");
+        }
+    }
 
     private void validateRequestedQuantity(BigDecimal quantity) {
         if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
