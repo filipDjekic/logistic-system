@@ -10,7 +10,7 @@ export const employeePositionOptions = [
   'ADMINISTRATIVE_WORKER',
 ] as const;
 
-const emailPattern = /^[a-z]+\.[a-z]+@[a-z]+\.[a-z]+\.[a-z]{2,}$/;
+const emailPattern = /^[a-zA-Z]+\\.[a-zA-Z]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}$/;
 
 const roleIdSchema = z
   .string()

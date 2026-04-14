@@ -61,11 +61,7 @@ public class CompanyService implements CompanyServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("COMPANY_ADMIN role not found"));
 
         String generatedUsername = generateUniqueUsername(dto.getAdmin().getFirstName(), dto.getAdmin().getLastName());
-        String generatedEmail = generateUniqueEmail(
-                generatedUsername,
-                dto.getName(),
-                BOOTSTRAP_ADMIN_POSITION.name()
-        );
+        String generatedEmail = generateUniqueEmail(generatedUsername, dto.getName());
 
         User adminUser = new User(
                 passwordEncoder.encode(dto.getAdmin().getPassword()),
@@ -257,8 +253,8 @@ public class CompanyService implements CompanyServiceDefinition {
         return candidate;
     }
 
-    private String generateUniqueEmail(String username, String companyName, String position) {
-        String domain = buildCompanyDomain(companyName, position);
+    private String generateUniqueEmail(String username, String companyName) {
+        String domain = buildCompanyDomain(companyName, BOOTSTRAP_ADMIN_POSITION.name());
         String candidate = username + "@" + domain;
         int suffix = 1;
 
@@ -295,9 +291,14 @@ public class CompanyService implements CompanyServiceDefinition {
 
     private String buildCompanyDomain(String companyName, String position) {
         String companySlug = normalizeForUsername(companyName, true);
+
+        if (companySlug.isBlank()) {
+            throw new BadRequestException("Unable to generate company admin email domain");
+        }
+
         String positionSlug = normalizeForUsername(position, true);
 
-        if (companySlug.isBlank() || positionSlug.isBlank()) {
+        if (positionSlug.isBlank()) {
             throw new BadRequestException("Unable to generate company admin email domain");
         }
 

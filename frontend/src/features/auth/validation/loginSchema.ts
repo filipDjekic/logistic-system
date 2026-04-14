@@ -6,7 +6,7 @@ export const loginSchema = z.object({
     .min(1, 'Email is required')
     .email('Enter a valid email address')
     .regex(
-      /^[a-z]+\.[a-z]+@[a-z]+\.[a-z]+\.[a-z]{2,}$/,
+      /^[a-zA-Z]+\\.[a-zA-Z]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}$/,
       'Email must be in format firstName.lastName@firm.sector.countryCode',
     ),
   password: z
