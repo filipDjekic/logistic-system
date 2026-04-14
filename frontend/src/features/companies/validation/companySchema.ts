@@ -24,13 +24,14 @@ export function buildBootstrapAdminPreview(companyName: string, firstName: strin
   const last = normalizeUsernamePart(lastName) || 'user';
   const username = `${first}.${last}`.replace(/\.+/g, '.').replace(/^\.|\.$/g, '');
   const companySegment = slugifySegment(companyName) || 'company';
+  const positionSegment = 'manager';
 
   return {
     role: 'COMPANY_ADMIN' as const,
     status: 'ACTIVE' as const,
     position: 'MANAGER' as const,
     username,
-    email: `${username}@${companySegment}.sektor.rs`,
+    email: `${username}@${companySegment}.${positionSegment}.rs`,
   };
 }
 

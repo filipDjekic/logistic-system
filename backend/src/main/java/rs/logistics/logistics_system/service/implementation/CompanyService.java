@@ -61,7 +61,11 @@ public class CompanyService implements CompanyServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("COMPANY_ADMIN role not found"));
 
         String generatedUsername = generateUniqueUsername(dto.getAdmin().getFirstName(), dto.getAdmin().getLastName());
-        String generatedEmail = generateUniqueEmail(generatedUsername, dto.getName());
+        String generatedEmail = generateUniqueEmail(
+                generatedUsername,
+                dto.getName(),
+                BOOTSTRAP_ADMIN_POSITION.name()
+        );
 
         User adminUser = new User(
                 passwordEncoder.encode(dto.getAdmin().getPassword()),
@@ -253,8 +257,8 @@ public class CompanyService implements CompanyServiceDefinition {
         return candidate;
     }
 
-    private String generateUniqueEmail(String username, String companyName) {
-        String domain = buildCompanyDomain(companyName);
+    private String generateUniqueEmail(String username, String companyName, String position) {
+        String domain = buildCompanyDomain(companyName, position);
         String candidate = username + "@" + domain;
         int suffix = 1;
 
@@ -289,14 +293,15 @@ public class CompanyService implements CompanyServiceDefinition {
         return joined.length() > 40 ? joined.substring(0, 40) : joined;
     }
 
-    private String buildCompanyDomain(String companyName) {
+    private String buildCompanyDomain(String companyName, String position) {
         String companySlug = normalizeForUsername(companyName, true);
+        String positionSlug = normalizeForUsername(position, true);
 
-        if (companySlug.isBlank()) {
+        if (companySlug.isBlank() || positionSlug.isBlank()) {
             throw new BadRequestException("Unable to generate company admin email domain");
         }
 
-        return companySlug + ".sektor.rs";
+        return companySlug + "." + positionSlug + ".rs";
     }
 
     private String normalizeForUsername(String value, boolean allowHyphen) {

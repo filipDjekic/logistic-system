@@ -123,7 +123,7 @@ export default function CompaniesPage() {
             onRetry={() => {
               void companiesQuery.refetch();
             }}
-            onEdit={(company) => {
+            onEdit={(company: CompanyResponse) => {
               setDialogMode('edit');
               setSelectedCompany(company);
               setDialogOpen(true);
@@ -146,11 +146,9 @@ export default function CompaniesPage() {
                 password: values.adminPassword,
                 firstName: values.adminFirstName,
                 lastName: values.adminLastName,
-                employee: {
-                  jmbg: values.adminJmbg,
-                  phoneNumber: values.adminPhoneNumber,
-                  employmentDate: values.adminEmploymentDate,
-                },
+                jmbg: values.adminJmbg,
+                phoneNumber: values.adminPhoneNumber,
+                employmentDate: values.adminEmploymentDate,
               },
             });
             return;

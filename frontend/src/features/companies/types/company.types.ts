@@ -12,17 +12,13 @@ export type CompanyResponse = {
   adminEmail: string | null;
 };
 
-export type CompanyAdminEmployeeRequest = {
-  jmbg: string;
-  phoneNumber: string;
-  employmentDate: string;
-};
-
 export type CompanyAdminRequest = {
   password: string;
   firstName: string;
   lastName: string;
-  employee: CompanyAdminEmployeeRequest;
+  jmbg: string;
+  phoneNumber: string;
+  employmentDate: string;
 };
 
 export type CompanyCreateRequest = {
