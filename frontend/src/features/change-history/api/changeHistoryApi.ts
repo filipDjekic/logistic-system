@@ -1,5 +1,8 @@
 import { apiClient } from '../../../core/api/client';
-import type { ChangeHistoryResponse } from '../types/changeHistory.types';
+import type {
+  ChangeHistoryQueryParams,
+  ChangeHistoryResponse,
+} from '../types/changeHistory.types';
 
 export const changeHistoryApi = {
   getAll() {
@@ -38,5 +41,21 @@ export const changeHistoryApi = {
         `/api/history/${encodeURIComponent(startDate)}/${encodeURIComponent(endDate)}`,
       )
       .then((response) => response.data);
+  },
+
+  getContext(params: ChangeHistoryQueryParams) {
+    if (params.userId != null) {
+      return changeHistoryApi.getByUserId(params.userId);
+    }
+
+    if (params.entityId != null) {
+      return changeHistoryApi.getByEntityId(params.entityId);
+    }
+
+    if (params.entityName?.trim()) {
+      return changeHistoryApi.getByEntityName(params.entityName.trim());
+    }
+
+    return changeHistoryApi.getAll();
   },
 };

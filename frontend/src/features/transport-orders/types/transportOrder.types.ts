@@ -76,6 +76,13 @@ export type TransportOrderItemCreateRequest = {
   productId: number;
 };
 
+export type TransportOrderItemUpdateRequest = {
+  quantity: number;
+  note?: string;
+  transportOrderId: number;
+  productId: number;
+};
+
 export type WarehouseOption = {
   id: number;
   name: string;

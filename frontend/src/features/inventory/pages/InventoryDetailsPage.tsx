@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Button,
@@ -35,15 +35,11 @@ function InfoRow({
 }
 
 export default function InventoryDetailsPage() {
+  const navigate = useNavigate();
   const params = useParams();
-  const warehouseId = useMemo(
-    () => Number(params.warehouseId),
-    [params.warehouseId],
-  );
-  const productId = useMemo(
-    () => Number(params.productId),
-    [params.productId],
-  );
+
+  const warehouseId = useMemo(() => Number(params.warehouseId), [params.warehouseId]);
+  const productId = useMemo(() => Number(params.productId), [params.productId]);
 
   const inventoryRecordQuery = useInventoryRecord(
     Number.isFinite(warehouseId) ? warehouseId : null,
@@ -77,92 +73,127 @@ export default function InventoryDetailsPage() {
 
   const { record, warehouse, product } = inventoryRecordQuery.data;
 
+  if (!warehouse || !product) {
+    return (
+      <ErrorState
+        title="Inventory details are incomplete"
+        description="Warehouse or product details could not be resolved for this inventory record."
+        onRetry={() => {
+          void inventoryRecordQuery.refetch();
+        }}
+      />
+    );
+  }
+
   return (
     <Stack spacing={3}>
       <PageHeader
-        overline="Inventory"
-        title={`${record.productName} · ${record.warehouseName}`}
-        description="Inventory record details resolved through the warehouse and product composite key."
+        overline="Storage"
+        title={`${warehouse.name} · ${product.name}`}
+        description="Detailed inventory record between selected warehouse and product."
         actions={
-          <Button component={RouterLink} to="/inventory" variant="outlined">
-            Back to inventory
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              onClick={() =>
+                navigate(`/change-history?entityName=PRODUCT&entityId=${product.id}`)
+              }
+            >
+              Product history
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() =>
+                navigate(`/change-history?entityName=WAREHOUSE&entityId=${warehouse.id}`)
+              }
+            >
+              Warehouse history
+            </Button>
+            <Button variant="outlined" onClick={() => navigate('/inventory')}>
+              Back to list
+            </Button>
+          </Stack>
         }
       />
 
-      <Alert severity="info">
-        This screen shows the exact inventory record from
-        <strong> /api/warehouse-inventory/{`{warehouseId}/{productId}`}</strong>
-        and enriches it with warehouse and product lookup data.
-      </Alert>
+      {record.quantity <= record.minStockLevel ? (
+        <Alert severity="warning">
+          Current quantity is at or below the minimum stock level.
+        </Alert>
+      ) : null}
 
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, lg: 7 }}>
-          <SectionCard title="Inventory state">
-            <Stack spacing={2.5}>
-              <Stack direction="row" spacing={1.25} alignItems="center">
-                <Typography variant="h6">Current status</Typography>
-                <InventoryStatusChip status={record.derivedStatus} />
-              </Stack>
-
-              <Divider />
-
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <InfoRow label="Total quantity" value={`${record.quantity} ${record.productUnit}`} />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <InfoRow label="Reserved quantity" value={`${record.reservedQuantity} ${record.productUnit}`} />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <InfoRow label="Available quantity" value={`${record.availableQuantity} ${record.productUnit}`} />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <InfoRow
-                    label="Minimum stock level"
-                    value={
-                      record.minStockLevel === null
-                        ? '—'
-                        : `${record.minStockLevel} ${record.productUnit}`
-                    }
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <InfoRow label="Warehouse ID" value={record.warehouseId} />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <InfoRow label="Product ID" value={record.productId} />
-                </Grid>
-              </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <SectionCard title="Warehouse">
+            <Stack spacing={2}>
+              <InfoRow label="Name" value={warehouse.name} />
+              <InfoRow label="Address" value={warehouse.address} />
+              <InfoRow label="City" value={warehouse.city} />
+              <InfoRow label="Capacity" value={warehouse.capacity} />
+              <InfoRow label="Status" value={warehouse.status} />
+              {warehouse.employeeId ? (
+                <Button
+                  component={RouterLink}
+                  to={`/employees/${warehouse.employeeId}`}
+                  variant="text"
+                  sx={{ alignSelf: 'flex-start', p: 0 }}
+                >
+                  Open manager profile
+                </Button>
+              ) : null}
             </Stack>
           </SectionCard>
         </Grid>
 
-        <Grid size={{ xs: 12, lg: 5 }}>
-          <Stack spacing={3}>
-            <SectionCard title="Warehouse">
-              <Stack spacing={2}>
-                <InfoRow label="Name" value={warehouse?.name} />
-                <InfoRow label="City" value={warehouse?.city} />
-                <InfoRow label="Address" value={warehouse?.address} />
-                <InfoRow label="Capacity" value={warehouse?.capacity} />
-                <InfoRow label="Status" value={warehouse?.status} />
-                <InfoRow label="Manager employee ID" value={warehouse?.employeeId} />
-              </Stack>
-            </SectionCard>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <SectionCard title="Product">
+            <Stack spacing={2}>
+              <InfoRow label="Name" value={product.name} />
+              <InfoRow label="SKU" value={product.sku} />
+              <InfoRow label="Unit" value={product.unit} />
+              <InfoRow label="Price" value={product.price} />
+              <InfoRow label="Fragile" value={product.fragile ? 'Yes' : 'No'} />
+              <InfoRow label="Weight" value={product.weight} />
+            </Stack>
+          </SectionCard>
+        </Grid>
 
-            <SectionCard title="Product">
-              <Stack spacing={2}>
-                <InfoRow label="Name" value={product?.name} />
-                <InfoRow label="SKU" value={product?.sku} />
-                <InfoRow label="Unit" value={product?.unit} />
-                <InfoRow label="Price" value={product?.price} />
-                <InfoRow label="Weight" value={product?.weight} />
-                <InfoRow label="Fragile" value={product?.fragile} />
-                <InfoRow label="Description" value={product?.description} />
-              </Stack>
-            </SectionCard>
-          </Stack>
+        <Grid size={{ xs: 12 }}>
+          <SectionCard title="Inventory status">
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <InfoRow label="Quantity" value={record.quantity} />
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <InfoRow label="Reserved quantity" value={record.reservedQuantity} />
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <InfoRow label="Available quantity" value={record.availableQuantity} />
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <InfoRow label="Minimum stock level" value={record.minStockLevel} />
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 3 }}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Status
+                  </Typography>
+                  <InventoryStatusChip status={record.derivedStatus} />
+                </Stack>
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Divider />
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Inventory details are derived from the warehouse inventory backend response and remain scoped by company access.
+                </Typography>
+              </Grid>
+            </Grid>
+          </SectionCard>
         </Grid>
       </Grid>
     </Stack>

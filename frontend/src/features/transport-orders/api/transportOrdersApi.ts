@@ -5,6 +5,7 @@ import type {
   TransportOrderCreateRequest,
   TransportOrderItemCreateRequest,
   TransportOrderItemResponse,
+  TransportOrderItemUpdateRequest,
   TransportOrderResponse,
   TransportOrderStatus,
   VehicleOption,
@@ -90,13 +91,21 @@ export const transportOrdersApi = {
 
   getItemsByTransportOrderId(transportOrderId: number) {
     return transportOrdersApi.getAllItems().then((items) =>
-      items.filter((item) => item.transportOrderId === transportOrderId),
+      items
+        .filter((item) => item.transportOrderId === transportOrderId)
+        .sort((a, b) => a.id - b.id),
     );
   },
 
   createItem(payload: TransportOrderItemCreateRequest) {
     return apiClient
       .post<TransportOrderItemResponse>('/api/transport_order_items', payload)
+      .then((response) => response.data);
+  },
+
+  updateItem(id: number, payload: TransportOrderItemUpdateRequest) {
+    return apiClient
+      .put<TransportOrderItemResponse>(`/api/transport_order_items/${id}`, payload)
       .then((response) => response.data);
   },
 

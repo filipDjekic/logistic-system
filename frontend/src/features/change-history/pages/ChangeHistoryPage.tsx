@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
+import EmptyState from '../../../shared/components/EmptyState/EmptyState';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -28,15 +31,38 @@ function getInitialFilters(searchParams: URLSearchParams): ChangeHistoryFiltersS
 }
 
 export default function ChangeHistoryPage() {
+  const auth = useAuthStore();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<ChangeHistoryFiltersState>(() => getInitialFilters(searchParams));
 
-  const changeHistoryQuery = useChangeHistory(true);
+  const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
   const debouncedSearch = useDebounce(filters.search, 300);
   const debouncedEntityName = useDebounce(filters.entityName, 300);
   const debouncedEntityId = useDebounce(filters.entityId, 300);
   const debouncedUserId = useDebounce(filters.userId, 300);
+
+  const contextEntityName = debouncedEntityName.trim();
+  const contextEntityId =
+    debouncedEntityId.trim().length > 0 && Number.isFinite(Number(debouncedEntityId))
+      ? Number(debouncedEntityId)
+      : null;
+  const contextUserId =
+    debouncedUserId.trim().length > 0 && Number.isFinite(Number(debouncedUserId))
+      ? Number(debouncedUserId)
+      : null;
+
+  const isContextView = Boolean(contextEntityName || contextEntityId != null || contextUserId != null);
+
+  const changeHistoryQuery = useChangeHistory(
+    {
+      entityName: contextEntityName || undefined,
+      entityId: contextEntityId,
+      userId: contextUserId,
+    },
+    isOverlord || isContextView,
+  );
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -67,7 +93,7 @@ export default function ChangeHistoryPage() {
   const filteredRows = useMemo(() => {
     const rows = changeHistoryQuery.data ?? [];
     const search = debouncedSearch.trim().toLowerCase();
-    const entityName = debouncedEntityName.trim().toLowerCase();
+    const entityName = contextEntityName.toLowerCase();
     const entityId = debouncedEntityId.trim();
     const userId = debouncedUserId.trim();
 
@@ -96,32 +122,59 @@ export default function ChangeHistoryPage() {
         String(row.userId).includes(search);
 
       return (
-        matchesChangeType
-        && matchesEntityName
-        && matchesEntityId
-        && matchesUserId
-        && matchesSearch
+        matchesChangeType &&
+        matchesEntityName &&
+        matchesEntityId &&
+        matchesUserId &&
+        matchesSearch
       );
     });
   }, [
     changeHistoryQuery.data,
+    contextEntityName,
     debouncedEntityId,
-    debouncedEntityName,
     debouncedSearch,
     debouncedUserId,
     filters.changeType,
   ]);
 
-  const isContextView = Boolean(filters.entityName.trim() || filters.entityId.trim() || filters.userId.trim());
+  if (!isOverlord && !isContextView) {
+    return (
+      <Stack spacing={3}>
+        <PageHeader
+          overline="Entity context"
+          title="Change History"
+          description="This page is available to non-OVERLORD roles only through entity context."
+          actions={
+            <Button variant="outlined" onClick={() => navigate('/dashboard')}>
+              Back to dashboard
+            </Button>
+          }
+        />
+
+        <SectionCard
+          title="Context required"
+          description="Open history from a specific details page so access stays tied to the selected entity."
+        >
+          <EmptyState
+            title="Select history from entity details"
+            description="Use View history from user, employee, vehicle, warehouse, product, task or transport order details."
+          />
+        </SectionCard>
+      </Stack>
+    );
+  }
 
   return (
     <Stack spacing={3}>
       <PageHeader
         overline={isContextView ? 'Entity context' : 'Administration'}
         title="Change History"
-        description={isContextView
-          ? 'Review change history for the selected entity context.'
-          : 'Review confirmed backend change history records for important entity updates.'}
+        description={
+          isContextView
+            ? 'Review change history for the selected entity context.'
+            : 'Review confirmed backend change history records for important entity updates.'
+        }
       />
 
       <SectionCard
@@ -158,35 +211,71 @@ export default function ChangeHistoryPage() {
               ))}
             </TextField>
 
-            <TextField
-              size="small"
-              label="Entity name"
-              value={filters.entityName}
-              onChange={(event) =>
-                setFilters((prev) => ({ ...prev, entityName: event.target.value }))
-              }
-              sx={{ minWidth: { xs: '100%', lg: 200 } }}
-            />
+            {isOverlord ? (
+              <>
+                <TextField
+                  size="small"
+                  label="Entity name"
+                  value={filters.entityName}
+                  onChange={(event) =>
+                    setFilters((prev) => ({ ...prev, entityName: event.target.value }))
+                  }
+                  sx={{ minWidth: { xs: '100%', lg: 200 } }}
+                />
 
-            <TextField
-              size="small"
-              label="Entity ID"
-              value={filters.entityId}
-              onChange={(event) =>
-                setFilters((prev) => ({ ...prev, entityId: event.target.value }))
-              }
-              sx={{ minWidth: { xs: '100%', lg: 140 } }}
-            />
+                <TextField
+                  size="small"
+                  label="Entity ID"
+                  value={filters.entityId}
+                  onChange={(event) =>
+                    setFilters((prev) => ({ ...prev, entityId: event.target.value }))
+                  }
+                  sx={{ minWidth: { xs: '100%', lg: 140 } }}
+                />
 
-            <TextField
-              size="small"
-              label="User ID"
-              value={filters.userId}
-              onChange={(event) =>
-                setFilters((prev) => ({ ...prev, userId: event.target.value }))
-              }
-              sx={{ minWidth: { xs: '100%', lg: 140 } }}
-            />
+                <TextField
+                  size="small"
+                  label="User ID"
+                  value={filters.userId}
+                  onChange={(event) =>
+                    setFilters((prev) => ({ ...prev, userId: event.target.value }))
+                  }
+                  sx={{ minWidth: { xs: '100%', lg: 140 } }}
+                />
+              </>
+            ) : (
+              <>
+                {filters.entityName ? (
+                  <TextField
+                    size="small"
+                    label="Entity name"
+                    value={filters.entityName}
+                    InputProps={{ readOnly: true }}
+                    sx={{ minWidth: { xs: '100%', lg: 200 } }}
+                  />
+                ) : null}
+
+                {filters.entityId ? (
+                  <TextField
+                    size="small"
+                    label="Entity ID"
+                    value={filters.entityId}
+                    InputProps={{ readOnly: true }}
+                    sx={{ minWidth: { xs: '100%', lg: 140 } }}
+                  />
+                ) : null}
+
+                {filters.userId ? (
+                  <TextField
+                    size="small"
+                    label="User ID"
+                    value={filters.userId}
+                    InputProps={{ readOnly: true }}
+                    sx={{ minWidth: { xs: '100%', lg: 140 } }}
+                  />
+                ) : null}
+              </>
+            )}
 
             <Button
               variant="outlined"
@@ -201,13 +290,24 @@ export default function ChangeHistoryPage() {
             <Button
               variant="text"
               onClick={() => {
-                setFilters({
+                if (isOverlord) {
+                  setFilters({
+                    search: '',
+                    changeType: 'ALL',
+                    entityName: '',
+                    entityId: '',
+                    userId: '',
+                  });
+                  return;
+                }
+
+                setFilters((prev) => ({
                   search: '',
                   changeType: 'ALL',
-                  entityName: '',
-                  entityId: '',
-                  userId: '',
-                });
+                  entityName: prev.entityName,
+                  entityId: prev.entityId,
+                  userId: prev.userId,
+                }));
               }}
             >
               Clear
@@ -218,9 +318,7 @@ export default function ChangeHistoryPage() {
             rows={filteredRows}
             loading={changeHistoryQuery.isLoading}
             error={changeHistoryQuery.isError}
-            onRetry={() => {
-              void changeHistoryQuery.refetch();
-            }}
+            onRetry={() => void changeHistoryQuery.refetch()}
           />
         </Stack>
       </SectionCard>

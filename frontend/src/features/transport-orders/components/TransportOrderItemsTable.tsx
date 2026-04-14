@@ -12,6 +12,7 @@ type TransportOrderItemsTableProps = {
   loading?: boolean;
   error?: boolean;
   onRetry?: () => void;
+  onEdit?: (item: TransportOrderItemResponse) => void;
   onDelete?: (item: TransportOrderItemResponse) => void;
   deletingItemId?: number | null;
   showActions?: boolean;
@@ -31,6 +32,7 @@ export default function TransportOrderItemsTable({
   loading = false,
   error = false,
   onRetry,
+  onEdit,
   onDelete,
   deletingItemId = null,
   showActions = false,
@@ -63,39 +65,49 @@ export default function TransportOrderItemsTable({
       id: 'quantity',
       header: 'Quantity',
       minWidth: 120,
-      nowrap: true,
-      render: (row) => row.quantity,
+      render: (row) => <Typography variant="body2">{row.quantity}</Typography>,
     },
     {
       id: 'weight',
       header: 'Weight',
       minWidth: 120,
-      nowrap: true,
-      render: (row) => formatWeight(row.weight),
+      render: (row) => <Typography variant="body2">{formatWeight(row.weight)}</Typography>,
     },
     {
       id: 'note',
       header: 'Note',
-      minWidth: 260,
-      render: (row) => row.note?.trim() || '—',
+      minWidth: 220,
+      render: (row) => (
+        <Typography variant="body2" color={row.note ? 'text.primary' : 'text.secondary'}>
+          {row.note?.trim() || '—'}
+        </Typography>
+      ),
     },
     ...(showActions
       ? [
           {
             id: 'actions',
             header: 'Actions',
-            align: 'right' as const,
-            minWidth: 120,
+            minWidth: 200,
             render: (row: TransportOrderItemResponse) => (
-              <Button
-                variant="text"
-                size="small"
-                color="error"
-                disabled={deletingItemId === row.id}
-                onClick={() => onDelete?.(row)}
-              >
-                Remove
-              </Button>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => onEdit?.(row)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  variant="text"
+                  disabled={deletingItemId === row.id}
+                  onClick={() => onDelete?.(row)}
+                >
+                  Delete
+                </Button>
+              </Stack>
             ),
           },
         ]
@@ -103,16 +115,15 @@ export default function TransportOrderItemsTable({
   ];
 
   return (
-    <DataTable
-      columns={columns}
+    <DataTable<TransportOrderItemResponse>
       rows={rows}
+      columns={columns}
       getRowId={(row) => row.id}
       loading={loading}
       error={error}
       onRetry={onRetry}
-      emptyTitle="No transport order items found"
-      emptyDescription="This transport order does not have any items yet."
-      minWidth={showActions ? 900 : 780}
+      emptyTitle="No items added"
+      emptyDescription="There are no transport order items for this order yet."
     />
   );
 }

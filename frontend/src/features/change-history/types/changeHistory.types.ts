@@ -19,6 +19,12 @@ export type ChangeHistoryFiltersState = {
   userId: string;
 };
 
+export type ChangeHistoryQueryParams = {
+  entityName?: string;
+  entityId?: number | null;
+  userId?: number | null;
+};
+
 export const changeTypeOptions: ChangeType[] = [
   'CREATE',
   'UPDATE',

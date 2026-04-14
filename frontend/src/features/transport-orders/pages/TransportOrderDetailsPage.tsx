@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Button,
@@ -28,6 +28,7 @@ import { useUpdateTransportOrderStatus } from '../hooks/useUpdateTransportOrderS
 import type {
   EmployeeOption,
   ProductOption,
+  TransportOrderItemResponse,
   TransportOrderStatus,
   VehicleOption,
   WarehouseOption,
@@ -88,6 +89,8 @@ export default function TransportOrderDetailsPage() {
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.DISPATCHER;
 
+  const [selectedItem, setSelectedItem] = useState<TransportOrderItemResponse | null>(null);
+
   const transportOrderQuery = useTransportOrder(
     Number.isFinite(transportOrderId) ? transportOrderId : null,
   );
@@ -135,6 +138,39 @@ export default function TransportOrderDetailsPage() {
     onSuccess: async () => {
       showSnackbar({
         message: 'Transport order item created successfully.',
+        severity: 'success',
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['transport-order-items', transportOrderId] }),
+        queryClient.invalidateQueries({ queryKey: ['transport-orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['transport-orders', 'details', transportOrderId] }),
+      ]);
+    },
+    onError: (error) => {
+      showSnackbar({
+        message: getErrorMessage(error),
+        severity: 'error',
+      });
+    },
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: {
+        productId: number;
+        quantity: number;
+        note?: string;
+        transportOrderId: number;
+      };
+    }) => transportOrdersApi.updateItem(id, data),
+    onSuccess: async () => {
+      showSnackbar({
+        message: 'Transport order item updated successfully.',
         severity: 'success',
       });
 
@@ -215,6 +251,19 @@ export default function TransportOrderDetailsPage() {
     defaultValues: itemDefaultValues,
   });
 
+  useEffect(() => {
+    if (!selectedItem) {
+      itemForm.reset(itemDefaultValues);
+      return;
+    }
+
+    itemForm.reset({
+      productId: selectedItem.productId,
+      quantity: selectedItem.quantity,
+      note: selectedItem.note ?? '',
+    });
+  }, [itemForm, selectedItem]);
+
   const transportOrder = transportOrderQuery.data;
   const nextStatuses = transportOrder ? getAllowedNextStatuses(transportOrder.status) : [];
   const isEditableItems = canManageOrder && transportOrder?.status === 'CREATED';
@@ -266,6 +315,9 @@ export default function TransportOrderDetailsPage() {
     value: product.id,
     label: `${product.name} (${product.sku})`,
   }));
+
+  const isItemMutationLoading =
+    createItemMutation.isPending || updateItemMutation.isPending;
 
   return (
     <Stack spacing={3}>
@@ -341,9 +393,7 @@ export default function TransportOrderDetailsPage() {
                   Vehicle
                 </Typography>
                 <Typography variant="body1">
-                  {vehicle
-                    ? `${vehicle.brand} ${vehicle.model}`
-                    : `Vehicle #${transportOrder.vehicleId}`}
+                  {vehicle ? `${vehicle.brand} ${vehicle.model}` : `Vehicle #${transportOrder.vehicleId}`}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {vehicle ? `${vehicle.registrationNumber} · ${vehicle.status}` : '—'}
@@ -455,7 +505,7 @@ export default function TransportOrderDetailsPage() {
 
           <SectionCard
             title="Item rules"
-            description="Item create/remove is allowed only while status is CREATED."
+            description="Item create, edit and remove is allowed only while status is CREATED."
           >
             <Typography variant="body2" color="text.secondary">
               Current status: {transportOrder.status}
@@ -467,7 +517,10 @@ export default function TransportOrderDetailsPage() {
         </Grid>
       </Grid>
 
-      <SectionCard title="Transport order items" description="Items are loaded from the transport order item API and filtered by transport order ID.">
+      <SectionCard
+        title="Transport order items"
+        description="Items are loaded from the transport order item API and filtered by transport order ID."
+      >
         <Stack spacing={3}>
           <TransportOrderItemsTable
             rows={itemsQuery.data ?? []}
@@ -480,11 +533,19 @@ export default function TransportOrderDetailsPage() {
             }}
             showActions={isEditableItems}
             deletingItemId={deleteItemMutation.isPending ? deleteItemMutation.variables ?? null : null}
+            onEdit={(item) => setSelectedItem(item)}
             onDelete={(item) => deleteItemMutation.mutate(item.id)}
           />
 
           {isEditableItems ? (
-            <SectionCard title="Add item" description="Uses confirmed item create DTO fields only.">
+            <SectionCard
+              title={selectedItem ? 'Edit item' : 'Add item'}
+              description={
+                selectedItem
+                  ? `Editing item #${selectedItem.id}.`
+                  : 'Uses confirmed item create and update DTO fields only.'
+              }
+            >
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 4 }}>
                   <FormSelect
@@ -521,27 +582,55 @@ export default function TransportOrderDetailsPage() {
                 </Grid>
 
                 <Grid size={{ xs: 12 }}>
-                  <Stack direction="row" justifyContent="flex-end">
+                  <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                    {selectedItem ? (
+                      <Button
+                        variant="outlined"
+                        disabled={isItemMutationLoading}
+                        onClick={() => {
+                          setSelectedItem(null);
+                          itemForm.reset(itemDefaultValues);
+                        }}
+                      >
+                        Cancel edit
+                      </Button>
+                    ) : null}
+
                     <Button
                       variant="contained"
-                      disabled={createItemMutation.isPending}
+                      disabled={isItemMutationLoading}
                       onClick={itemForm.handleSubmit((values) => {
-                        createItemMutation.mutate(
-                          {
-                            productId: values.productId,
-                            quantity: values.quantity,
-                            note: (values.note ?? '').trim() || undefined,
-                            transportOrderId,
-                          },
-                          {
-                            onSuccess: () => {
-                              itemForm.reset(itemDefaultValues);
+                        const payload = {
+                          productId: values.productId,
+                          quantity: values.quantity,
+                          note: (values.note ?? '').trim() || undefined,
+                          transportOrderId,
+                        };
+
+                        if (selectedItem) {
+                          updateItemMutation.mutate(
+                            {
+                              id: selectedItem.id,
+                              data: payload,
                             },
+                            {
+                              onSuccess: () => {
+                                setSelectedItem(null);
+                                itemForm.reset(itemDefaultValues);
+                              },
+                            },
+                          );
+                          return;
+                        }
+
+                        createItemMutation.mutate(payload, {
+                          onSuccess: () => {
+                            itemForm.reset(itemDefaultValues);
                           },
-                        );
+                        });
                       })}
                     >
-                      Add item
+                      {selectedItem ? 'Save item changes' : 'Add item'}
                     </Button>
                   </Stack>
                 </Grid>

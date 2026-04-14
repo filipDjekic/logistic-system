@@ -2,6 +2,8 @@ export type TaskStatus = 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
+export type TaskLinkedProcessType = 'TRANSPORT_ORDER' | 'STOCK_MOVEMENT' | 'UNLINKED';
+
 export type TaskResponse = {
   id: number;
   title: string;
@@ -39,6 +41,8 @@ export type TaskFiltersState = {
   search: string;
   status: TaskStatus | 'ALL';
   priority: TaskPriority | 'ALL';
+  assignedEmployeeId: number | 'ALL';
+  linkedProcessType: TaskLinkedProcessType | 'ALL';
 };
 
 export type TaskFormValues = {

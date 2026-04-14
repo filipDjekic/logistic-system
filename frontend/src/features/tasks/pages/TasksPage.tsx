@@ -18,7 +18,24 @@ import { useDeleteTask } from '../hooks/useDeleteTask';
 import { useMyTasks } from '../hooks/useMyTasks';
 import { useTasks } from '../hooks/useTasks';
 import { useUpdateTask } from '../hooks/useUpdateTask';
-import type { TaskFormValues, TaskResponse } from '../types/task.types';
+import type {
+  TaskFiltersState,
+  TaskFormValues,
+  TaskLinkedProcessType,
+  TaskResponse,
+} from '../types/task.types';
+
+function resolveLinkedProcessType(task: TaskResponse): TaskLinkedProcessType {
+  if (task.transportOrderId != null) {
+    return 'TRANSPORT_ORDER';
+  }
+
+  if (task.stockMovementId != null) {
+    return 'STOCK_MOVEMENT';
+  }
+
+  return 'UNLINKED';
+}
 
 export default function TasksPage() {
   const auth = useAuthStore();
@@ -33,6 +50,7 @@ export default function TasksPage() {
   const managedTasksQuery = useTasks(canManage);
   const myTasksQuery = useMyTasks(!canManage);
   const tasksQuery = canManage ? managedTasksQuery : myTasksQuery;
+
   const employeesQuery = useQuery({
     queryKey: ['tasks', 'employees'],
     queryFn: transportOrdersApi.getEmployees,
@@ -40,6 +58,7 @@ export default function TasksPage() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
+
   const transportOrdersQuery = useQuery({
     queryKey: ['tasks', 'transport-orders'],
     queryFn: transportOrdersApi.getAll,
@@ -47,6 +66,7 @@ export default function TasksPage() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
+
   const stockMovementsQuery = useQuery({
     queryKey: ['tasks', 'stock-movements'],
     queryFn: stockMovementsApi.getAll,
@@ -59,28 +79,93 @@ export default function TasksPage() {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<TaskFiltersState>({
     search: '',
     status: 'ALL',
     priority: 'ALL',
+    assignedEmployeeId: 'ALL',
+    linkedProcessType: 'ALL',
   });
+
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<TaskResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TaskResponse | null>(null);
 
+  const employeesById = useMemo(
+    () =>
+      (employeesQuery.data ?? []).reduce<Record<number, string>>((acc, employee) => {
+        acc[employee.id] = `${employee.firstName} ${employee.lastName}`;
+        return acc;
+      }, {}),
+    [employeesQuery.data],
+  );
+
+  const transportOrdersById = useMemo(
+    () =>
+      (transportOrdersQuery.data ?? []).reduce<Record<number, string>>((acc, order) => {
+        acc[order.id] = order.orderNumber;
+        return acc;
+      }, {}),
+    [transportOrdersQuery.data],
+  );
+
+  const stockMovementsById = useMemo(
+    () =>
+      (stockMovementsQuery.data ?? []).reduce<Record<number, string>>((acc, movement) => {
+        acc[movement.id] = `${movement.movementType} #${movement.id}`;
+        return acc;
+      }, {}),
+    [stockMovementsQuery.data],
+  );
+
   const rows = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
+
     return (tasksQuery.data ?? []).filter((task) => {
+      const linkedProcessType = resolveLinkedProcessType(task);
+      const assignedEmployeeName = employeesById[task.assignedEmployeeId] ?? '';
+      const transportOrderLabel =
+        task.transportOrderId != null
+          ? transportOrdersById[task.transportOrderId] ?? `#${task.transportOrderId}`
+          : '';
+      const stockMovementLabel =
+        task.stockMovementId != null
+          ? stockMovementsById[task.stockMovementId] ?? `#${task.stockMovementId}`
+          : '';
+
       const matchesSearch =
         search.length === 0 ||
         task.title.toLowerCase().includes(search) ||
         task.description?.toLowerCase().includes(search) ||
+        assignedEmployeeName.toLowerCase().includes(search) ||
+        transportOrderLabel.toLowerCase().includes(search) ||
+        stockMovementLabel.toLowerCase().includes(search) ||
         String(task.id).includes(search);
+
       const matchesStatus = filters.status === 'ALL' || task.status === filters.status;
       const matchesPriority = filters.priority === 'ALL' || task.priority === filters.priority;
-      return matchesSearch && matchesStatus && matchesPriority;
+      const matchesAssignedEmployee =
+        filters.assignedEmployeeId === 'ALL' ||
+        task.assignedEmployeeId === filters.assignedEmployeeId;
+      const matchesLinkedProcessType =
+        filters.linkedProcessType === 'ALL' ||
+        linkedProcessType === filters.linkedProcessType;
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesPriority &&
+        matchesAssignedEmployee &&
+        matchesLinkedProcessType
+      );
     });
-  }, [filters, tasksQuery.data]);
+  }, [
+    employeesById,
+    filters,
+    stockMovementsById,
+    tasksQuery.data,
+    transportOrdersById,
+  ]);
 
   return (
     <Stack spacing={3}>
@@ -108,11 +193,11 @@ export default function TasksPage() {
         description="Tasks are loaded from the real backend task endpoints and remain scoped by backend company access."
       >
         <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} flexWrap="wrap">
             <SearchToolbar
               value={filters.search}
               onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by title, description or ID"
+              placeholder="Search by title, description, employee or linked process"
               fullWidth
             />
 
@@ -121,7 +206,12 @@ export default function TasksPage() {
               size="small"
               label="Status"
               value={filters.status}
-              onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
+              onChange={(event) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  status: event.target.value as TaskFiltersState['status'],
+                }))
+              }
               sx={{ minWidth: { xs: '100%', md: 180 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
@@ -136,7 +226,12 @@ export default function TasksPage() {
               size="small"
               label="Priority"
               value={filters.priority}
-              onChange={(event) => setFilters((prev) => ({ ...prev, priority: event.target.value }))}
+              onChange={(event) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  priority: event.target.value as TaskFiltersState['priority'],
+                }))
+              }
               sx={{ minWidth: { xs: '100%', md: 180 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
@@ -146,16 +241,100 @@ export default function TasksPage() {
               <MenuItem value="URGENT">URGENT</MenuItem>
             </TextField>
 
-            <Button variant="outlined" onClick={() => void tasksQuery.refetch()} disabled={tasksQuery.isFetching}>
+            {canManage ? (
+              <TextField
+                select
+                size="small"
+                label="Assigned employee"
+                value={filters.assignedEmployeeId}
+                onChange={(event) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    assignedEmployeeId:
+                      event.target.value === 'ALL' ? 'ALL' : Number(event.target.value),
+                  }))
+                }
+                sx={{ minWidth: { xs: '100%', md: 220 } }}
+              >
+                <MenuItem value="ALL">All</MenuItem>
+                {(employeesQuery.data ?? []).map((employee) => (
+                  <MenuItem key={employee.id} value={employee.id}>
+                    {employee.firstName} {employee.lastName}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : null}
+
+            <TextField
+              select
+              size="small"
+              label="Linked process"
+              value={filters.linkedProcessType}
+              onChange={(event) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  linkedProcessType: event.target.value as TaskFiltersState['linkedProcessType'],
+                }))
+              }
+              sx={{ minWidth: { xs: '100%', md: 220 } }}
+            >
+              <MenuItem value="ALL">All</MenuItem>
+              <MenuItem value="TRANSPORT_ORDER">Transport order</MenuItem>
+              <MenuItem value="STOCK_MOVEMENT">Stock movement</MenuItem>
+              <MenuItem value="UNLINKED">Unlinked</MenuItem>
+            </TextField>
+
+            <Button
+              variant="outlined"
+              onClick={() => {
+                void tasksQuery.refetch();
+
+                if (canManage) {
+                  void Promise.all([
+                    employeesQuery.refetch(),
+                    transportOrdersQuery.refetch(),
+                    stockMovementsQuery.refetch(),
+                  ]);
+                }
+              }}
+              disabled={
+                tasksQuery.isFetching ||
+                employeesQuery.isFetching ||
+                transportOrdersQuery.isFetching ||
+                stockMovementsQuery.isFetching
+              }
+            >
               Refresh
             </Button>
           </Stack>
 
           <TasksTable
             rows={rows}
-            loading={tasksQuery.isLoading}
-            error={tasksQuery.isError}
-            onRetry={() => void tasksQuery.refetch()}
+            loading={
+              tasksQuery.isLoading ||
+              (canManage &&
+                (employeesQuery.isLoading ||
+                  transportOrdersQuery.isLoading ||
+                  stockMovementsQuery.isLoading))
+            }
+            error={
+              tasksQuery.isError ||
+              (canManage &&
+                (employeesQuery.isError ||
+                  transportOrdersQuery.isError ||
+                  stockMovementsQuery.isError))
+            }
+            onRetry={() => {
+              void tasksQuery.refetch();
+
+              if (canManage) {
+                void Promise.all([
+                  employeesQuery.refetch(),
+                  transportOrdersQuery.refetch(),
+                  stockMovementsQuery.refetch(),
+                ]);
+              }
+            }}
             canManage={canManage}
             onEdit={(row) => {
               setSelected(row);
@@ -220,6 +399,7 @@ export default function TasksPage() {
           if (!deleteTarget) {
             return;
           }
+
           deleteTask.mutate(deleteTarget.id, {
             onSuccess: () => setDeleteTarget(null),
             onError: (error) => {

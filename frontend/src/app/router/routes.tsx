@@ -123,7 +123,6 @@ export const routes = [
       },
     ],
   },
-
   {
     element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER]} />,
     children: [
@@ -154,7 +153,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
+    element: <ProtectedRoute allowedRoles={ALL_ROLES} />,
     children: [
       {
         element: <AppLayout />,

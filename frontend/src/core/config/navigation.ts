@@ -114,7 +114,15 @@ export const navigationItems: NavigationItem[] = [
     key: 'tasks',
     label: 'Tasks',
     to: '/tasks',
-    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER],
+    roles: [
+      ROLES.OVERLORD,
+      ROLES.COMPANY_ADMIN,
+      ROLES.HR_MANAGER,
+      ROLES.DISPATCHER,
+      ROLES.WAREHOUSE_MANAGER,
+      ROLES.DRIVER,
+      ROLES.WORKER,
+    ],
     icon: AssignmentRoundedIcon,
   },
   {
@@ -142,7 +150,7 @@ export const navigationItems: NavigationItem[] = [
     key: 'change-history',
     label: 'Change History',
     to: '/change-history',
-    roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
+    roles: [ROLES.OVERLORD],
     icon: FactCheckRoundedIcon,
   },
 ];

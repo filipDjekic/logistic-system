@@ -20,6 +20,15 @@ export default function TaskDetailsPage() {
   const taskId = Number(params.id);
 
   const taskQuery = useTask(Number.isFinite(taskId) ? taskId : null);
+
+  const employeesQuery = useQuery({
+    queryKey: ['task-details', 'employees'],
+    queryFn: transportOrdersApi.getEmployees,
+    enabled: Number.isFinite(taskId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
   const transportOrdersQuery = useQuery({
     queryKey: ['task-details', 'transport-orders'],
     queryFn: transportOrdersApi.getAll,
@@ -27,6 +36,7 @@ export default function TaskDetailsPage() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
+
   const stockMovementsQuery = useQuery({
     queryKey: ['task-details', 'stock-movements'],
     queryFn: stockMovementsApi.getAll,
@@ -35,10 +45,16 @@ export default function TaskDetailsPage() {
     refetchOnWindowFocus: false,
   });
 
+  const assignedEmployee = useMemo(
+    () => (employeesQuery.data ?? []).find((row) => row.id === taskQuery.data?.assignedEmployeeId),
+    [employeesQuery.data, taskQuery.data?.assignedEmployeeId],
+  );
+
   const transportOrder = useMemo(
     () => (transportOrdersQuery.data ?? []).find((row) => row.id === taskQuery.data?.transportOrderId),
     [taskQuery.data?.transportOrderId, transportOrdersQuery.data],
   );
+
   const stockMovement = useMemo(
     () => (stockMovementsQuery.data ?? []).find((row) => row.id === taskQuery.data?.stockMovementId),
     [taskQuery.data?.stockMovementId, stockMovementsQuery.data],
@@ -115,8 +131,15 @@ export default function TaskDetailsPage() {
             <TaskStatusChip status={task.status} />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
-            <Typography variant="subtitle2" color="text.secondary">Assigned employee ID</Typography>
-            <Typography>{task.assignedEmployeeId}</Typography>
+            <Typography variant="subtitle2" color="text.secondary">Assigned employee</Typography>
+            <Typography>
+              {assignedEmployee
+                ? `${assignedEmployee.firstName} ${assignedEmployee.lastName}`
+                : `Employee #${task.assignedEmployeeId}`}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {assignedEmployee ? `${assignedEmployee.email} · ${assignedEmployee.position}` : '—'}
+            </Typography>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" color="text.secondary">Due date</Typography>
@@ -134,14 +157,35 @@ export default function TaskDetailsPage() {
           <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" color="text.secondary">Transport order</Typography>
             <Typography>
-              {transportOrder ? `${transportOrder.orderNumber} (${transportOrder.status})` : task.transportOrderId ?? '—'}
+              {transportOrder
+                ? `${transportOrder.orderNumber} (${transportOrder.status})`
+                : task.transportOrderId ?? '—'}
             </Typography>
+            {task.transportOrderId != null ? (
+              <Stack direction="row" sx={{ mt: 1 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigate(`/transport-orders/${task.transportOrderId}`)}
+                >
+                  Open transport order
+                </Button>
+              </Stack>
+            ) : null}
           </Grid>
+
           <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" color="text.secondary">Stock movement</Typography>
             <Typography>
-              {stockMovement ? `${stockMovement.movementType} #${stockMovement.id}` : task.stockMovementId ?? '—'}
+              {stockMovement
+                ? `${stockMovement.movementType} #${stockMovement.id}`
+                : task.stockMovementId ?? '—'}
             </Typography>
+            {stockMovement ? (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {stockMovement.productName} · {stockMovement.warehouseName}
+              </Typography>
+            ) : null}
           </Grid>
         </Grid>
       </SectionCard>

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
 import rs.logistics.logistics_system.entity.ChangeHistory;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.repository.ChangeHistoryRepository;
 import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
@@ -70,20 +71,29 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
 
     @Override
     public List<ChangeHistoryResponse> getByUserId(Long userId) {
+        ensureOverlordOnly();
         List<ChangeHistory> data = _changeHistoryRepository.findByChangedById(userId);
         return toAccessibleResponses(data);
     }
 
     @Override
     public List<ChangeHistoryResponse> getByBetweenDate(LocalDateTime start, LocalDateTime end) {
+        ensureOverlordOnly();
         List<ChangeHistory> data = _changeHistoryRepository.findByChangedAtBetween(start, end);
         return toAccessibleResponses(data);
     }
 
     @Override
     public List<ChangeHistoryResponse> getAll() {
+        ensureOverlordOnly();
         List<ChangeHistory> data = _changeHistoryRepository.findAll();
         return toAccessibleResponses(data);
+    }
+
+    private void ensureOverlordOnly() {
+        if (!authenticatedUserProvider.isOverlord()) {
+            throw new ForbiddenException("Only OVERLORD can access global change history queries");
+        }
     }
 
     private List<ChangeHistoryResponse> toAccessibleResponses(List<ChangeHistory> data) {
@@ -113,41 +123,58 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
             case "COMPANY" -> companyRepository.findById(entityId)
                     .map(company -> company.getId().equals(companyId))
                     .orElse(false);
+
             case "USER" -> userRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+
             case "EMPLOYEE" -> employeeRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+
             case "VEHICLE" -> vehicleRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+
             case "WAREHOUSE" -> warehouseRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+
             case "PRODUCT" -> productRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+
             case "SHIFT" -> shiftRepository.findByIdAndEmployee_Company_Id(entityId, companyId).isPresent();
+
             case "STOCK_MOVEMENT" -> stockMovementRepository.findByIdAndWarehouse_Company_Id(entityId, companyId).isPresent();
+
             case "TASK" -> taskRepository.findByIdAndAssignedEmployee_Company_Id(entityId, companyId)
                     .map(task -> {
-                        if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.hasRole("HR_MANAGER")
-                                || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || authenticatedUserProvider.hasRole("DISPATCHER")) {
+                        if (authenticatedUserProvider.isCompanyAdmin()
+                                || authenticatedUserProvider.hasRole("HR_MANAGER")
+                                || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                                || authenticatedUserProvider.hasRole("DISPATCHER")) {
                             return true;
                         }
 
                         Long assignedUserId = task.getAssignedEmployee() != null && task.getAssignedEmployee().getUser() != null
                                 ? task.getAssignedEmployee().getUser().getId()
                                 : null;
+
                         return assignedUserId != null && assignedUserId.equals(currentUserId);
                     })
                     .orElse(false);
+
             case "TRANSPORT_ORDER" -> transportOrderRepository.findByIdAndCreatedBy_Company_Id(entityId, companyId)
                     .map(transportOrder -> {
-                        if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.hasRole("DISPATCHER")) {
+                        if (authenticatedUserProvider.isCompanyAdmin()
+                                || authenticatedUserProvider.hasRole("DISPATCHER")) {
                             return true;
                         }
 
-                        Long assignedUserId = transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null
+                        Long assignedUserId = transportOrder.getAssignedEmployee() != null
+                                && transportOrder.getAssignedEmployee().getUser() != null
                                 ? transportOrder.getAssignedEmployee().getUser().getId()
                                 : null;
+
                         return assignedUserId != null && assignedUserId.equals(currentUserId);
                     })
                     .orElse(false);
+
             case "TRANSPORT_ORDER_ITEM" -> transportOrderItemRepository.findByIdAndTransportOrder_CreatedBy_Company_Id(entityId, companyId)
                     .map(item -> {
-                        if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.hasRole("DISPATCHER")) {
+                        if (authenticatedUserProvider.isCompanyAdmin()
+                                || authenticatedUserProvider.hasRole("DISPATCHER")) {
                             return true;
                         }
 
@@ -156,14 +183,21 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
                                 && item.getTransportOrder().getAssignedEmployee().getUser() != null
                                 ? item.getTransportOrder().getAssignedEmployee().getUser().getId()
                                 : null;
+
                         return assignedUserId != null && assignedUserId.equals(currentUserId);
                     })
                     .orElse(false);
+
             case "WAREHOUSE_INVENTORY" -> warehouseRepository.findByIdAndCompany_Id(entityId, companyId).isPresent()
-                    || warehouseInventoryRepository.findByWarehouse_IdAndWarehouse_Company_Id(entityId, companyId).stream().findAny().isPresent();
+                    || warehouseInventoryRepository.findByWarehouse_IdAndWarehouse_Company_Id(entityId, companyId)
+                    .stream()
+                    .findAny()
+                    .isPresent();
+
             case "NOTIFICATION" -> notificationRepository.findByIdAndUser_Company_Id(entityId, companyId)
                     .map(notification -> notification.getUser() != null && notification.getUser().getId().equals(currentUserId))
                     .orElse(false);
+
             default -> changeHistory.getChangedBy() != null
                     && changeHistory.getChangedBy().getCompany() != null
                     && companyId.equals(changeHistory.getChangedBy().getCompany().getId());
