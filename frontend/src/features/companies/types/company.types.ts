@@ -34,7 +34,7 @@ export type CompanyUpdateRequest = {
 export type BootstrapAdminPreview = {
   role: 'COMPANY_ADMIN';
   status: UserStatus;
-  position: 'MANAGER';
+  position: 'COMPANY_ADMIN';
   username: string;
   email: string;
 };

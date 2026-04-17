@@ -1,9 +1,11 @@
 export type EmployeePosition =
-  | 'MANAGER'
+  | 'OVERLORD'
+  | 'COMPANY_ADMIN'
+  | 'HR_MANAGER'
   | 'DISPATCHER'
   | 'DRIVER'
-  | 'WAREHOUSE_OPERATOR'
-  | 'ADMINISTRATIVE_WORKER';
+  | 'WAREHOUSE_MANAGER'
+  | 'WORKER';
 
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
 

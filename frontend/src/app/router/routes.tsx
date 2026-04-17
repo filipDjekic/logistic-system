@@ -70,16 +70,6 @@ export const routes = [
           { path: '/activity-logs', element: <ActivityLogsPage /> },
           { path: '/roles', element: <RolesPage /> },
           { path: '/roles/:id', element: <RoleDetailsPage /> },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN]} />,
-    children: [
-      {
-        element: <AppLayout />,
-        children: [
           { path: '/users', element: <UsersPage /> },
           { path: '/users/:id', element: <UserDetailsPage /> },
         ],

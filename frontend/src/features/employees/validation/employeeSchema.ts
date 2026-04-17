@@ -1,11 +1,13 @@
 import { z } from 'zod';
 
 export const employeePositionOptions = [
-  'MANAGER',
+  'OVERLORD',
+  'COMPANY_ADMIN',
+  'HR_MANAGER',
   'DISPATCHER',
   'DRIVER',
-  'WAREHOUSE_OPERATOR',
-  'ADMINISTRATIVE_WORKER',
+  'WAREHOUSE_MANAGER',
+  'WORKER',
 ] as const;
 
 export const userStatusOptions = ['ACTIVE', 'INACTIVE', 'BLOCKED'] as const;

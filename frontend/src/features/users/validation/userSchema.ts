@@ -3,14 +3,16 @@ import { z } from 'zod';
 export const userStatusOptions = ['ACTIVE', 'INACTIVE', 'BLOCKED'] as const;
 
 export const employeePositionOptions = [
-  'MANAGER',
+  'OVERLORD',
+  'COMPANY_ADMIN',
+  'HR_MANAGER',
   'DISPATCHER',
   'DRIVER',
-  'WAREHOUSE_OPERATOR',
-  'ADMINISTRATIVE_WORKER',
+  'WAREHOUSE_MANAGER',
+  'WORKER',
 ] as const;
 
-const emailPattern = /^[a-zA-Z]+\\.[a-zA-Z]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}$/;
+const emailPattern = /^[a-zA-Z]+\.[a-zA-Z]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/;
 
 const roleIdSchema = z
   .string()

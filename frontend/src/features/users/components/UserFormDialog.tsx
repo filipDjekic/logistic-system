@@ -59,7 +59,7 @@ const createDefaultValues: CreateUserFormValues = {
   status: 'ACTIVE',
   employeeJmbg: '',
   employeePhoneNumber: '',
-  employeePosition: 'MANAGER',
+  employeePosition: 'WORKER',
   employeeEmploymentDate: '',
   employeeSalary: '',
 };
@@ -73,7 +73,7 @@ const updateDefaultValues: UpdateUserFormValues = {
   status: 'ACTIVE',
   employeeJmbg: '',
   employeePhoneNumber: '',
-  employeePosition: 'MANAGER',
+  employeePosition: 'WORKER',
   employeeEmploymentDate: '',
   employeeSalary: '',
   employeeActive: true,
@@ -119,7 +119,7 @@ export default function UserFormDialog({
         status: initialData.status,
         employeeJmbg: initialData.employee?.jmbg ?? '',
         employeePhoneNumber: initialData.employee?.phoneNumber ?? '',
-        employeePosition: initialData.employee?.position ?? 'MANAGER',
+        employeePosition: initialData.employee?.position ?? 'WORKER',
         employeeEmploymentDate: initialData.employee?.employmentDate ?? '',
         employeeSalary:
           initialData.employee?.salary != null

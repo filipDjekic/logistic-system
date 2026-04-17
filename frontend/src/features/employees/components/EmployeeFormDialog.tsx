@@ -55,7 +55,7 @@ const defaultValues: EmployeeFormValues = {
   jmbg: '',
   phoneNumber: '',
   email: '',
-  position: 'MANAGER',
+  position: 'WORKER',
   employmentDate: '',
   salary: '',
   userId: '',

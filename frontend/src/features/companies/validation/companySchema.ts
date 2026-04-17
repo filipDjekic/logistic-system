@@ -29,7 +29,7 @@ export function buildBootstrapAdminPreview(companyName: string, firstName: strin
   return {
     role: 'COMPANY_ADMIN' as const,
     status: 'ACTIVE' as const,
-    position: 'MANAGER' as const,
+    position: 'COMPANY_ADMIN' as const,
     username,
     email: `${username}@${companySegment}.${positionSegment}.rs`,
   };

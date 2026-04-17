@@ -18,11 +18,13 @@ type EmployeeResponse = {
   lastName: string;
   email: string;
   position:
-    | 'MANAGER'
+    | 'OVERLORD'
+    | 'COMPANY_ADMIN'
+    | 'HR_MANAGER'
     | 'DISPATCHER'
     | 'DRIVER'
-    | 'WAREHOUSE_OPERATOR'
-    | 'ADMINISTRATIVE_WORKER';
+    | 'WAREHOUSE_MANAGER'
+    | 'WORKER';
 };
 
 type ProductResponse = {

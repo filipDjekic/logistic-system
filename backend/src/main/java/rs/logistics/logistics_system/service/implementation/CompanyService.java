@@ -36,7 +36,7 @@ import rs.logistics.logistics_system.service.definition.CompanyServiceDefinition
 @RequiredArgsConstructor
 public class CompanyService implements CompanyServiceDefinition {
 
-    private static final EmployeePosition BOOTSTRAP_ADMIN_POSITION = EmployeePosition.MANAGER;
+    private static final EmployeePosition BOOTSTRAP_ADMIN_POSITION = EmployeePosition.COMPANY_ADMIN;
     private static final BigDecimal BOOTSTRAP_ADMIN_SALARY = BigDecimal.ONE;
     private static final UserStatus BOOTSTRAP_ADMIN_STATUS = UserStatus.ACTIVE;
     private static final String ROLE_COMPANY_ADMIN = "COMPANY_ADMIN";

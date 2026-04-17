@@ -1,9 +1,11 @@
 package rs.logistics.logistics_system.enums;
 
 public enum EmployeePosition {
-    MANAGER,
+    OVERLORD,
+    COMPANY_ADMIN,
+    HR_MANAGER,
     DISPATCHER,
     DRIVER,
-    WAREHOUSE_OPERATOR,
-    ADMINISTRATIVE_WORKER
+    WAREHOUSE_MANAGER,
+    WORKER
 }

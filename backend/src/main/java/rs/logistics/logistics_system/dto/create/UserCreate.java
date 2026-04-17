@@ -32,8 +32,8 @@ public class UserCreate {
     @NotBlank
     @Email
     @Pattern(
-            regexp = "^[a-zA-Z]+\\\\.[a-zA-Z]+@[a-zA-Z0-9-]+\\\\.[a-zA-Z0-9-]+\\\\.[a-zA-Z]{2,}$",
-            message = "Email must be in format firstName.lastName@firm.sector.countryCode"
+        regexp = "^[a-zA-Z]+\\.[a-zA-Z]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}$",
+        message = "Email must be in format firstName.lastName@firm.sector.countryCode"
     )
     @Size(min = 1, max = 50)
     private String email;
