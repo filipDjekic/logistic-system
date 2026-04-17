@@ -37,6 +37,7 @@ const employeeFormSchemaBase = z.object({
     .string()
     .trim()
     .min(1, 'Email is required')
+    .max(50, 'Email must be at most 50 characters')
     .email('Email is not valid'),
   position: z.enum(employeePositionOptions, {
     message: 'Position is required',
@@ -55,25 +56,16 @@ const employeeFormSchemaBase = z.object({
     .refine((value) => Number(value) > 0, {
       message: 'Salary must be greater than 0',
     }),
-  userId: z.string().trim(),
   password: z.string().trim(),
-  roleId: z.string().trim(),
   status: z.enum(userStatusOptions),
+  enabled: z.boolean(),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchemaBase>;
 
-export function getEmployeeFormSchema(mode: 'create' | 'edit') {
+export function getEmployeeFormSchema(mode: 'create' | 'edit', hasLinkedUser: boolean) {
   return employeeFormSchemaBase.superRefine((values, ctx) => {
     if (mode === 'create') {
-      if (values.email.length > 50) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['email'],
-          message: 'Email must be at most 50 characters',
-        });
-      }
-
       if (values.password.length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -87,41 +79,14 @@ export function getEmployeeFormSchema(mode: 'create' | 'edit') {
           message: 'Password must be at least 8 characters',
         });
       }
-
-      if (values.roleId.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['roleId'],
-          message: 'Role is required',
-        });
-      } else if (Number.isNaN(Number(values.roleId)) || Number(values.roleId) <= 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['roleId'],
-          message: 'Selected role is not valid',
-        });
-      }
     }
 
-    if (mode === 'edit') {
-      if (values.email.length > 30) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['email'],
-          message: 'Email must be at most 30 characters',
-        });
-      }
-
-      if (
-        values.userId.length > 0 &&
-        (Number.isNaN(Number(values.userId)) || Number(values.userId) <= 0)
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['userId'],
-          message: 'Selected user is not valid',
-        });
-      }
+    if (!hasLinkedUser && mode === 'edit' && values.password.length > 0 && values.password.length < 8) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['password'],
+        message: 'Password must be at least 8 characters',
+      });
     }
   });
 }

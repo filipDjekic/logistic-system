@@ -1,4 +1,4 @@
-import { Button, Stack, Typography } from '@mui/material';
+import { Button, Chip, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn } from '../../../shared/types/common.types';
@@ -37,7 +37,7 @@ export default function EmployeesTable({
     {
       id: 'employee',
       header: 'Employee',
-      minWidth: 220,
+      minWidth: 240,
       render: (row) => (
         <Stack spacing={0.25}>
           <Typography variant="body2" fontWeight={700}>
@@ -51,7 +51,7 @@ export default function EmployeesTable({
     },
     {
       id: 'position',
-      header: 'Position',
+      header: 'Role',
       minWidth: 180,
       render: (row) => row.position,
     },
@@ -85,27 +85,27 @@ export default function EmployeesTable({
       render: (row) => formatCurrency(row.salary),
     },
     {
-      id: 'user',
-      header: 'Linked user',
+      id: 'access',
+      header: 'Access',
       minWidth: 220,
       render: (row) => {
         if (!row.userId) {
-          return '—';
+          return <Chip size="small" label="No account" />;
         }
 
         const user = usersById[row.userId];
 
         if (!user) {
-          return `User #${row.userId}`;
+          return <Chip size="small" label={`User #${row.userId}`} />;
         }
 
         return (
-          <Stack spacing={0.25}>
+          <Stack spacing={0.5}>
             <Typography variant="body2" fontWeight={600}>
-              {user.firstName} {user.lastName}
+              {user.enabled ? 'Enabled' : 'Disabled'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {user.email}
+              {user.status}
             </Typography>
           </Stack>
         );
@@ -151,7 +151,7 @@ export default function EmployeesTable({
       emptyDescription={
         emptyDescription ?? 'There are no employees for the current filter combination.'
       }
-      minWidth={1300}
+      minWidth={1320}
     />
   );
 }

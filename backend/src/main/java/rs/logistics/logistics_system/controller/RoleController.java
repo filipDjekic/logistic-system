@@ -12,7 +12,6 @@ import rs.logistics.logistics_system.service.definition.RoleServiceDefinition;
 
 import java.util.List;
 
-@PreAuthorize("hasRole('OVERLORD')")
 @RestController
 @RequestMapping("/api/roles")
 @RequiredArgsConstructor
@@ -20,11 +19,13 @@ public class RoleController {
 
     private final RoleServiceDefinition roleService;
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @GetMapping("/{id}")
     public ResponseEntity<RoleResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(roleService.getById(id));
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @GetMapping
     public ResponseEntity<List<RoleResponse>> getAll() {
         return ResponseEntity.ok(roleService.getAll());

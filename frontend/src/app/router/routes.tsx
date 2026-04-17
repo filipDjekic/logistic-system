@@ -143,7 +143,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={ALL_ROLES} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN]} />,
     children: [
       {
         element: <AppLayout />,

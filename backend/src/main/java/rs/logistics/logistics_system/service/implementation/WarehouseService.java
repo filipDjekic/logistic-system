@@ -265,7 +265,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
             throw new BadRequestException("Inactive employee cannot be assigned as warehouse manager");
         }
 
-        if (employee.getPosition() != EmployeePosition.HR_MANAGER) {
+        if (employee.getPosition() != EmployeePosition.WAREHOUSE_MANAGER) {
             throw new BadRequestException("Only employee with WAREHOUSE_MANAGER position can be assigned as warehouse manager");
         }
     }

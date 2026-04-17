@@ -235,9 +235,22 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
     @Override
     public List<TransportOrderResponse> getAll() {
-        List<TransportOrder> data = authenticatedUserProvider.isOverlord()
-                ? _transportOrderRepository.findAll()
-                : _transportOrderRepository.findAllByCreatedBy_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+        List<TransportOrder> data;
+
+        if (authenticatedUserProvider.isOverlord()) {
+            data = _transportOrderRepository.findAll();
+        } else {
+            data = _transportOrderRepository.findAllByCreatedBy_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+
+            if (authenticatedUserProvider.hasRole("DRIVER")) {
+                Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
+                data = data.stream()
+                        .filter(order -> order.getAssignedEmployee() != null
+                                && order.getAssignedEmployee().getUser() != null
+                                && authenticatedUserId.equals(order.getAssignedEmployee().getUser().getId()))
+                        .collect(Collectors.toList());
+            }
+        }
 
         return data.stream().map(TransportOrderMapper::toResponse).collect(Collectors.toList());
     }
@@ -266,6 +279,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Transactional
     public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status) {
         TransportOrder transportOrder = getTransportOrderOrThrow(id);
+
+        validateDriverStatusAccess(transportOrder, status);
 
         TransportOrderStatus current = transportOrder.getStatus();
         Set<Long> notifiedUserIds = new HashSet<>();
@@ -794,12 +809,48 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         notificationService.createSystemNotification(userId, title, message, type);
     }
 
-    private TransportOrder getTransportOrderOrThrow(Long id) {
-        if (authenticatedUserProvider.isOverlord()) {
-            return _transportOrderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+    private void validateDriverStatusAccess(TransportOrder transportOrder, TransportOrderStatus targetStatus) {
+        if (!authenticatedUserProvider.hasRole("DRIVER")) {
+            return;
         }
 
-        return _transportOrderRepository.findByIdAndCreatedBy_Company_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
+        Long assignedUserId = transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null
+                ? transportOrder.getAssignedEmployee().getUser().getId()
+                : null;
+
+        if (assignedUserId == null || !authenticatedUserId.equals(assignedUserId)) {
+            throw new BadRequestException("Driver can update only own transport orders");
+        }
+
+        if (targetStatus != TransportOrderStatus.IN_TRANSIT && targetStatus != TransportOrderStatus.DELIVERED) {
+            throw new BadRequestException("Driver can only change status to IN_TRANSIT or DELIVERED");
+        }
+    }
+
+    private TransportOrder getTransportOrderOrThrow(Long id) {
+        TransportOrder transportOrder;
+
+        if (authenticatedUserProvider.isOverlord()) {
+            transportOrder = _transportOrderRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        } else {
+            transportOrder = _transportOrderRepository.findByIdAndCreatedBy_Company_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                    .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+        }
+
+        if (authenticatedUserProvider.hasRole("DRIVER")) {
+            Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
+            Long assignedUserId = transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null
+                    ? transportOrder.getAssignedEmployee().getUser().getId()
+                    : null;
+
+            if (assignedUserId == null || !authenticatedUserId.equals(assignedUserId)) {
+                throw new ResourceNotFoundException("Transport order not found");
+            }
+        }
+
+        return transportOrder;
     }
 
     private Warehouse getAccessibleWarehouse(Long id, String message) {

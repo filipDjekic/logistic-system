@@ -18,6 +18,7 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
@@ -55,6 +56,7 @@ public class TaskService implements TaskServiceDefinition {
 
         validateTaskCompanyContext(employee, transportOrder, stockMovement);
         validateLinkedProcessContext(transportOrder, stockMovement);
+        validateAssigneeRole(employee, transportOrder, stockMovement);
 
         Task task = TaskMapper.toEntity(dto, employee, transportOrder, stockMovement);
         task.setStatus(TaskStatus.NEW);
@@ -95,6 +97,7 @@ public class TaskService implements TaskServiceDefinition {
 
         validateTaskCompanyContext(employee, transportOrder, stockMovement);
         validateLinkedProcessContext(transportOrder, stockMovement);
+        validateAssigneeRole(employee, transportOrder, stockMovement);
 
         if (!task.getAssignedEmployee().getId().equals(employee.getId())) {
             validateReassign(task, employee);
@@ -163,6 +166,30 @@ public class TaskService implements TaskServiceDefinition {
         );
 
         return TaskMapper.toResponse(saved);
+    }
+
+
+    private void validateAssigneeRole(Employee employee, TransportOrder transportOrder, StockMovement stockMovement) {
+        if (employee == null || employee.getPosition() == null) {
+            throw new BadRequestException("Assigned employee is invalid");
+        }
+
+        EmployeePosition position = employee.getPosition();
+
+        if (transportOrder != null && position != EmployeePosition.DRIVER) {
+            throw new BadRequestException("Transport tasks can only be assigned to DRIVER");
+        }
+
+        if (stockMovement != null
+                && position != EmployeePosition.WAREHOUSE_MANAGER
+                && position != EmployeePosition.WORKER) {
+            throw new BadRequestException("Stock movement tasks can only be assigned to WAREHOUSE_MANAGER or WORKER");
+        }
+
+        if (transportOrder == null && stockMovement == null
+                && (position == EmployeePosition.DRIVER || position == EmployeePosition.WORKER)) {
+            throw new BadRequestException("Generic tasks cannot be assigned to DRIVER or WORKER without linked process");
+        }
     }
 
     @Override

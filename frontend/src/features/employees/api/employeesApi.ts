@@ -1,6 +1,5 @@
 import { apiClient } from '../../../core/api/client';
 import type {
-  EmployeeCreateRequest,
   EmployeeCreateWithUserRequest,
   EmployeeResponse,
   EmployeeRoleOption,
@@ -16,9 +15,12 @@ type UserResponse = {
   lastName: string;
   email: string;
   enabled: boolean;
-  status: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
   roleId: number;
   roleName: string;
+  employee?: {
+    active: boolean;
+  } | null;
 };
 
 type RoleResponse = {
@@ -37,12 +39,6 @@ export const employeesApi = {
   getById(id: number) {
     return apiClient
       .get<EmployeeResponse>(`/api/employees/${id}`)
-      .then((response) => response.data);
-  },
-
-  create(payload: EmployeeCreateRequest) {
-    return apiClient
-      .post<EmployeeResponse>('/api/employees', payload)
       .then((response) => response.data);
   },
 
@@ -87,6 +83,7 @@ export const employeesApi = {
           status: user.status,
           roleId: user.roleId,
           roleName: user.roleName,
+          employeeActive: user.employee?.active ?? true,
         })),
       );
   },

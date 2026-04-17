@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   Button,
   Dialog,
@@ -11,6 +11,8 @@ import {
   Typography,
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import { useForm } from 'react-hook-form';
 import Form from '../../../shared/components/Form/Form';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
@@ -133,7 +135,25 @@ export default function UserFormDialog({
     updateForm.reset(updateDefaultValues);
   }, [open, mode, initialData, createForm, updateForm]);
 
-  const roleOptions = roles.map((role) => ({
+  const auth = useAuthStore();
+
+  const visibleRoles = useMemo(
+    () =>
+      roles.filter((role) => {
+        if (auth.user?.role === ROLES.OVERLORD) {
+          return true;
+        }
+
+        if (auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER) {
+          return role.name !== ROLES.OVERLORD && role.name !== ROLES.COMPANY_ADMIN;
+        }
+
+        return false;
+      }),
+    [auth.user?.role, roles],
+  );
+
+  const roleOptions = visibleRoles.map((role) => ({
     value: String(role.id),
     label: role.name,
   }));

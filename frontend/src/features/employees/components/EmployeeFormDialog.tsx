@@ -1,18 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
-  Alert,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   Grid,
   Stack,
-  Typography,
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
+import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
@@ -22,7 +20,6 @@ import type {
   EmployeeUserOption,
 } from '../types/employee.types';
 import {
-  employeePositionOptions,
   getEmployeeFormSchema,
   type EmployeeFormValues,
   userStatusOptions,
@@ -32,17 +29,13 @@ type EmployeeFormDialogProps = {
   open: boolean;
   mode: 'create' | 'edit';
   initialData?: EmployeeResponse | null;
-  users: EmployeeUserOption[];
+  linkedUser?: EmployeeUserOption | null;
   roles: EmployeeRoleOption[];
+  companyName?: string | null;
   loading?: boolean;
   onClose: () => void;
   onSubmit: (values: EmployeeFormValues) => void;
 };
-
-const positionOptions = employeePositionOptions.map((position) => ({
-  value: position,
-  label: position,
-}));
 
 const userStatusSelectOptions = userStatusOptions.map((status) => ({
   value: status,
@@ -58,26 +51,61 @@ const defaultValues: EmployeeFormValues = {
   position: 'WORKER',
   employmentDate: '',
   salary: '',
-  userId: '',
   password: '',
-  roleId: '',
   status: 'ACTIVE',
+  enabled: true,
 };
+
+function slugifyPart(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '');
+}
+
+function buildEmail(firstName: string, lastName: string, companyName?: string | null) {
+  const localPart = [slugifyPart(firstName), slugifyPart(lastName)].filter(Boolean).join('.');
+  const companyPart = slugifyPart(companyName ?? 'company') || 'company';
+
+  if (!localPart) {
+    return '';
+  }
+
+  return `${localPart}@${companyPart}.com`;
+}
 
 export default function EmployeeFormDialog({
   open,
   mode,
   initialData,
-  users,
+  linkedUser = null,
   roles,
+  companyName = null,
   loading = false,
   onClose,
   onSubmit,
 }: EmployeeFormDialogProps) {
+  const hasLinkedUser = mode === 'edit' && Boolean(linkedUser);
+
   const form = useForm<EmployeeFormValues>({
-    resolver: zodResolver(getEmployeeFormSchema(mode)),
+    resolver: zodResolver(getEmployeeFormSchema(mode, hasLinkedUser)),
     defaultValues,
   });
+
+  const firstName = useWatch({ control: form.control, name: 'firstName' });
+  const lastName = useWatch({ control: form.control, name: 'lastName' });
+  const selectedPosition = useWatch({ control: form.control, name: 'position' });
+
+  const positionOptions = useMemo(
+    () =>
+      roles.map((role) => ({
+        value: role.name,
+        label: role.name,
+      })),
+    [roles],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -94,195 +122,132 @@ export default function EmployeeFormDialog({
         position: initialData.position,
         employmentDate: initialData.employmentDate,
         salary: String(initialData.salary),
-        userId: initialData.userId != null ? String(initialData.userId) : '',
         password: '',
-        roleId: '',
-        status: 'ACTIVE',
+        status: linkedUser?.status ?? 'ACTIVE',
+        enabled: linkedUser?.enabled ?? true,
       });
-
       return;
     }
 
     form.reset(defaultValues);
-  }, [form, initialData, mode, open]);
+  }, [form, initialData, linkedUser, mode, open]);
 
-  const userOptions = [
-    {
-      value: '',
-      label: 'No linked user',
-    },
-    ...users.map((user) => ({
-      value: String(user.id),
-      label: `${user.firstName} ${user.lastName} (${user.email})`,
-    })),
-  ];
+  useEffect(() => {
+    if (mode !== 'create') {
+      return;
+    }
 
-  const roleOptions = roles.map((role) => ({
-    value: String(role.id),
-    label: role.description?.trim()
-      ? `${role.name} — ${role.description}`
-      : role.name,
-  }));
+    const nextEmail = buildEmail(firstName ?? '', lastName ?? '', companyName);
+    form.setValue('email', nextEmail, { shouldDirty: true, shouldValidate: true });
+  }, [companyName, firstName, form, lastName, mode, selectedPosition]);
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
-      <DialogTitle>
-        {mode === 'create' ? 'Create employee and user' : 'Edit employee'}
-      </DialogTitle>
+      <DialogTitle>{mode === 'create' ? 'Create employee' : 'Edit employee'}</DialogTitle>
 
       <DialogContent dividers>
-        <Stack spacing={3} sx={{ pt: 1 }}>
-          {mode === 'create' ? (
-            <Alert severity="info">
-              This flow creates the employee and linked user account in one request.
-            </Alert>
-          ) : null}
+        <Stack spacing={2.5} sx={{ pt: 1 }}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField name="firstName" control={form.control} label="First name" required />
+            </Grid>
 
-          <Stack spacing={2}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              Employee data
-            </Typography>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField name="lastName" control={form.control} label="Last name" required />
+            </Grid>
 
-            <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField name="jmbg" control={form.control} label="JMBG" required />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField name="phoneNumber" control={form.control} label="Phone number" required />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="position"
+                control={form.control}
+                label="Role"
+                options={positionOptions}
+                required
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormDatePicker
+                name="employmentDate"
+                control={form.control}
+                label="Employment date"
+                inputType="date"
+                required
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField
+                name="salary"
+                control={form.control}
+                label="Salary"
+                type="number"
+                required
+                slotProps={{
+                  htmlInput: {
+                    min: 0,
+                    step: '0.01',
+                  },
+                }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField
+                name="email"
+                control={form.control}
+                label="Email"
+                required
+                slotProps={{
+                  input: {
+                    readOnly: mode === 'create',
+                  },
+                }}
+              />
+            </Grid>
+
+            {mode === 'create' ? (
               <Grid size={{ xs: 12, md: 6 }}>
                 <FormTextField
-                  name="firstName"
+                  name="password"
                   control={form.control}
-                  label="First name"
+                  label="Password"
+                  type="password"
                   required
                 />
               </Grid>
+            ) : null}
 
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormTextField
-                  name="lastName"
-                  control={form.control}
-                  label="Last name"
-                  required
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormTextField
-                  name="jmbg"
-                  control={form.control}
-                  label="JMBG"
-                  required
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormTextField
-                  name="phoneNumber"
-                  control={form.control}
-                  label="Phone number"
-                  required
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormTextField
-                  name="email"
-                  control={form.control}
-                  label="Email"
-                  required
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormSelect
-                  name="position"
-                  control={form.control}
-                  label="Position"
-                  options={positionOptions}
-                  required
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormDatePicker
-                  name="employmentDate"
-                  control={form.control}
-                  label="Employment date"
-                  inputType="date"
-                  required
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormTextField
-                  name="salary"
-                  control={form.control}
-                  label="Salary"
-                  required
-                  type="number"
-                  slotProps={{
-                    htmlInput: {
-                      min: 0,
-                      step: '0.01',
-                    },
-                  }}
-                />
-              </Grid>
-
-              {mode === 'edit' ? (
-                <Grid size={{ xs: 12 }}>
+            {hasLinkedUser ? (
+              <>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormSelect
-                    name="userId"
+                    name="status"
                     control={form.control}
-                    label="Linked user"
-                    options={userOptions}
-                    helperText="Optional user linking is preserved for edit mode."
+                    label="Account status"
+                    options={userStatusSelectOptions}
+                    required
                   />
                 </Grid>
-              ) : null}
-            </Grid>
-          </Stack>
 
-          {mode === 'create' ? (
-            <>
-              <Divider />
-
-              <Stack spacing={2}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  User account
-                </Typography>
-
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormTextField
-                      name="password"
-                      control={form.control}
-                      label="Password"
-                      required
-                      type="password"
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormSelect
-                      name="roleId"
-                      control={form.control}
-                      label="Role"
-                      options={roleOptions}
-                      required
-                      helperText="Roles are loaded from the backend role list."
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormSelect
-                      name="status"
-                      control={form.control}
-                      label="User status"
-                      options={userStatusSelectOptions}
-                      required
-                    />
-                  </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <FormCheckbox
+                    name="enabled"
+                    control={form.control}
+                    label="Account enabled"
+                  />
                 </Grid>
-              </Stack>
-            </>
-          ) : null}
+              </>
+            ) : null}
+          </Grid>
         </Stack>
       </DialogContent>
 
@@ -290,13 +255,8 @@ export default function EmployeeFormDialog({
         <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-
-        <Button
-          variant="contained"
-          disabled={loading}
-          onClick={form.handleSubmit(onSubmit)}
-        >
-          {mode === 'create' ? 'Create employee and user' : 'Save changes'}
+        <Button variant="contained" disabled={loading} onClick={form.handleSubmit(onSubmit)}>
+          {mode === 'create' ? 'Create employee' : 'Save changes'}
         </Button>
       </DialogActions>
     </Dialog>

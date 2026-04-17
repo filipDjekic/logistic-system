@@ -25,18 +25,6 @@ export type EmployeeResponse = {
   companyName: string | null;
 };
 
-export type EmployeeCreateRequest = {
-  firstName: string;
-  lastName: string;
-  jmbg: string;
-  phoneNumber: string;
-  email: string;
-  position: EmployeePosition;
-  employmentDate: string;
-  salary: number;
-  userId?: number;
-};
-
 export type EmployeeCreateWithUserRequest = {
   firstName: string;
   lastName: string;
@@ -75,9 +63,10 @@ export type EmployeeUserOption = {
   lastName: string;
   email: string;
   enabled: boolean;
-  status: string;
+  status: UserStatus;
   roleId: number;
   roleName: string;
+  employeeActive: boolean;
 };
 
 export type EmployeeRoleOption = {
@@ -115,8 +104,7 @@ export type EmployeeFormValues = {
   position: EmployeePosition;
   employmentDate: string;
   salary: string;
-  userId: string;
   password: string;
-  roleId: string;
   status: UserStatus;
+  enabled: boolean;
 };

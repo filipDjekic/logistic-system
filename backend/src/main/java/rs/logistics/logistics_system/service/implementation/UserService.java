@@ -50,6 +50,7 @@ public class UserService implements UserServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
         validateSupportedRole(role);
+        validateAssignableRole(role);
         validateUniqueEmail(dto.getEmail());
         validateUniqueEmployeeData(dto.getEmail(), dto.getEmployee().getJmbg(), null);
 
@@ -89,6 +90,7 @@ public class UserService implements UserServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
         validateSupportedRole(role);
+        validateAssignableRole(role);
 
         User user = getUserOrThrow(id);
 
@@ -269,6 +271,7 @@ public class UserService implements UserServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
         validateSupportedRole(newRole);
+        validateAssignableRole(newRole);
 
         String oldRole = user.getRole().getName();
 
@@ -299,6 +302,28 @@ public class UserService implements UserServiceDefinition {
         if (role == null || !RoleCatalog.isSupported(role.getName())) {
             throw new BadRequestException("Unsupported system role");
         }
+    }
+
+    private void validateAssignableRole(Role role) {
+        if (role == null) {
+            throw new BadRequestException("Role is required");
+        }
+
+        String normalizedRole = RoleCatalog.normalize(role.getName());
+
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
+            if (RoleCatalog.OVERLORD.equals(normalizedRole) || RoleCatalog.COMPANY_ADMIN.equals(normalizedRole)) {
+                throw new ForbiddenException("You cannot assign this role.");
+            }
+
+            return;
+        }
+
+        throw new ForbiddenException("You cannot assign roles.");
     }
 
     private Employee toEmployee(User user, Company company, UserEmployeeCreate employeeData) {

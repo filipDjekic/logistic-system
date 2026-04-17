@@ -23,7 +23,6 @@ import rs.logistics.logistics_system.dto.statusUpdate.TransportOrderStatusUpdate
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
 
-@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
 @RestController
 @RequestMapping("/api/transport_orders")
 @RequiredArgsConstructor
@@ -31,36 +30,42 @@ public class TransportOrderController {
 
     private final TransportOrderServiceDefinition transportOrderService;
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PostMapping
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody TransportOrderCreate dto){
         TransportOrderResponse response = transportOrderService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PutMapping("/{id}")
     public ResponseEntity<TransportOrderResponse> update(@PathVariable Long id,@Valid @RequestBody TransportOrderUpdate dto) {
         TransportOrderResponse response = transportOrderService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @GetMapping("/{id}")
     public ResponseEntity<TransportOrderResponse> getById(@PathVariable Long id) {
         TransportOrderResponse response = transportOrderService.getById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @GetMapping
     public ResponseEntity<List<TransportOrderResponse>> getAll() {
         List<TransportOrderResponse> responses = transportOrderService.getAll();
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         transportOrderService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TransportOrderResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TransportOrderStatusUpdate dto) {
         TransportOrderResponse response = transportOrderService.changeStatus(id, dto.getStatus());

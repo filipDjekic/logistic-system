@@ -32,6 +32,7 @@ import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
+import rs.logistics.logistics_system.security.RoleCatalog;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
 @Service
@@ -109,6 +110,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         Role role = _roleRepository.findById(dto.getRoleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
+
+        validateAssignableRole(role);
 
         User user = new User(
                 passwordEncoder.encode(dto.getPassword()),
@@ -448,4 +451,27 @@ public class EmployeeService implements EmployeeServiceDefinition {
         return _employeeRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
+
+    private void validateAssignableRole(Role role) {
+        if (role == null || !RoleCatalog.isSupported(role.getName())) {
+            throw new BadRequestException("Unsupported system role");
+        }
+
+        String normalizedRole = RoleCatalog.normalize(role.getName());
+
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
+            if (RoleCatalog.OVERLORD.equals(normalizedRole) || RoleCatalog.COMPANY_ADMIN.equals(normalizedRole)) {
+                throw new ForbiddenException("You cannot assign this role.");
+            }
+
+            return;
+        }
+
+        throw new ForbiddenException("You cannot assign roles.");
+    }
+
 }

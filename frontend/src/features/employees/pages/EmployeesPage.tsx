@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '../../../core/auth/authStore';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import { useUpdateUser } from '../../users/hooks/useUpdateUser';
 import EmployeeFormDialog from '../components/EmployeeFormDialog';
 import EmployeesTable from '../components/EmployeesTable';
 import { employeesApi } from '../api/employeesApi';
@@ -19,6 +21,7 @@ import type {
 import { employeePositionOptions, type EmployeeFormValues } from '../validation/employeeSchema';
 
 export default function EmployeesPage() {
+  const auth = useAuthStore();
   const [filters, setFilters] = useState<EmployeeFiltersState>({
     search: '',
     position: 'ALL',
@@ -47,6 +50,7 @@ export default function EmployeesPage() {
 
   const createEmployeeMutation = useCreateEmployee();
   const updateEmployeeMutation = useUpdateEmployee();
+  const updateUserMutation = useUpdateUser();
 
   const users = useMemo<EmployeeUserOption[]>(() => usersQuery.data ?? [], [usersQuery.data]);
   const roles = useMemo<EmployeeRoleOption[]>(() => rolesQuery.data ?? [], [rolesQuery.data]);
@@ -72,6 +76,8 @@ export default function EmployeesPage() {
         (filters.linkedUser === 'LINKED' && employee.userId != null) ||
         (filters.linkedUser === 'UNLINKED' && employee.userId == null);
 
+      const linkedUser = employee.userId != null ? usersById[employee.userId] : null;
+
       const matchesSearch =
         search.length === 0 ||
         employee.firstName.toLowerCase().includes(search) ||
@@ -81,17 +87,36 @@ export default function EmployeesPage() {
         employee.phoneNumber.toLowerCase().includes(search) ||
         employee.position.toLowerCase().includes(search) ||
         String(employee.id).includes(search) ||
-        String(employee.userId ?? '').includes(search);
+        String(employee.userId ?? '').includes(search) ||
+        linkedUser?.status.toLowerCase().includes(search) ||
+        linkedUser?.roleName.toLowerCase().includes(search) ||
+        false;
 
       return matchesPosition && matchesLinkedUser && matchesSearch;
     });
-  }, [employeesQuery.data, filters]);
+  }, [employeesQuery.data, filters, usersById]);
+
+  const selectedLinkedUser = useMemo(() => {
+    if (!selectedEmployee?.userId) {
+      return null;
+    }
+
+    return usersById[selectedEmployee.userId] ?? null;
+  }, [selectedEmployee?.userId, usersById]);
 
   const isSaving =
-    createEmployeeMutation.isPending || updateEmployeeMutation.isPending;
+    createEmployeeMutation.isPending ||
+    updateEmployeeMutation.isPending ||
+    updateUserMutation.isPending;
 
   const handleSubmit = (values: EmployeeFormValues) => {
+    const matchedRole = roles.find((role) => role.name === values.position);
+
     if (dialogMode === 'create') {
+      if (!matchedRole) {
+        return;
+      }
+
       createEmployeeMutation.mutate(
         {
           firstName: values.firstName,
@@ -103,7 +128,7 @@ export default function EmployeesPage() {
           employmentDate: values.employmentDate,
           salary: Number(values.salary),
           password: values.password,
-          roleId: Number(values.roleId),
+          roleId: matchedRole.id,
           status: values.status,
         },
         {
@@ -119,6 +144,36 @@ export default function EmployeesPage() {
       return;
     }
 
+    if (selectedEmployee.userId && selectedLinkedUser && matchedRole) {
+      updateUserMutation.mutate(
+        {
+          id: selectedEmployee.userId,
+          data: {
+            firstName: values.firstName,
+            lastName: values.lastName,
+            email: values.email,
+            roleId: matchedRole.id,
+            enabled: values.enabled,
+            status: values.status,
+            employee: {
+              jmbg: values.jmbg,
+              phoneNumber: values.phoneNumber,
+              position: values.position,
+              employmentDate: values.employmentDate,
+              salary: Number(values.salary),
+              active: selectedLinkedUser.employeeActive,
+            },
+          },
+        },
+        {
+          onSuccess: () => {
+            setDialogOpen(false);
+          },
+        },
+      );
+      return;
+    }
+
     updateEmployeeMutation.mutate(
       {
         id: selectedEmployee.id,
@@ -131,7 +186,6 @@ export default function EmployeesPage() {
           position: values.position,
           employmentDate: values.employmentDate,
           salary: Number(values.salary),
-          userId: values.userId.trim() === '' ? undefined : Number(values.userId),
         },
       },
       {
@@ -147,7 +201,7 @@ export default function EmployeesPage() {
       <PageHeader
         overline="Workforce"
         title="Employees"
-        description="Create employees together with system access or edit existing employee records."
+        description="One flow for employee records and system access."
         actions={
           <Button
             variant="contained"
@@ -163,23 +217,20 @@ export default function EmployeesPage() {
         }
       />
 
-      <SectionCard
-        title="Employee list"
-        description="Employee creation now uses a unified employee + user flow, while edit mode preserves current linking support."
-      >
+      <SectionCard title="Employee list" description="">
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5}>
             <SearchToolbar
               value={filters.search}
               onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by name, email, JMBG, phone, position, ID or linked user ID"
+              placeholder="Search by name, email, JMBG, phone, role or status"
               fullWidth
             />
 
             <TextField
               select
               size="small"
-              label="Position"
+              label="Role"
               value={filters.position}
               onChange={(event) =>
                 setFilters((prev) => ({
@@ -200,7 +251,7 @@ export default function EmployeesPage() {
             <TextField
               select
               size="small"
-              label="Linked user"
+              label="Account"
               value={filters.linkedUser}
               onChange={(event) =>
                 setFilters((prev) => ({
@@ -211,8 +262,8 @@ export default function EmployeesPage() {
               sx={{ minWidth: { xs: '100%', lg: 180 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
-              <MenuItem value="LINKED">Linked</MenuItem>
-              <MenuItem value="UNLINKED">Unlinked</MenuItem>
+              <MenuItem value="LINKED">Has account</MenuItem>
+              <MenuItem value="UNLINKED">No account</MenuItem>
             </TextField>
 
             <Button
@@ -261,8 +312,9 @@ export default function EmployeesPage() {
         open={dialogOpen}
         mode={dialogMode}
         initialData={selectedEmployee}
-        users={users}
+        linkedUser={selectedLinkedUser}
         roles={roles}
+        companyName={auth.user?.company?.name ?? null}
         loading={isSaving}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}

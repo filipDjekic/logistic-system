@@ -21,7 +21,7 @@ import { userStatusOptions } from '../validation/userSchema';
 
 export default function UsersPage() {
   const auth = useAuthStore();
-  const isAdmin =
+  const canManage =
     auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.OVERLORD;
 
   const [filters, setFilters] = useState<UserFiltersState>({
@@ -35,7 +35,7 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const usersQuery = useUsers(true);
-  const rolesQuery = useRoles(isAdmin);
+  const rolesQuery = useRoles(canManage);
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
 
@@ -74,12 +74,12 @@ export default function UsersPage() {
         overline="Access control"
         title="Users"
         description={
-          isAdmin
+          canManage
             ? 'Manage user accounts together with their linked employee profiles.'
             : 'Review user accounts. Access is limited by the current backend authorization rules.'
         }
         actions={
-          isAdmin ? (
+          canManage ? (
             <Button
               variant="contained"
               onClick={() => {
