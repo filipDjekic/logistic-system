@@ -50,7 +50,7 @@ export const createUserSchema = z.object({
     .string()
     .trim()
     .min(1, 'Email is required')
-    .max(50, 'Email must be at most 50 characters')
+    .max(255, 'Email must be at most 255 characters')
     .email('Email is not valid')
     .regex(
       emailPattern,

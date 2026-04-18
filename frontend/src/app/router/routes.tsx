@@ -84,8 +84,18 @@ export const routes = [
         children: [
           { path: '/employees', element: <EmployeesPage /> },
           { path: '/employees/:id', element: <EmployeeDetailsPage /> },
-          { path: '/shifts', element: <ShiftsPage /> },
+
         ],
+      },
+    ],
+  },
+
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.HR_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [{ path: '/shifts', element: <ShiftsPage /> }],
       },
     ],
   },

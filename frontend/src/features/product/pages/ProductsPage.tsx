@@ -27,7 +27,6 @@ export default function ProductsPage() {
 
   const canManage =
     auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const query = useProducts();
@@ -70,7 +69,7 @@ export default function ProductsPage() {
       <PageHeader
         overline="Catalog"
         title="Products"
-        description="Manage company-scoped products used by inventory and transport order item lookups."
+        description="Company admin has read-only visibility here. Product maintenance stays with warehouse operations or OVERLORD."
         actions={
           canManage ? (
             <Button

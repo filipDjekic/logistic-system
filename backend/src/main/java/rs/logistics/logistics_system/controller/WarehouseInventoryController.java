@@ -21,13 +21,13 @@ public class WarehouseInventoryController {
 
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping
     public ResponseEntity<WarehouseInventoryResponse> create(@Valid @RequestBody WarehouseInventoryCreate dto) {
         return new ResponseEntity<>(warehouseInventoryService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PutMapping("/{warehouseId}/{productId}")
     public ResponseEntity<WarehouseInventoryResponse> update(
             @PathVariable Long warehouseId,
@@ -58,7 +58,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.findByProduct(productId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @DeleteMapping("/{warehouseId}/{productId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long warehouseId,

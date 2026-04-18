@@ -30,14 +30,14 @@ public class TransportOrderController {
 
     private final TransportOrderServiceDefinition transportOrderService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
     @PostMapping
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody TransportOrderCreate dto){
         TransportOrderResponse response = transportOrderService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
     @PutMapping("/{id}")
     public ResponseEntity<TransportOrderResponse> update(@PathVariable Long id,@Valid @RequestBody TransportOrderUpdate dto) {
         TransportOrderResponse response = transportOrderService.update(id, dto);
@@ -58,14 +58,14 @@ public class TransportOrderController {
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         transportOrderService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','DRIVER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TransportOrderResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TransportOrderStatusUpdate dto) {
         TransportOrderResponse response = transportOrderService.changeStatus(id, dto.getStatus());

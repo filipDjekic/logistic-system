@@ -21,7 +21,6 @@ import rs.logistics.logistics_system.dto.response.TransportOrderItemResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderItemUpdate;
 import rs.logistics.logistics_system.service.definition.TransportOrderItemServiceDefinition;
 
-@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
 @RestController
 @RequestMapping("/api/transport_order_items")
 @RequiredArgsConstructor
@@ -29,30 +28,35 @@ public class TransportOrderItemController {
 
     private final TransportOrderItemServiceDefinition transportOrderItemService;
 
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
     @PostMapping
     public ResponseEntity<TransportOrderItemResponse> createTransportOrderItem(@Valid @RequestBody TransportOrderItemCreate dto) {
         TransportOrderItemResponse response = transportOrderItemService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
     @PutMapping("/{id}")
     public ResponseEntity<TransportOrderItemResponse> updateTransportOrderItem(@PathVariable Long id,@Valid @RequestBody TransportOrderItemUpdate dto) {
         TransportOrderItemResponse response = transportOrderItemService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping("/{id}")
     public ResponseEntity<TransportOrderItemResponse> getTransportOrderItem(@PathVariable Long id) {
         TransportOrderItemResponse response = transportOrderItemService.getById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping
     public ResponseEntity<List<TransportOrderItemResponse>> getAllTransportOrderItems() {
         List<TransportOrderItemResponse> response = transportOrderItemService.getAll();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTransportOrderItem(@PathVariable Long id) {
         transportOrderItemService.delete(id);

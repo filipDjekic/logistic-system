@@ -25,10 +25,8 @@ const statusOptions = ['ALL', 'CREATED', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 
 export default function TransportOrdersPage() {
   const auth = useAuthStore();
 
-  const canManage =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.DISPATCHER;
+  const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.DISPATCHER;
+  const canReadAll = canManage || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DRIVER;
 
   const [filters, setFilters] = useState<TransportOrderFiltersState>({
     search: '',
@@ -136,7 +134,7 @@ export default function TransportOrdersPage() {
       <PageHeader
         overline="Operations"
         title="Transport Orders"
-        description="Manage transport orders, route assignments, statuses, and related shipment items."
+        description="Company admin has read-only oversight here. Transport creation, editing, and status execution remain dispatcher or OVERLORD operations."
         actions={
           canManage ? (
             <Button variant="contained" onClick={() => setDialogOpen(true)}>
@@ -149,7 +147,8 @@ export default function TransportOrdersPage() {
       <SectionCard
         title="Transport order list"
         description="Search and filter transport orders using confirmed backend data."
-        action={
+      >
+        <Stack spacing={2}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
             <SearchToolbar
               value={filters.search}
@@ -157,68 +156,41 @@ export default function TransportOrdersPage() {
               placeholder="Search orders, route, vehicle, or driver..."
             />
 
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={filters.status}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  status: event.target.value as TransportOrderFiltersState['status'],
-                }))
-              }
-              sx={{ minWidth: 180 }}
-            >
+            <TextField select size="small" label="Status" value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as TransportOrderFiltersState['status'] }))} sx={{ minWidth: 180 }}>
               {statusOptions.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
-                </MenuItem>
+                <MenuItem key={status} value={status}>{status}</MenuItem>
               ))}
             </TextField>
 
-            <TextField
-              select
-              size="small"
-              label="Priority"
-              value={filters.priority}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  priority: event.target.value as TransportOrderFiltersState['priority'],
-                }))
-              }
-              sx={{ minWidth: 180 }}
-            >
+            <TextField select size="small" label="Priority" value={filters.priority} onChange={(event) => setFilters((current) => ({ ...current, priority: event.target.value as TransportOrderFiltersState['priority'] }))} sx={{ minWidth: 180 }}>
               <MenuItem value="ALL">ALL</MenuItem>
               {transportOrderPriorityOptions.map((priority) => (
-                <MenuItem key={priority} value={priority}>
-                  {priority}
-                </MenuItem>
+                <MenuItem key={priority} value={priority}>{priority}</MenuItem>
               ))}
             </TextField>
           </Stack>
-        }
-      >
-        <TransportOrdersTable
-          rows={filteredRows}
-          warehousesById={warehousesById}
-          vehiclesById={vehiclesById}
-          employeesById={employeesById}
-          loading={transportOrdersQuery.isLoading || isLookupsLoading}
-          error={
-            transportOrdersQuery.isError ||
-            warehousesQuery.isError ||
-            vehiclesQuery.isError ||
-            employeesQuery.isError
-          }
-          onRetry={() => {
-            void transportOrdersQuery.refetch();
-            void warehousesQuery.refetch();
-            void vehiclesQuery.refetch();
-            void employeesQuery.refetch();
-          }}
-        />
+
+          <TransportOrdersTable
+            rows={filteredRows}
+            warehousesById={warehousesById}
+            vehiclesById={vehiclesById}
+            employeesById={employeesById}
+            loading={transportOrdersQuery.isLoading || isLookupsLoading}
+            error={
+              transportOrdersQuery.isError ||
+              warehousesQuery.isError ||
+              vehiclesQuery.isError ||
+              employeesQuery.isError
+            }
+            onRetry={() => {
+              void transportOrdersQuery.refetch();
+              void warehousesQuery.refetch();
+              void vehiclesQuery.refetch();
+              void employeesQuery.refetch();
+            }}
+            canManage={canManage}
+          />
+        </Stack>
       </SectionCard>
 
       {canManage ? (
@@ -227,31 +199,22 @@ export default function TransportOrdersPage() {
           warehouses={warehousesQuery.data ?? []}
           vehicles={vehiclesQuery.data ?? []}
           employees={employeesQuery.data ?? []}
-          loading={
-            createTransportOrderMutation.isPending ||
-            warehousesQuery.isLoading ||
-            vehiclesQuery.isLoading ||
-            employeesQuery.isLoading
-          }
+          loading={createTransportOrderMutation.isPending}
           onClose={() => setDialogOpen(false)}
           onSubmit={(values) => {
             createTransportOrderMutation.mutate(
               {
-                orderNumber: values.orderNumber.trim(),
-                description: values.description.trim(),
-                orderDate: values.orderDate,
-                departureTime: values.departureTime,
-                plannedArrivalTime: values.plannedArrivalTime,
+                orderNumber: values.orderNumber,
+                description: values.description,
                 priority: values.priority,
-                notes: (values.notes ?? '').trim() || undefined,
-                sourceWarehouseId: values.sourceWarehouseId,
-                destinationWarehouseId: values.destinationWarehouseId,
-                vehicleId: values.vehicleId,
-                assignedEmployeeId: values.assignedEmployeeId,
+                sourceWarehouseId: Number(values.sourceWarehouseId),
+                destinationWarehouseId: Number(values.destinationWarehouseId),
+                vehicleId: Number(values.vehicleId),
+                assignedEmployeeId: Number(values.assignedEmployeeId),
+                plannedDepartureTime: values.plannedDepartureTime,
+                expectedArrivalTime: values.expectedArrivalTime,
               },
-              {
-                onSuccess: () => setDialogOpen(false),
-              },
+              { onSuccess: () => setDialogOpen(false) },
             );
           }}
         />

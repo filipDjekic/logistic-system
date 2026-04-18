@@ -19,8 +19,10 @@ import { vehicleStatusOptions } from '../validation/vehicleSchema';
 export default function VehiclesPage() {
   const auth = useAuthStore();
 
-  const canManage =
+  const canCreate =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+
+  const canEdit = auth.user?.role === ROLES.OVERLORD;
 
   const [filters, setFilters] = useState<VehicleFiltersState>({
     search: '',
@@ -66,7 +68,7 @@ export default function VehiclesPage() {
         title="Vehicles"
         description="Manage fleet records and review vehicle availability."
         actions={
-          canManage ? (
+          canCreate ? (
             <Button
               variant="contained"
               onClick={() => {
@@ -134,16 +136,20 @@ export default function VehiclesPage() {
               void vehiclesQuery.refetch();
             }}
             onEdit={(vehicle) => {
+              if (!canEdit) {
+                return;
+              }
+
               setDialogMode('edit');
               setSelectedVehicle(vehicle);
               setDialogOpen(true);
             }}
-            canManage={canManage}
+            canManage={canEdit}
           />
         </Stack>
       </SectionCard>
 
-      {canManage ? (
+      {canCreate ? (
         <VehicleFormDialog
           open={dialogOpen}
           mode={dialogMode}

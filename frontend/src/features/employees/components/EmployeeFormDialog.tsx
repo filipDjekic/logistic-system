@@ -33,6 +33,7 @@ type EmployeeFormDialogProps = {
   roles: EmployeeRoleOption[];
   companyName?: string | null;
   loading?: boolean;
+  canEdit?: boolean;
   onClose: () => void;
   onSubmit: (values: EmployeeFormValues) => void;
 };
@@ -56,24 +57,42 @@ const defaultValues: EmployeeFormValues = {
   enabled: true,
 };
 
-function slugifyPart(value: string) {
-  return value
+function normalizeForEmail(value: string, allowHyphen: boolean) {
+  let normalized = value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '.')
-    .replace(/^\.+|\.+$/g, '');
+    .trim()
+    .toLowerCase();
+
+  normalized = allowHyphen
+    ? normalized.replace(/[^a-z0-9]+/g, '-')
+    : normalized.replace(/[^a-z0-9]+/g, '.');
+
+  normalized = normalized
+    .replace(/[-.]{2,}/g, allowHyphen ? '-' : '.')
+    .replace(/^[-.]+|[-.]+$/g, '');
+
+  return normalized;
 }
 
-function buildEmail(firstName: string, lastName: string, companyName?: string | null) {
-  const localPart = [slugifyPart(firstName), slugifyPart(lastName)].filter(Boolean).join('.');
-  const companyPart = slugifyPart(companyName ?? 'company') || 'company';
+function buildEmail(firstName: string, lastName: string, companyName?: string | null, position?: string) {
+  const localPart = [
+    normalizeForEmail(firstName, false),
+    normalizeForEmail(lastName, false),
+  ]
+    .filter(Boolean)
+    .join('.')
+    .replace(/\.+/g, '.')
+    .replace(/^\.|\.$/g, '');
+
+  const companyPart = normalizeForEmail(companyName ?? 'company', true) || 'company';
+  const positionPart = normalizeForEmail(position ?? 'worker', true) || 'worker';
 
   if (!localPart) {
     return '';
   }
 
-  return `${localPart}@${companyPart}.com`;
+  return `${localPart}@${companyPart}.${positionPart}.rs`;
 }
 
 export default function EmployeeFormDialog({
@@ -84,6 +103,7 @@ export default function EmployeeFormDialog({
   roles,
   companyName = null,
   loading = false,
+  canEdit = true,
   onClose,
   onSubmit,
 }: EmployeeFormDialogProps) {
@@ -137,7 +157,7 @@ export default function EmployeeFormDialog({
       return;
     }
 
-    const nextEmail = buildEmail(firstName ?? '', lastName ?? '', companyName);
+    const nextEmail = buildEmail(firstName ?? '', lastName ?? '', companyName, selectedPosition);
     form.setValue('email', nextEmail, { shouldDirty: true, shouldValidate: true });
   }, [companyName, firstName, form, lastName, mode, selectedPosition]);
 
@@ -171,6 +191,7 @@ export default function EmployeeFormDialog({
                 label="Role"
                 options={positionOptions}
                 required
+                disabled={mode === 'edit' && !canEdit}
               />
             </Grid>
 
@@ -181,6 +202,7 @@ export default function EmployeeFormDialog({
                 label="Employment date"
                 inputType="date"
                 required
+                disabled={mode === 'edit' && !canEdit}
               />
             </Grid>
 
@@ -191,6 +213,7 @@ export default function EmployeeFormDialog({
                 label="Salary"
                 type="number"
                 required
+                disabled={mode === 'edit' && !canEdit}
                 slotProps={{
                   htmlInput: {
                     min: 0,
@@ -208,7 +231,7 @@ export default function EmployeeFormDialog({
                 required
                 slotProps={{
                   input: {
-                    readOnly: mode === 'create',
+                    readOnly: true,
                   },
                 }}
               />
@@ -226,7 +249,7 @@ export default function EmployeeFormDialog({
               </Grid>
             ) : null}
 
-            {hasLinkedUser ? (
+            {hasLinkedUser && canEdit ? (
               <>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <FormSelect
@@ -239,11 +262,7 @@ export default function EmployeeFormDialog({
                 </Grid>
 
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <FormCheckbox
-                    name="enabled"
-                    control={form.control}
-                    label="Account enabled"
-                  />
+                  <FormCheckbox name="enabled" control={form.control} label="Account enabled" />
                 </Grid>
               </>
             ) : null}

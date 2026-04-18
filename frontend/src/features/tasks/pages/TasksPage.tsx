@@ -41,20 +41,27 @@ export default function TasksPage() {
   const auth = useAuthStore();
   const { showSnackbar } = useAppSnackbar();
 
-  const canManage =
+  const canListManaged =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.DISPATCHER ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
-  const managedTasksQuery = useTasks(canManage);
-  const myTasksQuery = useMyTasks(!canManage);
-  const tasksQuery = canManage ? managedTasksQuery : myTasksQuery;
+  const canMutateManaged =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+
+  const canCreateOrAssign = canMutateManaged || auth.user?.role === ROLES.COMPANY_ADMIN;
+
+  const managedTasksQuery = useTasks(canListManaged);
+  const myTasksQuery = useMyTasks(!canListManaged);
+  const tasksQuery = canListManaged ? managedTasksQuery : myTasksQuery;
 
   const employeesQuery = useQuery({
     queryKey: ['tasks', 'employees'],
     queryFn: transportOrdersApi.getEmployees,
-    enabled: canManage,
+    enabled: canCreateOrAssign,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -62,7 +69,7 @@ export default function TasksPage() {
   const transportOrdersQuery = useQuery({
     queryKey: ['tasks', 'transport-orders'],
     queryFn: transportOrdersApi.getAll,
-    enabled: canManage,
+    enabled: canCreateOrAssign,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -70,7 +77,7 @@ export default function TasksPage() {
   const stockMovementsQuery = useQuery({
     queryKey: ['tasks', 'stock-movements'],
     queryFn: stockMovementsApi.getAll,
-    enabled: canManage,
+    enabled: canCreateOrAssign,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -172,9 +179,9 @@ export default function TasksPage() {
       <PageHeader
         overline="Operations"
         title="Tasks"
-        description="Manage operational tasks and review automatically created transport and stock movement tasks."
+        description="Company admin can review all company tasks and create or assign them, but task editing, deletion, and status execution remain operational responsibilities."
         actions={
-          canManage ? (
+          canCreateOrAssign ? (
             <Button
               variant="contained"
               onClick={() => {
@@ -241,7 +248,7 @@ export default function TasksPage() {
               <MenuItem value="URGENT">URGENT</MenuItem>
             </TextField>
 
-            {canManage ? (
+            {canCreateOrAssign ? (
               <TextField
                 select
                 size="small"
@@ -279,23 +286,18 @@ export default function TasksPage() {
               sx={{ minWidth: { xs: '100%', md: 220 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
-              <MenuItem value="TRANSPORT_ORDER">Transport order</MenuItem>
-              <MenuItem value="STOCK_MOVEMENT">Stock movement</MenuItem>
-              <MenuItem value="UNLINKED">Unlinked</MenuItem>
+              <MenuItem value="UNLINKED">UNLINKED</MenuItem>
+              <MenuItem value="TRANSPORT_ORDER">TRANSPORT_ORDER</MenuItem>
+              <MenuItem value="STOCK_MOVEMENT">STOCK_MOVEMENT</MenuItem>
             </TextField>
 
             <Button
               variant="outlined"
               onClick={() => {
-                void tasksQuery.refetch();
-
-                if (canManage) {
-                  void Promise.all([
-                    employeesQuery.refetch(),
-                    transportOrdersQuery.refetch(),
-                    stockMovementsQuery.refetch(),
-                  ]);
-                }
+                void Promise.all([
+                  tasksQuery.refetch(),
+                  ...(canCreateOrAssign ? [employeesQuery.refetch(), transportOrdersQuery.refetch(), stockMovementsQuery.refetch()] : []),
+                ]);
               }}
               disabled={
                 tasksQuery.isFetching ||
@@ -312,52 +314,55 @@ export default function TasksPage() {
             rows={rows}
             loading={
               tasksQuery.isLoading ||
-              (canManage &&
-                (employeesQuery.isLoading ||
-                  transportOrdersQuery.isLoading ||
-                  stockMovementsQuery.isLoading))
+              (canCreateOrAssign &&
+                (employeesQuery.isLoading || transportOrdersQuery.isLoading || stockMovementsQuery.isLoading))
             }
             error={
               tasksQuery.isError ||
-              (canManage &&
-                (employeesQuery.isError ||
-                  transportOrdersQuery.isError ||
-                  stockMovementsQuery.isError))
+              (canCreateOrAssign &&
+                (employeesQuery.isError || transportOrdersQuery.isError || stockMovementsQuery.isError))
             }
             onRetry={() => {
-              void tasksQuery.refetch();
-
-              if (canManage) {
-                void Promise.all([
-                  employeesQuery.refetch(),
-                  transportOrdersQuery.refetch(),
-                  stockMovementsQuery.refetch(),
-                ]);
-              }
+              void Promise.all([
+                tasksQuery.refetch(),
+                ...(canCreateOrAssign ? [employeesQuery.refetch(), transportOrdersQuery.refetch(), stockMovementsQuery.refetch()] : []),
+              ]);
             }}
-            canManage={canManage}
+            canManage={canListManaged}
+            canMutate={canMutateManaged}
             onEdit={(row) => {
+              if (!canMutateManaged) {
+                return;
+              }
               setSelected(row);
               setOpen(true);
             }}
-            onDelete={(row) => setDeleteTarget(row)}
+            onDelete={(row) => {
+              if (!canMutateManaged) {
+                return;
+              }
+              setDeleteTarget(row);
+            }}
           />
         </Stack>
       </SectionCard>
 
-      {canManage ? (
+      {canCreateOrAssign ? (
         <TaskFormDialog
           open={open}
-          initialData={selected}
+          initialData={canMutateManaged ? selected : null}
           employees={employeesQuery.data ?? []}
           transportOrders={transportOrdersQuery.data ?? []}
           stockMovements={stockMovementsQuery.data ?? []}
           loading={createTask.isPending || updateTask.isPending}
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            setOpen(false);
+            setSelected(null);
+          }}
           onSubmit={(values: TaskFormValues) => {
             const payload = {
               title: values.title,
-              description: values.description,
+              description: values.description.trim() || undefined,
               dueDate: values.dueDate,
               priority: values.priority,
               assignedEmployeeId: Number(values.assignedEmployeeId),
@@ -365,35 +370,26 @@ export default function TasksPage() {
               stockMovementId: values.stockMovementId === '' ? null : Number(values.stockMovementId),
             };
 
-            if (selected) {
+            if (selected && canMutateManaged) {
               updateTask.mutate(
                 { id: selected.id, data: payload },
-                {
-                  onSuccess: () => {
-                    setOpen(false);
-                    setSelected(null);
-                  },
-                },
+                { onSuccess: () => { setOpen(false); setSelected(null); } },
               );
               return;
             }
 
-            createTask.mutate(payload, {
-              onSuccess: () => {
-                setOpen(false);
-              },
-            });
+            createTask.mutate(payload, { onSuccess: () => setOpen(false) });
           }}
         />
       ) : null}
 
       <ConfirmDialog
-        open={deleteTarget !== null}
+        open={Boolean(deleteTarget)}
         title="Delete task"
-        description={deleteTarget ? `Are you sure you want to delete "${deleteTarget.title}"?` : ''}
+        description={`Delete task \"${deleteTarget?.title ?? ''}\"?`}
         confirmText="Delete"
-        confirmColor="error"
-        isLoading={deleteTask.isPending}
+        severity="error"
+        loading={deleteTask.isPending}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (!deleteTarget) {

@@ -11,6 +11,7 @@ type Props = {
   error: boolean;
   onRetry: () => void;
   canManage: boolean;
+  canMutate: boolean;
   onEdit: (row: TaskResponse) => void;
   onDelete: (row: TaskResponse) => void;
   showLinks?: boolean;
@@ -22,6 +23,7 @@ export default function TasksTable({
   error,
   onRetry,
   canManage,
+  canMutate,
   onEdit,
   onDelete,
   showLinks = true,
@@ -71,7 +73,7 @@ export default function TasksTable({
       minWidth: 110,
       render: (row) => row.stockMovementId ?? '—',
     },
-    ...(canManage
+    ...(canMutate
       ? [
           {
             id: 'actions',

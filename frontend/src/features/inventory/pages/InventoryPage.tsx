@@ -27,7 +27,6 @@ export default function InventoryPage() {
 
   const canManage =
     auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const [filters, setFilters] = useState<InventoryFiltersState>({
@@ -72,7 +71,7 @@ export default function InventoryPage() {
       <PageHeader
         overline="Inventory"
         title="Inventory"
-        description="Review stock levels by warehouse and product using confirmed backend inventory records."
+        description="Company admin has read-only visibility here. Inventory manipulation remains an operational warehouse responsibility."
         actions={
           canManage ? (
             <Button

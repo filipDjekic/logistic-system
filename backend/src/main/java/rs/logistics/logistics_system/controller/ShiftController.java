@@ -39,28 +39,28 @@ public class ShiftController {
     private final EmployeeServiceDefinition employeeService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
     @PostMapping
     public ResponseEntity<ShiftResponse> createShift(@Valid @RequestBody ShiftCreate dto) {
         ShiftResponse shiftResponse = shiftService.create(dto);
         return new ResponseEntity<>(shiftResponse, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<ShiftResponse> updateShift(@PathVariable Long id, @Valid @RequestBody ShiftUpdate dto) {
         ShiftResponse shiftResponse = shiftService.update(id, dto);
         return ResponseEntity.ok(shiftResponse);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER') or @shiftSecurity.isOwner(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER') or @shiftSecurity.isOwner(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<ShiftResponse> getById(@PathVariable Long id) {
         ShiftResponse shiftResponse = shiftService.getById(id);
         return ResponseEntity.ok(shiftResponse);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
     @GetMapping
     public ResponseEntity<List<ShiftResponse>> getAllShifts() {
         List<ShiftResponse> response = shiftService.getAll();
@@ -80,14 +80,14 @@ public class ShiftController {
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
     @GetMapping("/by-date")
     public ResponseEntity<List<ShiftResponse>> getShiftsByDate(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<ShiftResponse> response = shiftService.getShiftsByDate(date);
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
     @GetMapping("/between-dates")
     public ResponseEntity<List<ShiftResponse>> getShiftsBetweenDates(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
@@ -96,14 +96,14 @@ public class ShiftController {
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         shiftService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
     @PatchMapping("/cancel-shift")
     public ResponseEntity<Void> cancelShift(@RequestParam Long id) {
         shiftService.cancelShift(id);

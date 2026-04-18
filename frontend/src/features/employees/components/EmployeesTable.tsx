@@ -11,6 +11,7 @@ type EmployeesTableProps = {
   error?: boolean;
   onRetry?: () => void;
   onEdit?: (employee: EmployeeResponse) => void;
+  canEdit?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 };
@@ -30,6 +31,7 @@ export default function EmployeesTable({
   error = false,
   onRetry,
   onEdit,
+  canEdit = false,
   emptyTitle,
   emptyDescription,
 }: EmployeesTableProps) {
@@ -118,22 +120,15 @@ export default function EmployeesTable({
       minWidth: 180,
       render: (row) => (
         <Stack direction="row" spacing={1} justifyContent="flex-end">
-          <Button
-            component={RouterLink}
-            to={`/employees/${row.id}`}
-            variant="text"
-            size="small"
-          >
+          <Button component={RouterLink} to={`/employees/${row.id}`} variant="text" size="small">
             Details
           </Button>
 
-          <Button
-            variant="text"
-            size="small"
-            onClick={() => onEdit?.(row)}
-          >
-            Edit
-          </Button>
+          {canEdit ? (
+            <Button variant="text" size="small" onClick={() => onEdit?.(row)}>
+              Edit
+            </Button>
+          ) : null}
         </Stack>
       ),
     },

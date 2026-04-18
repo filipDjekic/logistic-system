@@ -19,7 +19,7 @@ public class StockMovementController {
 
     private final StockMovementServiceDefinition stockMovementService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping
     public ResponseEntity<StockMovementResponse> create(@Valid @RequestBody StockMovementCreate dto) {
         return new ResponseEntity<>(stockMovementService.create(dto), HttpStatus.CREATED);

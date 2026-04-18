@@ -39,7 +39,7 @@ public class WarehouseController {
         return new ResponseEntity<>(warehouseService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @PutMapping("/{id}")
     public ResponseEntity<WarehouseResponse> update(@PathVariable Long id, @Valid @RequestBody WarehouseUpdate dto) {
         return new ResponseEntity<>(warehouseService.update(id, dto), HttpStatus.OK);
@@ -57,7 +57,7 @@ public class WarehouseController {
         return new ResponseEntity<>(warehouseService.getAll(), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         warehouseService.delete(id);
@@ -82,19 +82,19 @@ public class WarehouseController {
         return ResponseEntity.ok(warehouseService.getIncomingTransportOrders(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @GetMapping("/manager/{managerId}")
     public ResponseEntity<List<WarehouseResponse>> getByManager(@PathVariable Long managerId) {
         return ResponseEntity.ok(warehouseService.getByManager(managerId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @PatchMapping("/manager/assign")
     public ResponseEntity<WarehouseResponse> assignEmployee(@RequestParam Long employeeId, @RequestParam Long warehouseId){
         return ResponseEntity.ok(warehouseService.assignEmployee(warehouseId, employeeId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @PatchMapping("/warehouse/change-status")
     public ResponseEntity<WarehouseResponse> changeWarehouseStatus(@RequestParam Long id, @RequestParam WarehouseStatus status) {
         return new ResponseEntity<>(warehouseService.changeStatus(id, status), HttpStatus.OK);

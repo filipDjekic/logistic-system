@@ -18,7 +18,6 @@ export default function StockMovementsPage() {
 
   const canCreate =
     auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const [filters, setFilters] = useState<StockMovementFiltersState>({
@@ -106,7 +105,7 @@ export default function StockMovementsPage() {
       <PageHeader
         overline="Inventory"
         title="Stock Movements"
-        description="Review inbound, outbound, transfer, and adjustment inventory movements."
+        description="Company admin has read-only visibility here. Stock execution remains in warehouse operations scope."
         actions={
           canCreate ? (
             <Button variant="contained" onClick={() => setDialogOpen(true)}>

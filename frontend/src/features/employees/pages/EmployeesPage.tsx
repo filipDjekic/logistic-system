@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -22,6 +23,12 @@ import { employeePositionOptions, type EmployeeFormValues } from '../validation/
 
 export default function EmployeesPage() {
   const auth = useAuthStore();
+  const canEditEmployees = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+  const canCreateEmployees =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.HR_MANAGER ||
+    auth.user?.role === ROLES.COMPANY_ADMIN;
+
   const [filters, setFilters] = useState<EmployeeFiltersState>({
     search: '',
     position: 'ALL',
@@ -37,6 +44,7 @@ export default function EmployeesPage() {
   const usersQuery = useQuery({
     queryKey: ['users', 'all'],
     queryFn: employeesApi.getUsers,
+    enabled: canEditEmployees,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -140,7 +148,7 @@ export default function EmployeesPage() {
       return;
     }
 
-    if (!selectedEmployee) {
+    if (!canEditEmployees || !selectedEmployee) {
       return;
     }
 
@@ -201,19 +209,21 @@ export default function EmployeesPage() {
       <PageHeader
         overline="Workforce"
         title="Employees"
-        description="One flow for employee records and system access."
+        description="Company admin can onboard employees with automatically generated accounts. Edit and lifecycle management stay in HR or OVERLORD scope."
         actions={
-          <Button
-            variant="contained"
-            disabled={rolesQuery.isLoading || rolesQuery.isError}
-            onClick={() => {
-              setDialogMode('create');
-              setSelectedEmployee(null);
-              setDialogOpen(true);
-            }}
-          >
-            Create employee
-          </Button>
+          canCreateEmployees ? (
+            <Button
+              variant="contained"
+              disabled={rolesQuery.isLoading || rolesQuery.isError}
+              onClick={() => {
+                setDialogMode('create');
+                setSelectedEmployee(null);
+                setDialogOpen(true);
+              }}
+            >
+              Create employee
+            </Button>
+          ) : null
         }
       />
 
@@ -268,14 +278,12 @@ export default function EmployeesPage() {
 
             <Button
               variant="outlined"
-              disabled={
-                employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching
-              }
+              disabled={employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching}
               onClick={() => {
                 void Promise.all([
                   employeesQuery.refetch(),
-                  usersQuery.refetch(),
                   rolesQuery.refetch(),
+                  ...(canEditEmployees ? [usersQuery.refetch()] : []),
                 ]);
               }}
             >
@@ -286,22 +294,25 @@ export default function EmployeesPage() {
           <EmployeesTable
             rows={filteredRows}
             usersById={usersById}
-            loading={
-              employeesQuery.isLoading || usersQuery.isLoading || rolesQuery.isLoading
-            }
+            loading={employeesQuery.isLoading || usersQuery.isLoading || rolesQuery.isLoading}
             error={employeesQuery.isError || usersQuery.isError || rolesQuery.isError}
             onRetry={() => {
               void Promise.all([
                 employeesQuery.refetch(),
-                usersQuery.refetch(),
                 rolesQuery.refetch(),
+                ...(canEditEmployees ? [usersQuery.refetch()] : []),
               ]);
             }}
             onEdit={(employee) => {
+              if (!canEditEmployees) {
+                return;
+              }
+
               setDialogMode('edit');
               setSelectedEmployee(employee);
               setDialogOpen(true);
             }}
+            canEdit={canEditEmployees}
             emptyTitle="No employees found"
             emptyDescription="There are no employees for the current filter combination."
           />
@@ -316,6 +327,7 @@ export default function EmployeesPage() {
         roles={roles}
         companyName={auth.user?.company?.name ?? null}
         loading={isSaving}
+        canEdit={canEditEmployees}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}
       />

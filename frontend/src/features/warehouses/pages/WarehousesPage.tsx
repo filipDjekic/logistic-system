@@ -26,8 +26,10 @@ const warehouseStatusOptions = ['ACTIVE', 'INACTIVE', 'FULL', 'UNDER_MAINTENANCE
 export default function WarehousesPage() {
   const auth = useAuthStore();
 
-  const canManage =
+  const canCreate =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+
+  const canManage = auth.user?.role === ROLES.OVERLORD;
 
   const [filters, setFilters] = useState<WarehouseFiltersState>({
     search: '',
@@ -40,7 +42,7 @@ export default function WarehousesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const warehousesQuery = useWarehouses(true);
-  const managersQuery = useWarehouseManagers(canManage && dialogOpen && dialogMode === 'create');
+  const managersQuery = useWarehouseManagers(canCreate && dialogOpen && dialogMode === 'create');
   const createWarehouseMutation = useCreateWarehouse();
   const updateWarehouseMutation = useUpdateWarehouse();
   const deleteWarehouseMutation = useDeleteWarehouse();
@@ -74,7 +76,7 @@ export default function WarehousesPage() {
         title="Warehouses"
         description="Review and manage warehouses through the real backend warehouse endpoints."
         actions={
-          canManage ? (
+          canCreate ? (
             <Button
               variant="contained"
               onClick={() => {
@@ -152,7 +154,7 @@ export default function WarehousesPage() {
         </Stack>
       </SectionCard>
 
-      {canManage ? (
+      {canCreate ? (
         <WarehouseFormDialog
           open={dialogOpen}
           mode={dialogMode}

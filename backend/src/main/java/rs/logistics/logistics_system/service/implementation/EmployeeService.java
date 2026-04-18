@@ -1,6 +1,8 @@
 package rs.logistics.logistics_system.service.implementation;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -105,23 +107,12 @@ public class EmployeeService implements EmployeeServiceDefinition {
     @Transactional
     public EmployeeResponse createWithUser(EmployeeWithUserCreate dto) {
         validateUniqueJmbg(dto.getJmbg());
-        validateUniqueEmployeeEmail(dto.getEmail());
-        validateUniqueUserEmail(dto.getEmail());
 
         Role role = _roleRepository.findById(dto.getRoleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
         validateAssignableRole(role);
-
-        User user = new User(
-                passwordEncoder.encode(dto.getPassword()),
-                dto.getFirstName(),
-                dto.getLastName(),
-                dto.getEmail(),
-                dto.getStatus(),
-                role
-        );
-        user.setEnabled(true);
+        validatePositionMatchesRole(dto.getPosition(), role);
 
         Company company = null;
         if (!authenticatedUserProvider.isOverlord()) {
@@ -130,9 +121,22 @@ public class EmployeeService implements EmployeeServiceDefinition {
             if (company == null) {
                 throw new ForbiddenException("Authenticated user is not assigned to a company");
             }
-
-            user.setCompany(company);
         }
+
+        String generatedEmail = generateUniqueEmail(dto.getFirstName(), dto.getLastName(), company, dto.getPosition().name());
+        validateUniqueEmployeeEmail(generatedEmail);
+        validateUniqueUserEmail(generatedEmail);
+
+        User user = new User(
+                passwordEncoder.encode(dto.getPassword()),
+                dto.getFirstName(),
+                dto.getLastName(),
+                generatedEmail,
+                dto.getStatus(),
+                role
+        );
+        user.setEnabled(true);
+        user.setCompany(company);
 
         User savedUser = _userRepository.save(user);
 
@@ -141,7 +145,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 dto.getLastName(),
                 dto.getJmbg(),
                 dto.getPhoneNumber(),
-                dto.getEmail(),
+                generatedEmail,
                 dto.getPosition(),
                 dto.getEmploymentDate(),
                 dto.getSalary(),
@@ -158,7 +162,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 "USER",
                 savedUser.getId(),
                 savedUser.getEmail(),
-                "USER is created through employee onboarding flow (ID: " + savedUser.getId() + ")"
+                "USER is created through employee onboarding flow with generated email (ID: " + savedUser.getId() + ")"
         );
 
         auditFacade.recordCreate("EMPLOYEE", savedEmployee.getId(), savedEmployee.getEmail());
@@ -472,6 +476,100 @@ public class EmployeeService implements EmployeeServiceDefinition {
         }
 
         throw new ForbiddenException("You cannot assign roles.");
+    }
+
+    private void validatePositionMatchesRole(rs.logistics.logistics_system.enums.EmployeePosition position, Role role) {
+        if (position == null) {
+            throw new BadRequestException("Employee position is required");
+        }
+
+        String normalizedRole = RoleCatalog.normalize(role.getName());
+        if (!position.name().equals(normalizedRole)) {
+            throw new BadRequestException("Employee position must match selected role");
+        }
+    }
+
+    private String generateUniqueEmail(String firstName, String lastName, Company company, String position) {
+        String username = buildUniqueUsername(firstName, lastName);
+        String companyName = company != null ? company.getName() : authenticatedUserProvider.getAuthenticatedUser().getCompany() != null
+                ? authenticatedUserProvider.getAuthenticatedUser().getCompany().getName()
+                : "system";
+        String domain = buildCompanyDomain(companyName, position);
+        String candidate = username + "@" + domain;
+        int suffix = 1;
+
+        while (_userRepository.existsByEmailIgnoreCase(candidate) || _employeeRepository.existsByEmailIgnoreCase(candidate)) {
+            candidate = username + suffix + "@" + domain;
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private String buildUniqueUsername(String firstName, String lastName) {
+        String base = buildBaseUsername(firstName, lastName);
+        String candidate = base;
+        int suffix = 1;
+
+        while (emailLocalPartExists(candidate)) {
+            candidate = base + suffix;
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private boolean emailLocalPartExists(String localPart) {
+        return _userRepository.findAll().stream()
+                .map(User::getEmail)
+                .filter(email -> email != null && email.contains("@"))
+                .map(email -> email.substring(0, email.indexOf('@')))
+                .anyMatch(existing -> existing.equalsIgnoreCase(localPart));
+    }
+
+    private String buildBaseUsername(String firstName, String lastName) {
+        String normalizedFirstName = normalizeForUsername(firstName, false);
+        String normalizedLastName = normalizeForUsername(lastName, false);
+
+        String joined = (normalizedFirstName + "." + normalizedLastName)
+                .replaceAll("\\.+", ".")
+                .replaceAll("^\\.|\\.$", "");
+
+        if (joined.isBlank()) {
+            throw new BadRequestException("Unable to generate employee username");
+        }
+
+        return joined.length() > 40 ? joined.substring(0, 40) : joined;
+    }
+
+    private String buildCompanyDomain(String companyName, String position) {
+        String companySlug = normalizeForUsername(companyName, true);
+        if (companySlug.isBlank()) {
+            throw new BadRequestException("Unable to generate employee email domain");
+        }
+
+        String positionSlug = normalizeForUsername(position, true);
+        if (positionSlug.isBlank()) {
+            throw new BadRequestException("Unable to generate employee email domain");
+        }
+
+        return companySlug + "." + positionSlug + ".rs";
+    }
+
+    private String normalizeForUsername(String value, boolean allowHyphen) {
+        String normalized = Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+
+        normalized = allowHyphen
+                ? normalized.replaceAll("[^a-z0-9]+", "-")
+                : normalized.replaceAll("[^a-z0-9]+", ".");
+
+        normalized = normalized
+                .replaceAll("[-.]{2,}", allowHyphen ? "-" : ".")
+                .replaceAll("^[-.]+|[-.]+$", "");
+
+        return normalized;
     }
 
 }
