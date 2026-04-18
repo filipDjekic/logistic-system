@@ -209,7 +209,7 @@ export default function EmployeesPage() {
       <PageHeader
         overline="Workforce"
         title="Employees"
-        description="Company admin can onboard employees with automatically generated accounts. Edit and lifecycle management stay in HR or OVERLORD scope."
+        description="HR manager handles employee onboarding, updates, role-to-position alignment and lifecycle changes."
         actions={
           canCreateEmployees ? (
             <Button

@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -54,6 +56,7 @@ function formatDateTime(value: string | null | undefined) {
 }
 
 export default function EmployeeDetailsPage() {
+  const auth = useAuthStore();
   const params = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -82,6 +85,7 @@ export default function EmployeeDetailsPage() {
   const usersQuery = useQuery({
     queryKey: ['users', 'all'],
     queryFn: employeesApi.getUsers,
+    enabled: auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -228,6 +232,9 @@ export default function EmployeeDetailsPage() {
 
   const employee = employeeQuery.data;
   const linkedUser = employee.userId ? usersById[employee.userId] : null;
+  const canTerminateEmployee = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+  const canViewHistory = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+
 
   return (
     <Stack spacing={3}>
@@ -241,22 +248,26 @@ export default function EmployeeDetailsPage() {
               Back to list
             </Button>
 
-            <Button
-              variant="outlined"
-              component={RouterLink}
-              to={`/change-history?entityName=EMPLOYEE&entityId=${employee.id}`}
-            >
-              View history
-            </Button>
+            {canViewHistory ? (
+              <Button
+                variant="outlined"
+                component={RouterLink}
+                to={`/change-history?entityName=EMPLOYEE&entityId=${employee.id}`}
+              >
+                View history
+              </Button>
+            ) : null}
 
-            <Button
-              variant="contained"
-              color="warning"
-              disabled={terminateMutation.isPending || !employee.active}
-              onClick={() => terminateMutation.mutate(employee.id)}
-            >
-              Terminate employee
-            </Button>
+            {canTerminateEmployee ? (
+              <Button
+                variant="contained"
+                color="warning"
+                disabled={terminateMutation.isPending || !employee.active}
+                onClick={() => terminateMutation.mutate(employee.id)}
+              >
+                Terminate employee
+              </Button>
+            ) : null}
           </Stack>
         }
       />
