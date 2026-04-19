@@ -21,8 +21,10 @@ import { userStatusOptions } from '../validation/userSchema';
 
 export default function UsersPage() {
   const auth = useAuthStore();
-  const canManage =
-    auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.OVERLORD;
+
+  const canCreate = auth.user?.role === ROLES.OVERLORD;
+  const canEdit =
+    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
 
   const [filters, setFilters] = useState<UserFiltersState>({
     search: '',
@@ -35,7 +37,7 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const usersQuery = useUsers(true);
-  const rolesQuery = useRoles(canManage);
+  const rolesQuery = useRoles(canEdit);
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
 
@@ -43,7 +45,8 @@ export default function UsersPage() {
     const search = filters.search.trim().toLowerCase();
 
     return (usersQuery.data ?? []).filter((user) => {
-      const matchesStatus = filters.status === 'ALL' || user.status === filters.status;
+      const matchesStatus =
+        filters.status === 'ALL' || user.status === filters.status;
 
       const matchesEnabled =
         filters.enabled === 'ALL' ||
@@ -58,9 +61,9 @@ export default function UsersPage() {
         user.roleName.toLowerCase().includes(search) ||
         user.status.toLowerCase().includes(search) ||
         String(user.id).includes(search) ||
-        user.company?.name.toLowerCase().includes(search) ||
-        user.employee?.position.toLowerCase().includes(search) ||
-        user.employee?.jmbg.includes(search);
+        (user.company?.name ?? '').toLowerCase().includes(search) ||
+        (user.employee?.position ?? '').toLowerCase().includes(search) ||
+        (user.employee?.jmbg ?? '').includes(search);
 
       return matchesStatus && matchesEnabled && matchesSearch;
     });
@@ -74,12 +77,14 @@ export default function UsersPage() {
         overline="Access control"
         title="Users"
         description={
-          canManage
-            ? 'Manage user accounts together with their linked employee profiles.'
-            : 'Review user accounts. Access is limited by the current backend authorization rules.'
+          canCreate
+            ? 'Create, review and update user accounts together with their linked employee profiles.'
+            : canEdit
+              ? 'Review and update user accounts. User creation remains restricted to OVERLORD.'
+              : 'Review user accounts.'
         }
         actions={
-          canManage ? (
+          canCreate ? (
             <Button
               variant="contained"
               onClick={() => {
@@ -90,7 +95,7 @@ export default function UsersPage() {
             >
               Create user
             </Button>
-          ) : null
+          ) : undefined
         }
       />
 
@@ -102,7 +107,9 @@ export default function UsersPage() {
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
             <SearchToolbar
               value={filters.search}
-              onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+              onChange={(value) =>
+                setFilters((prev) => ({ ...prev, search: value }))
+              }
               placeholder="Search by name, email, role, company, employee position, JMBG or ID"
               fullWidth
             />
@@ -150,7 +157,8 @@ export default function UsersPage() {
               variant="outlined"
               onClick={() => {
                 void usersQuery.refetch();
-                if (isAdmin) {
+
+                if (canEdit) {
                   void rolesQuery.refetch();
                 }
               }}
@@ -167,17 +175,22 @@ export default function UsersPage() {
             onRetry={() => {
               void usersQuery.refetch();
             }}
-            onEdit={(user: UserResponse) => {
+            onEdit={(user) => {
+              if (!canEdit) {
+                return;
+              }
+
               setDialogMode('edit');
               setSelectedUser(user);
               setDialogOpen(true);
             }}
-            showAdminActions={isAdmin}
+            showDetails
+            showEdit={canEdit}
           />
         </Stack>
       </SectionCard>
 
-      {isAdmin ? (
+      {(canCreate || canEdit) && (
         <UserFormDialog
           open={dialogOpen}
           mode={dialogMode}
@@ -228,7 +241,7 @@ export default function UsersPage() {
             });
           }}
         />
-      ) : null}
+      )}
     </Stack>
   );
 }

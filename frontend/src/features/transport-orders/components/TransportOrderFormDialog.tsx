@@ -16,6 +16,7 @@ import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
 import type {
   EmployeeOption,
+  TransportOrderResponse,
   VehicleOption,
   WarehouseOption,
 } from '../types/transportOrder.types';
@@ -30,6 +31,7 @@ type TransportOrderFormDialogProps = {
   warehouses: WarehouseOption[];
   vehicles: VehicleOption[];
   employees: EmployeeOption[];
+  initialData?: TransportOrderResponse | null;
   loading?: boolean;
   onClose: () => void;
   onSubmit: (values: TransportOrderSchemaValues) => void;
@@ -54,11 +56,28 @@ const defaultValues: TransportOrderSchemaValues = {
   assignedEmployeeId: 0,
 };
 
+function toInputDateTime(value: string | null | undefined) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const pad = (part: number) => String(part).padStart(2, '0');
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function TransportOrderFormDialog({
   open,
   warehouses,
   vehicles,
   employees,
+  initialData = null,
   loading = false,
   onClose,
   onSubmit,
@@ -73,8 +92,25 @@ export default function TransportOrderFormDialog({
       return;
     }
 
-    form.reset(defaultValues);
-  }, [form, open]);
+    if (!initialData) {
+      form.reset(defaultValues);
+      return;
+    }
+
+    form.reset({
+      orderNumber: initialData.orderNumber,
+      description: initialData.description,
+      orderDate: toInputDateTime(initialData.orderDate),
+      departureTime: toInputDateTime(initialData.departureTime),
+      plannedArrivalTime: toInputDateTime(initialData.plannedArrivalTime),
+      priority: initialData.priority,
+      notes: initialData.notes ?? '',
+      sourceWarehouseId: initialData.sourceWarehouseId,
+      destinationWarehouseId: initialData.destinationWarehouseId,
+      vehicleId: initialData.vehicleId,
+      assignedEmployeeId: initialData.assignedEmployeeId,
+    });
+  }, [form, initialData, open]);
 
   const warehouseOptions = warehouses.map((warehouse) => ({
     value: warehouse.id,
@@ -86,21 +122,23 @@ export default function TransportOrderFormDialog({
     label: `${vehicle.registrationNumber} — ${vehicle.brand} ${vehicle.model}`,
   }));
 
-  const driverOptions = employees
-    .filter((employee) => employee.position === 'DRIVER')
-    .map((employee) => ({
-      value: employee.id,
-      label: `${employee.firstName} ${employee.lastName} (${employee.email})`,
-    }));
+  const driverOptions = employees.map((employee) => ({
+    value: employee.id,
+    label: `${employee.firstName} ${employee.lastName} (${employee.email})`,
+  }));
+
+  const isEditMode = initialData !== null;
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
-      <DialogTitle>Create transport order</DialogTitle>
+      <DialogTitle>{isEditMode ? 'Update transport order' : 'Create transport order'}</DialogTitle>
 
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            Fill the confirmed backend fields for transport order creation.
+            {isEditMode
+              ? 'Update transport order planning data while the order has not started.'
+              : 'Fill the confirmed backend fields for transport order creation.'}
           </Typography>
 
           <Grid container spacing={2}>
@@ -227,7 +265,7 @@ export default function TransportOrderFormDialog({
           disabled={loading}
           onClick={form.handleSubmit((values) => onSubmit(values))}
         >
-          Create
+          {isEditMode ? 'Update' : 'Create'}
         </Button>
       </DialogActions>
     </Dialog>

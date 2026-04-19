@@ -22,7 +22,7 @@ export type LoginRequest = {
 };
 
 export type LoginResponse = {
-  accessToken: string;
+  token: string;
   userId: number;
   role: Role;
 };

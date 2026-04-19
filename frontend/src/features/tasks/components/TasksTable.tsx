@@ -10,7 +10,6 @@ type Props = {
   loading: boolean;
   error: boolean;
   onRetry: () => void;
-  canManage: boolean;
   canMutate: boolean;
   onEdit: (row: TaskResponse) => void;
   onDelete: (row: TaskResponse) => void;
@@ -22,7 +21,6 @@ export default function TasksTable({
   loading,
   error,
   onRetry,
-  canManage,
   canMutate,
   onEdit,
   onDelete,
@@ -35,7 +33,11 @@ export default function TasksTable({
       minWidth: 220,
       render: (row) =>
         showLinks ? (
-          <Typography component={Link} to={`/tasks/${row.id}`} sx={{ color: 'primary.main', textDecoration: 'none' }}>
+          <Typography
+            component={Link}
+            to={`/tasks/${row.id}`}
+            sx={{ color: 'primary.main', textDecoration: 'none' }}
+          >
             {row.title}
           </Typography>
         ) : (
@@ -83,14 +85,26 @@ export default function TasksTable({
               <Stack direction="row" spacing={1.5}>
                 <Typography
                   component="button"
-                  sx={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'primary.main', p: 0 }}
+                  sx={{
+                    border: 0,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    color: 'primary.main',
+                    p: 0,
+                  }}
                   onClick={() => onEdit(row)}
                 >
                   Edit
                 </Typography>
                 <Typography
                   component="button"
-                  sx={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'error.main', p: 0 }}
+                  sx={{
+                    border: 0,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    color: 'error.main',
+                    p: 0,
+                  }}
                   onClick={() => onDelete(row)}
                 >
                   Delete

@@ -15,6 +15,7 @@ import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
@@ -57,6 +58,7 @@ public class TaskService implements TaskServiceDefinition {
         validateTaskCompanyContext(employee, transportOrder, stockMovement);
         validateLinkedProcessContext(transportOrder, stockMovement);
         validateAssigneeRole(employee, transportOrder, stockMovement);
+        validateWarehouseManagerMutationScope(transportOrder);
 
         Task task = TaskMapper.toEntity(dto, employee, transportOrder, stockMovement);
         task.setStatus(TaskStatus.NEW);
@@ -98,6 +100,7 @@ public class TaskService implements TaskServiceDefinition {
         validateTaskCompanyContext(employee, transportOrder, stockMovement);
         validateLinkedProcessContext(transportOrder, stockMovement);
         validateAssigneeRole(employee, transportOrder, stockMovement);
+        validateWarehouseManagerMutationScope(transportOrder);
 
         if (!task.getAssignedEmployee().getId().equals(employee.getId())) {
             validateReassign(task, employee);
@@ -195,6 +198,8 @@ public class TaskService implements TaskServiceDefinition {
     @Override
     public TaskResponse getById(Long id) {
         Task task = getTaskOrThrow(id);
+        validateWarehouseManagerTaskAccess(task);
+        validateDriverTaskAccess(task);
         return TaskMapper.toResponse(task);
     }
 
@@ -205,6 +210,7 @@ public class TaskService implements TaskServiceDefinition {
                 : _taskRepository.findAllByAssignedEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
 
         return tasks.stream()
+                .filter(this::canWarehouseManagerAccessTask)
                 .map(TaskMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -213,6 +219,7 @@ public class TaskService implements TaskServiceDefinition {
     @Transactional
     public void delete(Long id) {
         Task task = getTaskOrThrow(id);
+        validateWarehouseManagerTaskAccess(task);
 
         boolean canBeHardDeleted = _taskRepository.canBeHardDeleted(task.getId(), TaskStatus.NEW);
 
@@ -255,6 +262,8 @@ public class TaskService implements TaskServiceDefinition {
     @Transactional
     public TaskResponse changeStatus(Long id, TaskStatus status) {
         Task task = getTaskOrThrow(id);
+        validateWarehouseManagerTaskAccess(task);
+        validateDriverTaskMutationAccess();
 
         TaskStatus current = task.getStatus();
 
@@ -316,6 +325,7 @@ public class TaskService implements TaskServiceDefinition {
     @Transactional
     public TaskResponse assignTask(Long id, Long employeeId) {
         Task task = getTaskOrThrow(id);
+        validateWarehouseManagerTaskAccess(task);
 
         Employee oldEmployee = task.getAssignedEmployee();
         Employee employee = getActiveEmployee(employeeId);
@@ -363,6 +373,43 @@ public class TaskService implements TaskServiceDefinition {
         );
 
         return TaskMapper.toResponse(saved);
+    }
+
+
+    private boolean canWarehouseManagerAccessTask(Task task) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return true;
+        }
+
+        return task.getTransportOrder() == null;
+    }
+
+    private void validateWarehouseManagerTaskAccess(Task task) {
+        if (!canWarehouseManagerAccessTask(task)) {
+            throw new ForbiddenException("WAREHOUSE_MANAGER can access only warehouse tasks");
+        }
+    }
+
+    private void validateDriverTaskAccess(Task task) {
+        if (!authenticatedUserProvider.hasRole("DRIVER")) {
+            return;
+        }
+
+        if (task.getTransportOrder() == null) {
+            throw new ForbiddenException("DRIVER can access only transport-linked tasks");
+        }
+    }
+
+    private void validateDriverTaskMutationAccess() {
+        if (authenticatedUserProvider.hasRole("DRIVER")) {
+            throw new ForbiddenException("DRIVER cannot change task status");
+        }
+    }
+
+    private void validateWarehouseManagerMutationScope(TransportOrder transportOrder) {
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") && transportOrder != null) {
+            throw new ForbiddenException("WAREHOUSE_MANAGER cannot create or modify transport tasks");
+        }
     }
 
     private Employee getActiveEmployee(Long employeeId) {

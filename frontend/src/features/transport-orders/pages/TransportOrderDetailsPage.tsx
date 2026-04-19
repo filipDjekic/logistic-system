@@ -54,7 +54,21 @@ function formatWeight(value: number | null) {
   return `${value} kg`;
 }
 
-function getAllowedNextStatuses(status: TransportOrderStatus): TransportOrderStatus[] {
+function getAllowedNextStatuses(
+  status: TransportOrderStatus,
+  role: string | null | undefined,
+): TransportOrderStatus[] {
+  if (role === ROLES.DRIVER) {
+    switch (status) {
+      case 'ASSIGNED':
+        return ['IN_TRANSIT'];
+      case 'IN_TRANSIT':
+        return ['DELIVERED'];
+      default:
+        return [];
+    }
+  }
+
   switch (status) {
     case 'CREATED':
       return ['ASSIGNED', 'CANCELLED'];
@@ -66,6 +80,17 @@ function getAllowedNextStatuses(status: TransportOrderStatus): TransportOrderSta
     case 'CANCELLED':
     default:
       return [];
+  }
+}
+
+function getStatusActionLabel(status: TransportOrderStatus) {
+  switch (status) {
+    case 'IN_TRANSIT':
+      return 'Start transport';
+    case 'DELIVERED':
+      return 'Complete transport';
+    default:
+      return `Set status to ${status}`;
   }
 }
 
@@ -88,6 +113,12 @@ export default function TransportOrderDetailsPage() {
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.DISPATCHER;
+
+  const canChangeStatus =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.DRIVER;
+  const canViewHistory = auth.user?.role !== ROLES.DRIVER;
 
   const [selectedItem, setSelectedItem] = useState<TransportOrderItemResponse | null>(null);
 
@@ -265,7 +296,7 @@ export default function TransportOrderDetailsPage() {
   }, [itemForm, selectedItem]);
 
   const transportOrder = transportOrderQuery.data;
-  const nextStatuses = transportOrder ? getAllowedNextStatuses(transportOrder.status) : [];
+  const nextStatuses = transportOrder ? getAllowedNextStatuses(transportOrder.status, auth.user?.role) : [];
   const isEditableItems = canManageOrder && transportOrder?.status === 'CREATED';
 
   if (!Number.isFinite(transportOrderId)) {
@@ -327,12 +358,14 @@ export default function TransportOrderDetailsPage() {
         description={transportOrder.description}
         actions={
           <Stack direction="row" spacing={1}>
-            <Button
-              variant="outlined"
-              onClick={() => navigate(`/change-history?entityName=TRANSPORT_ORDER&entityId=${transportOrder.id}`)}
-            >
-              View history
-            </Button>
+            {canViewHistory ? (
+              <Button
+                variant="outlined"
+                onClick={() => navigate(`/change-history?entityName=TRANSPORT_ORDER&entityId=${transportOrder.id}`)}
+              >
+                View history
+              </Button>
+            ) : null}
             <Button variant="outlined" onClick={() => navigate('/transport-orders')}>
               Back to list
             </Button>
@@ -472,7 +505,7 @@ export default function TransportOrderDetailsPage() {
 
         <Grid size={{ xs: 12, lg: 4 }}>
           <SectionCard title="Status actions" description="Allowed transitions follow backend service rules.">
-            {!canManageOrder ? (
+            {!canChangeStatus ? (
               <EmptyState
                 title="No status actions available"
                 description="Your role can review the order but cannot change its status."
@@ -496,7 +529,7 @@ export default function TransportOrderDetailsPage() {
                       })
                     }
                   >
-                    Set status to {status}
+                    {getStatusActionLabel(status)}
                   </Button>
                 ))}
               </Stack>

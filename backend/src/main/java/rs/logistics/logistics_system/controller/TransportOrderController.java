@@ -44,14 +44,14 @@ public class TransportOrderController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
     @GetMapping("/{id}")
     public ResponseEntity<TransportOrderResponse> getById(@PathVariable Long id) {
         TransportOrderResponse response = transportOrderService.getById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
     @GetMapping
     public ResponseEntity<List<TransportOrderResponse>> getAll() {
         List<TransportOrderResponse> responses = transportOrderService.getAll();

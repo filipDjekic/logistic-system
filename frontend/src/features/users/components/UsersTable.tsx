@@ -12,7 +12,8 @@ type UsersTableProps = {
   error?: boolean;
   onRetry?: () => void;
   onEdit?: (user: UserResponse) => void;
-  showAdminActions?: boolean;
+  showDetails?: boolean;
+  showEdit?: boolean;
 };
 
 function formatDateTime(value: string | null | undefined) {
@@ -29,7 +30,8 @@ export default function UsersTable({
   error = false,
   onRetry,
   onEdit,
-  showAdminActions = false,
+  showDetails = true,
+  showEdit = false,
 }: UsersTableProps) {
   const columns: DataTableColumn<UserResponse>[] = [
     {
@@ -82,23 +84,23 @@ export default function UsersTable({
     {
       id: 'actions',
       header: 'Actions',
-      minWidth: 220,
       align: 'right',
+      minWidth: 180,
       render: (row) => (
         <Stack direction="row" spacing={1} justifyContent="flex-end">
-          {showAdminActions ? (
+          {showDetails ? (
             <Button
               component={RouterLink}
               to={`/users/${row.id}`}
+              variant="text"
               size="small"
-              variant="outlined"
             >
               Details
             </Button>
           ) : null}
 
-          {showAdminActions && onEdit ? (
-            <Button size="small" variant="contained" onClick={() => onEdit(row)}>
+          {showEdit ? (
+            <Button variant="text" size="small" onClick={() => onEdit?.(row)}>
               Edit
             </Button>
           ) : null}
@@ -111,11 +113,13 @@ export default function UsersTable({
     <DataTable
       columns={columns}
       rows={rows}
+      getRowId={(row) => row.id}
       loading={loading}
       error={error}
       onRetry={onRetry}
       emptyTitle="No users found"
       emptyDescription="There are no user records for the current filter combination."
+      minWidth={1220}
     />
   );
 }

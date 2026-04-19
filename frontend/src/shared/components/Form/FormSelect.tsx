@@ -27,7 +27,7 @@ type FormSelectProps<
   name: TName;
   control: Control<TFieldValues>;
   label: string;
-  options: FormSelectOption[];
+  options: readonly FormSelectOption[];
   rules?: RegisterOptions<TFieldValues, TName>;
   helperText?: string;
   formControlProps?: FormControlProps;

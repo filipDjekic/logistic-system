@@ -53,6 +53,7 @@ export default function TasksPage() {
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const canCreateOrAssign = canMutateManaged || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const isWarehouseManager = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const managedTasksQuery = useTasks(canListManaged);
   const myTasksQuery = useMyTasks(!canListManaged);
@@ -69,7 +70,7 @@ export default function TasksPage() {
   const transportOrdersQuery = useQuery({
     queryKey: ['tasks', 'transport-orders'],
     queryFn: transportOrdersApi.getAll,
-    enabled: canCreateOrAssign,
+    enabled: canCreateOrAssign && !isWarehouseManager,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -98,13 +99,40 @@ export default function TasksPage() {
   const [selected, setSelected] = useState<TaskResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TaskResponse | null>(null);
 
+  const assignableEmployees = useMemo(
+    () =>
+      (employeesQuery.data ?? []).filter(
+        (employee) =>
+          !isWarehouseManager ||
+          employee.position === 'WAREHOUSE_MANAGER' ||
+          employee.position === 'WORKER',
+      ),
+    [employeesQuery.data, isWarehouseManager],
+  );
+
+  const managedRows = useMemo(
+    () =>
+      (tasksQuery.data ?? []).filter((task) => {
+        if (isWarehouseManager && task.transportOrderId != null) {
+          return false;
+        }
+
+        if (auth.user?.role === ROLES.DRIVER && task.transportOrderId == null) {
+          return false;
+        }
+
+        return true;
+      }),
+    [auth.user?.role, isWarehouseManager, tasksQuery.data],
+  );
+
   const employeesById = useMemo(
     () =>
-      (employeesQuery.data ?? []).reduce<Record<number, string>>((acc, employee) => {
+      assignableEmployees.reduce<Record<number, string>>((acc, employee) => {
         acc[employee.id] = `${employee.firstName} ${employee.lastName}`;
         return acc;
       }, {}),
-    [employeesQuery.data],
+    [assignableEmployees],
   );
 
   const transportOrdersById = useMemo(
@@ -128,7 +156,7 @@ export default function TasksPage() {
   const rows = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
 
-    return (tasksQuery.data ?? []).filter((task) => {
+    return managedRows.filter((task) => {
       const linkedProcessType = resolveLinkedProcessType(task);
       const assignedEmployeeName = employeesById[task.assignedEmployeeId] ?? '';
       const transportOrderLabel =
@@ -166,20 +194,18 @@ export default function TasksPage() {
         matchesLinkedProcessType
       );
     });
-  }, [
-    employeesById,
-    filters,
-    stockMovementsById,
-    tasksQuery.data,
-    transportOrdersById,
-  ]);
+  }, [employeesById, filters, stockMovementsById, managedRows, transportOrdersById]);
 
   return (
     <Stack spacing={3}>
       <PageHeader
         overline="Operations"
         title="Tasks"
-        description="Company admin can review all company tasks and create or assign them, but task editing, deletion, and status execution remain operational responsibilities."
+        description={
+          auth.user?.role === ROLES.DRIVER
+            ? 'Driver can review only transport-linked tasks assigned to the authenticated driver.'
+            : 'Company admin can review all company tasks and create or assign them, but task editing, deletion, and status execution remain operational responsibilities.'
+        }
         actions={
           canCreateOrAssign ? (
             <Button
@@ -264,7 +290,7 @@ export default function TasksPage() {
                 sx={{ minWidth: { xs: '100%', md: 220 } }}
               >
                 <MenuItem value="ALL">All</MenuItem>
-                {(employeesQuery.data ?? []).map((employee) => (
+                {assignableEmployees.map((employee) => (
                   <MenuItem key={employee.id} value={employee.id}>
                     {employee.firstName} {employee.lastName}
                   </MenuItem>
@@ -280,7 +306,8 @@ export default function TasksPage() {
               onChange={(event) =>
                 setFilters((prev) => ({
                   ...prev,
-                  linkedProcessType: event.target.value as TaskFiltersState['linkedProcessType'],
+                  linkedProcessType:
+                    event.target.value as TaskFiltersState['linkedProcessType'],
                 }))
               }
               sx={{ minWidth: { xs: '100%', md: 220 } }}
@@ -296,7 +323,13 @@ export default function TasksPage() {
               onClick={() => {
                 void Promise.all([
                   tasksQuery.refetch(),
-                  ...(canCreateOrAssign ? [employeesQuery.refetch(), transportOrdersQuery.refetch(), stockMovementsQuery.refetch()] : []),
+                  ...(canCreateOrAssign
+                    ? [
+                        employeesQuery.refetch(),
+                        transportOrdersQuery.refetch(),
+                        stockMovementsQuery.refetch(),
+                      ]
+                    : []),
                 ]);
               }}
               disabled={
@@ -315,30 +348,39 @@ export default function TasksPage() {
             loading={
               tasksQuery.isLoading ||
               (canCreateOrAssign &&
-                (employeesQuery.isLoading || transportOrdersQuery.isLoading || stockMovementsQuery.isLoading))
+                (employeesQuery.isLoading ||
+                  transportOrdersQuery.isLoading ||
+                  stockMovementsQuery.isLoading))
             }
             error={
               tasksQuery.isError ||
               (canCreateOrAssign &&
-                (employeesQuery.isError || transportOrdersQuery.isError || stockMovementsQuery.isError))
+                (employeesQuery.isError ||
+                  transportOrdersQuery.isError ||
+                  stockMovementsQuery.isError))
             }
             onRetry={() => {
               void Promise.all([
                 tasksQuery.refetch(),
-                ...(canCreateOrAssign ? [employeesQuery.refetch(), transportOrdersQuery.refetch(), stockMovementsQuery.refetch()] : []),
+                ...(canCreateOrAssign
+                  ? [
+                      employeesQuery.refetch(),
+                      transportOrdersQuery.refetch(),
+                      stockMovementsQuery.refetch(),
+                    ]
+                  : []),
               ]);
             }}
-            canManage={canListManaged}
             canMutate={canMutateManaged}
             onEdit={(row) => {
-              if (!canMutateManaged) {
+              if (!canMutateManaged || (isWarehouseManager && row.transportOrderId != null)) {
                 return;
               }
               setSelected(row);
               setOpen(true);
             }}
             onDelete={(row) => {
-              if (!canMutateManaged) {
+              if (!canMutateManaged || (isWarehouseManager && row.transportOrderId != null)) {
                 return;
               }
               setDeleteTarget(row);
@@ -351,10 +393,11 @@ export default function TasksPage() {
         <TaskFormDialog
           open={open}
           initialData={canMutateManaged ? selected : null}
-          employees={employeesQuery.data ?? []}
-          transportOrders={transportOrdersQuery.data ?? []}
+          employees={assignableEmployees}
+          transportOrders={isWarehouseManager ? [] : transportOrdersQuery.data ?? []}
           stockMovements={stockMovementsQuery.data ?? []}
           loading={createTask.isPending || updateTask.isPending}
+          allowTransportOrderLink={!isWarehouseManager}
           onClose={() => {
             setOpen(false);
             setSelected(null);
@@ -366,14 +409,24 @@ export default function TasksPage() {
               dueDate: values.dueDate,
               priority: values.priority,
               assignedEmployeeId: Number(values.assignedEmployeeId),
-              transportOrderId: values.transportOrderId === '' ? null : Number(values.transportOrderId),
-              stockMovementId: values.stockMovementId === '' ? null : Number(values.stockMovementId),
+              transportOrderId: isWarehouseManager
+                ? null
+                : values.transportOrderId === ''
+                  ? null
+                  : Number(values.transportOrderId),
+              stockMovementId:
+                values.stockMovementId === '' ? null : Number(values.stockMovementId),
             };
 
             if (selected && canMutateManaged) {
               updateTask.mutate(
                 { id: selected.id, data: payload },
-                { onSuccess: () => { setOpen(false); setSelected(null); } },
+                {
+                  onSuccess: () => {
+                    setOpen(false);
+                    setSelected(null);
+                  },
+                },
               );
               return;
             }
@@ -386,10 +439,10 @@ export default function TasksPage() {
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         title="Delete task"
-        description={`Delete task \"${deleteTarget?.title ?? ''}\"?`}
+        description={`Delete task "${deleteTarget?.title ?? ''}"?`}
         confirmText="Delete"
-        severity="error"
-        loading={deleteTask.isPending}
+        confirmColor="error"
+        isLoading={deleteTask.isPending}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (!deleteTarget) {

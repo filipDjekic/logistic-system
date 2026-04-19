@@ -25,13 +25,13 @@ public class StockMovementController {
         return new ResponseEntity<>(stockMovementService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @GetMapping("/{id}")
     public ResponseEntity<StockMovementResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.getById(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @GetMapping
     public ResponseEntity<List<StockMovementResponse>> getAll() {
         return ResponseEntity.ok(stockMovementService.getAll());

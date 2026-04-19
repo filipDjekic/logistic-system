@@ -19,6 +19,8 @@ type TransportOrdersTableProps = {
   loading?: boolean;
   error?: boolean;
   onRetry?: () => void;
+  canManage?: boolean;
+  onEdit?: (row: TransportOrderResponse) => void;
 };
 
 function formatDateTime(value: string | null) {
@@ -45,6 +47,8 @@ export default function TransportOrdersTable({
   loading = false,
   error = false,
   onRetry,
+  canManage = false,
+  onEdit,
 }: TransportOrdersTableProps) {
   const navigate = useNavigate();
 
@@ -166,17 +170,28 @@ export default function TransportOrdersTable({
     {
       id: 'actions',
       header: 'Actions',
-      minWidth: 120,
+      minWidth: 170,
       align: 'right',
-      render: (row) => (
-        <Button
-          variant="text"
-          size="small"
-          onClick={() => navigate(`/transport-orders/${row.id}`)}
-        >
-          Details
-        </Button>
-      ),
+      render: (row) => {
+        const canEditRow = canManage && (row.status === 'CREATED' || row.status === 'ASSIGNED');
+
+        return (
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            {canEditRow && onEdit ? (
+              <Button variant="text" size="small" onClick={() => onEdit(row)}>
+                Edit
+              </Button>
+            ) : null}
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => navigate(`/transport-orders/${row.id}`)}
+            >
+              Details
+            </Button>
+          </Stack>
+        );
+      },
     },
   ];
 

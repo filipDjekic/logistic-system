@@ -133,7 +133,7 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
             Role: {auth.user?.role ?? '-'}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            User ID: {auth.user?.userId ?? '-'}
+            User ID: {auth.user?.id ?? '-'}
           </Typography>
         </Box>
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -7,6 +7,8 @@ import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { useRoles } from '../../roles/hooks/useRoles';
 import UserFormDialog from '../components/UserFormDialog';
@@ -52,18 +54,26 @@ function formatDate(value: string | null | undefined) {
 }
 
 export default function UserDetailsPage() {
+  const auth = useAuthStore();
   const params = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
+  const [editOpen, setEditOpen] = useState(false);
+
   const userId = Number(params.id);
 
   const userQuery = useUser(Number.isFinite(userId) ? userId : null);
-  const rolesQuery = useRoles(true);
+  const rolesQuery = useRoles(
+    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER,
+  );
   const updateUserMutation = useUpdateUser();
 
-  const [editOpen, setEditOpen] = useState(false);
+  const canEdit =
+    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+
+  const canToggle = auth.user?.role === ROLES.OVERLORD;
 
   const enableDisableMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -82,7 +92,9 @@ export default function UserDetailsPage() {
       });
 
       await queryClient.invalidateQueries({ queryKey: ['users'] });
-      await queryClient.invalidateQueries({ queryKey: ['users', 'details', userId] });
+      await queryClient.invalidateQueries({
+        queryKey: ['users', 'details', userId],
+      });
     },
     onError: (error) => {
       showSnackbar({
@@ -91,10 +103,6 @@ export default function UserDetailsPage() {
       });
     },
   });
-
-  const canToggle = useMemo(() => {
-    return Boolean(userQuery.data);
-  }, [userQuery.data]);
 
   if (!Number.isFinite(userId)) {
     return (
@@ -158,18 +166,22 @@ export default function UserDetailsPage() {
               View history
             </Button>
 
-            <Button variant="outlined" onClick={() => setEditOpen(true)}>
-              Edit user
-            </Button>
+            {canEdit && (
+              <Button variant="outlined" onClick={() => setEditOpen(true)}>
+                Edit user
+              </Button>
+            )}
 
-            <Button
-              variant="contained"
-              color={user.enabled ? 'warning' : 'success'}
-              disabled={!canToggle || enableDisableMutation.isPending}
-              onClick={() => enableDisableMutation.mutate(user.enabled)}
-            >
-              {user.enabled ? 'Disable user' : 'Enable user'}
-            </Button>
+            {canToggle && (
+              <Button
+                variant="contained"
+                color={user.enabled ? 'warning' : 'success'}
+                disabled={enableDisableMutation.isPending}
+                onClick={() => enableDisableMutation.mutate(user.enabled)}
+              >
+                {user.enabled ? 'Disable user' : 'Enable user'}
+              </Button>
+            )}
           </Stack>
         }
       />
@@ -261,9 +273,7 @@ export default function UserDetailsPage() {
                   label="Employee active"
                   value={
                     user.employee ? (
-                      <StatusChip
-                        value={user.employee.active ? 'ACTIVE' : 'INACTIVE'}
-                      />
+                      <StatusChip value={user.employee.active ? 'ACTIVE' : 'INACTIVE'} />
                     ) : (
                       '—'
                     )
@@ -275,37 +285,49 @@ export default function UserDetailsPage() {
         </Grid>
       </Grid>
 
-      <UserFormDialog
-        open={editOpen}
-        mode="edit"
-        initialData={user}
-        roles={rolesQuery.data ?? []}
-        loading={updateUserMutation.isPending}
-        onClose={() => setEditOpen(false)}
-        onSubmitCreate={() => {}}
-        onSubmitUpdate={(values: UpdateUserFormValues) => {
-          updateUserMutation.mutate({
-            id: user.id,
-            data: {
-              firstName: values.firstName,
-              lastName: values.lastName,
-              email: values.email,
-              roleId: Number(values.roleId),
-              enabled: values.enabled,
-              status: values.status,
-              employee: {
-                jmbg: values.employeeJmbg,
-                phoneNumber: values.employeePhoneNumber,
-                position: values.employeePosition,
-                employmentDate: values.employeeEmploymentDate,
-                salary: Number(values.employeeSalary),
-                active: values.employeeActive,
+      {canEdit && (
+        <UserFormDialog
+          open={editOpen}
+          mode="edit"
+          initialData={user}
+          roles={rolesQuery.data ?? []}
+          loading={updateUserMutation.isPending}
+          onClose={() => setEditOpen(false)}
+          onSubmitCreate={() => undefined}
+          onSubmitUpdate={(values: UpdateUserFormValues) => {
+            updateUserMutation.mutate(
+              {
+                id: user.id,
+                data: {
+                  firstName: values.firstName,
+                  lastName: values.lastName,
+                  email: values.email,
+                  roleId: Number(values.roleId),
+                  enabled: values.enabled,
+                  status: values.status,
+                  employee: {
+                    jmbg: values.employeeJmbg,
+                    phoneNumber: values.employeePhoneNumber,
+                    position: values.employeePosition,
+                    employmentDate: values.employeeEmploymentDate,
+                    salary: Number(values.employeeSalary),
+                    active: values.employeeActive,
+                  },
+                },
               },
-            },
-          });
-          setEditOpen(false);
-        }}
-      />
+              {
+                onSuccess: async () => {
+                  setEditOpen(false);
+                  await queryClient.invalidateQueries({ queryKey: ['users'] });
+                  await queryClient.invalidateQueries({
+                    queryKey: ['users', 'details', user.id],
+                  });
+                },
+              },
+            );
+          }}
+        />
+      )}
     </Stack>
   );
 }

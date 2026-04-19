@@ -45,7 +45,7 @@ public class UserController {
         return ResponseEntity.ok(userResponse);
     }
 
-    @PreAuthorize("hasRole('OVERLORD') or @authenticatedUserProvider.isSelf(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER') or @authenticatedUserProvider.isSelf(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getById(@PathVariable Long id) {
         UserResponse response = userService.getById(id);

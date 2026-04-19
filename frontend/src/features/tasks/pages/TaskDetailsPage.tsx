@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
@@ -9,6 +11,7 @@ import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
 import { transportOrdersApi } from '../../transport-orders/api/transportOrdersApi';
 import TaskStatusChip from '../components/TaskStatusChip';
 import { useTask } from '../hooks/useTask';
+import { useUpdateTaskStatus } from '../hooks/useUpdateTaskStatus';
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
@@ -17,14 +20,32 @@ function formatDateTime(value: string) {
 export default function TaskDetailsPage() {
   const params = useParams();
   const navigate = useNavigate();
+  const auth = useAuthStore();
   const taskId = Number(params.id);
 
   const taskQuery = useTask(Number.isFinite(taskId) ? taskId : null);
+  const updateTaskStatusMutation = useUpdateTaskStatus();
+
+  const canViewHistory =
+    auth.user?.role !== ROLES.DRIVER && auth.user?.role !== ROLES.WORKER;
+
+  const canResolveEmployee =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+
+  const canResolveTransportOrder = auth.user?.role !== ROLES.WORKER;
+
+  const canResolveStockMovement =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const employeesQuery = useQuery({
     queryKey: ['task-details', 'employees'],
     queryFn: transportOrdersApi.getEmployees,
-    enabled: Number.isFinite(taskId),
+    enabled: Number.isFinite(taskId) && canResolveEmployee,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -32,7 +53,7 @@ export default function TaskDetailsPage() {
   const transportOrdersQuery = useQuery({
     queryKey: ['task-details', 'transport-orders'],
     queryFn: transportOrdersApi.getAll,
-    enabled: Number.isFinite(taskId),
+    enabled: Number.isFinite(taskId) && canResolveTransportOrder,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -40,7 +61,7 @@ export default function TaskDetailsPage() {
   const stockMovementsQuery = useQuery({
     queryKey: ['task-details', 'stock-movements'],
     queryFn: stockMovementsApi.getAll,
-    enabled: Number.isFinite(taskId),
+    enabled: Number.isFinite(taskId) && canResolveStockMovement,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -101,6 +122,15 @@ export default function TaskDetailsPage() {
 
   const task = taskQuery.data;
 
+  const statusActions =
+    auth.user?.role === ROLES.WORKER
+      ? task.status === 'NEW'
+        ? [{ label: 'Start task', status: 'IN_PROGRESS' as const }]
+        : task.status === 'IN_PROGRESS'
+          ? [{ label: 'Complete task', status: 'COMPLETED' as const }]
+          : []
+      : [];
+
   return (
     <Stack spacing={3}>
       <PageHeader
@@ -109,12 +139,14 @@ export default function TaskDetailsPage() {
         description="Review task details and linked transport or stock movement context."
         actions={
           <Stack direction="row" spacing={1}>
-            <Button
-              variant="outlined"
-              onClick={() => navigate(`/change-history?entityName=TASK&entityId=${task.id}`)}
-            >
-              View history
-            </Button>
+            {canViewHistory ? (
+              <Button
+                variant="outlined"
+                onClick={() => navigate(`/change-history?entityName=TASK&entityId=${task.id}`)}
+              >
+                View history
+              </Button>
+            ) : null}
             <Button variant="outlined" onClick={() => navigate('/tasks')}>Back to list</Button>
           </Stack>
         }
@@ -128,7 +160,22 @@ export default function TaskDetailsPage() {
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-            <TaskStatusChip status={task.status} />
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <TaskStatusChip status={task.status} />
+              {statusActions.map((action) => (
+                <Button
+                  key={action.status}
+                  size="small"
+                  variant="outlined"
+                  disabled={updateTaskStatusMutation.isPending}
+                  onClick={() => {
+                    updateTaskStatusMutation.mutate({ id: task.id, status: action.status });
+                  }}
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </Stack>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" color="text.secondary">Assigned employee</Typography>

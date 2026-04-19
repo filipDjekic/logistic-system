@@ -8,6 +8,7 @@ import type {
   TransportOrderItemUpdateRequest,
   TransportOrderResponse,
   TransportOrderStatus,
+  TransportOrderUpdateRequest,
   VehicleOption,
   WarehouseOption,
 } from '../types/transportOrder.types';
@@ -76,6 +77,12 @@ export const transportOrdersApi = {
   create(payload: TransportOrderCreateRequest) {
     return apiClient
       .post<TransportOrderResponse>('/api/transport_orders', payload)
+      .then((response) => response.data);
+  },
+
+  update(id: number, payload: TransportOrderUpdateRequest) {
+    return apiClient
+      .put<TransportOrderResponse>(`/api/transport_orders/${id}`, payload)
       .then((response) => response.data);
   },
 
@@ -153,13 +160,15 @@ export const transportOrdersApi = {
     return apiClient
       .get<EmployeeResponse[]>('/api/employees')
       .then((response) =>
-        response.data.map<EmployeeOption>((employee) => ({
-          id: employee.id,
-          firstName: employee.firstName,
-          lastName: employee.lastName,
-          email: employee.email,
-          position: employee.position,
-        })),
+        response.data
+          .filter((employee) => employee.position === 'DRIVER')
+          .map<EmployeeOption>((employee) => ({
+            id: employee.id,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            email: employee.email,
+            position: employee.position,
+          })),
       );
   },
 

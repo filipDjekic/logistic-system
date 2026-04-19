@@ -15,6 +15,7 @@ type Props = {
   transportOrders: TransportOrderResponse[];
   stockMovements: StockMovementResponse[];
   loading?: boolean;
+  allowTransportOrderLink?: boolean;
   onClose: () => void;
   onSubmit: (values: TaskFormValues) => void;
 };
@@ -36,6 +37,7 @@ export default function TaskFormDialog({
   transportOrders,
   stockMovements,
   loading = false,
+  allowTransportOrderLink = true,
   onClose,
   onSubmit,
 }: Props) {
@@ -104,6 +106,7 @@ export default function TaskFormDialog({
               }))}
             />
           </Grid>
+{allowTransportOrderLink ? (
           <Grid size={{ xs: 12, md: 6 }}>
             <FormSelect
               name="transportOrderId"
@@ -118,6 +121,7 @@ export default function TaskFormDialog({
               ]}
             />
           </Grid>
+          ) : null}
           <Grid size={{ xs: 12, md: 6 }}>
             <FormSelect
               name="stockMovementId"

@@ -11,6 +11,7 @@ import TransportOrderFormDialog from '../components/TransportOrderFormDialog';
 import TransportOrdersTable from '../components/TransportOrdersTable';
 import { useCreateTransportOrder } from '../hooks/useCreateTransportOrder';
 import { useTransportOrders } from '../hooks/useTransportOrders';
+import { useUpdateTransportOrder } from '../hooks/useUpdateTransportOrder';
 import type {
   EmployeeOption,
   TransportOrderFiltersState,
@@ -26,7 +27,7 @@ export default function TransportOrdersPage() {
   const auth = useAuthStore();
 
   const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.DISPATCHER;
-  const canReadAll = canManage || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DRIVER;
+  const canReadAll = canManage || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER || auth.user?.role === ROLES.DRIVER;
 
   const [filters, setFilters] = useState<TransportOrderFiltersState>({
     search: '',
@@ -35,6 +36,7 @@ export default function TransportOrdersPage() {
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<TransportOrderResponse | null>(null);
 
   const transportOrdersQuery = useTransportOrders(true);
   const warehousesQuery = useQuery({
@@ -59,6 +61,7 @@ export default function TransportOrdersPage() {
   });
 
   const createTransportOrderMutation = useCreateTransportOrder();
+  const updateTransportOrderMutation = useUpdateTransportOrder();
 
   const warehousesById = useMemo<Record<number, WarehouseOption>>(
     () =>
@@ -129,15 +132,24 @@ export default function TransportOrdersPage() {
   const isLookupsLoading =
     warehousesQuery.isLoading || vehiclesQuery.isLoading || employeesQuery.isLoading;
 
+  const isDialogLoading =
+    createTransportOrderMutation.isPending || updateTransportOrderMutation.isPending;
+
   return (
     <Stack spacing={3}>
       <PageHeader
         overline="Operations"
         title="Transport Orders"
-        description="Company admin has read-only oversight here. Transport creation, editing, and status execution remain dispatcher or OVERLORD operations."
+        description="Dispatcher manages transport planning, driver assignment, vehicle assignment, and company transport visibility."
         actions={
           canManage ? (
-            <Button variant="contained" onClick={() => setDialogOpen(true)}>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setSelectedOrder(null);
+                setDialogOpen(true);
+              }}
+            >
               Create transport order
             </Button>
           ) : null
@@ -171,7 +183,7 @@ export default function TransportOrdersPage() {
           </Stack>
 
           <TransportOrdersTable
-            rows={filteredRows}
+            rows={canReadAll ? filteredRows : []}
             warehousesById={warehousesById}
             vehiclesById={vehiclesById}
             employeesById={employeesById}
@@ -189,6 +201,10 @@ export default function TransportOrdersPage() {
               void employeesQuery.refetch();
             }}
             canManage={canManage}
+            onEdit={(order) => {
+              setSelectedOrder(order);
+              setDialogOpen(true);
+            }}
           />
         </Stack>
       </SectionCard>
@@ -199,23 +215,48 @@ export default function TransportOrdersPage() {
           warehouses={warehousesQuery.data ?? []}
           vehicles={vehiclesQuery.data ?? []}
           employees={employeesQuery.data ?? []}
-          loading={createTransportOrderMutation.isPending}
-          onClose={() => setDialogOpen(false)}
+          initialData={selectedOrder}
+          loading={isDialogLoading}
+          onClose={() => {
+            setDialogOpen(false);
+            setSelectedOrder(null);
+          }}
           onSubmit={(values) => {
-            createTransportOrderMutation.mutate(
-              {
-                orderNumber: values.orderNumber,
-                description: values.description,
-                priority: values.priority,
-                sourceWarehouseId: Number(values.sourceWarehouseId),
-                destinationWarehouseId: Number(values.destinationWarehouseId),
-                vehicleId: Number(values.vehicleId),
-                assignedEmployeeId: Number(values.assignedEmployeeId),
-                plannedDepartureTime: values.plannedDepartureTime,
-                expectedArrivalTime: values.expectedArrivalTime,
+            const payload = {
+              orderNumber: values.orderNumber,
+              description: values.description,
+              orderDate: values.orderDate,
+              departureTime: values.departureTime,
+              plannedArrivalTime: values.plannedArrivalTime,
+              priority: values.priority,
+              notes: values.notes || undefined,
+              sourceWarehouseId: Number(values.sourceWarehouseId),
+              destinationWarehouseId: Number(values.destinationWarehouseId),
+              vehicleId: Number(values.vehicleId),
+              assignedEmployeeId: Number(values.assignedEmployeeId),
+            };
+
+            if (selectedOrder) {
+              updateTransportOrderMutation.mutate(
+                {
+                  id: selectedOrder.id,
+                  payload,
+                },
+                {
+                  onSuccess: () => {
+                    setDialogOpen(false);
+                    setSelectedOrder(null);
+                  },
+                },
+              );
+              return;
+            }
+
+            createTransportOrderMutation.mutate(payload, {
+              onSuccess: () => {
+                setDialogOpen(false);
               },
-              { onSuccess: () => setDialogOpen(false) },
-            );
+            });
           }}
         />
       ) : null}

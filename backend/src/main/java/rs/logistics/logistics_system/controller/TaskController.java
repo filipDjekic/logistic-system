@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.controller;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,7 @@ import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
@@ -54,6 +56,11 @@ public class TaskController {
     @GetMapping("/{id}")
     public ResponseEntity<TaskResponse> get(@PathVariable Long id) {
         TaskResponse response = taskService.getById(id);
+
+        if (authenticatedUserProvider.hasRole("DRIVER") && response.getTransportOrderId() == null) {
+            throw new ForbiddenException("DRIVER can access only transport-linked tasks");
+        }
+
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -74,6 +81,13 @@ public class TaskController {
         }
 
         List<TaskResponse> response = employeeService.getTasksByEmployeeId(user.getEmployee().getId());
+
+        if (authenticatedUserProvider.hasRole("DRIVER")) {
+            response = response.stream()
+                    .filter(task -> task.getTransportOrderId() != null)
+                    .collect(Collectors.toList());
+        }
+
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -84,7 +98,7 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','WAREHOUSE_MANAGER','WORKER') or @taskSecurity.isAssignedToCurrentUser(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TaskResponse> updateStatus(@PathVariable Long id, @RequestBody TaskStatus dto) {
         TaskResponse response = taskService.changeStatus(id, dto);
