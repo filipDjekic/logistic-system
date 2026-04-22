@@ -29,7 +29,8 @@ export default function WarehousesPage() {
   const canCreate =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
-  const canManage = auth.user?.role === ROLES.OVERLORD;
+  const canManage =
+    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const [filters, setFilters] = useState<WarehouseFiltersState>({
     search: '',
@@ -51,15 +52,18 @@ export default function WarehousesPage() {
     const search = filters.search.trim().toLowerCase();
 
     return (warehousesQuery.data ?? []).filter((warehouse) => {
-      const matchesStatus = filters.status === 'ALL' || warehouse.status === filters.status;
+      const matchesStatus =
+        filters.status === 'ALL' || warehouse.status === filters.status;
 
       const matchesSearch =
         search.length === 0 ||
         warehouse.name.toLowerCase().includes(search) ||
         warehouse.city.toLowerCase().includes(search) ||
         warehouse.address.toLowerCase().includes(search) ||
-        warehouse.managerName?.toLowerCase().includes(search) ||
-        warehouse.companyName?.toLowerCase().includes(search) ||
+        warehouse.status.toLowerCase().includes(search) ||
+        (warehouse.managerName ?? '').toLowerCase().includes(search) ||
+        (warehouse.companyName ?? '').toLowerCase().includes(search) ||
+        String(warehouse.capacity).includes(search) ||
         String(warehouse.id).includes(search);
 
       return matchesStatus && matchesSearch;
@@ -74,7 +78,7 @@ export default function WarehousesPage() {
       <PageHeader
         overline="Storage"
         title="Warehouses"
-        description="Review and manage warehouses through the real backend warehouse endpoints."
+        description="Manage warehouse records, managers and capacity overview."
         actions={
           canCreate ? (
             <Button
@@ -93,14 +97,14 @@ export default function WarehousesPage() {
 
       <SectionCard
         title="Warehouse list"
-        description="Warehouse data is scoped by backend authorization and ownership rules."
+        description="Warehouse data is loaded through backend company-scoped endpoints."
       >
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
             <SearchToolbar
               value={filters.search}
               onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by warehouse, city, address, manager, company or ID"
+              placeholder="Search by name, city, address, manager, company or ID"
               fullWidth
             />
 
@@ -128,7 +132,11 @@ export default function WarehousesPage() {
             <Button
               variant="outlined"
               onClick={() => {
-                void Promise.all([warehousesQuery.refetch(), managersQuery.refetch()]);
+                void warehousesQuery.refetch();
+
+                if (canCreate && dialogOpen && dialogMode === 'create') {
+                  void managersQuery.refetch();
+                }
               }}
               disabled={warehousesQuery.isFetching || managersQuery.isFetching}
             >
@@ -144,11 +152,21 @@ export default function WarehousesPage() {
               void warehousesQuery.refetch();
             }}
             onEdit={(warehouse) => {
+              if (!canManage) {
+                return;
+              }
+
               setDialogMode('edit');
               setSelectedWarehouse(warehouse);
               setDialogOpen(true);
             }}
-            onDelete={(warehouse) => setDeleteTarget(warehouse)}
+            onDelete={(warehouse) => {
+              if (!canManage) {
+                return;
+              }
+
+              setDeleteTarget(warehouse);
+            }}
             canManage={canManage}
           />
         </Stack>

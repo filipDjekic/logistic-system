@@ -31,6 +31,10 @@ export const vehiclesApi = {
       .then((response) => response.data);
   },
 
+  delete(id: number) {
+    return apiClient.delete(`/api/vehicles/${id}`);
+  },
+
   changeStatus(id: number, status: VehicleStatus) {
     return apiClient
       .patch<VehicleResponse>(`/api/vehicles/${id}/status`, null, {

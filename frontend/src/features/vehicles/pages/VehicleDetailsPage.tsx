@@ -14,6 +14,8 @@ import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import VehicleStatusChip from '../components/VehicleStatusChip';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { vehiclesApi } from '../api/vehiclesApi';
 import { useVehicle } from '../hooks/useVehicle';
@@ -55,12 +57,16 @@ function InfoRow({ label, value }: InfoRowProps) {
 }
 
 export default function VehicleDetailsPage() {
+  const auth = useAuthStore();
   const params = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
   const vehicleId = Number(params.id);
+
+  const canManage =
+    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const vehicleQuery = useVehicle(Number.isFinite(vehicleId) ? vehicleId : null);
   const vehicle = vehicleQuery.data;
@@ -83,7 +89,9 @@ export default function VehicleDetailsPage() {
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({ queryKey: ['vehicles', 'details', variables.id] }),
+        queryClient.invalidateQueries({
+          queryKey: ['vehicles', 'details', variables.id],
+        }),
       ]);
 
       setSelectedStatus('');
@@ -110,7 +118,7 @@ export default function VehicleDetailsPage() {
       <Stack spacing={3}>
         <PageHeader
           overline="Fleet"
-          title="Vehicle Details"
+          title="Vehicle details"
           actions={
             <Button variant="outlined" onClick={() => navigate('/vehicles')}>
               Back to list
@@ -144,7 +152,9 @@ export default function VehicleDetailsPage() {
           <Stack direction="row" spacing={1}>
             <Button
               variant="outlined"
-              onClick={() => navigate(`/change-history?entityName=VEHICLE&entityId=${vehicle.id}`)}
+              onClick={() =>
+                navigate(`/change-history?entityName=VEHICLE&entityId=${vehicle.id}`)
+              }
             >
               View history
             </Button>
@@ -191,63 +201,68 @@ export default function VehicleDetailsPage() {
               </Stack>
             </Stack>
           </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <InfoRow label="Company" value={vehicle.companyName ?? '—'} />
+          </Grid>
         </Grid>
       </SectionCard>
 
-      <SectionCard
-        title="Status change"
-        description="Uses the dedicated backend status endpoint with backend transition rules."
-      >
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          alignItems={{ xs: 'stretch', md: 'center' }}
+      {canManage ? (
+        <SectionCard
+          title="Status change"
+          description="Uses the dedicated backend status endpoint with backend transition rules."
         >
-          <TextField
-            select
-            size="small"
-            label="Next status"
-            value={selectedStatus}
-            onChange={(event) => setSelectedStatus(event.target.value as VehicleStatus)}
-            sx={{ minWidth: { xs: '100%', md: 240 } }}
-            disabled={nextStatuses.length === 0 || changeStatusMutation.isPending}
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1.5}
+            alignItems={{ xs: 'stretch', md: 'center' }}
           >
-            {nextStatuses.length === 0 ? (
-              <MenuItem value="" disabled>
-                No available transitions
-              </MenuItem>
-            ) : (
-              nextStatuses.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
+            <TextField
+              select
+              size="small"
+              label="Next status"
+              value={selectedStatus}
+              onChange={(event) => setSelectedStatus(event.target.value as VehicleStatus)}
+              sx={{ minWidth: { xs: '100%', md: 240 } }}
+              disabled={nextStatuses.length === 0 || changeStatusMutation.isPending}
+            >
+              {nextStatuses.length === 0 ? (
+                <MenuItem value="" disabled>
+                  No available transitions
                 </MenuItem>
-              ))
-            )}
-          </TextField>
+              ) : (
+                nextStatuses.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))
+              )}
+            </TextField>
 
-          <Button
-            variant="contained"
-            disabled={!selectedStatus || changeStatusMutation.isPending}
-            onClick={() => {
-              if (!selectedStatus) {
-                return;
-              }
+            <Button
+              variant="contained"
+              disabled={!selectedStatus || changeStatusMutation.isPending}
+              onClick={() => {
+                if (!selectedStatus) {
+                  return;
+                }
 
-              changeStatusMutation.mutate({
-                id: vehicle.id,
-                status: selectedStatus,
-              });
-            }}
-          >
-            Update status
-          </Button>
-        </Stack>
+                changeStatusMutation.mutate({
+                  id: vehicle.id,
+                  status: selectedStatus,
+                });
+              }}
+            >
+              Update status
+            </Button>
+          </Stack>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          Final validation still stays on the backend. If the vehicle has active transport
-          constraints, backend validation message will be shown.
-        </Typography>
-      </SectionCard>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Final validation still stays on the backend. If the vehicle has active
+            transport constraints, the backend validation message will be shown.
+          </Typography>
+        </SectionCard>
+      ) : null}
     </Stack>
   );
 }

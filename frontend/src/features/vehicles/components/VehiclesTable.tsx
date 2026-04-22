@@ -1,4 +1,5 @@
-import { Stack, Typography } from '@mui/material';
+import { Button, Stack, Typography } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import type { DataTableColumn } from '../../../shared/types/common.types';
@@ -10,6 +11,7 @@ type Props = {
   error: boolean;
   onRetry: () => void;
   onEdit: (vehicle: VehicleResponse) => void;
+  onDelete: (vehicle: VehicleResponse) => void;
   canManage: boolean;
 };
 
@@ -19,6 +21,7 @@ export default function VehiclesTable({
   error,
   onRetry,
   onEdit,
+  onDelete,
   canManage,
 }: Props) {
   const columns: DataTableColumn<VehicleResponse>[] = [
@@ -68,30 +71,41 @@ export default function VehiclesTable({
         </Stack>
       ),
     },
-    ...(canManage
-      ? [
-          {
-            id: 'actions',
-            header: 'Actions',
-            minWidth: 120,
-            render: (row: VehicleResponse) => (
-              <Typography
-                component="button"
-                sx={{
-                  border: 0,
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  color: 'primary.main',
-                  p: 0,
-                }}
-                onClick={() => onEdit(row)}
-              >
-                Edit
-              </Typography>
-            ),
-          },
-        ]
-      : []),
+    {
+      id: 'actions',
+      header: 'Actions',
+      minWidth: canManage ? 260 : 120,
+      align: 'right',
+      render: (row) => (
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          <Button
+            component={RouterLink}
+            to={`/vehicles/${row.id}`}
+            size="small"
+            variant="outlined"
+          >
+            Details
+          </Button>
+
+          {canManage ? (
+            <Button size="small" variant="contained" onClick={() => onEdit(row)}>
+              Edit
+            </Button>
+          ) : null}
+
+          {canManage ? (
+            <Button
+              size="small"
+              color="error"
+              variant="text"
+              onClick={() => onDelete(row)}
+            >
+              Delete
+            </Button>
+          ) : null}
+        </Stack>
+      ),
+    },
   ];
 
   return (

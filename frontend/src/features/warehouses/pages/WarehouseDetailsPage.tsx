@@ -1,10 +1,18 @@
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Grid, Stack, Typography } from '@mui/material';
+import { Button, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
+import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
+import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { warehousesApi } from '../api/warehousesApi';
 import { useWarehouse } from '../hooks/useWarehouse';
+import type { WarehouseStatus } from '../types/warehouse.types';
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -19,12 +27,70 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+function getAllowedNextStatuses(status: WarehouseStatus): WarehouseStatus[] {
+  switch (status) {
+    case 'ACTIVE':
+      return ['INACTIVE', 'FULL', 'UNDER_MAINTENANCE'];
+    case 'INACTIVE':
+      return ['ACTIVE'];
+    case 'FULL':
+      return ['ACTIVE', 'INACTIVE', 'UNDER_MAINTENANCE'];
+    case 'UNDER_MAINTENANCE':
+      return ['ACTIVE', 'INACTIVE'];
+    default:
+      return [];
+  }
+}
+
 export default function WarehouseDetailsPage() {
+  const auth = useAuthStore();
   const navigate = useNavigate();
   const params = useParams();
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
+
   const warehouseId = Number(params.id);
 
+  const canManage =
+    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+
   const warehouseQuery = useWarehouse(Number.isFinite(warehouseId) ? warehouseId : null);
+  const warehouse = warehouseQuery.data;
+
+  const nextStatuses = useMemo(
+    () => (warehouse ? getAllowedNextStatuses(warehouse.status) : []),
+    [warehouse],
+  );
+
+  const [selectedStatus, setSelectedStatus] = useState<WarehouseStatus | ''>('');
+
+  const changeStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: WarehouseStatus }) =>
+      warehousesApi.changeStatus(id, status),
+    onSuccess: async (_, variables) => {
+      showSnackbar({
+        message: `Warehouse status updated to ${variables.status}.`,
+        severity: 'success',
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['warehouses'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['warehouses', 'details', variables.id],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
+      ]);
+
+      setSelectedStatus('');
+    },
+    onError: (error) => {
+      showSnackbar({
+        message: getErrorMessage(error),
+        severity: 'error',
+      });
+    },
+  });
 
   if (!Number.isFinite(warehouseId)) {
     return (
@@ -40,7 +106,7 @@ export default function WarehouseDetailsPage() {
       <Stack spacing={3}>
         <PageHeader
           overline="Storage"
-          title="Warehouse Details"
+          title="Warehouse details"
           actions={
             <Button variant="outlined" onClick={() => navigate('/warehouses')}>
               Back to list
@@ -54,7 +120,7 @@ export default function WarehouseDetailsPage() {
     );
   }
 
-  if (warehouseQuery.isError || !warehouseQuery.data) {
+  if (warehouseQuery.isError || !warehouse) {
     return (
       <ErrorState
         title="Warehouse could not be loaded"
@@ -63,8 +129,6 @@ export default function WarehouseDetailsPage() {
       />
     );
   }
-
-  const warehouse = warehouseQuery.data;
 
   return (
     <Stack spacing={3}>
@@ -76,7 +140,9 @@ export default function WarehouseDetailsPage() {
           <Stack direction="row" spacing={1}>
             <Button
               variant="outlined"
-              onClick={() => navigate(`/change-history?entityName=WAREHOUSE&entityId=${warehouse.id}`)}
+              onClick={() =>
+                navigate(`/change-history?entityName=WAREHOUSE&entityId=${warehouse.id}`)
+              }
             >
               View history
             </Button>
@@ -137,6 +203,63 @@ export default function WarehouseDetailsPage() {
           </Grid>
         </Grid>
       </SectionCard>
+
+      {canManage ? (
+        <SectionCard
+          title="Status change"
+          description="Uses the dedicated backend warehouse status endpoint with backend validation."
+        >
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1.5}
+            alignItems={{ xs: 'stretch', md: 'center' }}
+          >
+            <TextField
+              select
+              size="small"
+              label="Next status"
+              value={selectedStatus}
+              onChange={(event) => setSelectedStatus(event.target.value as WarehouseStatus)}
+              sx={{ minWidth: { xs: '100%', md: 260 } }}
+              disabled={nextStatuses.length === 0 || changeStatusMutation.isPending}
+            >
+              {nextStatuses.length === 0 ? (
+                <MenuItem value="" disabled>
+                  No available transitions
+                </MenuItem>
+              ) : (
+                nextStatuses.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))
+              )}
+            </TextField>
+
+            <Button
+              variant="contained"
+              disabled={!selectedStatus || changeStatusMutation.isPending}
+              onClick={() => {
+                if (!selectedStatus) {
+                  return;
+                }
+
+                changeStatusMutation.mutate({
+                  id: warehouse.id,
+                  status: selectedStatus,
+                });
+              }}
+            >
+              Update status
+            </Button>
+          </Stack>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Final validation stays on the backend. If the warehouse has inventory or
+            active transport constraints, the backend validation message will be shown.
+          </Typography>
+        </SectionCard>
+      ) : null}
     </Stack>
   );
 }

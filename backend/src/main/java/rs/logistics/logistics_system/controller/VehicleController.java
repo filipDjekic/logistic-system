@@ -37,7 +37,7 @@ public class VehicleController {
         return new ResponseEntity<>(vehicleService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<VehicleResponse> updateVehicle(@PathVariable Long id, @Valid @RequestBody VehicleUpdate dto) {
         return new ResponseEntity<>(vehicleService.update(id, dto), HttpStatus.OK);
@@ -55,14 +55,14 @@ public class VehicleController {
         return new ResponseEntity<>(vehicleService.getAll(), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
         vehicleService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<VehicleResponse> changeStatus(@PathVariable Long id, @RequestParam VehicleStatus status) {
         return ResponseEntity.ok(vehicleService.changeStatus(id, status));
