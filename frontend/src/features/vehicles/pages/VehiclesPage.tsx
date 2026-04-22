@@ -2,27 +2,30 @@ import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { useCompanies } from '../../companies/hooks/useCompanies';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import VehicleFormDialog from '../components/VehicleFormDialog';
 import VehiclesTable from '../components/VehiclesTable';
 import { useCreateVehicle } from '../hooks/useCreateVehicle';
+import { useDeleteVehicle } from '../hooks/useDeleteVehicle';
 import { useUpdateVehicle } from '../hooks/useUpdateVehicle';
 import { useVehicles } from '../hooks/useVehicles';
 import type {
   VehicleFiltersState,
   VehicleResponse,
 } from '../types/vehicle.types';
-import { vehicleStatusOptions } from '../validation/vehicleSchema';
+import { vehicleStatusOptions, type VehicleSchemaValues } from '../validation/vehicleSchema';
 
 export default function VehiclesPage() {
   const auth = useAuthStore();
+  const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
-  const canCreate =
-    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
-
-  const canEdit = auth.user?.role === ROLES.OVERLORD;
+  const canManage =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const [filters, setFilters] = useState<VehicleFiltersState>({
     search: '',
@@ -31,11 +34,16 @@ export default function VehiclesPage() {
 
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleResponse | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<VehicleResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const vehiclesQuery = useVehicles(true);
+  const companiesQuery = useCompanies(
+    canManage && isOverlord && dialogOpen && dialogMode === 'create',
+  );
   const createVehicleMutation = useCreateVehicle();
   const updateVehicleMutation = useUpdateVehicle();
+  const deleteVehicleMutation = useDeleteVehicle();
 
   const filteredRows = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
@@ -68,7 +76,7 @@ export default function VehiclesPage() {
         title="Vehicles"
         description="Manage fleet records and review vehicle availability."
         actions={
-          canCreate ? (
+          canManage ? (
             <Button
               variant="contained"
               onClick={() => {
@@ -107,7 +115,7 @@ export default function VehiclesPage() {
                   status: event.target.value as VehicleFiltersState['status'],
                 }))
               }
-              sx={{ minWidth: { xs: '100%', md: 220 } }}
+              sx={{ minWidth: { xs: '100%', md: 200 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
               {vehicleStatusOptions.map((status) => (
@@ -121,8 +129,12 @@ export default function VehiclesPage() {
               variant="outlined"
               onClick={() => {
                 void vehiclesQuery.refetch();
+
+                if (canManage && isOverlord && dialogOpen && dialogMode === 'create') {
+                  void companiesQuery.refetch();
+                }
               }}
-              disabled={vehiclesQuery.isFetching}
+              disabled={vehiclesQuery.isFetching || companiesQuery.isFetching}
             >
               Refresh
             </Button>
@@ -136,7 +148,7 @@ export default function VehiclesPage() {
               void vehiclesQuery.refetch();
             }}
             onEdit={(vehicle) => {
-              if (!canEdit) {
+              if (!canManage) {
                 return;
               }
 
@@ -144,29 +156,43 @@ export default function VehiclesPage() {
               setSelectedVehicle(vehicle);
               setDialogOpen(true);
             }}
-            canManage={canEdit}
+            onDelete={(vehicle) => {
+              if (!canManage) {
+                return;
+              }
+
+              setDeleteTarget(vehicle);
+            }}
+            canManage={canManage}
           />
         </Stack>
       </SectionCard>
 
-      {canCreate ? (
+      {canManage ? (
         <VehicleFormDialog
           open={dialogOpen}
           mode={dialogMode}
           initialData={selectedVehicle}
+          companies={companiesQuery.data ?? []}
+          showCompanySelect={isOverlord && dialogMode === 'create'}
           loading={isSaving}
           onClose={() => setDialogOpen(false)}
-          onSubmit={(values) => {
+          onSubmit={(values: VehicleSchemaValues) => {
+            const payload = {
+              registrationNumber: values.registrationNumber,
+              brand: values.brand,
+              model: values.model,
+              type: values.type,
+              capacity: Number(values.capacity),
+              fuelType: values.fuelType,
+              yearOfProduction: Number(values.yearOfProduction),
+              status: values.status,
+            };
+
             if (dialogMode === 'create') {
               createVehicleMutation.mutate({
-                registrationNumber: values.registrationNumber,
-                brand: values.brand,
-                model: values.model,
-                type: values.type,
-                capacity: Number(values.capacity),
-                fuelType: values.fuelType,
-                yearOfProduction: Number(values.yearOfProduction),
-                status: values.status,
+                ...payload,
+                companyId: values.companyId ? Number(values.companyId) : undefined,
               });
               return;
             }
@@ -177,20 +203,36 @@ export default function VehiclesPage() {
 
             updateVehicleMutation.mutate({
               id: selectedVehicle.id,
-              data: {
-                registrationNumber: values.registrationNumber,
-                brand: values.brand,
-                model: values.model,
-                type: values.type,
-                capacity: Number(values.capacity),
-                fuelType: values.fuelType,
-                yearOfProduction: Number(values.yearOfProduction),
-                status: values.status,
-              },
+              data: payload,
             });
           }}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete vehicle"
+        description={
+          deleteTarget
+            ? `Are you sure you want to delete "${deleteTarget.registrationNumber}"?`
+            : ''
+        }
+        confirmText="Delete"
+        confirmColor="error"
+        isLoading={deleteVehicleMutation.isPending}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) {
+            return;
+          }
+
+          deleteVehicleMutation.mutate(deleteTarget.id, {
+            onSuccess: () => {
+              setDeleteTarget(null);
+            },
+          });
+        }}
+      />
     </Stack>
   );
 }

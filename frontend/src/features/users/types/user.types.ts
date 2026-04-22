@@ -65,6 +65,7 @@ export type UserCreateRequest = {
   email: string;
   roleId: number;
   status: UserStatus;
+  companyId?: number;
   employee: UserEmployeeCreateRequest;
 };
 
@@ -92,6 +93,7 @@ export type CreateUserFormValues = {
   email: string;
   roleId: string;
   status: UserStatus;
+  companyId: string;
   employeeJmbg: string;
   employeePhoneNumber: string;
   employeePosition: EmployeePosition;

@@ -44,16 +44,17 @@ export const warehousesApi = {
       .then((response) => response.data);
   },
 
-    getManagers() {
-      return apiClient.get<WarehouseEmployeeOption[]>('/api/employees').then((response) =>
-        response.data
-          .filter((employee: WarehouseEmployeeOption) => employee.position === 'WAREHOUSE_MANAGER')
-          .map((employee: WarehouseEmployeeOption) => ({
-            id: employee.id,
-            firstName: employee.firstName,
-            lastName: employee.lastName,
-            position: employee.position,
-          })),
-      );
-    },
+  getManagers() {
+    return apiClient.get<WarehouseEmployeeOption[]>('/api/employees').then((response) =>
+      response.data
+        .filter((employee) => employee.position === 'WAREHOUSE_MANAGER')
+        .map((employee) => ({
+          id: employee.id,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          position: employee.position,
+          companyId: employee.companyId ?? null,
+        })),
+    );
+  },
 };

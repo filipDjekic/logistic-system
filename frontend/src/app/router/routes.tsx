@@ -11,6 +11,7 @@ import NotificationsPage from '../../features/notifications/pages/NotificationsP
 import ActivityLogsPage from '../../features/activity-logs/pages/ActivityLogsPage';
 import ChangeHistoryPage from '../../features/change-history/pages/ChangeHistoryPage';
 import RolesPage from '../../features/roles/pages/RolesPage';
+import RoleDetailsPage from '../../features/roles/pages/RoleDetailsPage';
 import UsersPage from '../../features/users/pages/UsersPage';
 import UserDetailsPage from '../../features/users/pages/UserDetailsPage';
 import EmployeesPage from '../../features/employees/pages/EmployeesPage';
@@ -67,8 +68,19 @@ export const routes = [
         children: [
           { path: '/companies', element: <CompaniesPage /> },
           { path: '/companies/:id', element: <CompanyDetailsPage /> },
-          { path: '/roles', element: <RolesPage /> },
           { path: '/activity-logs', element: <ActivityLogsPage /> },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/roles', element: <RolesPage /> },
+          { path: '/roles/:id', element: <RoleDetailsPage /> },
         ],
       },
     ],
@@ -81,6 +93,7 @@ export const routes = [
         children: [
           { path: '/users', element: <UsersPage /> },
           { path: '/users/:id', element: <UserDetailsPage /> },
+          { path: '/shifts', element: <ShiftsPage /> },
         ],
       },
     ],
@@ -94,15 +107,6 @@ export const routes = [
           { path: '/employees', element: <EmployeesPage /> },
           { path: '/employees/:id', element: <EmployeeDetailsPage /> },
         ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.HR_MANAGER]} />,
-    children: [
-      {
-        element: <AppLayout />,
-        children: [{ path: '/shifts', element: <ShiftsPage /> }],
       },
     ],
   },
@@ -126,6 +130,7 @@ export const routes = [
         children: [
           { path: '/tasks', element: <TasksPage /> },
           { path: '/tasks/:id', element: <TaskDetailsPage /> },
+          { path: '/change-history', element: <ChangeHistoryPage /> },
         ],
       },
     ],
@@ -164,24 +169,6 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [{ path: '/stock-movements', element: <StockMovementsPage /> }],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN]} />,
-    children: [
-      {
-        element: <AppLayout />,
-        children: [{ path: '/change-history', element: <ChangeHistoryPage /> }],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: <AppLayout />,
-        children: [{ path: '/my-shifts', element: <MyShiftsPage /> }],
       },
     ],
   },

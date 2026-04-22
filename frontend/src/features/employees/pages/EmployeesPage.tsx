@@ -3,6 +3,7 @@ import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { useCompanies } from '../../companies/hooks/useCompanies';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -23,6 +24,8 @@ import { employeePositionOptions, type EmployeeFormValues } from '../validation/
 
 export default function EmployeesPage() {
   const auth = useAuthStore();
+  const isOverlord = auth.user?.role === ROLES.OVERLORD;
+
   const canEditEmployees = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
   const canCreateEmployees =
     auth.user?.role === ROLES.OVERLORD ||
@@ -55,6 +58,10 @@ export default function EmployeesPage() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
+
+  const companiesQuery = useCompanies(
+    canCreateEmployees && isOverlord && dialogOpen && dialogMode === 'create',
+  );
 
   const createEmployeeMutation = useCreateEmployee();
   const updateEmployeeMutation = useUpdateEmployee();
@@ -105,12 +112,12 @@ export default function EmployeesPage() {
   }, [employeesQuery.data, filters, usersById]);
 
   const selectedLinkedUser = useMemo(() => {
-    if (!selectedEmployee?.userId) {
+    if (!selectedEmployee || !selectedEmployee.userId) {
       return null;
     }
 
     return usersById[selectedEmployee.userId] ?? null;
-  }, [selectedEmployee?.userId, usersById]);
+  }, [selectedEmployee, usersById]);
 
   const isSaving =
     createEmployeeMutation.isPending ||
@@ -138,6 +145,7 @@ export default function EmployeesPage() {
           password: values.password,
           roleId: matchedRole.id,
           status: values.status,
+          companyId: values.companyId ? Number(values.companyId) : undefined,
         },
         {
           onSuccess: () => {
@@ -278,12 +286,20 @@ export default function EmployeesPage() {
 
             <Button
               variant="outlined"
-              disabled={employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching}
+              disabled={
+                employeesQuery.isFetching ||
+                usersQuery.isFetching ||
+                rolesQuery.isFetching ||
+                companiesQuery.isFetching
+              }
               onClick={() => {
                 void Promise.all([
                   employeesQuery.refetch(),
                   rolesQuery.refetch(),
                   ...(canEditEmployees ? [usersQuery.refetch()] : []),
+                  ...(isOverlord && dialogOpen && dialogMode === 'create'
+                    ? [companiesQuery.refetch()]
+                    : []),
                 ]);
               }}
             >
@@ -325,7 +341,9 @@ export default function EmployeesPage() {
         initialData={selectedEmployee}
         linkedUser={selectedLinkedUser}
         roles={roles}
+        companies={companiesQuery.data ?? []}
         companyName={auth.user?.company?.name ?? null}
+        isOverlord={isOverlord}
         loading={isSaving}
         canEdit={canEditEmployees}
         onClose={() => setDialogOpen(false)}

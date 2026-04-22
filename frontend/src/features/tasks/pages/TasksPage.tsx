@@ -49,10 +49,13 @@ export default function TasksPage() {
 
   const canMutateManaged =
     auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+    auth.user?.role === ROLES.DISPATCHER;
 
-  const canCreateOrAssign = canMutateManaged || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canCreateOrAssign =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.DISPATCHER;
+
   const isWarehouseManager = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const managedTasksQuery = useTasks(canListManaged);

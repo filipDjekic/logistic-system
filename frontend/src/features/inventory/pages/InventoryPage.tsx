@@ -176,6 +176,8 @@ export default function InventoryPage() {
                 warehouseId: selectedRecord.warehouseId,
                 productId: selectedRecord.productId,
                 data: {
+                  warehouseId: selectedRecord.warehouseId,
+                  productId: selectedRecord.productId,
                   quantity: Number(values.quantity),
                   minStockLevel: Number(values.minStockLevel),
                 },

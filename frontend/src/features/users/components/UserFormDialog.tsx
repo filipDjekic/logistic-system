@@ -18,6 +18,7 @@ import Form from '../../../shared/components/Form/Form';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import type { CompanyResponse } from '../../companies/types/company.types';
 import type { RoleResponse } from '../../roles/types/role.types';
 import type {
   CreateUserFormValues,
@@ -36,6 +37,7 @@ type UserFormDialogProps = {
   mode: 'create' | 'edit';
   initialData?: UserResponse | null;
   roles: RoleResponse[];
+  companies: CompanyResponse[];
   loading?: boolean;
   onClose: () => void;
   onSubmitCreate: (values: CreateUserFormValues) => void;
@@ -59,6 +61,7 @@ const createDefaultValues: CreateUserFormValues = {
   email: '',
   roleId: '',
   status: 'ACTIVE',
+  companyId: '',
   employeeJmbg: '',
   employeePhoneNumber: '',
   employeePosition: 'WORKER',
@@ -86,6 +89,7 @@ export default function UserFormDialog({
   mode,
   initialData,
   roles,
+  companies,
   loading = false,
   onClose,
   onSubmitCreate,
@@ -136,6 +140,7 @@ export default function UserFormDialog({
   }, [open, mode, initialData, createForm, updateForm]);
 
   const auth = useAuthStore();
+  const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
   const visibleRoles = useMemo(
     () =>
@@ -156,6 +161,11 @@ export default function UserFormDialog({
   const roleOptions = visibleRoles.map((role) => ({
     value: String(role.id),
     label: role.name,
+  }));
+
+  const companyOptions = companies.map((company) => ({
+    value: String(company.id),
+    label: company.name,
   }));
 
   const isCreate = mode === 'create';
@@ -234,6 +244,18 @@ export default function UserFormDialog({
                     required
                   />
                 </Grid>
+
+                {isOverlord ? (
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <FormSelect
+                      name="companyId"
+                      control={createForm.control}
+                      label="Company"
+                      options={companyOptions}
+                      required
+                    />
+                  </Grid>
+                ) : null}
               </Grid>
             ) : (
               <Grid container spacing={2}>
@@ -423,16 +445,16 @@ export default function UserFormDialog({
         {isCreate ? (
           <Button
             variant="contained"
-            disabled={loading}
             onClick={createForm.handleSubmit(onSubmitCreate)}
+            disabled={loading}
           >
-            Create user
+            Create
           </Button>
         ) : (
           <Button
             variant="contained"
-            disabled={loading}
             onClick={updateForm.handleSubmit(onSubmitUpdate)}
+            disabled={loading}
           >
             Save changes
           </Button>

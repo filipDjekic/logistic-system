@@ -59,11 +59,16 @@ const employeeFormSchemaBase = z.object({
   password: z.string().trim(),
   status: z.enum(userStatusOptions),
   enabled: z.boolean(),
+  companyId: z.string().trim(),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchemaBase>;
 
-export function getEmployeeFormSchema(mode: 'create' | 'edit', hasLinkedUser: boolean) {
+export function getEmployeeFormSchema(
+  mode: 'create' | 'edit',
+  hasLinkedUser: boolean,
+  requireCompany: boolean,
+) {
   return employeeFormSchemaBase.superRefine((values, ctx) => {
     if (mode === 'create') {
       if (values.password.length === 0) {
@@ -78,6 +83,22 @@ export function getEmployeeFormSchema(mode: 'create' | 'edit', hasLinkedUser: bo
           path: ['password'],
           message: 'Password must be at least 8 characters',
         });
+      }
+
+      if (requireCompany) {
+        if (values.companyId.trim().length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['companyId'],
+            message: 'Company is required',
+          });
+        } else if (Number.isNaN(Number(values.companyId)) || Number(values.companyId) <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['companyId'],
+            message: 'Selected company is not valid',
+          });
+        }
       }
     }
 

@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
+import type { CompanyResponse } from '../../companies/types/company.types';
 import type { VehicleResponse, VehicleStatus } from '../types/vehicle.types';
 import {
   vehicleSchema,
@@ -23,6 +24,8 @@ type VehicleFormDialogProps = {
   open: boolean;
   mode: 'create' | 'edit';
   initialData?: VehicleResponse | null;
+  companies: CompanyResponse[];
+  showCompanySelect: boolean;
   loading?: boolean;
   onClose: () => void;
   onSubmit: (values: VehicleSchemaValues) => void;
@@ -42,12 +45,15 @@ const defaultValues: VehicleSchemaValues = {
   fuelType: '',
   yearOfProduction: 1990,
   status: 'AVAILABLE',
+  companyId: '',
 };
 
 export default function VehicleFormDialog({
   open,
   mode,
   initialData,
+  companies,
+  showCompanySelect,
   loading = false,
   onClose,
   onSubmit,
@@ -72,6 +78,7 @@ export default function VehicleFormDialog({
         fuelType: initialData.fuelType,
         yearOfProduction: initialData.yearOfProduction,
         status: initialData.status,
+        companyId: initialData.companyId != null ? String(initialData.companyId) : '',
       });
 
       return;
@@ -79,6 +86,11 @@ export default function VehicleFormDialog({
 
     form.reset(defaultValues);
   }, [form, initialData, mode, open]);
+
+  const companyOptions = companies.map((company) => ({
+    value: String(company.id),
+    label: company.name,
+  }));
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
@@ -105,6 +117,18 @@ export default function VehicleFormDialog({
                 required
               />
             </Grid>
+
+            {mode === 'create' && showCompanySelect ? (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <FormSelect
+                  name="companyId"
+                  control={form.control}
+                  label="Company"
+                  options={companyOptions}
+                  required
+                />
+              </Grid>
+            ) : null}
 
             <Grid size={{ xs: 12, md: 6 }}>
               <FormTextField

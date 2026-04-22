@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { useCompanies } from '../../companies/hooks/useCompanies';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
@@ -25,6 +26,7 @@ const warehouseStatusOptions = ['ACTIVE', 'INACTIVE', 'FULL', 'UNDER_MAINTENANCE
 
 export default function WarehousesPage() {
   const auth = useAuthStore();
+  const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
   const canCreate =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
@@ -44,6 +46,7 @@ export default function WarehousesPage() {
 
   const warehousesQuery = useWarehouses(true);
   const managersQuery = useWarehouseManagers(canCreate && dialogOpen && dialogMode === 'create');
+  const companiesQuery = useCompanies(canCreate && isOverlord && dialogOpen && dialogMode === 'create');
   const createWarehouseMutation = useCreateWarehouse();
   const updateWarehouseMutation = useUpdateWarehouse();
   const deleteWarehouseMutation = useDeleteWarehouse();
@@ -137,8 +140,16 @@ export default function WarehousesPage() {
                 if (canCreate && dialogOpen && dialogMode === 'create') {
                   void managersQuery.refetch();
                 }
+
+                if (canCreate && isOverlord && dialogOpen && dialogMode === 'create') {
+                  void companiesQuery.refetch();
+                }
               }}
-              disabled={warehousesQuery.isFetching || managersQuery.isFetching}
+              disabled={
+                warehousesQuery.isFetching ||
+                managersQuery.isFetching ||
+                companiesQuery.isFetching
+              }
             >
               Refresh
             </Button>
@@ -178,7 +189,9 @@ export default function WarehousesPage() {
           mode={dialogMode}
           initialData={selectedWarehouse}
           managers={managersQuery.data ?? []}
-          loading={isSaving || managersQuery.isLoading}
+          companies={companiesQuery.data ?? []}
+          isOverlord={isOverlord}
+          loading={isSaving || managersQuery.isLoading || companiesQuery.isLoading}
           onClose={() => setDialogOpen(false)}
           onSubmit={(values: WarehouseFormValues) => {
             if (dialogMode === 'create') {
@@ -189,6 +202,7 @@ export default function WarehousesPage() {
                 capacity: Number(values.capacity),
                 status: values.status,
                 employeeId: Number(values.employeeId),
+                companyId: values.companyId ? Number(values.companyId) : undefined,
               });
               return;
             }

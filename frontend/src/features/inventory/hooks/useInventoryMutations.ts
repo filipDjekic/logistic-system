@@ -57,7 +57,7 @@ export function useUpdateInventoryRecord() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['inventory'] }),
         queryClient.invalidateQueries({
-          queryKey: ['inventory', 'record', variables.warehouseId, variables.productId],
+          queryKey: ['inventory', 'details', variables.warehouseId, variables.productId],
         }),
         queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
       ]);

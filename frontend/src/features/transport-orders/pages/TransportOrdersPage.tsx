@@ -29,6 +29,13 @@ export default function TransportOrdersPage() {
   const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.DISPATCHER;
   const canReadAll = canManage || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER || auth.user?.role === ROLES.DRIVER;
 
+  const canResolveWarehouses = auth.user?.role !== ROLES.DRIVER;
+  const canResolveVehicles =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.DISPATCHER;
+  const canResolveEmployees = canManage;
+
   const [filters, setFilters] = useState<TransportOrderFiltersState>({
     search: '',
     status: 'ALL',
@@ -39,9 +46,10 @@ export default function TransportOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<TransportOrderResponse | null>(null);
 
   const transportOrdersQuery = useTransportOrders(true);
-  const warehousesQuery = useQuery({
+    const warehousesQuery = useQuery({
     queryKey: ['transport-orders', 'warehouses'],
     queryFn: transportOrdersApi.getWarehouses,
+    enabled: canResolveWarehouses,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -49,6 +57,7 @@ export default function TransportOrdersPage() {
   const vehiclesQuery = useQuery({
     queryKey: ['transport-orders', 'vehicles'],
     queryFn: transportOrdersApi.getVehicles,
+    enabled: canResolveVehicles,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -56,6 +65,7 @@ export default function TransportOrdersPage() {
   const employeesQuery = useQuery({
     queryKey: ['transport-orders', 'employees'],
     queryFn: transportOrdersApi.getEmployees,
+    enabled: canResolveEmployees,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -130,7 +140,9 @@ export default function TransportOrdersPage() {
   }, [employeesById, filters, transportOrdersQuery.data, vehiclesById, warehousesById]);
 
   const isLookupsLoading =
-    warehousesQuery.isLoading || vehiclesQuery.isLoading || employeesQuery.isLoading;
+    (canResolveWarehouses && warehousesQuery.isLoading) ||
+    (canResolveVehicles && vehiclesQuery.isLoading) ||
+    (canResolveEmployees && employeesQuery.isLoading);
 
   const isDialogLoading =
     createTransportOrderMutation.isPending || updateTransportOrderMutation.isPending;
@@ -190,15 +202,24 @@ export default function TransportOrdersPage() {
             loading={transportOrdersQuery.isLoading || isLookupsLoading}
             error={
               transportOrdersQuery.isError ||
-              warehousesQuery.isError ||
-              vehiclesQuery.isError ||
-              employeesQuery.isError
+              (canResolveWarehouses && warehousesQuery.isError) ||
+              (canResolveVehicles && vehiclesQuery.isError) ||
+              (canResolveEmployees && employeesQuery.isError)
             }
             onRetry={() => {
               void transportOrdersQuery.refetch();
-              void warehousesQuery.refetch();
-              void vehiclesQuery.refetch();
-              void employeesQuery.refetch();
+
+              if (canResolveWarehouses) {
+                void warehousesQuery.refetch();
+              }
+
+              if (canResolveVehicles) {
+                void vehiclesQuery.refetch();
+              }
+
+              if (canResolveEmployees) {
+                void employeesQuery.refetch();
+              }
             }}
             canManage={canManage}
             onEdit={(order) => {
@@ -212,9 +233,9 @@ export default function TransportOrdersPage() {
       {canManage ? (
         <TransportOrderFormDialog
           open={dialogOpen}
-          warehouses={warehousesQuery.data ?? []}
-          vehicles={vehiclesQuery.data ?? []}
-          employees={employeesQuery.data ?? []}
+          warehouses={canResolveWarehouses ? warehousesQuery.data ?? [] : []}
+          vehicles={canResolveVehicles ? vehiclesQuery.data ?? [] : []}
+          employees={canResolveEmployees ? employeesQuery.data ?? [] : []}
           initialData={selectedOrder}
           loading={isDialogLoading}
           onClose={() => {

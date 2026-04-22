@@ -37,6 +37,7 @@ export const vehicleSchema = z.object({
   status: z.enum(vehicleStatusOptions, {
     error: 'Status is required',
   }),
+  companyId: z.string().trim(),
 });
 
 export type VehicleSchemaValues = z.infer<typeof vehicleSchema>;

@@ -11,6 +11,7 @@ import { useForm } from 'react-hook-form';
 import Form from '../../../shared/components/Form/Form';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import type { CompanyResponse } from '../../companies/types/company.types';
 import type {
   ProductFormValues,
   ProductResponse,
@@ -19,6 +20,8 @@ import type {
 type Props = {
   open: boolean;
   initialData?: ProductResponse | null;
+  companies: CompanyResponse[];
+  showCompanySelect: boolean;
   onClose: () => void;
   onSubmit: (values: ProductFormValues) => void;
 };
@@ -39,11 +42,14 @@ const defaultValues: ProductFormValues = {
   price: '',
   fragile: false,
   weight: '',
+  companyId: '',
 };
 
 export default function ProductFormDialog({
   open,
   initialData,
+  companies,
+  showCompanySelect,
   onClose,
   onSubmit,
 }: Props) {
@@ -65,12 +71,18 @@ export default function ProductFormDialog({
         price: String(initialData.price),
         fragile: initialData.fragile,
         weight: String(initialData.weight),
+        companyId: initialData.companyId != null ? String(initialData.companyId) : '',
       });
       return;
     }
 
     reset(defaultValues);
   }, [initialData, open, reset]);
+
+  const companyOptions = companies.map((company) => ({
+    value: String(company.id),
+    label: company.name,
+  }));
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -85,6 +97,18 @@ export default function ProductFormDialog({
           <Grid size={{ xs: 12, md: 6 }}>
             <Form name="sku" control={control} label="SKU" required />
           </Grid>
+
+          {showCompanySelect && !initialData ? (
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="companyId"
+                control={control}
+                label="Company"
+                options={companyOptions}
+                required
+              />
+            </Grid>
+          ) : null}
 
           <Grid size={{ xs: 12 }}>
             <Form name="description" control={control} label="Description" />

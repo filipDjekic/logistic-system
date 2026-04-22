@@ -28,6 +28,7 @@ export type VehicleCreateRequest = {
   fuelType: string;
   yearOfProduction: number;
   status: VehicleStatus;
+  companyId?: number;
 };
 
 export type VehicleUpdateRequest = {
@@ -56,4 +57,5 @@ export type VehicleFormValues = {
   fuelType: string;
   yearOfProduction: number | '';
   status: VehicleStatus;
+  companyId: string;
 };

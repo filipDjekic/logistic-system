@@ -6,16 +6,36 @@ export function useInventoryRecord(
   warehouseId: number | null,
   productId: number | null,
 ) {
+  const isValidIds =
+    Number.isInteger(warehouseId) &&
+    (warehouseId as number) > 0 &&
+    Number.isInteger(productId) &&
+    (productId as number) > 0;
+
   return useQuery({
     queryKey: ['inventory', 'details', warehouseId, productId],
     queryFn: async (): Promise<InventoryRecordDetails> => {
-      const [record, warehouse, product] = await Promise.all([
-        inventoryApi.getInventoryRecord(warehouseId as number, productId as number),
+      const record = await inventoryApi.getInventoryRecord(
+        warehouseId as number,
+        productId as number,
+      );
+
+      const [warehouseResult, productResult] = await Promise.allSettled([
         inventoryApi.getWarehouseById(warehouseId as number),
         inventoryApi.getProductById(productId as number),
       ]);
 
-      const availableQuantity = record.quantity - record.reservedQuantity;
+      const warehouse =
+        warehouseResult.status === 'fulfilled' ? warehouseResult.value : null;
+
+      const product =
+        productResult.status === 'fulfilled' ? productResult.value : null;
+
+      const availableQuantity =
+        typeof record.availableQuantity === 'number'
+          ? record.availableQuantity
+          : record.quantity - record.reservedQuantity;
+
       const derivedStatus =
         record.minStockLevel !== null && record.quantity <= record.minStockLevel
           ? 'LOW_STOCK'
@@ -24,12 +44,12 @@ export function useInventoryRecord(
       return {
         record: {
           ...record,
-          warehouseName: warehouse.name,
-          warehouseCity: warehouse.city,
-          warehouseStatus: warehouse.status,
-          productName: product.name,
-          productSku: product.sku,
-          productUnit: product.unit,
+          warehouseName: warehouse?.name ?? record.warehouseName,
+          warehouseCity: warehouse?.city ?? null,
+          warehouseStatus: warehouse?.status ?? null,
+          productName: product?.name ?? record.productName,
+          productSku: product?.sku ?? null,
+          productUnit: product?.unit ?? null,
           availableQuantity,
           derivedStatus,
         },
@@ -37,7 +57,7 @@ export function useInventoryRecord(
         product,
       };
     },
-    enabled: Number.isFinite(warehouseId) && Number.isFinite(productId),
+    enabled: isValidIds,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });

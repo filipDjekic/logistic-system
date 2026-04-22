@@ -5,6 +5,7 @@ import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolba
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { useCompanies } from '../../companies/hooks/useCompanies';
 import { useRoles } from '../../roles/hooks/useRoles';
 import UserFormDialog from '../components/UserFormDialog';
 import UsersTable from '../components/UsersTable';
@@ -38,6 +39,7 @@ export default function UsersPage() {
 
   const usersQuery = useUsers(true);
   const rolesQuery = useRoles(canEdit);
+  const companiesQuery = useCompanies(canCreate && dialogOpen && dialogMode === 'create');
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
 
@@ -161,8 +163,12 @@ export default function UsersPage() {
                 if (canEdit) {
                   void rolesQuery.refetch();
                 }
+
+                if (canCreate && dialogOpen && dialogMode === 'create') {
+                  void companiesQuery.refetch();
+                }
               }}
-              disabled={usersQuery.isFetching || rolesQuery.isFetching}
+              disabled={usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching}
             >
               Refresh
             </Button>
@@ -196,6 +202,7 @@ export default function UsersPage() {
           mode={dialogMode}
           initialData={selectedUser}
           roles={rolesQuery.data ?? []}
+          companies={companiesQuery.data ?? []}
           loading={isSaving}
           onClose={() => setDialogOpen(false)}
           onSubmitCreate={(values: CreateUserFormValues) => {
@@ -206,6 +213,7 @@ export default function UsersPage() {
               email: values.email,
               roleId: Number(values.roleId),
               status: values.status,
+              companyId: Number(values.companyId),
               employee: {
                 jmbg: values.employeeJmbg,
                 phoneNumber: values.employeePhoneNumber,

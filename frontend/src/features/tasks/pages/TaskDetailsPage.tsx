@@ -12,6 +12,8 @@ import { transportOrdersApi } from '../../transport-orders/api/transportOrdersAp
 import TaskStatusChip from '../components/TaskStatusChip';
 import { useTask } from '../hooks/useTask';
 import { useUpdateTaskStatus } from '../hooks/useUpdateTaskStatus';
+import { normalizeApiError } from '../../../core/api/apiError';
+import { employeesApi } from '../../employees/api/employeesApi';
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
@@ -22,8 +24,9 @@ export default function TaskDetailsPage() {
   const navigate = useNavigate();
   const auth = useAuthStore();
   const taskId = Number(params.id);
+  const isValidTaskId = Number.isInteger(taskId) && taskId > 0;
 
-  const taskQuery = useTask(Number.isFinite(taskId) ? taskId : null);
+  const taskQuery = useTask(isValidTaskId ? taskId : null);
   const updateTaskStatusMutation = useUpdateTaskStatus();
 
   const canViewHistory =
@@ -32,20 +35,30 @@ export default function TaskDetailsPage() {
   const canResolveEmployee =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+    auth.user?.role === ROLES.DISPATCHER;
 
-  const canResolveTransportOrder = auth.user?.role !== ROLES.WORKER;
+  const canResolveTransportOrder =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.DRIVER;
 
   const canResolveStockMovement =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
+  const canUpdateStatus =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER ||
+    auth.user?.role === ROLES.WORKER ||
+    auth.user?.role === ROLES.DRIVER;
+
   const employeesQuery = useQuery({
     queryKey: ['task-details', 'employees'],
-    queryFn: transportOrdersApi.getEmployees,
-    enabled: Number.isFinite(taskId) && canResolveEmployee,
+    queryFn: employeesApi.getAll,
+    enabled: isValidTaskId && canResolveEmployee,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -53,7 +66,7 @@ export default function TaskDetailsPage() {
   const transportOrdersQuery = useQuery({
     queryKey: ['task-details', 'transport-orders'],
     queryFn: transportOrdersApi.getAll,
-    enabled: Number.isFinite(taskId) && canResolveTransportOrder,
+    enabled: isValidTaskId && canResolveTransportOrder,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -61,7 +74,7 @@ export default function TaskDetailsPage() {
   const stockMovementsQuery = useQuery({
     queryKey: ['task-details', 'stock-movements'],
     queryFn: stockMovementsApi.getAll,
-    enabled: Number.isFinite(taskId) && canResolveStockMovement,
+    enabled: isValidTaskId && canResolveStockMovement,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -81,8 +94,13 @@ export default function TaskDetailsPage() {
     [taskQuery.data?.stockMovementId, stockMovementsQuery.data],
   );
 
-  if (!Number.isFinite(taskId)) {
-    return <ErrorState title="Invalid task" description="The task ID in the route is not valid." />;
+  if (!isValidTaskId) {
+    return (
+      <ErrorState
+        title="Invalid task"
+        description="The task ID in the route must be a positive integer."
+      />
+    );
   }
 
   if (taskQuery.isLoading) {
@@ -101,6 +119,11 @@ export default function TaskDetailsPage() {
   }
 
   if (taskQuery.isError || !taskQuery.data) {
+    const error = normalizeApiError(
+      taskQuery.error,
+      'The task could not be loaded from the backend.',
+    );
+
     return (
       <Stack spacing={3}>
         <PageHeader
@@ -113,8 +136,15 @@ export default function TaskDetailsPage() {
           }
         />
         <ErrorState
-          title="Task not found"
-          description="The task could not be loaded from the backend."
+          title={
+            error.status === 403
+              ? 'Access denied'
+              : error.status === 404
+                ? 'Task not found'
+                : 'Task could not be loaded'
+          }
+          description={error.message}
+          onRetry={() => void taskQuery.refetch()}
         />
       </Stack>
     );
@@ -122,14 +152,19 @@ export default function TaskDetailsPage() {
 
   const task = taskQuery.data;
 
-  const statusActions =
-    auth.user?.role === ROLES.WORKER
-      ? task.status === 'NEW'
-        ? [{ label: 'Start task', status: 'IN_PROGRESS' as const }]
-        : task.status === 'IN_PROGRESS'
-          ? [{ label: 'Complete task', status: 'COMPLETED' as const }]
-          : []
-      : [];
+  const statusActions = canUpdateStatus
+    ? task.status === 'NEW'
+      ? [
+          { label: 'Start task', status: 'IN_PROGRESS' as const },
+          { label: 'Cancel task', status: 'CANCELLED' as const },
+        ]
+      : task.status === 'IN_PROGRESS'
+        ? [
+            { label: 'Complete task', status: 'COMPLETED' as const },
+            { label: 'Cancel task', status: 'CANCELLED' as const },
+          ]
+        : []
+    : [];
 
   return (
     <Stack spacing={3}>

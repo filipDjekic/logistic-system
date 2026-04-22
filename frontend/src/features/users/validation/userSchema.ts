@@ -22,6 +22,14 @@ const roleIdSchema = z
     message: 'Selected role is not valid',
   });
 
+const companyIdSchema = z
+  .string()
+  .trim()
+  .min(1, 'Company is required')
+  .refine((value) => !Number.isNaN(Number(value)) && Number(value) > 0, {
+    message: 'Selected company is not valid',
+  });
+
 const salarySchema = z
   .string()
   .trim()
@@ -60,6 +68,7 @@ export const createUserSchema = z.object({
   status: z.enum(userStatusOptions, {
     message: 'Status is required',
   }),
+  companyId: companyIdSchema,
   employeeJmbg: z
     .string()
     .trim()

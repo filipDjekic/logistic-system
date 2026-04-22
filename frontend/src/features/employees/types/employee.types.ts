@@ -37,6 +37,7 @@ export type EmployeeCreateWithUserRequest = {
   password: string;
   roleId: number;
   status: UserStatus;
+  companyId?: number;
 };
 
 export type EmployeeUpdateRequest = {
@@ -107,4 +108,5 @@ export type EmployeeFormValues = {
   password: string;
   status: UserStatus;
   enabled: boolean;
+  companyId: string;
 };

@@ -8,6 +8,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { normalizeApiError } from '../../../core/api/apiError';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
@@ -41,16 +42,22 @@ export default function InventoryDetailsPage() {
   const warehouseId = useMemo(() => Number(params.warehouseId), [params.warehouseId]);
   const productId = useMemo(() => Number(params.productId), [params.productId]);
 
+  const isValidRoute =
+    Number.isInteger(warehouseId) &&
+    warehouseId > 0 &&
+    Number.isInteger(productId) &&
+    productId > 0;
+
   const inventoryRecordQuery = useInventoryRecord(
-    Number.isFinite(warehouseId) ? warehouseId : null,
-    Number.isFinite(productId) ? productId : null,
+    isValidRoute ? warehouseId : null,
+    isValidRoute ? productId : null,
   );
 
-  if (!Number.isFinite(warehouseId) || !Number.isFinite(productId)) {
+  if (!isValidRoute) {
     return (
       <ErrorState
         title="Invalid inventory route"
-        description="Warehouse ID and product ID must both be valid numbers."
+        description="Warehouse ID and product ID must both be positive integers."
       />
     );
   }
@@ -60,10 +67,21 @@ export default function InventoryDetailsPage() {
   }
 
   if (inventoryRecordQuery.isError || !inventoryRecordQuery.data) {
+    const error = normalizeApiError(
+      inventoryRecordQuery.error,
+      'The requested inventory record was not found or could not be loaded.',
+    );
+
     return (
       <ErrorState
-        title="Inventory record could not be loaded"
-        description="The requested inventory record was not found or could not be loaded."
+        title={
+          error.status === 403
+            ? 'Access denied'
+            : error.status === 404
+              ? 'Inventory record not found'
+              : 'Inventory record could not be loaded'
+        }
+        description={error.message}
         onRetry={() => {
           void inventoryRecordQuery.refetch();
         }}
@@ -73,30 +91,18 @@ export default function InventoryDetailsPage() {
 
   const { record, warehouse, product } = inventoryRecordQuery.data;
 
-  if (!warehouse || !product) {
-    return (
-      <ErrorState
-        title="Inventory details are incomplete"
-        description="Warehouse or product details could not be resolved for this inventory record."
-        onRetry={() => {
-          void inventoryRecordQuery.refetch();
-        }}
-      />
-    );
-  }
-
   return (
     <Stack spacing={3}>
       <PageHeader
         overline="Storage"
-        title={`${warehouse.name} · ${product.name}`}
+        title={`${record.warehouseName} · ${record.productName}`}
         description="Detailed inventory record between selected warehouse and product."
         actions={
           <Stack direction="row" spacing={1}>
             <Button
               variant="outlined"
               onClick={() =>
-                navigate(`/change-history?entityName=PRODUCT&entityId=${product.id}`)
+                navigate(`/change-history?entityName=PRODUCT&entityId=${record.productId}`)
               }
             >
               Product history
@@ -104,7 +110,7 @@ export default function InventoryDetailsPage() {
             <Button
               variant="outlined"
               onClick={() =>
-                navigate(`/change-history?entityName=WAREHOUSE&entityId=${warehouse.id}`)
+                navigate(`/change-history?entityName=WAREHOUSE&entityId=${record.warehouseId}`)
               }
             >
               Warehouse history
@@ -122,16 +128,22 @@ export default function InventoryDetailsPage() {
         </Alert>
       ) : null}
 
+      {!warehouse || !product ? (
+        <Alert severity="info">
+          Core inventory record is loaded, but related warehouse or product lookup is not currently available.
+        </Alert>
+      ) : null}
+
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <SectionCard title="Warehouse">
             <Stack spacing={2}>
-              <InfoRow label="Name" value={warehouse.name} />
-              <InfoRow label="Address" value={warehouse.address} />
-              <InfoRow label="City" value={warehouse.city} />
-              <InfoRow label="Capacity" value={warehouse.capacity} />
-              <InfoRow label="Status" value={warehouse.status} />
-              {warehouse.employeeId ? (
+              <InfoRow label="Name" value={warehouse?.name ?? record.warehouseName} />
+              <InfoRow label="Address" value={warehouse?.address ?? null} />
+              <InfoRow label="City" value={warehouse?.city ?? record.warehouseCity} />
+              <InfoRow label="Capacity" value={warehouse?.capacity ?? null} />
+              <InfoRow label="Status" value={warehouse?.status ?? record.warehouseStatus} />
+              {warehouse?.employeeId ? (
                 <Button
                   component={RouterLink}
                   to={`/employees/${warehouse.employeeId}`}
@@ -148,12 +160,15 @@ export default function InventoryDetailsPage() {
         <Grid size={{ xs: 12, md: 6 }}>
           <SectionCard title="Product">
             <Stack spacing={2}>
-              <InfoRow label="Name" value={product.name} />
-              <InfoRow label="SKU" value={product.sku} />
-              <InfoRow label="Unit" value={product.unit} />
-              <InfoRow label="Price" value={product.price} />
-              <InfoRow label="Fragile" value={product.fragile ? 'Yes' : 'No'} />
-              <InfoRow label="Weight" value={product.weight} />
+              <InfoRow label="Name" value={product?.name ?? record.productName} />
+              <InfoRow label="SKU" value={product?.sku ?? record.productSku} />
+              <InfoRow label="Unit" value={product?.unit ?? record.productUnit} />
+              <InfoRow label="Price" value={product?.price ?? null} />
+              <InfoRow
+                label="Fragile"
+                value={product == null ? null : product.fragile ? 'Yes' : 'No'}
+              />
+              <InfoRow label="Weight" value={product?.weight ?? null} />
             </Stack>
           </SectionCard>
         </Grid>

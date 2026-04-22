@@ -23,8 +23,11 @@ import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { transportOrdersApi } from '../api/transportOrdersApi';
 import TransportOrderItemsTable from '../components/TransportOrderItemsTable';
 import TransportOrderStatusChip from '../components/TransportOrderStatusChip';
+import TransportOrderFormDialog from '../components/TransportOrderFormDialog';
+import { useUpdateTransportOrder } from '../hooks/useUpdateTransportOrder';
 import { useTransportOrder } from '../hooks/useTransportOrder';
 import { useUpdateTransportOrderStatus } from '../hooks/useUpdateTransportOrderStatus';
+import { normalizeApiError } from '../../../core/api/apiError';
 import type {
   EmployeeOption,
   ProductOption,
@@ -108,8 +111,18 @@ export default function TransportOrderDetailsPage() {
   const { showSnackbar } = useAppSnackbar();
 
   const transportOrderId = Number(params.id);
+  const isValidTransportOrderId =
+    Number.isInteger(transportOrderId) && transportOrderId > 0;
 
   const canManageOrder =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.DISPATCHER;
+
+  const canMutateItems =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.DISPATCHER;
+
+  const canReadItems =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.DISPATCHER;
@@ -118,18 +131,34 @@ export default function TransportOrderDetailsPage() {
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.DISPATCHER ||
     auth.user?.role === ROLES.DRIVER;
+
   const canViewHistory = auth.user?.role !== ROLES.DRIVER;
 
+  const canResolveWarehouses = auth.user?.role !== ROLES.DRIVER;
+
+  const canResolveVehicles =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.DISPATCHER;
+
+  const canResolveEmployees =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.DISPATCHER;
+
+  const canResolveProducts = canReadItems;
+
   const [selectedItem, setSelectedItem] = useState<TransportOrderItemResponse | null>(null);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
 
   const transportOrderQuery = useTransportOrder(
-    Number.isFinite(transportOrderId) ? transportOrderId : null,
+    isValidTransportOrderId ? transportOrderId : null,
   );
 
   const itemsQuery = useQuery({
     queryKey: ['transport-order-items', transportOrderId],
     queryFn: () => transportOrdersApi.getItemsByTransportOrderId(transportOrderId),
-    enabled: Number.isFinite(transportOrderId),
+    enabled: isValidTransportOrderId && canReadItems,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -137,6 +166,7 @@ export default function TransportOrderDetailsPage() {
   const warehousesQuery = useQuery({
     queryKey: ['transport-orders', 'warehouses'],
     queryFn: transportOrdersApi.getWarehouses,
+    enabled: canResolveWarehouses,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -144,6 +174,7 @@ export default function TransportOrderDetailsPage() {
   const vehiclesQuery = useQuery({
     queryKey: ['transport-orders', 'vehicles'],
     queryFn: transportOrdersApi.getVehicles,
+    enabled: canResolveVehicles,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -151,6 +182,7 @@ export default function TransportOrderDetailsPage() {
   const employeesQuery = useQuery({
     queryKey: ['transport-orders', 'employees'],
     queryFn: transportOrdersApi.getEmployees,
+    enabled: canResolveEmployees,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -158,11 +190,13 @@ export default function TransportOrderDetailsPage() {
   const productsQuery = useQuery({
     queryKey: ['transport-orders', 'products'],
     queryFn: transportOrdersApi.getProducts,
+    enabled: canResolveProducts,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 
   const updateStatusMutation = useUpdateTransportOrderStatus();
+  const updateTransportOrderMutation = useUpdateTransportOrder();
 
   const createItemMutation = useMutation({
     mutationFn: transportOrdersApi.createItem,
@@ -297,13 +331,14 @@ export default function TransportOrderDetailsPage() {
 
   const transportOrder = transportOrderQuery.data;
   const nextStatuses = transportOrder ? getAllowedNextStatuses(transportOrder.status, auth.user?.role) : [];
-  const isEditableItems = canManageOrder && transportOrder?.status === 'CREATED';
+  const isEditableItems = canMutateItems && transportOrder?.status === 'CREATED';
+  const isEditableOrder = canManageOrder && transportOrder?.status === 'CREATED';
 
-  if (!Number.isFinite(transportOrderId)) {
+  if (!isValidTransportOrderId) {
     return (
       <ErrorState
         title="Invalid transport order"
-        description="The transport order ID in the route is not valid."
+        description="The transport order ID in the route must be a positive integer."
       />
     );
   }
@@ -328,10 +363,21 @@ export default function TransportOrderDetailsPage() {
   }
 
   if (transportOrderQuery.isError || !transportOrder) {
+    const error = normalizeApiError(
+      transportOrderQuery.error,
+      'The requested transport order details are not available.',
+    );
+
     return (
       <ErrorState
-        title="Transport order could not be loaded"
-        description="The requested transport order details are not available."
+        title={
+          error.status === 403
+            ? 'Access denied'
+            : error.status === 404
+              ? 'Transport order not found'
+              : 'Transport order could not be loaded'
+        }
+        description={error.message}
         onRetry={() => void transportOrderQuery.refetch()}
       />
     );
@@ -342,7 +388,11 @@ export default function TransportOrderDetailsPage() {
   const vehicle = vehiclesById[transportOrder.vehicleId];
   const employee = employeesById[transportOrder.assignedEmployeeId];
 
-  const productOptions = (productsQuery.data ?? []).map((product) => ({
+  const selectableProducts = (productsQuery.data ?? []).filter(
+    (product) => typeof product.weight === 'number' && product.weight > 0,
+  );
+
+  const productOptions = selectableProducts.map((product) => ({
     value: product.id,
     label: `${product.name} (${product.sku})`,
   }));
@@ -358,6 +408,15 @@ export default function TransportOrderDetailsPage() {
         description={transportOrder.description}
         actions={
           <Stack direction="row" spacing={1}>
+            {isEditableOrder ? (
+              <Button
+                variant="contained"
+                onClick={() => setOrderDialogOpen(true)}
+              >
+                Edit order
+              </Button>
+            ) : null}
+
             {canViewHistory ? (
               <Button
                 variant="outlined"
@@ -366,6 +425,7 @@ export default function TransportOrderDetailsPage() {
                 View history
               </Button>
             ) : null}
+
             <Button variant="outlined" onClick={() => navigate('/transport-orders')}>
               Back to list
             </Button>
@@ -544,6 +604,9 @@ export default function TransportOrderDetailsPage() {
               Current status: {transportOrder.status}
             </Typography>
             <Typography variant="body2" color="text.secondary">
+              Order editing enabled: {isEditableOrder ? 'Yes' : 'No'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
               Item editing enabled: {isEditableItems ? 'Yes' : 'No'}
             </Typography>
           </SectionCard>
@@ -558,11 +621,22 @@ export default function TransportOrderDetailsPage() {
           <TransportOrderItemsTable
             rows={itemsQuery.data ?? []}
             productsById={productsById}
-            loading={itemsQuery.isLoading || productsQuery.isLoading}
-            error={itemsQuery.isError || productsQuery.isError}
+            loading={
+              (canReadItems && itemsQuery.isLoading) ||
+              (canResolveProducts && productsQuery.isLoading)
+            }
+            error={
+              (canReadItems && itemsQuery.isError) ||
+              (canResolveProducts && productsQuery.isError)
+            }
             onRetry={() => {
-              void itemsQuery.refetch();
-              void productsQuery.refetch();
+              if (canReadItems) {
+                void itemsQuery.refetch();
+              }
+
+              if (canResolveProducts) {
+                void productsQuery.refetch();
+              }
             }}
             showActions={isEditableItems}
             deletingItemId={deleteItemMutation.isPending ? deleteItemMutation.variables ?? null : null}
@@ -614,6 +688,13 @@ export default function TransportOrderDetailsPage() {
                   />
                 </Grid>
 
+                {productOptions.length === 0 ? (
+                  <EmptyState
+                    title="No valid products available"
+                    description="Transport order items require products with a defined weight greater than zero."
+                  />
+                ) : null}
+
                 <Grid size={{ xs: 12 }}>
                   <Stack direction="row" justifyContent="flex-end" spacing={1}>
                     {selectedItem ? (
@@ -631,7 +712,7 @@ export default function TransportOrderDetailsPage() {
 
                     <Button
                       variant="contained"
-                      disabled={isItemMutationLoading}
+                      disabled={isItemMutationLoading || productOptions.length === 0}
                       onClick={itemForm.handleSubmit((values) => {
                         const payload = {
                           productId: values.productId,
@@ -672,6 +753,45 @@ export default function TransportOrderDetailsPage() {
           ) : null}
         </Stack>
       </SectionCard>
+      <TransportOrderFormDialog
+        open={orderDialogOpen}
+        initialData={transportOrder}
+        warehouses={canResolveWarehouses ? warehousesQuery.data ?? [] : []}
+        vehicles={canResolveVehicles ? vehiclesQuery.data ?? [] : []}
+        employees={canResolveEmployees ? employeesQuery.data ?? [] : []}
+        loading={
+          updateTransportOrderMutation.isPending ||
+          (canResolveWarehouses && warehousesQuery.isLoading) ||
+          (canResolveVehicles && vehiclesQuery.isLoading) ||
+          (canResolveEmployees && employeesQuery.isLoading)
+        }
+        onClose={() => setOrderDialogOpen(false)}
+        onSubmit={(values) => {
+          updateTransportOrderMutation.mutate(
+            {
+              id: transportOrder.id,
+              payload: {
+                orderNumber: values.orderNumber,
+                description: values.description,
+                orderDate: values.orderDate,
+                departureTime: values.departureTime,
+                plannedArrivalTime: values.plannedArrivalTime,
+                priority: values.priority,
+                notes: values.notes?.trim() || undefined,
+                sourceWarehouseId: Number(values.sourceWarehouseId),
+                destinationWarehouseId: Number(values.destinationWarehouseId),
+                vehicleId: Number(values.vehicleId),
+                assignedEmployeeId: Number(values.assignedEmployeeId),
+              },
+            },
+            {
+              onSuccess: () => {
+                setOrderDialogOpen(false);
+              },
+            },
+          );
+        }}
+      />
     </Stack>
   );
 }

@@ -6,10 +6,11 @@ import {
   DialogTitle,
   Grid,
 } from '@mui/material';
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import Form from '../../../shared/components/Form/Form';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import type { CompanyResponse } from '../../companies/types/company.types';
 import type {
   WarehouseEmployeeOption,
   WarehouseFormValues,
@@ -21,6 +22,8 @@ type Props = {
   mode: 'create' | 'edit';
   initialData?: WarehouseResponse | null;
   managers: WarehouseEmployeeOption[];
+  companies: CompanyResponse[];
+  isOverlord: boolean;
   loading?: boolean;
   onClose: () => void;
   onSubmit: (values: WarehouseFormValues) => void;
@@ -40,6 +43,7 @@ const defaultValues: WarehouseFormValues = {
   capacity: '',
   status: 'ACTIVE',
   employeeId: '',
+  companyId: '',
 };
 
 export default function WarehouseFormDialog({
@@ -47,12 +51,19 @@ export default function WarehouseFormDialog({
   mode,
   initialData,
   managers,
+  companies,
+  isOverlord,
   loading = false,
   onClose,
   onSubmit,
 }: Props) {
-  const { control, handleSubmit, reset } = useForm<WarehouseFormValues>({
+  const { control, handleSubmit, reset, setValue } = useForm<WarehouseFormValues>({
     defaultValues,
+  });
+
+  const selectedCompanyId = useWatch({
+    control,
+    name: 'companyId',
   });
 
   useEffect(() => {
@@ -68,12 +79,40 @@ export default function WarehouseFormDialog({
         capacity: initialData.capacity,
         status: initialData.status,
         employeeId: initialData.employeeId ?? '',
+        companyId: initialData.companyId != null ? String(initialData.companyId) : '',
       });
       return;
     }
 
     reset(defaultValues);
   }, [initialData, mode, open, reset]);
+
+  useEffect(() => {
+    if (mode !== 'create' || !isOverlord) {
+      return;
+    }
+
+    setValue('employeeId', '');
+  }, [isOverlord, mode, selectedCompanyId, setValue]);
+
+  const companyOptions = companies.map((company) => ({
+    value: String(company.id),
+    label: company.name,
+  }));
+
+  const visibleManagers = useMemo(() => {
+    if (mode !== 'create' || !isOverlord) {
+      return managers;
+    }
+
+    if (!selectedCompanyId) {
+      return [];
+    }
+
+    return managers.filter(
+      (manager) => String(manager.companyId ?? '') === String(selectedCompanyId),
+    );
+  }, [isOverlord, managers, mode, selectedCompanyId]);
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
@@ -108,17 +147,34 @@ export default function WarehouseFormDialog({
             />
           </Grid>
 
+          {mode === 'create' && isOverlord ? (
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="companyId"
+                control={control}
+                label="Company"
+                options={companyOptions}
+                required
+              />
+            </Grid>
+          ) : null}
+
           <Grid size={{ xs: 12 }}>
             <FormSelect
               name="employeeId"
               control={control}
               label="Manager"
-              options={managers.map((manager) => ({
+              options={visibleManagers.map((manager) => ({
                 value: manager.id,
                 label: `${manager.firstName} ${manager.lastName}`,
               }))}
               required
-              disabled={mode === 'edit'}
+              disabled={mode === 'edit' || (mode === 'create' && isOverlord && !selectedCompanyId)}
+              helperText={
+                mode === 'create' && isOverlord && !selectedCompanyId
+                  ? 'Select company first'
+                  : undefined
+              }
             />
           </Grid>
         </Grid>

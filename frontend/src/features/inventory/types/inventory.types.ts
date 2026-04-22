@@ -23,8 +23,8 @@ export type WarehouseInventoryCreateRequest = {
 };
 
 export type WarehouseInventoryUpdateRequest = {
-  warehouseId?: number;
-  productId?: number;
+  warehouseId: number;
+  productId: number;
   quantity: number;
   minStockLevel: number;
 };
@@ -56,11 +56,11 @@ export type DerivedInventoryStatus = 'LOW_STOCK' | 'SUFFICIENT';
 
 export type InventoryListRow = WarehouseInventoryResponse & {
   warehouseName: string;
-  warehouseCity: string;
-  warehouseStatus: WarehouseStatus;
+  warehouseCity: string | null;
+  warehouseStatus: WarehouseStatus | null;
   productName: string;
-  productSku: string;
-  productUnit: ProductUnit;
+  productSku: string | null;
+  productUnit: ProductUnit | null;
   availableQuantity: number;
   derivedStatus: DerivedInventoryStatus;
 };

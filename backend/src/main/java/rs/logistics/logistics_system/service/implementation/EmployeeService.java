@@ -26,15 +26,16 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.EmployeeMapper;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
 import rs.logistics.logistics_system.mapper.TaskMapper;
+import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.security.RoleCatalog;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
-import rs.logistics.logistics_system.security.RoleCatalog;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
 @Service
@@ -46,6 +47,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     private final ShiftRepository _shiftRepository;
     private final UserRepository _userRepository;
     private final RoleRepository _roleRepository;
+    private final CompanyRepository _companyRepository;
 
     private final UserServiceDefinition userService;
     private final AuditFacadeDefinition auditFacade;
@@ -114,14 +116,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         validateAssignableRole(role);
         validatePositionMatchesRole(dto.getPosition(), role);
 
-        Company company = null;
-        if (!authenticatedUserProvider.isOverlord()) {
-            company = authenticatedUserProvider.getAuthenticatedCompany();
-
-            if (company == null) {
-                throw new ForbiddenException("Authenticated user is not assigned to a company");
-            }
-        }
+        Company company = resolveTargetCompany(dto.getCompanyId());
 
         String generatedEmail = generateUniqueEmail(dto.getFirstName(), dto.getLastName(), company, dto.getPosition().name());
         validateUniqueEmployeeEmail(generatedEmail);
@@ -572,4 +567,23 @@ public class EmployeeService implements EmployeeServiceDefinition {
         return normalized;
     }
 
+
+    private Company resolveTargetCompany(Long companyId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            if (companyId == null) {
+                throw new BadRequestException("Company id is required for OVERLORD.");
+            }
+
+            return _companyRepository.findById(companyId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
+        }
+
+        Company company = authenticatedUserProvider.getAuthenticatedCompany();
+
+        if (company == null) {
+            throw new ForbiddenException("Authenticated user is not assigned to a company");
+        }
+
+        return company;
+    }
 }

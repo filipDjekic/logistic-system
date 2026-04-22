@@ -61,6 +61,9 @@ public class EmployeeWithUserCreate {
     @NotNull
     private UserStatus status;
 
+    @Positive
+    private Long companyId;
+
     public EmployeeWithUserCreate(String firstName,
                                   String lastName,
                                   String jmbg,
@@ -71,7 +74,8 @@ public class EmployeeWithUserCreate {
                                   BigDecimal salary,
                                   String password,
                                   Long roleId,
-                                  UserStatus status) {
+                                  UserStatus status,
+                                  Long companyId) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.jmbg = jmbg;
@@ -83,5 +87,6 @@ public class EmployeeWithUserCreate {
         this.password = password;
         this.roleId = roleId;
         this.status = status;
+        this.companyId = companyId;
     }
 }

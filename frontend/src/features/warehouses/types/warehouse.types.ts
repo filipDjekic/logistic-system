@@ -23,6 +23,7 @@ export type WarehouseEmployeeOption = {
   firstName: string;
   lastName: string;
   position: string;
+  companyId: number | null;
 };
 
 export type WarehouseCreateRequest = {
@@ -32,6 +33,7 @@ export type WarehouseCreateRequest = {
   capacity: number;
   status: WarehouseStatus;
   employeeId: number;
+  companyId?: number;
 };
 
 export type WarehouseUpdateRequest = {
@@ -54,4 +56,5 @@ export type WarehouseFormValues = {
   capacity: number | '';
   status: WarehouseStatus;
   employeeId: number | '';
+  companyId: string;
 };

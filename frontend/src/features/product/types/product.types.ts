@@ -27,6 +27,7 @@ export type ProductCreateRequest = {
   price: number;
   fragile: boolean;
   weight: number;
+  companyId?: number;
 };
 
 export type ProductUpdateRequest = ProductCreateRequest;
@@ -39,4 +40,5 @@ export type ProductFormValues = {
   price: string;
   fragile: boolean;
   weight: string;
+  companyId: string;
 };

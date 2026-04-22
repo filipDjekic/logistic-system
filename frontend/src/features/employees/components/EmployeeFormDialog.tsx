@@ -14,6 +14,7 @@ import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
+import type { CompanyResponse } from '../../companies/types/company.types';
 import type {
   EmployeeResponse,
   EmployeeRoleOption,
@@ -31,7 +32,9 @@ type EmployeeFormDialogProps = {
   initialData?: EmployeeResponse | null;
   linkedUser?: EmployeeUserOption | null;
   roles: EmployeeRoleOption[];
+  companies: CompanyResponse[];
   companyName?: string | null;
+  isOverlord?: boolean;
   loading?: boolean;
   canEdit?: boolean;
   onClose: () => void;
@@ -55,6 +58,7 @@ const defaultValues: EmployeeFormValues = {
   password: '',
   status: 'ACTIVE',
   enabled: true,
+  companyId: '',
 };
 
 function normalizeForEmail(value: string, allowHyphen: boolean) {
@@ -101,22 +105,26 @@ export default function EmployeeFormDialog({
   initialData,
   linkedUser = null,
   roles,
+  companies,
   companyName = null,
+  isOverlord = false,
   loading = false,
   canEdit = true,
   onClose,
   onSubmit,
 }: EmployeeFormDialogProps) {
   const hasLinkedUser = mode === 'edit' && Boolean(linkedUser);
+  const requireCompany = mode === 'create' && isOverlord;
 
   const form = useForm<EmployeeFormValues>({
-    resolver: zodResolver(getEmployeeFormSchema(mode, hasLinkedUser)),
+    resolver: zodResolver(getEmployeeFormSchema(mode, hasLinkedUser, requireCompany)),
     defaultValues,
   });
 
   const firstName = useWatch({ control: form.control, name: 'firstName' });
   const lastName = useWatch({ control: form.control, name: 'lastName' });
   const selectedPosition = useWatch({ control: form.control, name: 'position' });
+  const selectedCompanyId = useWatch({ control: form.control, name: 'companyId' });
 
   const positionOptions = useMemo(
     () =>
@@ -126,6 +134,31 @@ export default function EmployeeFormDialog({
       })),
     [roles],
   );
+
+  const companyOptions = useMemo(
+    () =>
+      companies.map((company) => ({
+        value: String(company.id),
+        label: company.name,
+      })),
+    [companies],
+  );
+
+  const selectedCompanyName = useMemo(() => {
+    if (mode !== 'create') {
+      return companyName;
+    }
+
+    if (!isOverlord) {
+      return companyName;
+    }
+
+    const selectedCompany = companies.find(
+      (company) => String(company.id) === String(selectedCompanyId),
+    );
+
+    return selectedCompany?.name ?? null;
+  }, [companies, companyName, isOverlord, mode, selectedCompanyId]);
 
   useEffect(() => {
     if (!open) {
@@ -145,6 +178,7 @@ export default function EmployeeFormDialog({
         password: '',
         status: linkedUser?.status ?? 'ACTIVE',
         enabled: linkedUser?.enabled ?? true,
+        companyId: initialData.companyId != null ? String(initialData.companyId) : '',
       });
       return;
     }
@@ -157,9 +191,9 @@ export default function EmployeeFormDialog({
       return;
     }
 
-    const nextEmail = buildEmail(firstName ?? '', lastName ?? '', companyName, selectedPosition);
+    const nextEmail = buildEmail(firstName ?? '', lastName ?? '', selectedCompanyName, selectedPosition);
     form.setValue('email', nextEmail, { shouldDirty: true, shouldValidate: true });
-  }, [companyName, firstName, form, lastName, mode, selectedPosition]);
+  }, [firstName, form, lastName, mode, selectedCompanyName, selectedPosition]);
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
@@ -236,6 +270,18 @@ export default function EmployeeFormDialog({
                 }}
               />
             </Grid>
+
+            {mode === 'create' && isOverlord ? (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <FormSelect
+                  name="companyId"
+                  control={form.control}
+                  label="Company"
+                  options={companyOptions}
+                  required
+                />
+              </Grid>
+            ) : null}
 
             {mode === 'create' ? (
               <Grid size={{ xs: 12, md: 6 }}>

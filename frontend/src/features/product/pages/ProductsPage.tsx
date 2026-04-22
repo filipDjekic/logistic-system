@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { useCompanies } from '../../companies/hooks/useCompanies';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -23,16 +24,12 @@ type ProductFiltersState = {
 
 export default function ProductsPage() {
   const auth = useAuthStore();
+  const isOverlord = auth.user?.role === ROLES.OVERLORD;
   const { showSnackbar } = useAppSnackbar();
 
   const canManage =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
-
-  const query = useProducts();
-  const create = useCreateProduct();
-  const update = useUpdateProduct();
-  const remove = useDeleteProduct();
 
   const [filters, setFilters] = useState<ProductFiltersState>({
     search: '',
@@ -42,6 +39,14 @@ export default function ProductsPage() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<ProductResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductResponse | null>(null);
+
+  const query = useProducts();
+  const companiesQuery = useCompanies(
+    canManage && isOverlord && open && selected === null,
+  );
+  const create = useCreateProduct();
+  const update = useUpdateProduct();
+  const remove = useDeleteProduct();
 
   const filteredRows = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
@@ -120,8 +125,12 @@ export default function ProductsPage() {
               variant="outlined"
               onClick={() => {
                 void query.refetch();
+
+                if (canManage && isOverlord && open && selected === null) {
+                  void companiesQuery.refetch();
+                }
               }}
-              disabled={query.isFetching}
+              disabled={query.isFetching || companiesQuery.isFetching}
             >
               Refresh
             </Button>
@@ -150,6 +159,8 @@ export default function ProductsPage() {
         <ProductFormDialog
           open={open}
           initialData={selected}
+          companies={companiesQuery.data ?? []}
+          showCompanySelect={isOverlord && selected === null}
           onClose={() => setOpen(false)}
           onSubmit={(values: ProductFormValues) => {
             const payload = {
@@ -185,21 +196,27 @@ export default function ProductsPage() {
               return;
             }
 
-            create.mutate(payload, {
-              onSuccess: () => {
-                setOpen(false);
-                showSnackbar({
-                  message: 'Product created successfully.',
-                  severity: 'success',
-                });
+            create.mutate(
+              {
+                ...payload,
+                companyId: values.companyId ? Number(values.companyId) : undefined,
               },
-              onError: (error) => {
-                showSnackbar({
-                  message: getErrorMessage(error),
-                  severity: 'error',
-                });
+              {
+                onSuccess: () => {
+                  setOpen(false);
+                  showSnackbar({
+                    message: 'Product created successfully.',
+                    severity: 'success',
+                  });
+                },
+                onError: (error) => {
+                  showSnackbar({
+                    message: getErrorMessage(error),
+                    severity: 'error',
+                  });
+                },
               },
-            });
+            );
           }}
         />
       ) : null}
