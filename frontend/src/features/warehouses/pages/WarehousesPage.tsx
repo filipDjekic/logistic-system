@@ -195,14 +195,18 @@ export default function WarehousesPage() {
           onClose={() => setDialogOpen(false)}
           onSubmit={(values: WarehouseFormValues) => {
             if (dialogMode === 'create') {
+              const capacity = values.capacity === '' ? undefined : Number(values.capacity);
+              const employeeId = values.employeeId === '' ? undefined : Number(values.employeeId);
+              const companyId = values.companyId ? Number(values.companyId) : undefined;
+
               createWarehouseMutation.mutate({
                 name: values.name,
                 address: values.address,
                 city: values.city,
-                capacity: Number(values.capacity),
+                capacity: capacity as number,
                 status: values.status,
-                employeeId: Number(values.employeeId),
-                companyId: values.companyId ? Number(values.companyId) : undefined,
+                employeeId: employeeId as number,
+                companyId,
               });
               return;
             }
@@ -211,13 +215,14 @@ export default function WarehousesPage() {
               return;
             }
 
+            const updatedCapacity = values.capacity === '' ? undefined : Number(values.capacity);
             updateWarehouseMutation.mutate({
               id: selectedWarehouse.id,
               data: {
                 name: values.name,
                 address: values.address,
                 city: values.city,
-                capacity: Number(values.capacity),
+                capacity: updatedCapacity as number,
               },
             });
           }}

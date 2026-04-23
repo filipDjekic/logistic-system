@@ -119,7 +119,7 @@ export default function StockMovementFormDialog({
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <Controller
+                  <Controller
                 name="quantity"
                 control={form.control}
                 render={({ field, fieldState }) => (
@@ -127,12 +127,11 @@ export default function StockMovementFormDialog({
                     label="Quantity"
                     type="number"
                     fullWidth
-                    value={field.value || ''}
-                    onChange={(event) =>
-                      field.onChange(
-                        event.target.value === '' ? 0 : Number(event.target.value),
-                      )
-                    }
+                    value={field.value ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      field.onChange(value === '' ? undefined : Number(value));
+                    }}
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message}
                   />
@@ -141,7 +140,7 @@ export default function StockMovementFormDialog({
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <Controller
+                  <Controller
                 name="warehouseId"
                 control={form.control}
                 render={({ field, fieldState }) => (
@@ -149,8 +148,11 @@ export default function StockMovementFormDialog({
                     select
                     fullWidth
                     label="Warehouse"
-                    value={field.value || ''}
-                    onChange={(event) => field.onChange(Number(event.target.value))}
+                    value={field.value ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      field.onChange(value === '' ? undefined : Number(value));
+                    }}
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message}
                   >
@@ -165,7 +167,7 @@ export default function StockMovementFormDialog({
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <Controller
+                  <Controller
                 name="productId"
                 control={form.control}
                 render={({ field, fieldState }) => (
@@ -173,8 +175,11 @@ export default function StockMovementFormDialog({
                     select
                     fullWidth
                     label="Product"
-                    value={field.value || ''}
-                    onChange={(event) => field.onChange(Number(event.target.value))}
+                    value={field.value ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      field.onChange(value === '' ? undefined : Number(value));
+                    }}
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message}
                   >
