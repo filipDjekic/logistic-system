@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 
@@ -28,4 +29,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     List<Vehicle> findByActive(Boolean active);
 
     List<Vehicle> findByActiveAndCompany_Id(Boolean active, Long companyId);
+
+    @Query("select v.status, count(v) from Vehicle v group by v.status")
+    List<Object[]> countGroupedByStatus();
 }

@@ -46,4 +46,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             and (t.updatedAt is null or t.updatedAt = t.createdAt)
             """)
     boolean canBeHardDeleted(@Param("taskId") Long taskId, @Param("status") TaskStatus status);
+
+    @Query("select t.status, count(t) from Task t group by t.status")
+    List<Object[]> countGroupedByStatus();
 }

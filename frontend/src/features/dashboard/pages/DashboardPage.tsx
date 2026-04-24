@@ -1,30 +1,45 @@
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
-import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import { Box, Chip, Stack, Typography } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
-import DashboardStatsGrid from '../components/DashboardStatsGrid';
-import InventoryAlertsCard from '../components/InventoryAlertsCard';
-import MyTasksCard from '../components/MyTasksCard';
-import TransportStatusChart from '../components/TransportStatusChart';
-import VehicleUsageCard from '../components/VehicleUsageCard';
-import { useDashboardData } from '../hooks/useDashboardData';
+import { dashboardApi } from '../api/dashboardApi';
+import OverlordDashboardPanel from '../components/OverlordDashboardPanel';
 
 export default function DashboardPage() {
   const auth = useAuthStore();
-  const dashboard = useDashboardData();
+  const role = auth.user?.role ?? null;
+  const isOverlord = role === ROLES.OVERLORD;
 
-  if (dashboard.isLoading) {
-    return <InlineLoader message="Loading dashboard data..." size={22} />;
-  }
+  const overlordDashboardQuery = useQuery({
+    queryKey: ['dashboard', 'overlord'],
+    queryFn: dashboardApi.getOverlordDashboard,
+    enabled: isOverlord,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
 
-  if (dashboard.isError) {
+  if (!role) {
     return (
       <ErrorState
         title="Dashboard could not be loaded"
-        description="One or more dashboard data sources failed to load. Please try again."
-        onRetry={dashboard.refetch}
+        description="Current user role is not available."
+      />
+    );
+  }
+
+  if (isOverlord && overlordDashboardQuery.isLoading) {
+    return <InlineLoader message="Loading dashboard data..." size={22} />;
+  }
+
+  if (isOverlord && overlordDashboardQuery.isError) {
+    return (
+      <ErrorState
+        title="Dashboard could not be loaded"
+        description="Overlord dashboard data source failed to load."
+        onRetry={() => void overlordDashboardQuery.refetch()}
       />
     );
   }
@@ -42,83 +57,38 @@ export default function DashboardPage() {
               : 'linear-gradient(135deg, rgba(91,75,255,0.10), rgba(8,145,178,0.06))',
         }}
       >
-        <Stack spacing={2}>
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            justifyContent="space-between"
-            alignItems={{ xs: 'flex-start', md: 'center' }}
-            spacing={2}
-          >
-            <Stack spacing={1}>
-              <Stack direction="row" spacing={1.25} alignItems="center">
-                <DashboardRoundedIcon />
-                <Typography variant="h4">Dashboard</Typography>
-              </Stack>
-
-              <Typography variant="body1" color="text.secondary">
-                Quick overview of your current logistics workspace.
-              </Typography>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', md: 'center' }}
+          spacing={2}
+        >
+          <Stack spacing={1}>
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <DashboardRoundedIcon />
+              <Typography variant="h4">Dashboard</Typography>
             </Stack>
 
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Chip label={`Role: ${auth.user?.role ?? '-'}`} />
-              <Chip label={`User ID: ${auth.user?.id ?? '-'}`} />
-              {dashboard.hasExtendedDashboard ? (
-                <Chip
-                  icon={<AdminPanelSettingsRoundedIcon />}
-                  label="Extended data scope enabled"
-                  color="primary"
-                  variant="outlined"
-                />
-              ) : null}
-            </Stack>
+            <Typography variant="body1" color="text.secondary">
+              Role-based logistics overview.
+            </Typography>
+          </Stack>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Chip label={`Role: ${role}`} />
+            <Chip label={`User ID: ${auth.user?.id ?? '-'}`} />
           </Stack>
         </Stack>
       </Box>
 
-      <DashboardStatsGrid
-        canSeeTransportOverview={dashboard.canSeeTransportOverview}
-        canSeeFleetOverview={dashboard.canSeeFleetOverview}
-        canSeeStorageOverview={dashboard.canSeeStorageOverview}
-        stats={dashboard.stats}
-      />
-
-      <Box
-        sx={{
-          display: 'grid',
-          gap: 2,
-          gridTemplateColumns: {
-            xs: '1fr',
-            xl: dashboard.hasExtendedDashboard ? 'minmax(0, 1.5fr) minmax(0, 1fr)' : '1fr',
-          },
-        }}
-      >
-        <Stack spacing={2}>
-          {dashboard.canSeeTransportOverview ? (
-            <TransportStatusChart
-              total={dashboard.transportOrders.length}
-              counts={dashboard.transportStatusCounts}
-            />
-          ) : null}
-
-          <MyTasksCard tasks={dashboard.myTasks} />
-        </Stack>
-
-        {dashboard.hasExtendedDashboard ? (
-          <Stack spacing={2}>
-            {dashboard.canSeeFleetOverview ? (
-              <VehicleUsageCard
-                total={dashboard.vehicles.length}
-                counts={dashboard.vehicleStatusCounts}
-              />
-            ) : null}
-
-            {dashboard.canSeeStorageOverview ? (
-              <InventoryAlertsCard items={dashboard.inventoryAlerts} />
-            ) : null}
-          </Stack>
-        ) : null}
-      </Box>
+      {isOverlord && overlordDashboardQuery.data ? (
+        <OverlordDashboardPanel data={overlordDashboardQuery.data} />
+      ) : (
+        <ErrorState
+          title="Dashboard is not implemented for this role"
+          description={`Dashboard for ${role} will be added as a separate role-specific dashboard.`}
+        />
+      )}
     </Stack>
   );
 }

@@ -1,138 +1,46 @@
 import { apiClient } from '../../../core/api/client';
 
-export type TaskStatus = 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-
-export type TransportOrderStatus =
-  | 'CREATED'
-  | 'ASSIGNED'
-  | 'IN_TRANSIT'
-  | 'DELIVERED'
-  | 'CANCELLED';
-
-export type PriorityLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-
-export type VehicleStatus =
-  | 'AVAILABLE'
-  | 'IN_USE'
-  | 'MAINTENANCE'
-  | 'OUT_OF_SERVICE';
-
-export type WarehouseStatus =
-  | 'ACTIVE'
-  | 'INACTIVE'
-  | 'FULL'
-  | 'UNDER_MAINTENANCE';
-
-export type NotificationStatus = 'UNREAD' | 'READ';
-export type NotificationType = 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS';
-
-export type TaskResponse = {
+export type OverlordRecentActivityResponse = {
   id: number;
-  title: string;
-  description: string;
-  dueDate: string;
-  priority: TaskPriority;
-  status: TaskStatus;
-  assignedEmployeeId: number | null;
-  transportOrderId: number | null;
-};
-
-export type TransportOrderResponse = {
-  id: number;
-  orderNumber: string;
-  description: string;
-  orderDate: string;
-  departureTime: string | null;
-  plannedArrivalTime: string | null;
-  actualArrivalTime: string | null;
-  status: TransportOrderStatus;
-  priority: PriorityLevel;
-  totalWeight: string;
-  notes: string | null;
-  sourceWarehouseId: number;
-  destinationWarehouseId: number;
-  vehicleId: number | null;
-  assignedEmployeeId: number | null;
-  createdById: number;
-};
-
-export type VehicleResponse = {
-  id: number;
-  registrationNumber: string;
-  brand: string;
-  model: string;
-  type: string;
-  capacity: string;
-  fuelType: string;
-  yearOfProduction: number;
-  status: VehicleStatus;
-};
-
-export type WarehouseResponse = {
-  id: number;
-  name: string;
-  address: string;
-  city: string;
-  capacity: string;
-  status: WarehouseStatus;
-  employeeId: number | null;
-};
-
-export type WarehouseInventoryResponse = {
-  warehouseId: number;
-  productId: number;
-  quantity: string;
-  reservedQuantity: string;
-  minStockLevel: string;
-};
-
-export type NotificationResponse = {
-  id: number;
-  title: string;
-  message: string;
-  type: NotificationType;
-  status: NotificationStatus;
+  action: string;
+  entityName: string;
+  entityId: number | null;
+  entityIdentifier: string | null;
+  description: string | null;
   createdAt: string;
-  userId: number;
+  userId: number | null;
+  userEmail: string | null;
 };
 
-export type NotificationPageResponse = {
-  items: NotificationResponse[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-  last: boolean;
-  unreadCount: number;
+export type OverlordDashboardResponse = {
+  companiesTotal: number;
+  activeCompanies: number;
+  usersTotal: number;
+  usersByStatus: Record<string, number>;
+  employeesTotal: number;
+  activeEmployees: number;
+  transportOrdersTotal: number;
+  transportOrdersByStatus: Record<string, number>;
+  tasksTotal: number;
+  tasksByStatus: Record<string, number>;
+  vehiclesTotal: number;
+  vehiclesByStatus: Record<string, number>;
+  warehousesTotal: number;
+  productsTotal: number;
+  inventoryRowsTotal: number;
+  lowStockRowsTotal: number;
+  inventoryQuantityTotal: string;
+  inventoryAvailableQuantityTotal: string;
+  stockMovementsTotal: number;
+  activityLogsTotal: number;
+  changeHistoryTotal: number;
+  recentActivities: OverlordRecentActivityResponse[];
 };
 
 export const dashboardApi = {
-  getMyTasks() {
-    return apiClient.get<TaskResponse[]>('/api/tasks/my').then((response) => response.data);
-  },
-
-  getMyUnreadNotificationsCount() {
-    return apiClient.get<number>('/api/notifications/my/unread/count').then((response) => response.data);
-  },
-
-  getTransportOrders() {
+  getOverlordDashboard() {
     return apiClient
-      .get<TransportOrderResponse[]>('/api/transport_orders')
-      .then((response) => response.data);
-  },
-
-  getVehicles() {
-    return apiClient.get<VehicleResponse[]>('/api/vehicles').then((response) => response.data);
-  },
-
-  getWarehouses() {
-    return apiClient.get<WarehouseResponse[]>('/api/warehouses').then((response) => response.data);
-  },
-
-  getWarehouseInventory(warehouseId: number) {
-    return apiClient
-      .get<WarehouseInventoryResponse[]>(`/api/warehouses/${warehouseId}/inventory`)
+      .get<OverlordDashboardResponse>('/api/dashboard/overlord')
       .then((response) => response.data);
   },
 };

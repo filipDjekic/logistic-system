@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
 import rs.logistics.logistics_system.entity.WarehouseInventoryId;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,4 +33,13 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select wi from WarehouseInventory wi where wi.warehouse.id = :warehouseId and wi.product.id = :productId")
     Optional<WarehouseInventory> findByWarehouseIdAndProductIdForUpdate(@Param("warehouseId") Long warehouseId, @Param("productId") Long productId);
+
+    @Query("select count(wi) from WarehouseInventory wi where wi.minStockLevel is not null and (wi.quantity - wi.reservedQuantity) <= wi.minStockLevel")
+    long countLowStockRows();
+
+    @Query("select coalesce(sum(wi.quantity), 0) from WarehouseInventory wi")
+    BigDecimal sumQuantity();
+
+    @Query("select coalesce(sum(wi.quantity - wi.reservedQuantity), 0) from WarehouseInventory wi")
+    BigDecimal sumAvailableQuantity();
 }

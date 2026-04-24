@@ -49,4 +49,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByStatusAndCompany_Id(UserStatus status, Long companyId);
 
     List<User> findByRoleIdAndCompany_Id(Long roleId, Long companyId);
+
+    @Query("select u.status, count(u) from User u group by u.status")
+    List<Object[]> countGroupedByStatus();
 }

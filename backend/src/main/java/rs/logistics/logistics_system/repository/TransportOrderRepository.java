@@ -125,4 +125,7 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
     boolean existsByVehicleIdAndStatusInAndIdNot(Long vehicleId, Collection<TransportOrderStatus> statuses, Long id);
 
     boolean existsByVehicleId(Long vehicleId);
+
+    @Query("select t.status, count(t) from TransportOrder t group by t.status")
+    List<Object[]> countGroupedByStatus();
 }
