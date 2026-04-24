@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, MenuItem, Stack, TextField } from '@mui/material';
+import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
@@ -120,9 +120,6 @@ export default function StockMovementsPage() {
         description="The backend currently confirms list and create operations for stock movements."
       >
         <Stack spacing={2}>
-          <Alert severity="info">
-            This page is based on currently exposed backend stock movement list data.
-          </Alert>
 
           <Stack direction={{ xs: 'column', xl: 'row' }} spacing={1.5}>
             <SearchToolbar

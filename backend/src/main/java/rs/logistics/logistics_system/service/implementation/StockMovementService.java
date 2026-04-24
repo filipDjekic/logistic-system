@@ -52,11 +52,15 @@ public class StockMovementService implements StockMovementServiceDefinition {
         validateSameCompany(warehouse, product);
 
         WarehouseInventory inventory = warehouseInventoryRepository
-                .findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
+                .findByWarehouseIdAndProductIdForUpdate(warehouse.getId(), product.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
 
         User currentUser = authenticatedUserProvider.getAuthenticatedUser();
         TransportOrder transportOrder = resolveTransportOrder(dto.getTransportOrderId(), warehouse);
+
+        if (dto.getMovementType() == rs.logistics.logistics_system.enums.StockMovementType.TRANSFER_IN && transportOrder != null) {
+            validateTransferWarehouse(transportOrder, warehouse, false);
+        }
 
         BigDecimal quantityBefore = defaultZero(inventory.getQuantity());
         BigDecimal reservedBefore = defaultZero(inventory.getReservedQuantity());
@@ -72,11 +76,28 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         switch (dto.getMovementType()) {
             case INBOUND, TRANSFER_IN -> quantityAfter = quantityBefore.add(movementQuantity);
-            case OUTBOUND, TRANSFER_OUT -> {
+            case OUTBOUND -> {
                 if (availableBefore.compareTo(movementQuantity) < 0) {
                     throw new BadRequestException("Not enough available quantity for outbound movement");
                 }
                 quantityAfter = quantityBefore.subtract(movementQuantity);
+            }
+            case TRANSFER_OUT -> {
+                if (transportOrder != null) {
+                    validateTransferWarehouse(transportOrder, warehouse, true);
+
+                    if (reservedBefore.compareTo(movementQuantity) < 0) {
+                        throw new BadRequestException("Not enough reserved quantity for transport transfer out");
+                    }
+
+                    reservedAfter = reservedBefore.subtract(movementQuantity);
+                    quantityAfter = quantityBefore.subtract(movementQuantity);
+                } else {
+                    if (availableBefore.compareTo(movementQuantity) < 0) {
+                        throw new BadRequestException("Not enough available quantity for transfer out movement");
+                    }
+                    quantityAfter = quantityBefore.subtract(movementQuantity);
+                }
             }
             case ADJUSTMENT -> quantityAfter = quantityBefore.add(movementQuantity);
             default -> throw new BadRequestException("Unsupported stock movement type");
@@ -88,8 +109,25 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         BigDecimal availableAfter = quantityAfter.subtract(reservedAfter);
 
+        if (reservedAfter.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Reserved quantity after movement cannot be negative");
+        }
+
+        if (availableAfter.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Available quantity after movement cannot be negative");
+        }
+
         inventory.setQuantity(quantityAfter);
-        warehouseInventoryRepository.save(inventory);
+        inventory.setReservedQuantity(reservedAfter);
+        WarehouseInventory savedInventory = warehouseInventoryRepository.save(inventory);
+
+        recordInventoryQuantityHistory(
+                savedInventory,
+                quantityBefore,
+                quantityAfter,
+                reservedBefore,
+                reservedAfter
+        );
 
         StockMovement stockMovement = StockMovementMapper.toEntity(
                 dto,
@@ -107,7 +145,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         StockMovement saved = stockMovementRepository.save(stockMovement);
 
-        auditFacade.recordCreate("STOCK_MOVEMENT", saved.getId());
+        auditFacade.recordCreate("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved));
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "movementType", null, saved.getMovementType());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "quantity", null, saved.getQuantity());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "warehouseId", null, warehouse.getId());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "productId", null, product.getId());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "transportOrderId", null, transportOrder != null ? transportOrder.getId() : null);
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "quantityBefore", null, saved.getQuantityBefore());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "quantityAfter", null, saved.getQuantityAfter());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "reservedBefore", null, saved.getReservedBefore());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "reservedAfter", null, saved.getReservedAfter());
         auditFacade.log(
                 "CREATE",
                 "STOCK_MOVEMENT",
@@ -142,6 +189,38 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 .collect(Collectors.toList());
     }
 
+    private void recordInventoryQuantityHistory(
+            WarehouseInventory inventory,
+            BigDecimal quantityBefore,
+            BigDecimal quantityAfter,
+            BigDecimal reservedBefore,
+            BigDecimal reservedAfter
+    ) {
+        String identifier = inventoryIdentifier(inventory);
+        Long entityId = inventory.getWarehouse().getId();
+
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", entityId, identifier, "quantity", quantityBefore, quantityAfter);
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", entityId, identifier, "reservedQuantity", reservedBefore, reservedAfter);
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                entityId,
+                identifier,
+                "availableQuantity",
+                quantityBefore.subtract(reservedBefore),
+                quantityAfter.subtract(reservedAfter)
+        );
+    }
+
+    private String inventoryIdentifier(WarehouseInventory inventory) {
+        return "warehouseId=" + inventory.getWarehouse().getId()
+                + ",productId=" + inventory.getProduct().getId();
+    }
+
+    private String stockMovementIdentifier(StockMovement movement) {
+        return "warehouseId=" + movement.getWarehouse().getId()
+                + ",productId=" + movement.getProduct().getId()
+                + ",movementId=" + movement.getId();
+    }
 
     private void createOperationalTaskForStockMovement(StockMovement stockMovement) {
         if (!shouldCreateOperationalTask(stockMovement)) {
@@ -241,6 +320,18 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         validateTransportOrderContext(transportOrder, warehouse);
         return transportOrder;
+    }
+
+    private void validateTransferWarehouse(TransportOrder transportOrder, Warehouse warehouse, boolean sourceWarehouseExpected) {
+        Long expectedWarehouseId = sourceWarehouseExpected
+                ? transportOrder.getSourceWarehouse() != null ? transportOrder.getSourceWarehouse().getId() : null
+                : transportOrder.getDestinationWarehouse() != null ? transportOrder.getDestinationWarehouse().getId() : null;
+
+        if (expectedWarehouseId == null || warehouse == null || !expectedWarehouseId.equals(warehouse.getId())) {
+            throw new BadRequestException(sourceWarehouseExpected
+                    ? "TRANSFER_OUT warehouse must match transport order source warehouse"
+                    : "TRANSFER_IN warehouse must match transport order destination warehouse");
+        }
     }
 
     private void validateSameCompany(Warehouse warehouse, Product product) {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
@@ -93,10 +93,6 @@ export default function InventoryPage() {
         description="The page aggregates inventory per warehouse using current backend endpoints."
       >
         <Stack spacing={2}>
-          <Alert severity="info">
-            Inventory status on this page is a UI-derived state based on confirmed backend low-stock logic:
-            quantity less than or equal to min stock level.
-          </Alert>
 
           <InventoryFilters
             value={filters}

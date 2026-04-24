@@ -1,13 +1,22 @@
 package rs.logistics.logistics_system.entity;
 
-import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.UpdateTimestamp;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "WAREHOUSE_INVENTORY")
@@ -21,12 +30,12 @@ public class WarehouseInventory {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @MapsId("warehouseId")
-    @JoinColumn(name = "warehouseId", nullable = false)
+    @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @MapsId("productId")
-    @JoinColumn(name = "productId", nullable = false)
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
     @Column(name = "quantity", nullable = false, precision = 12, scale = 2)
@@ -120,9 +129,9 @@ public class WarehouseInventory {
 
     public BigDecimal getAvailableQuantity() {
         BigDecimal reserved = this.reservedQuantity == null ? BigDecimal.ZERO : this.reservedQuantity;
-        BigDecimal quantity = this.quantity == null ? BigDecimal.ZERO : this.quantity;
+        BigDecimal quantity_function = this.quantity == null ? BigDecimal.ZERO : this.quantity;
 
-        return quantity.subtract(reserved);
+        return quantity_function.subtract(reserved);
     }
 
     public void moveOutReserved(BigDecimal amount) {

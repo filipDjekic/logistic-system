@@ -16,6 +16,7 @@ import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
+import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
@@ -28,6 +29,7 @@ import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
+import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
 @Service
@@ -39,6 +41,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
     private final AuditFacadeDefinition auditFacade;
+    private final NotificationServiceDefinition notificationService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
@@ -71,7 +74,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             );
         }
 
-        auditFacade.recordCreate("WAREHOUSE_INVENTORY", saved.getWarehouse().getId());
+        auditFacade.recordCreate("WAREHOUSE_INVENTORY", saved.getWarehouse().getId(), inventoryIdentifier(saved));
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", saved.getWarehouse().getId(), inventoryIdentifier(saved), "quantity", null, saved.getQuantity());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", saved.getWarehouse().getId(), inventoryIdentifier(saved), "reservedQuantity", null, saved.getReservedQuantity());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", saved.getWarehouse().getId(), inventoryIdentifier(saved), "minStockLevel", null, saved.getMinStockLevel());
         auditFacade.log(
                 "CREATE",
                 "WAREHOUSE_INVENTORY",
@@ -129,9 +135,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             );
         }
 
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), "quantity", oldQuantity, saved.getQuantity());
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), "reservedQuantity", oldReserved, saved.getReservedQuantity());
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), "minStockLevel", oldMinStock, saved.getMinStockLevel());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "quantity", oldQuantity, saved.getQuantity());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "reservedQuantity", oldReserved, saved.getReservedQuantity());
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "availableQuantity", oldQuantity.subtract(oldReserved), defaultZero(saved.getQuantity()).subtract(defaultZero(saved.getReservedQuantity())));
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "minStockLevel", oldMinStock, saved.getMinStockLevel());
         auditFacade.log(
                 "UPDATE",
                 "WAREHOUSE_INVENTORY",
@@ -216,7 +223,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         warehouseInventoryRepository.delete(inventory);
 
-        auditFacade.recordDelete("WAREHOUSE_INVENTORY", warehouseId);
+        auditFacade.recordDelete("WAREHOUSE_INVENTORY", warehouseId, inventoryIdentifier(inventory));
         auditFacade.log(
                 "DELETE",
                 "WAREHOUSE_INVENTORY",
@@ -356,7 +363,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         BigDecimal quantity = defaultZero(inventory.getQuantity());
         BigDecimal minStockLevel = defaultZero(inventory.getMinStockLevel());
 
-        if (quantity.compareTo(minStockLevel) <= 0) {
+        if (minStockLevel.compareTo(BigDecimal.ZERO) > 0 && quantity.compareTo(minStockLevel) <= 0) {
             auditFacade.log(
                     "LOW_STOCK",
                     "WAREHOUSE_INVENTORY",
@@ -364,6 +371,17 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                     "Low stock detected for warehouseId=" + inventory.getWarehouse().getId()
                             + ", productId=" + inventory.getProduct().getId()
             );
+
+            if (inventory.getWarehouse().getManager() != null
+                    && inventory.getWarehouse().getManager().getUser() != null) {
+                notificationService.createSystemNotification(
+                        inventory.getWarehouse().getManager().getUser().getId(),
+                        "Low stock",
+                        "Product '" + inventory.getProduct().getName() + "' is at or below minimum stock level in warehouse '"
+                                + inventory.getWarehouse().getName() + "'.",
+                        NotificationType.WARNING
+                );
+            }
         }
     }
 
@@ -428,6 +446,17 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             return;
         }
 
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", inventory.getWarehouse().getId(), inventoryIdentifier(inventory), "quantity", quantityBefore, quantityAfter);
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", inventory.getWarehouse().getId(), inventoryIdentifier(inventory), "reservedQuantity", reservedBefore, reservedAfter);
+        auditFacade.recordFieldChange(
+                "WAREHOUSE_INVENTORY",
+                inventory.getWarehouse().getId(),
+                inventoryIdentifier(inventory),
+                "availableQuantity",
+                quantityBefore.subtract(reservedBefore),
+                quantityAfter.subtract(reservedAfter)
+        );
+
         StockMovement movement = new StockMovement();
         movement.setMovementType(movementType);
         movement.setQuantity(quantityAfter.subtract(quantityBefore).abs());
@@ -448,7 +477,28 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         movement.setCreatedBy(currentUser);
         movement.setTransportOrder(null);
 
-        stockMovementRepository.save(movement);
+        StockMovement savedMovement = stockMovementRepository.save(movement);
+
+        auditFacade.recordCreate("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement));
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "movementType", null, savedMovement.getMovementType());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "quantity", null, savedMovement.getQuantity());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "warehouseId", null, savedMovement.getWarehouse().getId());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "productId", null, savedMovement.getProduct().getId());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "quantityBefore", null, savedMovement.getQuantityBefore());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "quantityAfter", null, savedMovement.getQuantityAfter());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "reservedBefore", null, savedMovement.getReservedBefore());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "reservedAfter", null, savedMovement.getReservedAfter());
+    }
+
+    private String inventoryIdentifier(WarehouseInventory inventory) {
+        return "warehouseId=" + inventory.getWarehouse().getId()
+                + ",productId=" + inventory.getProduct().getId();
+    }
+
+    private String stockMovementIdentifier(StockMovement movement) {
+        return "warehouseId=" + movement.getWarehouse().getId()
+                + ",productId=" + movement.getProduct().getId()
+                + ",movementId=" + movement.getId();
     }
 
     private BigDecimal positiveQuantity(BigDecimal quantity, String message) {

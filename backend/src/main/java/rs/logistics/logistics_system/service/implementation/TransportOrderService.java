@@ -364,7 +364,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
             executeDeliveryInventoryFlow(transportOrder);
             transportOrder.setActualArrivalTime(LocalDateTime.now());
-            refreshVehicleAvailability(transportOrder.getVehicle().getId());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
                 notifyOnce(
@@ -393,8 +392,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             if (current == TransportOrderStatus.ASSIGNED) {
                 releaseInventoryForOrder(transportOrder);
             }
-
-            refreshVehicleAvailability(transportOrder.getVehicle().getId());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
                 notifyOnce(
@@ -433,6 +430,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         transportOrder.setStatus(status);
         TransportOrder saved = _transportOrderRepository.save(transportOrder);
+
+        if (saved.getStatus() == TransportOrderStatus.DELIVERED || saved.getStatus() == TransportOrderStatus.CANCELLED) {
+            refreshVehicleAvailability(saved.getVehicle().getId());
+        }
 
         auditFacade.recordStatusChange("TRANSPORT_ORDER", saved.getId(), "status", current, saved.getStatus());
         auditFacade.log(

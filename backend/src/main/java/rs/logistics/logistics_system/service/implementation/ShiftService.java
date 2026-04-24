@@ -2,11 +2,13 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.ShiftCreate;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Shift;
+import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.ShiftStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
@@ -16,6 +18,7 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
+import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ShiftServiceDefinition;
 
 import java.time.LocalDate;
@@ -30,6 +33,7 @@ public class ShiftService implements ShiftServiceDefinition {
     private final ShiftRepository _shiftRepository;
     private final EmployeeRepository _employeeRepository;
     private final AuditFacadeDefinition auditFacade;
+    private final NotificationServiceDefinition notificationService;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
@@ -52,6 +56,13 @@ public class ShiftService implements ShiftServiceDefinition {
                 "SHIFT",
                 saved.getId(),
                 "SHIFT is created (ID: " + saved.getId() + ")"
+        );
+
+        notifyEmployee(
+                saved.getEmployee(),
+                "Shift assigned",
+                "You have been assigned to a shift from " + saved.getStartTime() + " to " + saved.getEndTime() + ".",
+                NotificationType.INFO
         );
 
         return ShiftMapper.toResponse(saved);
@@ -84,6 +95,13 @@ public class ShiftService implements ShiftServiceDefinition {
                 "SHIFT",
                 updated.getId(),
                 "SHIFT is updated (ID: " + updated.getId() + ")"
+        );
+
+        notifyEmployee(
+                updated.getEmployee(),
+                "Shift updated",
+                "Your shift has been updated. New time: " + updated.getStartTime() + " to " + updated.getEndTime() + ".",
+                NotificationType.INFO
         );
 
         return ShiftMapper.toResponse(updated);
@@ -175,6 +193,13 @@ public class ShiftService implements ShiftServiceDefinition {
                 id,
                 "SHIFT " + id + " is cancelled"
         );
+
+        notifyEmployee(
+                shift.getEmployee(),
+                "Shift cancelled",
+                "Your shift from " + shift.getStartTime() + " to " + shift.getEndTime() + " has been cancelled.",
+                NotificationType.WARNING
+        );
     }
 
     @Override
@@ -220,10 +245,40 @@ public class ShiftService implements ShiftServiceDefinition {
                 "SHIFT has been assigned to employee " + employeeId
         );
 
+        if (oldEmployee != null && oldEmployee.getUser() != null && !oldEmployee.getId().equals(employee.getId())) {
+            notifyEmployee(
+                    oldEmployee,
+                    "Shift reassigned",
+                    "Your shift from " + updatedShift.getStartTime() + " to " + updatedShift.getEndTime() + " is no longer assigned to you.",
+                    NotificationType.WARNING
+            );
+        }
+
+        notifyEmployee(
+                employee,
+                "Shift assigned",
+                "You have been assigned to a shift from " + updatedShift.getStartTime() + " to " + updatedShift.getEndTime() + ".",
+                NotificationType.INFO
+        );
+
         return ShiftMapper.toResponse(updatedShift);
     }
 
     // helpers
+
+    private void notifyEmployee(Employee employee, String title, String message, NotificationType type) {
+        if (employee == null || employee.getUser() == null) {
+            return;
+        }
+
+        notificationService.createSystemNotification(
+                employee.getUser().getId(),
+                title,
+                message,
+                type
+        );
+    }
+
 
     private void validateEmployeeCanBeAssignedToShift(Employee employee) {
         if (!Boolean.TRUE.equals(employee.getActive())) {
