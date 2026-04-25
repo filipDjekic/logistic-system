@@ -3,10 +3,12 @@ import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { useUpdateUser } from '../../users/hooks/useUpdateUser';
 import EmployeeFormDialog from '../components/EmployeeFormDialog';
 import EmployeesTable from '../components/EmployeesTable';
@@ -14,6 +16,7 @@ import { employeesApi } from '../api/employeesApi';
 import { useCreateEmployee } from '../hooks/useCreateEmployee';
 import { useEmployees } from '../hooks/useEmployees';
 import { useUpdateEmployee } from '../hooks/useUpdateEmployee';
+import type { SortState } from '../../../shared/types/common.types';
 import type {
   EmployeeFiltersState,
   EmployeeResponse,
@@ -35,14 +38,42 @@ export default function EmployeesPage() {
   const [filters, setFilters] = useState<EmployeeFiltersState>({
     search: '',
     position: 'ALL',
+    active: 'ALL',
     linkedUser: 'ALL',
   });
 
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>({ field: 'lastName', direction: 'asc' });
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const employeesQuery = useEmployees(true);
+  const employeeListFilters = useMemo(
+    () => ({
+      search: filters.search,
+      position: filters.position === 'ALL' ? undefined : filters.position,
+      active:
+        filters.active === 'ALL'
+          ? undefined
+          : filters.active === 'ACTIVE',
+      linkedUser: filters.linkedUser === 'ALL' ? undefined : filters.linkedUser,
+    }),
+    [filters],
+  );
+
+  const employeesQuery = useEmployees({ ...employeeListFilters, page, size, sort: buildSortParam(sort) }, true);
 
   const usersQuery = useQuery({
     queryKey: ['users', 'all'],
@@ -78,38 +109,6 @@ export default function EmployeesPage() {
       }, {}),
     [users],
   );
-
-  const filteredRows = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-
-    return (employeesQuery.data ?? []).filter((employee) => {
-      const matchesPosition =
-        filters.position === 'ALL' || employee.position === filters.position;
-
-      const matchesLinkedUser =
-        filters.linkedUser === 'ALL' ||
-        (filters.linkedUser === 'LINKED' && employee.userId != null) ||
-        (filters.linkedUser === 'UNLINKED' && employee.userId == null);
-
-      const linkedUser = employee.userId != null ? usersById[employee.userId] : null;
-
-      const matchesSearch =
-        search.length === 0 ||
-        employee.firstName.toLowerCase().includes(search) ||
-        employee.lastName.toLowerCase().includes(search) ||
-        employee.email.toLowerCase().includes(search) ||
-        employee.jmbg.toLowerCase().includes(search) ||
-        employee.phoneNumber.toLowerCase().includes(search) ||
-        employee.position.toLowerCase().includes(search) ||
-        String(employee.id).includes(search) ||
-        String(employee.userId ?? '').includes(search) ||
-        linkedUser?.status.toLowerCase().includes(search) ||
-        linkedUser?.roleName.toLowerCase().includes(search) ||
-        false;
-
-      return matchesPosition && matchesLinkedUser && matchesSearch;
-    });
-  }, [employeesQuery.data, filters, usersById]);
 
   const selectedLinkedUser = useMemo(() => {
     if (!selectedEmployee || !selectedEmployee.userId) {
@@ -269,6 +268,24 @@ export default function EmployeesPage() {
             <TextField
               select
               size="small"
+              label="Status"
+              value={filters.active}
+              onChange={(event) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  active: event.target.value as EmployeeFiltersState['active'],
+                }))
+              }
+              sx={{ minWidth: { xs: '100%', lg: 160 } }}
+            >
+              <MenuItem value="ALL">All</MenuItem>
+              <MenuItem value="ACTIVE">Active</MenuItem>
+              <MenuItem value="INACTIVE">Inactive</MenuItem>
+            </TextField>
+
+            <TextField
+              select
+              size="small"
               label="Account"
               value={filters.linkedUser}
               onChange={(event) =>
@@ -308,7 +325,7 @@ export default function EmployeesPage() {
           </Stack>
 
           <EmployeesTable
-            rows={filteredRows}
+            rows={employeesQuery.data?.content ?? []}
             usersById={usersById}
             loading={employeesQuery.isLoading || usersQuery.isLoading || rolesQuery.isLoading}
             error={employeesQuery.isError || usersQuery.isError || rolesQuery.isError}
@@ -331,6 +348,16 @@ export default function EmployeesPage() {
             canEdit={canEditEmployees}
             emptyTitle="No employees found"
             emptyDescription="There are no employees for the current filter combination."
+            pagination={
+              <ServerTablePagination
+                page={employeesQuery.data}
+                disabled={employeesQuery.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
+            sort={sort}
+            onSortChange={handleSortChange}
           />
         </Stack>
       </SectionCard>

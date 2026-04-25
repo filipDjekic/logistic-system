@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import java.text.Normalizer;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.EmployeeCreate;
 import rs.logistics.logistics_system.dto.create.EmployeeWithUserCreate;
 import rs.logistics.logistics_system.dto.response.EmployeeResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
@@ -20,6 +22,7 @@ import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -251,14 +254,29 @@ public class EmployeeService implements EmployeeServiceDefinition {
     }
 
     @Override
-    public List<EmployeeResponse> getAll() {
-        List<Employee> employees = authenticatedUserProvider.isOverlord()
-                ? _employeeRepository.findAll()
-                : _employeeRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+    public PageResponse<EmployeeResponse> getAll(String search, EmployeePosition position, Boolean active, String linkedUser, Pageable pageable) {
+        String normalizedSearch = normalizeSearch(search);
+        String normalizedLinkedUser = normalizeLinkedUser(linkedUser);
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        return employees.stream()
-                .map(EmployeeMapper::toResponse)
-                .collect(Collectors.toList());
+        if (authenticatedUserProvider.hasRole(RoleCatalog.DISPATCHER)
+                && !authenticatedUserProvider.isOverlord()
+                && !authenticatedUserProvider.isCompanyAdmin()
+                && !authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
+            position = EmployeePosition.DRIVER;
+            active = true;
+        }
+
+        return PageResponse.from(_employeeRepository.searchEmployees(
+                companyId,
+                normalizedSearch,
+                position,
+                active,
+                normalizedLinkedUser,
+                pageable
+        ).map(EmployeeMapper::toResponse));
     }
 
     @Override
@@ -353,6 +371,28 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 employee.getEmail(),
                 "EMPLOYEE was terminated (ID: " + id + ")"
         );
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null || search.isBlank()) {
+            return null;
+        }
+
+        return search.trim();
+    }
+
+    private String normalizeLinkedUser(String linkedUser) {
+        if (linkedUser == null || linkedUser.isBlank() || "ALL".equalsIgnoreCase(linkedUser.trim())) {
+            return null;
+        }
+
+        String normalized = linkedUser.trim().toUpperCase(Locale.ROOT);
+
+        if (!"LINKED".equals(normalized) && !"UNLINKED".equals(normalized)) {
+            throw new BadRequestException("Invalid linkedUser filter");
+        }
+
+        return normalized;
     }
 
     private User resolveOptionalUser(Long userId) {

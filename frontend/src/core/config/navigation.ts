@@ -13,8 +13,10 @@ import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
 import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
+import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded';
 import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded';
+import ImportExportRoundedIcon from '@mui/icons-material/ImportExportRounded';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { ALL_ROLES, ROLES, type Role } from '../constants/roles';
 
@@ -50,6 +52,11 @@ export const navigationItems: NavigationItem[] = [
   { key: 'stock-movements', label: 'Stock Movements', to: '/stock-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER], icon: SyncAltRoundedIcon },
 
   { key: 'tasks', label: 'Tasks', to: '/tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: AssignmentRoundedIcon },
+
+  { key: 'transport-report', label: 'Transport Report', to: '/reports/transport', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
+  { key: 'inventory-report', label: 'Inventory Report', to: '/reports/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
+  { key: 'employee-task-report', label: 'Employee / Task Report', to: '/reports/employee-tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AssessmentRoundedIcon },
+  { key: 'data-exchange', label: 'Import / Export', to: '/data-exchange', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: ImportExportRoundedIcon },
 
   { key: 'activity-logs', label: 'Activity Logs', to: '/activity-logs', roles: [ROLES.OVERLORD], icon: HistoryRoundedIcon },
 

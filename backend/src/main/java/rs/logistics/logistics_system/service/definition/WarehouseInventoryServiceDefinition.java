@@ -1,12 +1,15 @@
 package rs.logistics.logistics_system.service.definition;
 
+import java.math.BigDecimal;
+import java.util.List;
+
+import org.springframework.data.domain.Pageable;
+
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
-
-import java.math.BigDecimal;
-import java.util.List;
 
 public interface WarehouseInventoryServiceDefinition {
 
@@ -19,6 +22,8 @@ public interface WarehouseInventoryServiceDefinition {
     List<WarehouseInventoryResponse> findByWarehouse(Long warehouseId);
 
     List<WarehouseInventoryResponse> findByProduct(Long productId);
+
+    PageResponse<WarehouseInventoryResponse> search(String search, Long warehouseId, Long productId, String status, Pageable pageable);
 
     void delete(Long warehouseId, Long productId);
 

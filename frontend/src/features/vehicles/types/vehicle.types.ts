@@ -46,6 +46,19 @@ export type VehicleUpdateRequest = {
 export type VehicleFiltersState = {
   search: string;
   status: VehicleStatus | 'ALL';
+  type: string;
+  available: 'ALL' | 'true' | 'false';
+  capacityFrom: string;
+  capacityTo: string;
+};
+
+export type VehicleSearchParams = {
+  search?: string;
+  status?: VehicleStatus;
+  type?: string;
+  available?: boolean;
+  capacityFrom?: number;
+  capacityTo?: number;
 };
 
 export type VehicleFormValues = {

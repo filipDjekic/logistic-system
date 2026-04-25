@@ -4,11 +4,13 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.entity.Product;
@@ -162,6 +164,28 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
 
         return WarehouseInventoryMapper.toResponse(inventory);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<WarehouseInventoryResponse> search(String search, Long warehouseId, Long productId, String status, Pageable pageable) {
+        String normalizedSearch = normalizeSearch(search);
+        String normalizedStatus = normalizeStatus(status);
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        if (warehouseId != null) {
+            getAccessibleWarehouse(warehouseId);
+        }
+
+        if (productId != null) {
+            getAccessibleProduct(productId);
+        }
+
+        return PageResponse.from(warehouseInventoryRepository
+                .searchInventory(companyId, normalizedSearch, warehouseId, productId, normalizedStatus, pageable)
+                .map(WarehouseInventoryMapper::toResponse));
     }
 
     @Override
@@ -507,6 +531,26 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             throw new BadRequestException(message);
         }
         return value;
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null || search.trim().isBlank()) {
+            return null;
+        }
+        return search.trim();
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.trim().isBlank() || "ALL".equalsIgnoreCase(status.trim())) {
+            return null;
+        }
+
+        String normalized = status.trim().toUpperCase();
+        if (!"LOW_STOCK".equals(normalized) && !"SUFFICIENT".equals(normalized)) {
+            throw new BadRequestException("Unsupported inventory status filter");
+        }
+
+        return normalized;
     }
 
     private BigDecimal defaultZero(BigDecimal value) {

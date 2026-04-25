@@ -44,4 +44,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             where toi.product.id = :productId
             """)
     boolean existsTransportOrderItemByProductId(@Param("productId") Long productId);
+
+    long countByCompany_Id(Long companyId);
 }

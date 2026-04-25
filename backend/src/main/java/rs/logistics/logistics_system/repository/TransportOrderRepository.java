@@ -5,11 +5,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.enums.PriorityLevel;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
 public interface TransportOrderRepository extends JpaRepository<TransportOrder, Long> {
@@ -128,4 +131,61 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     @Query("select t.status, count(t) from TransportOrder t group by t.status")
     List<Object[]> countGroupedByStatus();
+
+    long countByCreatedBy_Company_Id(Long companyId);
+
+    long countByCreatedBy_Company_IdAndStatusIn(Long companyId, Collection<TransportOrderStatus> statuses);
+
+    @Query("select t.status, count(t) from TransportOrder t where t.createdBy.company.id = :companyId group by t.status")
+    List<Object[]> countGroupedByStatusAndCompanyId(@Param("companyId") Long companyId);
+
+    @Query("""
+        select distinct t
+        from TransportOrder t
+        left join t.sourceWarehouse sourceWarehouse
+        left join t.destinationWarehouse destinationWarehouse
+        left join t.vehicle vehicle
+        left join t.assignedEmployee assignedEmployee
+        left join assignedEmployee.user assignedUser
+        where (:companyId is null or t.createdBy.company.id = :companyId)
+        and (:driverUserId is null or assignedUser.id = :driverUserId)
+        and (:status is null or t.status = :status)
+        and (:priority is null or t.priority = :priority)
+        and (:sourceWarehouseId is null or sourceWarehouse.id = :sourceWarehouseId)
+        and (:destinationWarehouseId is null or destinationWarehouse.id = :destinationWarehouseId)
+        and (:vehicleId is null or vehicle.id = :vehicleId)
+        and (:assignedEmployeeId is null or assignedEmployee.id = :assignedEmployeeId)
+        and (:fromDate is null or t.departureTime >= :fromDate)
+        and (:toDate is null or t.departureTime <= :toDate)
+        and (
+            :search is null
+            or lower(t.orderNumber) like lower(concat('%', :search, '%'))
+            or lower(t.description) like lower(concat('%', :search, '%'))
+            or lower(coalesce(t.notes, '')) like lower(concat('%', :search, '%'))
+            or lower(sourceWarehouse.name) like lower(concat('%', :search, '%'))
+            or lower(sourceWarehouse.city) like lower(concat('%', :search, '%'))
+            or lower(destinationWarehouse.name) like lower(concat('%', :search, '%'))
+            or lower(destinationWarehouse.city) like lower(concat('%', :search, '%'))
+            or lower(vehicle.registrationNumber) like lower(concat('%', :search, '%'))
+            or lower(vehicle.brand) like lower(concat('%', :search, '%'))
+            or lower(vehicle.model) like lower(concat('%', :search, '%'))
+            or lower(assignedEmployee.firstName) like lower(concat('%', :search, '%'))
+            or lower(assignedEmployee.lastName) like lower(concat('%', :search, '%'))
+            or lower(assignedEmployee.email) like lower(concat('%', :search, '%'))
+        )
+    """)
+    Page<TransportOrder> searchTransportOrders(
+            @Param("companyId") Long companyId,
+            @Param("driverUserId") Long driverUserId,
+            @Param("status") TransportOrderStatus status,
+            @Param("priority") PriorityLevel priority,
+            @Param("sourceWarehouseId") Long sourceWarehouseId,
+            @Param("destinationWarehouseId") Long destinationWarehouseId,
+            @Param("vehicleId") Long vehicleId,
+            @Param("assignedEmployeeId") Long assignedEmployeeId,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("search") String search,
+            Pageable pageable
+    );
 }

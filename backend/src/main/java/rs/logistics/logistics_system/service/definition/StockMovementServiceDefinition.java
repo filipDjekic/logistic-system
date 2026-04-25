@@ -1,9 +1,13 @@
 package rs.logistics.logistics_system.service.definition;
 
-import rs.logistics.logistics_system.dto.create.StockMovementCreate;
-import rs.logistics.logistics_system.dto.response.StockMovementResponse;
+import java.time.LocalDateTime;
 
-import java.util.List;
+import org.springframework.data.domain.Pageable;
+
+import rs.logistics.logistics_system.dto.create.StockMovementCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.dto.response.StockMovementResponse;
+import rs.logistics.logistics_system.enums.StockMovementType;
 
 public interface StockMovementServiceDefinition {
 
@@ -11,5 +15,7 @@ public interface StockMovementServiceDefinition {
 
     StockMovementResponse getById(Long id);
 
-    List<StockMovementResponse> getAll();
+    PageResponse<StockMovementResponse> getAll(Pageable pageable);
+
+    PageResponse<StockMovementResponse> search(String search, StockMovementType movementType, Long warehouseId, Long productId, Long transportOrderId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable);
 }

@@ -2,22 +2,41 @@ import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import VehicleFormDialog from '../components/VehicleFormDialog';
 import VehiclesTable from '../components/VehiclesTable';
 import { useCreateVehicle } from '../hooks/useCreateVehicle';
 import { useDeleteVehicle } from '../hooks/useDeleteVehicle';
 import { useUpdateVehicle } from '../hooks/useUpdateVehicle';
 import { useVehicles } from '../hooks/useVehicles';
+import type { SortState } from '../../../shared/types/common.types';
 import type {
   VehicleFiltersState,
   VehicleResponse,
+  VehicleSearchParams,
 } from '../types/vehicle.types';
 import { vehicleStatusOptions, type VehicleSchemaValues } from '../validation/vehicleSchema';
+
+function normalizeNumberFilter(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  const numeric = Number(trimmed);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+
+function normalizeTextFilter(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 export default function VehiclesPage() {
   const auth = useAuthStore();
@@ -30,41 +49,49 @@ export default function VehiclesPage() {
   const [filters, setFilters] = useState<VehicleFiltersState>({
     search: '',
     status: 'ALL',
+    type: '',
+    available: 'ALL',
+    capacityFrom: '',
+    capacityTo: '',
   });
 
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>({ field: 'id', direction: 'desc' });
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<VehicleResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const vehiclesQuery = useVehicles(true);
+  const vehicleSearchParams = useMemo<VehicleSearchParams>(() => {
+    return {
+      search: normalizeTextFilter(filters.search),
+      status: filters.status === 'ALL' ? undefined : filters.status,
+      type: normalizeTextFilter(filters.type),
+      available: filters.available === 'ALL' ? undefined : filters.available === 'true',
+      capacityFrom: normalizeNumberFilter(filters.capacityFrom),
+      capacityTo: normalizeNumberFilter(filters.capacityTo),
+    };
+  }, [filters]);
+
+  const vehiclesQuery = useVehicles({ ...vehicleSearchParams, page, size, sort: buildSortParam(sort) }, true);
   const companiesQuery = useCompanies(
     canManage && isOverlord && dialogOpen && dialogMode === 'create',
   );
   const createVehicleMutation = useCreateVehicle();
   const updateVehicleMutation = useUpdateVehicle();
   const deleteVehicleMutation = useDeleteVehicle();
-
-  const filteredRows = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-
-    return (vehiclesQuery.data ?? []).filter((vehicle) => {
-      const matchesStatus = filters.status === 'ALL' || vehicle.status === filters.status;
-
-      const matchesSearch =
-        search.length === 0 ||
-        vehicle.registrationNumber.toLowerCase().includes(search) ||
-        vehicle.brand.toLowerCase().includes(search) ||
-        vehicle.model.toLowerCase().includes(search) ||
-        vehicle.type.toLowerCase().includes(search) ||
-        vehicle.fuelType.toLowerCase().includes(search) ||
-        vehicle.status.toLowerCase().includes(search) ||
-        String(vehicle.yearOfProduction).includes(search) ||
-        String(vehicle.id).includes(search);
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [filters, vehiclesQuery.data]);
 
   const isSaving =
     createVehicleMutation.isPending || updateVehicleMutation.isPending;
@@ -93,10 +120,10 @@ export default function VehiclesPage() {
 
       <SectionCard
         title="Vehicle list"
-        description="Vehicle data is loaded through backend company-scoped endpoints."
+        description="Vehicle data is filtered by backend query parameters and company scope."
       >
         <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} flexWrap="wrap">
             <SearchToolbar
               value={filters.search}
               onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
@@ -125,6 +152,56 @@ export default function VehiclesPage() {
               ))}
             </TextField>
 
+            <TextField
+              size="small"
+              label="Type"
+              value={filters.type}
+              onChange={(event) =>
+                setFilters((prev) => ({ ...prev, type: event.target.value }))
+              }
+              sx={{ minWidth: { xs: '100%', md: 180 } }}
+            />
+
+            <TextField
+              select
+              size="small"
+              label="Available"
+              value={filters.available}
+              onChange={(event) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  available: event.target.value as VehicleFiltersState['available'],
+                }))
+              }
+              sx={{ minWidth: { xs: '100%', md: 160 } }}
+            >
+              <MenuItem value="ALL">All</MenuItem>
+              <MenuItem value="true">Available</MenuItem>
+              <MenuItem value="false">Unavailable</MenuItem>
+            </TextField>
+
+            <TextField
+              size="small"
+              label="Capacity from"
+              type="number"
+              value={filters.capacityFrom}
+              onChange={(event) =>
+                setFilters((prev) => ({ ...prev, capacityFrom: event.target.value }))
+              }
+              sx={{ minWidth: { xs: '100%', md: 150 } }}
+            />
+
+            <TextField
+              size="small"
+              label="Capacity to"
+              type="number"
+              value={filters.capacityTo}
+              onChange={(event) =>
+                setFilters((prev) => ({ ...prev, capacityTo: event.target.value }))
+              }
+              sx={{ minWidth: { xs: '100%', md: 150 } }}
+            />
+
             <Button
               variant="outlined"
               onClick={() => {
@@ -138,10 +215,26 @@ export default function VehiclesPage() {
             >
               Refresh
             </Button>
+
+            <Button
+              variant="text"
+              onClick={() => {
+                setFilters({
+                  search: '',
+                  status: 'ALL',
+                  type: '',
+                  available: 'ALL',
+                  capacityFrom: '',
+                  capacityTo: '',
+                });
+              }}
+            >
+              Clear filters
+            </Button>
           </Stack>
 
           <VehiclesTable
-            rows={filteredRows}
+            rows={vehiclesQuery.data?.content ?? []}
             loading={vehiclesQuery.isLoading}
             error={vehiclesQuery.isError}
             onRetry={() => {
@@ -164,6 +257,16 @@ export default function VehiclesPage() {
               setDeleteTarget(vehicle);
             }}
             canManage={canManage}
+            pagination={
+              <ServerTablePagination
+                page={vehiclesQuery.data}
+                disabled={vehiclesQuery.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
+            sort={sort}
+            onSortChange={handleSortChange}
           />
         </Stack>
       </SectionCard>

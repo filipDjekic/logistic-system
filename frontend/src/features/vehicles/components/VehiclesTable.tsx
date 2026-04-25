@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-import type { DataTableColumn } from '../../../shared/types/common.types';
+import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { VehicleResponse } from '../types/vehicle.types';
 
 type Props = {
@@ -13,6 +14,9 @@ type Props = {
   onEdit: (vehicle: VehicleResponse) => void;
   onDelete: (vehicle: VehicleResponse) => void;
   canManage: boolean;
+  pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 export default function VehiclesTable({
@@ -23,36 +27,44 @@ export default function VehiclesTable({
   onEdit,
   onDelete,
   canManage,
+  pagination,
+  sort,
+  onSortChange,
 }: Props) {
   const columns: DataTableColumn<VehicleResponse>[] = [
     {
       id: 'registrationNumber',
       header: 'Registration',
       accessor: 'registrationNumber',
+      sortField: 'registrationNumber',
       minWidth: 140,
     },
     {
       id: 'brand',
       header: 'Brand',
       accessor: 'brand',
+      sortField: 'brand',
       minWidth: 120,
     },
     {
       id: 'model',
       header: 'Model',
       accessor: 'model',
+      sortField: 'model',
       minWidth: 120,
     },
     {
       id: 'type',
       header: 'Type',
       accessor: 'type',
+      sortField: 'type',
       minWidth: 120,
     },
     {
       id: 'capacity',
       header: 'Capacity',
       accessor: 'capacity',
+      sortField: 'capacity',
       minWidth: 100,
     },
     {
@@ -116,6 +128,9 @@ export default function VehiclesTable({
       onRetry={onRetry}
       getRowId={(row) => row.id}
       columns={columns}
+      pagination={pagination}
+      sort={sort}
+      onSortChange={onSortChange}
     />
   );
 }

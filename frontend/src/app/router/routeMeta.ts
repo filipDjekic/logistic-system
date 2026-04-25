@@ -110,6 +110,21 @@ export const routeMeta = {
     title: 'Task Details',
     breadcrumb: 'Task Details',
   },
+  transportReport: {
+    path: '/reports/transport',
+    title: 'Transport Report',
+    breadcrumb: 'Transport Report',
+  },
+  inventoryReport: {
+    path: '/reports/inventory',
+    title: 'Inventory Report',
+    breadcrumb: 'Inventory Report',
+  },
+  employeeTaskReport: {
+    path: '/reports/employee-tasks',
+    title: 'Employee / Task Report',
+    breadcrumb: 'Employee / Task Report',
+  },
   roles: {
     path: '/roles',
     title: 'Roles',

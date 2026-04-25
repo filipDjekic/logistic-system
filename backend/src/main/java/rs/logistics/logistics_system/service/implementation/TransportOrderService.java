@@ -1,11 +1,13 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
 import rs.logistics.logistics_system.entity.Employee;
@@ -16,6 +18,7 @@ import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.NotificationType;
+import rs.logistics.logistics_system.enums.PriorityLevel;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
@@ -234,25 +237,47 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     }
 
     @Override
-    public List<TransportOrderResponse> getAll() {
-        List<TransportOrder> data;
+    public PageResponse<TransportOrderResponse> getAll(Pageable pageable) {
+        return getAll(null, null, null, null, null, null, null, null, null, pageable);
+    }
 
-        if (authenticatedUserProvider.isOverlord()) {
-            data = _transportOrderRepository.findAll();
-        } else {
-            data = _transportOrderRepository.findAllByCreatedBy_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+    @Override
+    public PageResponse<TransportOrderResponse> getAll(
+            TransportOrderStatus status,
+            PriorityLevel priority,
+            Long sourceWarehouseId,
+            Long destinationWarehouseId,
+            Long vehicleId,
+            Long assignedEmployeeId,
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            String search,
+            Pageable pageable
+    ) {
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-            if (authenticatedUserProvider.hasRole("DRIVER")) {
-                Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
-                data = data.stream()
-                        .filter(order -> order.getAssignedEmployee() != null
-                                && order.getAssignedEmployee().getUser() != null
-                                && authenticatedUserId.equals(order.getAssignedEmployee().getUser().getId()))
-                        .collect(Collectors.toList());
-            }
-        }
+        Long driverUserId = authenticatedUserProvider.hasRole("DRIVER")
+                ? authenticatedUserProvider.getAuthenticatedUserId()
+                : null;
 
-        return data.stream().map(TransportOrderMapper::toResponse).collect(Collectors.toList());
+        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+
+        return PageResponse.from(_transportOrderRepository.searchTransportOrders(
+                companyId,
+                driverUserId,
+                status,
+                priority,
+                sourceWarehouseId,
+                destinationWarehouseId,
+                vehicleId,
+                assignedEmployeeId,
+                fromDate,
+                toDate,
+                normalizedSearch,
+                pageable
+        ).map(TransportOrderMapper::toResponse));
     }
 
     @Override

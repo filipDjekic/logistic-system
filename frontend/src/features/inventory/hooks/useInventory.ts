@@ -1,97 +1,58 @@
 import { useQuery } from '@tanstack/react-query';
 import { inventoryApi } from '../api/inventoryApi';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   DerivedInventoryStatus,
   InventoryFiltersState,
   InventoryListRow,
+  InventoryProductOption,
+  InventoryWarehouseOption,
 } from '../types/inventory.types';
 
 function getDerivedInventoryStatus(
-  quantity: number,
+  availableQuantity: number,
   minStockLevel: number | null,
 ): DerivedInventoryStatus {
-  if (minStockLevel !== null && quantity <= minStockLevel) {
+  if (minStockLevel !== null && availableQuantity <= minStockLevel) {
     return 'LOW_STOCK';
   }
 
   return 'SUFFICIENT';
 }
 
-export function useInventory(filters: InventoryFiltersState) {
+type UseInventoryLookups = {
+  warehouses: InventoryWarehouseOption[];
+  products: InventoryProductOption[];
+};
+
+export function useInventory(filters: InventoryFiltersState & PageParams, lookups: UseInventoryLookups) {
   return useQuery({
     queryKey: ['inventory', 'list', filters],
     queryFn: async () => {
-      const [warehouses, products] = await Promise.all([
-        inventoryApi.getWarehouses(),
-        inventoryApi.getProducts(),
-      ]);
+      const page = await inventoryApi.getInventory(filters);
+      const rows = page.content;
+      const productMap = new Map(lookups.products.map((product) => [product.id, product]));
+      const warehouseMap = new Map(lookups.warehouses.map((warehouse) => [warehouse.id, warehouse]));
 
-      const warehousesToLoad =
-        filters.warehouseId === 'ALL'
-          ? warehouses
-          : warehouses.filter((warehouse) => warehouse.id === filters.warehouseId);
+      const content = rows.map<InventoryListRow>((item) => {
+        const warehouse = warehouseMap.get(item.warehouseId);
+        const product = productMap.get(item.productId);
+        const availableQuantity = item.availableQuantity ?? item.quantity - item.reservedQuantity;
 
-      const inventoryGroups = await Promise.all(
-        warehousesToLoad.map(async (warehouse) => ({
-          warehouse,
-          items: await inventoryApi.getInventoryByWarehouse(warehouse.id),
-        })),
-      );
-
-      const productMap = new Map(products.map((product) => [product.id, product]));
-      const warehouseMap = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]));
-
-      const rows: InventoryListRow[] = inventoryGroups.flatMap(({ items }) =>
-        items
-          .map((item) => {
-            const warehouse = warehouseMap.get(item.warehouseId);
-            const product = productMap.get(item.productId);
-
-            if (!warehouse || !product) {
-              return null;
-            }
-
-            const availableQuantity = item.quantity - item.reservedQuantity;
-            const derivedStatus = getDerivedInventoryStatus(item.quantity, item.minStockLevel);
-
-            return {
-              ...item,
-              warehouseName: warehouse.name,
-              warehouseCity: warehouse.city,
-              warehouseStatus: warehouse.status,
-              productName: product.name,
-              productSku: product.sku,
-              productUnit: product.unit,
-              availableQuantity,
-              derivedStatus,
-            };
-          })
-          .filter((value): value is InventoryListRow => value !== null),
-      );
-
-      const search = filters.search.trim().toLowerCase();
-
-      return rows.filter((row) => {
-        const matchesWarehouse =
-          filters.warehouseId === 'ALL' || row.warehouseId === filters.warehouseId;
-
-        const matchesProduct =
-          filters.productId === 'ALL' || row.productId === filters.productId;
-
-        const matchesStatus =
-          filters.status === 'ALL' || row.derivedStatus === filters.status;
-
-        const matchesSearch =
-          search.length === 0 ||
-          row.productName.toLowerCase().includes(search) ||
-          row.productSku.toLowerCase().includes(search) ||
-          row.warehouseName.toLowerCase().includes(search) ||
-          row.warehouseCity.toLowerCase().includes(search) ||
-          String(row.productId).includes(search) ||
-          String(row.warehouseId).includes(search);
-
-        return matchesWarehouse && matchesProduct && matchesStatus && matchesSearch;
+        return {
+          ...item,
+          warehouseName: item.warehouseName ?? warehouse?.name ?? `Warehouse #${item.warehouseId}`,
+          warehouseCity: warehouse?.city ?? null,
+          warehouseStatus: warehouse?.status ?? null,
+          productName: item.productName ?? product?.name ?? `Product #${item.productId}`,
+          productSku: product?.sku ?? null,
+          productUnit: product?.unit ?? null,
+          availableQuantity,
+          derivedStatus: getDerivedInventoryStatus(availableQuantity, item.minStockLevel ?? null),
+        };
       });
+
+      return { ...page, content } satisfies PageResponse<InventoryListRow>;
     },
     staleTime: 30_000,
     refetchOnWindowFocus: false,

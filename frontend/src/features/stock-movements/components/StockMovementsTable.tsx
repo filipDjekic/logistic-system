@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react';
 import DataTable from '../../../shared/components/DataTable/DataTable';
-import type { DataTableColumn } from '../../../shared/types/common.types';
+import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { StockMovementResponse } from '../types/stockMovement.types';
 
 type Props = {
@@ -7,6 +8,9 @@ type Props = {
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 function formatDateTime(value: string) {
@@ -18,6 +22,9 @@ export default function StockMovementsTable({
   loading,
   error,
   onRetry,
+  pagination,
+  sort,
+  onSortChange,
 }: Props) {
   const columns: DataTableColumn<StockMovementResponse>[] = [
     {
@@ -36,24 +43,28 @@ export default function StockMovementsTable({
       id: 'movementType',
       header: 'Type',
       accessor: 'movementType',
+      sortField: 'movementType',
       minWidth: 120,
     },
     {
       id: 'quantity',
       header: 'Quantity',
       accessor: 'quantity',
+      sortField: 'quantity',
       minWidth: 100,
     },
     {
       id: 'quantityBefore',
       header: 'Before',
       accessor: 'quantityBefore',
+      sortField: 'quantityBefore',
       minWidth: 100,
     },
     {
       id: 'quantityAfter',
       header: 'After',
       accessor: 'quantityAfter',
+      sortField: 'quantityAfter',
       minWidth: 100,
     },
     {
@@ -72,6 +83,9 @@ export default function StockMovementsTable({
       onRetry={onRetry}
       getRowId={(row) => row.id}
       columns={columns}
+      pagination={pagination}
+      sort={sort}
+      onSortChange={onSortChange}
     />
   );
 }

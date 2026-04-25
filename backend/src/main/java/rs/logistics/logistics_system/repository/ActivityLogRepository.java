@@ -37,4 +37,8 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
 
     List<ActivityLog> findByCreatedAtAfterAndUserIdAndUser_Company_Id(LocalDateTime date, Long userId, Long companyId);
     List<ActivityLog> findTop10ByOrderByCreatedAtDesc();
+
+    long countByUser_Company_Id(Long companyId);
+
+    List<ActivityLog> findTop10ByUser_Company_IdOrderByCreatedAtDesc(Long companyId);
 }

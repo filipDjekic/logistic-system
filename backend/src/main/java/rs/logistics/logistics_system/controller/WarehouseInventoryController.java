@@ -2,6 +2,9 @@ package rs.logistics.logistics_system.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
@@ -35,6 +39,18 @@ public class WarehouseInventoryController {
             @Valid @RequestBody WarehouseInventoryUpdate dto
     ) {
         return new ResponseEntity<>(warehouseInventoryService.update(warehouseId, productId, dto), HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @GetMapping
+    public ResponseEntity<PageResponse<WarehouseInventoryResponse>> search(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long productId,
+            @RequestParam(required = false) String status,
+            @PageableDefault(size = 20, sort = "warehouse.name", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(warehouseInventoryService.search(search, warehouseId, productId, status, pageable));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")

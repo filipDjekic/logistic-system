@@ -3,6 +3,9 @@ package rs.logistics.logistics_system.controller;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,19 +17,21 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 
 @RestController
@@ -35,7 +40,6 @@ import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 public class TaskController {
 
     private final TaskServiceDefinition taskService;
-    private final EmployeeServiceDefinition employeeService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
@@ -66,27 +70,38 @@ public class TaskController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
     @GetMapping
-    public ResponseEntity<List<TaskResponse>> getAll() {
-        List<TaskResponse> response = taskService.getAll();
+    public ResponseEntity<PageResponse<TaskResponse>> getAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) TaskStatus status,
+            @RequestParam(required = false) TaskPriority priority,
+            @RequestParam(required = false) Long assignedEmployeeId,
+            @RequestParam(required = false) Long transportOrderId,
+            @RequestParam(required = false) Long stockMovementId,
+            @RequestParam(required = false) String linkedProcessType,
+            @PageableDefault(size = 20, sort = "dueDate", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        PageResponse<TaskResponse> response = taskService.getAll(search, status, priority, assignedEmployeeId, transportOrderId, stockMovementId, linkedProcessType, pageable);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @GetMapping("/my")
-    public ResponseEntity<List<TaskResponse>> getMyTasks() {
+    public ResponseEntity<PageResponse<TaskResponse>> getMyTasks(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) TaskStatus status,
+            @RequestParam(required = false) TaskPriority priority,
+            @RequestParam(required = false) Long transportOrderId,
+            @RequestParam(required = false) Long stockMovementId,
+            @RequestParam(required = false) String linkedProcessType,
+            @PageableDefault(size = 20, sort = "dueDate", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
         User user = authenticatedUserProvider.getAuthenticatedUser();
 
         if (user.getEmployee() == null) {
             throw new BadRequestException("Authenticated user is not linked to an employee");
         }
 
-        List<TaskResponse> response = employeeService.getTasksByEmployeeId(user.getEmployee().getId());
-
-        if (authenticatedUserProvider.hasRole("DRIVER")) {
-            response = response.stream()
-                    .filter(task -> task.getTransportOrderId() != null)
-                    .collect(Collectors.toList());
-        }
+        PageResponse<TaskResponse> response = taskService.getMyTasks(search, status, priority, transportOrderId, stockMovementId, linkedProcessType, pageable);
 
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

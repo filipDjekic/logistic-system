@@ -45,6 +45,16 @@ export type TaskFiltersState = {
   linkedProcessType: TaskLinkedProcessType | 'ALL';
 };
 
+export type TaskQueryParams = {
+  search?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  assignedEmployeeId?: number;
+  transportOrderId?: number;
+  stockMovementId?: number;
+  linkedProcessType?: TaskLinkedProcessType;
+};
+
 export type TaskFormValues = {
   title: string;
   description: string;

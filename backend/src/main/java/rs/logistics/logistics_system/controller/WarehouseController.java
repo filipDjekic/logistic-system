@@ -2,6 +2,9 @@ package rs.logistics.logistics_system.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
@@ -53,8 +57,14 @@ public class WarehouseController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
-    public ResponseEntity<List<WarehouseResponse>> getAll() {
-        return new ResponseEntity<>(warehouseService.getAll(), HttpStatus.OK);
+    public ResponseEntity<PageResponse<WarehouseResponse>> getAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) WarehouseStatus status,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Long managerId,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return new ResponseEntity<>(warehouseService.getAll(search, status, active, managerId, pageable), HttpStatus.OK);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")

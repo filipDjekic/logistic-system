@@ -1,16 +1,19 @@
 import { apiClient } from '../../../core/api/client';
+import { unwrapPageContent } from '../../../core/api/pagination';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   WarehouseCreateRequest,
   WarehouseEmployeeOption,
+  WarehouseFilterParams,
   WarehouseResponse,
   WarehouseStatus,
   WarehouseUpdateRequest,
 } from '../types/warehouse.types';
 
 export const warehousesApi = {
-  getAll() {
+  getAll(filters: WarehouseFilterParams & PageParams = {}) {
     return apiClient
-      .get<WarehouseResponse[]>('/api/warehouses')
+      .get<PageResponse<WarehouseResponse>>('/api/warehouses', { params: filters })
       .then((response) => response.data);
   },
 
@@ -45,8 +48,8 @@ export const warehousesApi = {
   },
 
   getManagers() {
-    return apiClient.get<WarehouseEmployeeOption[]>('/api/employees').then((response) =>
-      response.data
+    return apiClient.get<WarehouseEmployeeOption[] | PageResponse<WarehouseEmployeeOption>>('/api/employees', { params: { size: 1000, sort: 'lastName,asc' } }).then((response) =>
+      unwrapPageContent(response.data)
         .filter((employee) => employee.position === 'WAREHOUSE_MANAGER')
         .map((employee) => ({
           id: employee.id,

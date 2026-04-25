@@ -1,10 +1,12 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Product;
@@ -13,6 +15,7 @@ import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
+import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -28,6 +31,7 @@ import rs.logistics.logistics_system.service.definition.StockMovementServiceDefi
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -177,16 +181,80 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     @Override
     @Transactional(readOnly = true)
-    public List<StockMovementResponse> getAll() {
-        List<StockMovement> movements = authenticatedUserProvider.isOverlord()
-                ? stockMovementRepository.findAll()
-                : stockMovementRepository.findAllByWarehouse_Company_Id(
-                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-                );
+    public PageResponse<StockMovementResponse> getAll(Pageable pageable) {
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        return movements.stream()
-                .map(StockMovementMapper::toResponse)
-                .collect(Collectors.toList());
+        return PageResponse.from(stockMovementRepository.searchMovements(
+                companyId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                pageable
+        ).map(StockMovementMapper::toResponse));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<StockMovementResponse> search(
+            String search,
+            StockMovementType movementType,
+            Long warehouseId,
+            Long productId,
+            Long transportOrderId,
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            Pageable pageable
+    ) {
+        String normalizedSearch = normalizeSearch(search);
+        Long searchId = parseSearchId(normalizedSearch);
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        if (warehouseId != null) {
+            getAccessibleWarehouse(warehouseId);
+        }
+
+        if (productId != null) {
+            getAccessibleProduct(productId);
+        }
+
+        if (transportOrderId != null) {
+            TransportOrder transportOrder = authenticatedUserProvider.isOverlord()
+                    ? transportOrderRepository.findById(transportOrderId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"))
+                    : transportOrderRepository.findByIdAndCreatedBy_Company_Id(
+                        transportOrderId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                    ).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+
+            if (warehouseId != null) {
+                validateTransportOrderContext(transportOrder, getAccessibleWarehouse(warehouseId));
+            }
+        }
+
+        return PageResponse.from(stockMovementRepository
+                .searchMovements(
+                        companyId,
+                        normalizedSearch,
+                        searchId,
+                        movementType,
+                        warehouseId,
+                        productId,
+                        transportOrderId,
+                        fromDate,
+                        toDate,
+
+                        pageable
+                )
+                .map(StockMovementMapper::toResponse));
     }
 
     private void recordInventoryQuantityHistory(
@@ -361,6 +429,25 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 warehouseCompanyId,
                 "Transport order and warehouse must belong to the same company"
         );
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null || search.trim().isBlank()) {
+            return null;
+        }
+        return search.trim();
+    }
+
+    private Long parseSearchId(String search) {
+        if (search == null) {
+            return null;
+        }
+
+        try {
+            return Long.valueOf(search);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private BigDecimal defaultZero(BigDecimal value) {

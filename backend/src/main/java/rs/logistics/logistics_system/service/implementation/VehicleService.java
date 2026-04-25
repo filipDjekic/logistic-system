@@ -5,11 +5,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
 import rs.logistics.logistics_system.entity.Company;
@@ -100,14 +102,31 @@ public class VehicleService implements VehicleServiceDefinition {
     }
 
     @Override
-    public List<VehicleResponse> getAll() {
-        List<Vehicle> vehicles = authenticatedUserProvider.isOverlord()
-                ? vehicleRepository.findAll()
-                : vehicleRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+    public PageResponse<VehicleResponse> getAll(
+            String search,
+            VehicleStatus status,
+            String type,
+            Boolean available,
+            BigDecimal capacityFrom,
+            BigDecimal capacityTo,
+            Pageable pageable
+    ) {
+        validateCapacityRange(capacityFrom, capacityTo);
 
-        return vehicles.stream()
-                .map(VehicleMapper::toResponse)
-                .collect(Collectors.toList());
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        return PageResponse.from(vehicleRepository.searchVehicles(
+                companyId,
+                normalizeSearch(search),
+                status,
+                normalizeSearch(type),
+                available,
+                capacityFrom,
+                capacityTo,
+                pageable
+        ).map(VehicleMapper::toResponse));
     }
 
     @Transactional
@@ -245,6 +264,29 @@ public class VehicleService implements VehicleServiceDefinition {
         }
     }
 
+    private String normalizeSearch(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private void validateCapacityRange(BigDecimal capacityFrom, BigDecimal capacityTo) {
+        if (capacityFrom != null && capacityFrom.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("capacityFrom cannot be negative");
+        }
+
+        if (capacityTo != null && capacityTo.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("capacityTo cannot be negative");
+        }
+
+        if (capacityFrom != null && capacityTo != null && capacityFrom.compareTo(capacityTo) > 0) {
+            throw new BadRequestException("capacityFrom cannot be greater than capacityTo");
+        }
+    }
+
     private void validateUniqueRegistrationNumber(String registrationNumber) {
         if (vehicleRepository.existsByRegistrationNumberIgnoreCase(registrationNumber)) {
             throw new BadRequestException("Vehicle registration number already exists");
@@ -255,5 +297,9 @@ public class VehicleService implements VehicleServiceDefinition {
         if (vehicleRepository.existsByRegistrationNumberIgnoreCaseAndIdNot(registrationNumber, id)) {
             throw new BadRequestException("Vehicle registration number already exists");
         }
+    }
+
+    private boolean containsIgnoreCase(String source, String search) {
+        return source != null && source.toLowerCase().contains(search.toLowerCase());
     }
 }

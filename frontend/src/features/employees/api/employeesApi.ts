@@ -1,6 +1,8 @@
 import { apiClient } from '../../../core/api/client';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   EmployeeCreateWithUserRequest,
+  EmployeeListFilters,
   EmployeeResponse,
   EmployeeRoleOption,
   EmployeeShiftResponse,
@@ -30,9 +32,41 @@ type RoleResponse = {
 };
 
 export const employeesApi = {
-  getAll() {
+  getAll(filters: EmployeeListFilters & PageParams = {}) {
+    const params = new URLSearchParams();
+
+    if (filters.search?.trim()) {
+      params.set('search', filters.search.trim());
+    }
+
+    if (filters.position) {
+      params.set('position', filters.position);
+    }
+
+    if (filters.active !== undefined) {
+      params.set('active', String(filters.active));
+    }
+
+    if (filters.linkedUser) {
+      params.set('linkedUser', filters.linkedUser);
+    }
+
+    if (filters.page != null) {
+      params.set('page', String(filters.page));
+    }
+
+    if (filters.size != null) {
+      params.set('size', String(filters.size));
+    }
+
+    if (filters.sort) {
+      params.set('sort', filters.sort);
+    }
+
+    const queryString = params.toString();
+
     return apiClient
-      .get<EmployeeResponse[]>('/api/employees')
+      .get<PageResponse<EmployeeResponse>>(`/api/employees${queryString ? `?${queryString}` : ''}`)
       .then((response) => response.data);
   },
 

@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react';
 import { Button, Chip, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
-import type { DataTableColumn } from '../../../shared/types/common.types';
+import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { EmployeeResponse, EmployeeUserOption } from '../types/employee.types';
 
 type EmployeesTableProps = {
@@ -14,6 +15,9 @@ type EmployeesTableProps = {
   canEdit?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
+  pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 function formatCurrency(value: number) {
@@ -34,6 +38,9 @@ export default function EmployeesTable({
   canEdit = false,
   emptyTitle,
   emptyDescription,
+  pagination,
+  sort,
+  onSortChange,
 }: EmployeesTableProps) {
   const columns: DataTableColumn<EmployeeResponse>[] = [
     {
@@ -73,6 +80,7 @@ export default function EmployeesTable({
     },
     {
       id: 'employmentDate',
+      sortField: 'employmentDate',
       header: 'Employment date',
       minWidth: 150,
       nowrap: true,
@@ -80,6 +88,7 @@ export default function EmployeesTable({
     },
     {
       id: 'salary',
+      sortField: 'salary',
       header: 'Salary',
       minWidth: 140,
       nowrap: true,
@@ -147,6 +156,9 @@ export default function EmployeesTable({
         emptyDescription ?? 'There are no employees for the current filter combination.'
       }
       minWidth={1320}
+      pagination={pagination}
+      sort={sort}
+      onSortChange={onSortChange}
     />
   );
 }

@@ -1,5 +1,8 @@
 import { apiClient } from '../../../core/api/client';
+import { unwrapPageContent } from '../../../core/api/pagination';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
+  InventoryFiltersState,
   InventoryProductOption,
   InventoryWarehouseOption,
   WarehouseInventoryCreateRequest,
@@ -7,7 +10,27 @@ import type {
   WarehouseInventoryUpdateRequest,
 } from '../types/inventory.types';
 
+function buildInventoryParams(filters: InventoryFiltersState & PageParams) {
+  return {
+    search: filters.search?.trim() || undefined,
+    warehouseId: filters.warehouseId === 'ALL' ? undefined : filters.warehouseId,
+    productId: filters.productId === 'ALL' ? undefined : filters.productId,
+    status: filters.status === 'ALL' ? undefined : filters.status,
+    page: filters.page,
+    size: filters.size,
+    sort: filters.sort,
+  };
+}
+
 export const inventoryApi = {
+  getInventory(filters: InventoryFiltersState & PageParams) {
+    return apiClient
+      .get<PageResponse<WarehouseInventoryResponse>>('/api/warehouse-inventory', {
+        params: buildInventoryParams(filters),
+      })
+      .then((response) => response.data);
+  },
+
   getInventoryRecord(warehouseId: number, productId: number) {
     return apiClient
       .get<WarehouseInventoryResponse>(`/api/warehouse-inventory/${warehouseId}/${productId}`)
@@ -45,8 +68,8 @@ export const inventoryApi = {
 
   getWarehouses() {
     return apiClient
-      .get<InventoryWarehouseOption[]>('/api/warehouses')
-      .then((response) => response.data);
+      .get<InventoryWarehouseOption[] | PageResponse<InventoryWarehouseOption>>('/api/warehouses', { params: { size: 1000, sort: 'name,asc' } })
+      .then((response) => unwrapPageContent(response.data));
   },
 
   getWarehouseById(id: number) {

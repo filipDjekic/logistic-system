@@ -3,9 +3,11 @@ import { Button, Stack } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { inventoryApi } from '../api/inventoryApi';
 import InventoryFilters from '../components/InventoryFilters';
 import InventoryFormDialog from '../components/InventoryFormDialog';
@@ -16,6 +18,7 @@ import {
   useDeleteInventoryRecord,
   useUpdateInventoryRecord,
 } from '../hooks/useInventoryMutations';
+import type { SortState } from '../../../shared/types/common.types';
 import type {
   InventoryFiltersState,
   InventoryFormValues,
@@ -36,6 +39,20 @@ export default function InventoryPage() {
     status: 'ALL',
   });
 
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>({ field: 'quantity', direction: 'desc' });
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<InventoryListRow | null>(null);
@@ -55,16 +72,16 @@ export default function InventoryPage() {
     refetchOnWindowFocus: false,
   });
 
-  const inventoryQuery = useInventory(filters);
+  const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
+  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
+
+  const inventoryQuery = useInventory({ ...filters, page, size, sort: buildSortParam(sort) }, { warehouses, products });
   const createInventoryMutation = useCreateInventoryRecord();
   const updateInventoryMutation = useUpdateInventoryRecord();
   const deleteInventoryMutation = useDeleteInventoryRecord();
 
   const isLoadingLookups = warehousesQuery.isLoading || productsQuery.isLoading;
   const hasLookupError = warehousesQuery.isError || productsQuery.isError;
-
-  const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
-  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
   return (
     <Stack spacing={3}>
@@ -90,7 +107,7 @@ export default function InventoryPage() {
 
       <SectionCard
         title="Inventory overview"
-        description="The page aggregates inventory per warehouse using current backend endpoints."
+        description="Inventory search and filters are applied on the backend."
       >
         <Stack spacing={2}>
 
@@ -110,7 +127,7 @@ export default function InventoryPage() {
           />
 
           <InventoryTable
-            rows={inventoryQuery.data ?? []}
+            rows={inventoryQuery.data?.content ?? []}
             loading={inventoryQuery.isLoading || isLoadingLookups}
             error={inventoryQuery.isError || hasLookupError}
             onRetry={() => {
@@ -127,6 +144,16 @@ export default function InventoryPage() {
             }}
             onDelete={(row) => setDeleteTarget(row)}
             canManage={canManage}
+            pagination={
+              <ServerTablePagination
+                page={inventoryQuery.data}
+                disabled={inventoryQuery.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
+            sort={sort}
+            onSortChange={handleSortChange}
           />
         </Stack>
       </SectionCard>

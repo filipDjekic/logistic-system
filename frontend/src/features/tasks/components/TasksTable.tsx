@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
-import type { DataTableColumn } from '../../../shared/types/common.types';
+import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { TaskResponse } from '../types/task.types';
 import TaskStatusChip from './TaskStatusChip';
 
@@ -14,6 +15,9 @@ type Props = {
   onEdit: (row: TaskResponse) => void;
   onDelete: (row: TaskResponse) => void;
   showLinks?: boolean;
+  pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 export default function TasksTable({
@@ -25,10 +29,14 @@ export default function TasksTable({
   onEdit,
   onDelete,
   showLinks = true,
+  pagination,
+  sort,
+  onSortChange,
 }: Props) {
   const columns: DataTableColumn<TaskResponse>[] = [
     {
       id: 'title',
+      sortField: 'title',
       header: 'Title',
       minWidth: 220,
       render: (row) =>
@@ -47,12 +55,14 @@ export default function TasksTable({
     { id: 'priority', header: 'Priority', accessor: 'priority', minWidth: 120 },
     {
       id: 'status',
+      sortField: 'status',
       header: 'Status',
       minWidth: 140,
       render: (row) => <TaskStatusChip status={row.status} />,
     },
     {
       id: 'dueDate',
+      sortField: 'dueDate',
       header: 'Due date',
       minWidth: 180,
       render: (row) => new Date(row.dueDate).toLocaleString(),
@@ -61,6 +71,7 @@ export default function TasksTable({
       id: 'assignedEmployeeId',
       header: 'Employee ID',
       accessor: 'assignedEmployeeId',
+      sortField: 'assignedEmployeeId',
       minWidth: 120,
     },
     {
@@ -124,6 +135,9 @@ export default function TasksTable({
       onRetry={onRetry}
       getRowId={(row) => row.id}
       columns={columns}
+      pagination={pagination}
+      sort={sort}
+      onSortChange={onSortChange}
     />
   );
 }

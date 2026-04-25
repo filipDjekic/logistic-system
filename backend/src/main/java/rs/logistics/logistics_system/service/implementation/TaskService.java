@@ -1,9 +1,11 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.Employee;
@@ -204,15 +206,76 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     @Override
-    public List<TaskResponse> getAll() {
-        List<Task> tasks = authenticatedUserProvider.isOverlord()
-                ? _taskRepository.findAll()
-                : _taskRepository.findAllByAssignedEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+    public PageResponse<TaskResponse> getAll(
+            String search,
+            TaskStatus status,
+            TaskPriority priority,
+            Long assignedEmployeeId,
+            Long transportOrderId,
+            Long stockMovementId,
+            String linkedProcessType,
+            Pageable pageable
+    ) {
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        return tasks.stream()
+        var tasks = _taskRepository.searchTasks(
+                companyId,
+                assignedEmployeeId,
+                normalizeSearch(search),
+                status,
+                priority,
+                transportOrderId,
+                stockMovementId,
+                normalizeLinkedProcessType(linkedProcessType),
+                pageable
+        );
+
+        var content = tasks.getContent().stream()
                 .filter(this::canWarehouseManagerAccessTask)
                 .map(TaskMapper::toResponse)
                 .collect(Collectors.toList());
+
+        return PageResponse.fromContent(content, tasks);
+    }
+
+    @Override
+    public PageResponse<TaskResponse> getMyTasks(
+            String search,
+            TaskStatus status,
+            TaskPriority priority,
+            Long transportOrderId,
+            Long stockMovementId,
+            String linkedProcessType,
+            Pageable pageable
+    ) {
+        if (authenticatedUserProvider.getAuthenticatedUser().getEmployee() == null) {
+            throw new BadRequestException("Authenticated user is not linked to an employee");
+        }
+
+        Long employeeId = authenticatedUserProvider.getAuthenticatedUser().getEmployee().getId();
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        var tasks = _taskRepository.searchTasks(
+                companyId,
+                employeeId,
+                normalizeSearch(search),
+                status,
+                priority,
+                transportOrderId,
+                stockMovementId,
+                normalizeLinkedProcessType(linkedProcessType),
+                pageable
+        );
+
+        var content = tasks.getContent().stream()
+                .filter(this::canWarehouseManagerAccessTask)
+                .filter(task -> !authenticatedUserProvider.hasRole("DRIVER") || task.getTransportOrder() != null)
+                .map(TaskMapper::toResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.fromContent(content, tasks);
     }
 
     @Override
@@ -375,6 +438,29 @@ public class TaskService implements TaskServiceDefinition {
         return TaskMapper.toResponse(saved);
     }
 
+    private String normalizeSearch(String search) {
+        if (search == null || search.trim().isEmpty()) {
+            return null;
+        }
+
+        return search.trim();
+    }
+
+    private String normalizeLinkedProcessType(String linkedProcessType) {
+        if (linkedProcessType == null || linkedProcessType.trim().isEmpty() || "ALL".equalsIgnoreCase(linkedProcessType.trim())) {
+            return null;
+        }
+
+        String normalized = linkedProcessType.trim().toUpperCase();
+
+        if (!normalized.equals("UNLINKED")
+                && !normalized.equals("TRANSPORT_ORDER")
+                && !normalized.equals("STOCK_MOVEMENT")) {
+            throw new BadRequestException("Invalid linked process type");
+        }
+
+        return normalized;
+    }
 
     private boolean canWarehouseManagerAccessTask(Task task) {
         if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {

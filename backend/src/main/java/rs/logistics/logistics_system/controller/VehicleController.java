@@ -1,7 +1,11 @@
 package rs.logistics.logistics_system.controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
 import rs.logistics.logistics_system.enums.VehicleStatus;
@@ -51,8 +56,19 @@ public class VehicleController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping
-    public ResponseEntity<List<VehicleResponse>> getAllVehicles() {
-        return new ResponseEntity<>(vehicleService.getAll(), HttpStatus.OK);
+    public ResponseEntity<PageResponse<VehicleResponse>> getAllVehicles(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) VehicleStatus status,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) BigDecimal capacityFrom,
+            @RequestParam(required = false) BigDecimal capacityTo,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return new ResponseEntity<>(
+                vehicleService.getAll(search, status, type, available, capacityFrom, capacityTo, pageable),
+                HttpStatus.OK
+        );
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")

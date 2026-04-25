@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import { Button, Stack } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-import type { DataTableColumn } from '../../../shared/types/common.types';
+import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { WarehouseResponse } from '../types/warehouse.types';
 
 type Props = {
@@ -13,6 +14,9 @@ type Props = {
   onEdit: (warehouse: WarehouseResponse) => void;
   onDelete: (warehouse: WarehouseResponse) => void;
   canManage: boolean;
+  pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 export default function WarehousesTable({
@@ -23,30 +27,37 @@ export default function WarehousesTable({
   onEdit,
   onDelete,
   canManage,
+  pagination,
+  sort,
+  onSortChange,
 }: Props) {
   const columns: DataTableColumn<WarehouseResponse>[] = [
     {
       id: 'name',
       header: 'Name',
       accessor: 'name',
+      sortField: 'name',
       minWidth: 180,
     },
     {
       id: 'city',
       header: 'City',
       accessor: 'city',
+      sortField: 'city',
       minWidth: 140,
     },
     {
       id: 'address',
       header: 'Address',
       accessor: 'address',
+      sortField: 'address',
       minWidth: 240,
     },
     {
       id: 'capacity',
       header: 'Capacity',
       accessor: 'capacity',
+      sortField: 'capacity',
       minWidth: 120,
     },
     {
@@ -63,6 +74,7 @@ export default function WarehousesTable({
     },
     {
       id: 'status',
+      sortField: 'status',
       header: 'Status',
       minWidth: 160,
       render: (warehouse) => (
@@ -111,6 +123,9 @@ export default function WarehousesTable({
       onRetry={onRetry}
       getRowId={(warehouse) => warehouse.id}
       columns={columns}
+      pagination={pagination}
+      sort={sort}
+      onSortChange={onSortChange}
     />
   );
 }

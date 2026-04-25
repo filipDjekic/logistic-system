@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import WarehouseFormDialog from '../components/WarehouseFormDialog';
 import WarehousesTable from '../components/WarehousesTable';
 import {
@@ -16,6 +18,7 @@ import {
   useWarehouseManagers,
   useWarehouses,
 } from '../hooks/useWarehouses';
+import type { SortState } from '../../../shared/types/common.types';
 import type {
   WarehouseFiltersState,
   WarehouseFormValues,
@@ -37,41 +40,45 @@ export default function WarehousesPage() {
   const [filters, setFilters] = useState<WarehouseFiltersState>({
     search: '',
     status: 'ALL',
+    active: 'ALL',
   });
 
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>({ field: 'id', direction: 'desc' });
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WarehouseResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const warehousesQuery = useWarehouses(true);
+  const queryFilters = useMemo(
+    () => ({
+      search: filters.search.trim() || undefined,
+      status: filters.status === 'ALL' ? undefined : filters.status,
+      active: filters.active === 'ALL' ? undefined : filters.active,
+    }),
+    [filters],
+  );
+
+  const warehousesQuery = useWarehouses({ ...queryFilters, page, size, sort: buildSortParam(sort) }, true);
   const managersQuery = useWarehouseManagers(canCreate && dialogOpen && dialogMode === 'create');
   const companiesQuery = useCompanies(canCreate && isOverlord && dialogOpen && dialogMode === 'create');
   const createWarehouseMutation = useCreateWarehouse();
   const updateWarehouseMutation = useUpdateWarehouse();
   const deleteWarehouseMutation = useDeleteWarehouse();
 
-  const filteredRows = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-
-    return (warehousesQuery.data ?? []).filter((warehouse) => {
-      const matchesStatus =
-        filters.status === 'ALL' || warehouse.status === filters.status;
-
-      const matchesSearch =
-        search.length === 0 ||
-        warehouse.name.toLowerCase().includes(search) ||
-        warehouse.city.toLowerCase().includes(search) ||
-        warehouse.address.toLowerCase().includes(search) ||
-        warehouse.status.toLowerCase().includes(search) ||
-        (warehouse.managerName ?? '').toLowerCase().includes(search) ||
-        (warehouse.companyName ?? '').toLowerCase().includes(search) ||
-        String(warehouse.capacity).includes(search) ||
-        String(warehouse.id).includes(search);
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [filters, warehousesQuery.data]);
+  const rows = warehousesQuery.data?.content ?? [];
 
   const isSaving =
     createWarehouseMutation.isPending || updateWarehouseMutation.isPending;
@@ -132,6 +139,27 @@ export default function WarehousesPage() {
               ))}
             </TextField>
 
+            <TextField
+              select
+              size="small"
+              label="Active"
+              value={String(filters.active)}
+              onChange={(event) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  active:
+                    event.target.value === 'ALL'
+                      ? 'ALL'
+                      : event.target.value === 'true',
+                }))
+              }
+              sx={{ minWidth: { xs: '100%', md: 180 } }}
+            >
+              <MenuItem value="ALL">All</MenuItem>
+              <MenuItem value="true">Active</MenuItem>
+              <MenuItem value="false">Inactive</MenuItem>
+            </TextField>
+
             <Button
               variant="outlined"
               onClick={() => {
@@ -156,7 +184,7 @@ export default function WarehousesPage() {
           </Stack>
 
           <WarehousesTable
-            rows={filteredRows}
+            rows={rows}
             loading={warehousesQuery.isLoading}
             error={warehousesQuery.isError}
             onRetry={() => {
@@ -179,6 +207,16 @@ export default function WarehousesPage() {
               setDeleteTarget(warehouse);
             }}
             canManage={canManage}
+            pagination={
+              <ServerTablePagination
+                page={warehousesQuery.data}
+                disabled={warehousesQuery.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
+            sort={sort}
+            onSortChange={handleSortChange}
           />
         </Stack>
       </SectionCard>

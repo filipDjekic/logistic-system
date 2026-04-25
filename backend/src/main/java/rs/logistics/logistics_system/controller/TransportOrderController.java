@@ -1,9 +1,14 @@
 package rs.logistics.logistics_system.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,14 +18,18 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.statusUpdate.TransportOrderStatusUpdate;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
+import rs.logistics.logistics_system.enums.PriorityLevel;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
 
 @RestController
@@ -53,8 +62,30 @@ public class TransportOrderController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
     @GetMapping
-    public ResponseEntity<List<TransportOrderResponse>> getAll() {
-        List<TransportOrderResponse> responses = transportOrderService.getAll();
+    public ResponseEntity<PageResponse<TransportOrderResponse>> getAll(
+            @RequestParam(required = false) TransportOrderStatus status,
+            @RequestParam(required = false) PriorityLevel priority,
+            @RequestParam(required = false) Long sourceWarehouseId,
+            @RequestParam(required = false) Long destinationWarehouseId,
+            @RequestParam(required = false) Long vehicleId,
+            @RequestParam(required = false) Long assignedEmployeeId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<TransportOrderResponse> responses = transportOrderService.getAll(
+                status,
+                priority,
+                sourceWarehouseId,
+                destinationWarehouseId,
+                vehicleId,
+                assignedEmployeeId,
+                fromDate,
+                toDate,
+                search,
+                pageable
+        );
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 

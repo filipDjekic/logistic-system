@@ -3,15 +3,18 @@ import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { transportOrdersApi } from '../api/transportOrdersApi';
 import TransportOrderFormDialog from '../components/TransportOrderFormDialog';
 import TransportOrdersTable from '../components/TransportOrdersTable';
 import { useCreateTransportOrder } from '../hooks/useCreateTransportOrder';
 import { useTransportOrders } from '../hooks/useTransportOrders';
 import { useUpdateTransportOrder } from '../hooks/useUpdateTransportOrder';
+import type { SortState } from '../../../shared/types/common.types';
 import type {
   EmployeeOption,
   TransportOrderFiltersState,
@@ -42,10 +45,24 @@ export default function TransportOrdersPage() {
     priority: 'ALL',
   });
 
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>({ field: 'createdAt', direction: 'desc' });
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<TransportOrderResponse | null>(null);
 
-  const transportOrdersQuery = useTransportOrders(true);
+  const transportOrdersQuery = useTransportOrders({ ...filters, page, size, sort: buildSortParam(sort) }, true);
     const warehousesQuery = useQuery({
     queryKey: ['transport-orders', 'warehouses'],
     queryFn: transportOrdersApi.getWarehouses,
@@ -100,44 +117,7 @@ export default function TransportOrdersPage() {
     [employeesQuery.data],
   );
 
-  const filteredRows = useMemo<TransportOrderResponse[]>(() => {
-    const rows = transportOrdersQuery.data ?? [];
-    const search = filters.search.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesStatus = filters.status === 'ALL' || row.status === filters.status;
-      const matchesPriority = filters.priority === 'ALL' || row.priority === filters.priority;
-
-      if (!matchesStatus || !matchesPriority) {
-        return false;
-      }
-
-      if (!search) {
-        return true;
-      }
-
-      const sourceWarehouse = warehousesById[row.sourceWarehouseId];
-      const destinationWarehouse = warehousesById[row.destinationWarehouseId];
-      const vehicle = vehiclesById[row.vehicleId];
-      const employee = employeesById[row.assignedEmployeeId];
-
-      return [
-        row.orderNumber,
-        row.description,
-        sourceWarehouse?.name,
-        sourceWarehouse?.city,
-        destinationWarehouse?.name,
-        destinationWarehouse?.city,
-        vehicle?.registrationNumber,
-        vehicle?.brand,
-        vehicle?.model,
-        employee ? `${employee.firstName} ${employee.lastName}` : '',
-        employee?.email,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(search));
-    });
-  }, [employeesById, filters, transportOrdersQuery.data, vehiclesById, warehousesById]);
+  const rows = transportOrdersQuery.data?.content ?? [];
 
   const isLookupsLoading =
     (canResolveWarehouses && warehousesQuery.isLoading) ||
@@ -195,7 +175,7 @@ export default function TransportOrdersPage() {
           </Stack>
 
           <TransportOrdersTable
-            rows={canReadAll ? filteredRows : []}
+            rows={canReadAll ? rows : []}
             warehousesById={warehousesById}
             vehiclesById={vehiclesById}
             employeesById={employeesById}
@@ -222,6 +202,16 @@ export default function TransportOrdersPage() {
               }
             }}
             canManage={canManage}
+            pagination={
+              <ServerTablePagination
+                page={transportOrdersQuery.data}
+                disabled={transportOrdersQuery.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
+            sort={sort}
+            onSortChange={handleSortChange}
             onEdit={(order) => {
               setSelectedOrder(order);
               setDialogOpen(true);

@@ -1,16 +1,37 @@
 import { apiClient } from '../../../core/api/client';
+import { unwrapPageContent } from '../../../core/api/pagination';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   StockMovementCreateRequest,
+  StockMovementFiltersState,
   StockMovementProductOption,
   StockMovementResponse,
   StockMovementTransportOrderOption,
   StockMovementWarehouseOption,
 } from '../types/stockMovement.types';
 
+function buildStockMovementParams(filters?: Partial<StockMovementFiltersState> & PageParams) {
+  if (!filters) {
+    return undefined;
+  }
+
+  return {
+    search: filters.search?.trim() || undefined,
+    page: filters.page,
+    size: filters.size,
+    sort: filters.sort,
+    movementType: filters.movementType === 'ALL' ? undefined : filters.movementType,
+    warehouseId: filters.warehouseId === 'ALL' ? undefined : filters.warehouseId,
+    productId: filters.productId === 'ALL' ? undefined : filters.productId,
+  };
+}
+
 export const stockMovementsApi = {
-  getAll() {
+  getAll(filters?: Partial<StockMovementFiltersState> & PageParams) {
     return apiClient
-      .get<StockMovementResponse[]>('/api/stock_movements')
+      .get<PageResponse<StockMovementResponse>>('/api/stock_movements', {
+        params: buildStockMovementParams(filters),
+      })
       .then((response) => response.data);
   },
 
@@ -28,8 +49,8 @@ export const stockMovementsApi = {
 
   getWarehouses() {
     return apiClient
-      .get<StockMovementWarehouseOption[]>('/api/warehouses')
-      .then((response) => response.data);
+      .get<StockMovementWarehouseOption[] | PageResponse<StockMovementWarehouseOption>>('/api/warehouses', { params: { size: 1000, sort: 'name,asc' } })
+      .then((response) => unwrapPageContent(response.data));
   },
 
   getProducts() {
@@ -40,7 +61,7 @@ export const stockMovementsApi = {
 
   getTransportOrders() {
     return apiClient
-      .get<StockMovementTransportOrderOption[]>('/api/transport_orders')
-      .then((response) => response.data);
+      .get<StockMovementTransportOrderOption[] | PageResponse<StockMovementTransportOrderOption>>('/api/transport_orders', { params: { size: 1000, sort: 'createdAt,desc' } })
+      .then((response) => unwrapPageContent(response.data));
   },
 };

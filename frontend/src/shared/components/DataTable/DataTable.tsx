@@ -8,12 +8,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Typography,
 } from '@mui/material';
 import EmptyState from '../EmptyState/EmptyState';
 import ErrorState from '../ErrorState/ErrorState';
 import InlineLoader from '../Loader/InlineLoader';
-import type { DataTableColumn, RowId } from '../../types/common.types';
+import type { DataTableColumn, RowId, SortState } from '../../types/common.types';
 
 type DataTableProps<T> = {
   columns: DataTableColumn<T>[];
@@ -31,6 +32,8 @@ type DataTableProps<T> = {
   size?: 'small' | 'medium';
   toolbar?: ReactNode;
   pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 function formatCellValue(value: unknown) {
@@ -65,6 +68,8 @@ export default function DataTable<T>({
   size = 'medium',
   toolbar,
   pagination,
+  sort,
+  onSortChange,
 }: DataTableProps<T>) {
   const hasRows = rows.length > 0;
 
@@ -91,9 +96,29 @@ export default function DataTable<T>({
                     ...column.headerSx,
                   }}
                 >
-                  <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>
-                    {column.header}
-                  </Typography>
+                  {column.sortField && onSortChange ? (
+                    <TableSortLabel
+                      active={sort?.field === column.sortField}
+                      direction={sort?.field === column.sortField ? sort.direction : 'asc'}
+                      onClick={() =>
+                        onSortChange({
+                          field: column.sortField as string,
+                          direction:
+                            sort?.field === column.sortField && sort.direction === 'asc'
+                              ? 'desc'
+                              : 'asc',
+                        })
+                      }
+                    >
+                      <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>
+                        {column.header}
+                      </Typography>
+                    </TableSortLabel>
+                  ) : (
+                    <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>
+                      {column.header}
+                    </Typography>
+                  )}
                 </TableCell>
               ))}
             </TableRow>

@@ -10,6 +10,13 @@ export type PaginationState = {
   size: number;
 };
 
+export type SortDirection = 'asc' | 'desc';
+
+export type SortState = {
+  field: string;
+  direction: SortDirection;
+};
+
 export type DataTableColumn<T> = {
   id: string;
   header: ReactNode;
@@ -20,5 +27,6 @@ export type DataTableColumn<T> = {
   nowrap?: boolean;
   headerSx?: SxProps<Theme>;
   cellSx?: SxProps<Theme>;
+  sortField?: string;
   render?: (row: T) => ReactNode;
 };

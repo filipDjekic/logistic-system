@@ -137,6 +137,18 @@ export type TransportOrderFiltersState = {
   priority: TransportOrderPriority | 'ALL';
 };
 
+export type TransportOrderListFilters = {
+  search?: string;
+  status?: TransportOrderStatus | 'ALL';
+  priority?: TransportOrderPriority | 'ALL';
+  sourceWarehouseId?: number | null;
+  destinationWarehouseId?: number | null;
+  vehicleId?: number | null;
+  assignedEmployeeId?: number | null;
+  fromDate?: string | null;
+  toDate?: string | null;
+};
+
 export type TransportOrderFormValues = {
   orderNumber: string;
   description: string;

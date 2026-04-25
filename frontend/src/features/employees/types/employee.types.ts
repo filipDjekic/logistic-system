@@ -55,7 +55,15 @@ export type EmployeeUpdateRequest = {
 export type EmployeeFiltersState = {
   search: string;
   position: EmployeePosition | 'ALL';
+  active: 'ALL' | 'ACTIVE' | 'INACTIVE';
   linkedUser: 'ALL' | 'LINKED' | 'UNLINKED';
+};
+
+export type EmployeeListFilters = {
+  search?: string;
+  position?: EmployeePosition;
+  active?: boolean;
+  linkedUser?: 'LINKED' | 'UNLINKED';
 };
 
 export type EmployeeUserOption = {

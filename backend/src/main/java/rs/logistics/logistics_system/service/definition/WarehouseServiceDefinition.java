@@ -1,7 +1,10 @@
 package rs.logistics.logistics_system.service.definition;
 
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
+import org.springframework.data.domain.Pageable;
+
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
@@ -19,7 +22,7 @@ public interface WarehouseServiceDefinition {
 
     WarehouseResponse assignEmployee(Long warehouseId, Long employeeId);
 
-    List<WarehouseResponse> getAll();
+    PageResponse<WarehouseResponse> getAll(String search, WarehouseStatus status, Boolean active, Long managerId, Pageable pageable);
 
     void delete(Long id);
 

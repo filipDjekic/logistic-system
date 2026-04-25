@@ -1,12 +1,13 @@
 package rs.logistics.logistics_system.service.definition;
 
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Pageable;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
+import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
-
-import java.util.List;
 
 public interface TaskServiceDefinition {
 
@@ -18,7 +19,9 @@ public interface TaskServiceDefinition {
 
     TaskResponse getById(Long id);
 
-    List<TaskResponse> getAll();
+    PageResponse<TaskResponse> getAll(String search, TaskStatus status, TaskPriority priority, Long assignedEmployeeId, Long transportOrderId, Long stockMovementId, String linkedProcessType, Pageable pageable);
+
+    PageResponse<TaskResponse> getMyTasks(String search, TaskStatus status, TaskPriority priority, Long transportOrderId, Long stockMovementId, String linkedProcessType, Pageable pageable);
 
     @Transactional
     void delete(Long id);

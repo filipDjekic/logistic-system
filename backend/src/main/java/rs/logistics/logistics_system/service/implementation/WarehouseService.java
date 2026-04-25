@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
 import rs.logistics.logistics_system.entity.Company;
@@ -128,12 +130,14 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     @Override
-    public List<WarehouseResponse> getAll() {
-        List<Warehouse> warehouses = authenticatedUserProvider.isOverlord()
-                ? _warehouseRepository.findAll()
-                : _warehouseRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+    public PageResponse<WarehouseResponse> getAll(String search, WarehouseStatus status, Boolean active, Long managerId, Pageable pageable) {
+        String normalizedSearch = normalizeSearch(search);
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        return warehouses.stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
+        return PageResponse.from(_warehouseRepository.search(companyId, normalizedSearch, status, active, managerId, pageable)
+                .map(WarehouseMapper::toResponse));
     }
 
     @Override
@@ -258,6 +262,14 @@ public class WarehouseService implements WarehouseServiceDefinition {
         );
 
         return warehouses.stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null || search.trim().isEmpty()) {
+            return null;
+        }
+
+        return search.trim();
     }
 
     private void validateWarehouseManager(Employee employee) {

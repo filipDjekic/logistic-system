@@ -57,7 +57,7 @@ export default function TaskDetailsPage() {
 
   const employeesQuery = useQuery({
     queryKey: ['task-details', 'employees'],
-    queryFn: employeesApi.getAll,
+    queryFn: () => employeesApi.getAll({ size: 1000, sort: 'lastName,asc' }),
     enabled: isValidTaskId && canResolveEmployee,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
@@ -65,7 +65,7 @@ export default function TaskDetailsPage() {
 
   const transportOrdersQuery = useQuery({
     queryKey: ['task-details', 'transport-orders'],
-    queryFn: transportOrdersApi.getAll,
+    queryFn: () => transportOrdersApi.getAll({ size: 1000, sort: 'createdAt,desc' }),
     enabled: isValidTaskId && canResolveTransportOrder,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
@@ -73,24 +73,24 @@ export default function TaskDetailsPage() {
 
   const stockMovementsQuery = useQuery({
     queryKey: ['task-details', 'stock-movements'],
-    queryFn: stockMovementsApi.getAll,
+    queryFn: () => stockMovementsApi.getAll({ size: 1000, sort: 'createdAt,desc' }),
     enabled: isValidTaskId && canResolveStockMovement,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 
   const assignedEmployee = useMemo(
-    () => (employeesQuery.data ?? []).find((row) => row.id === taskQuery.data?.assignedEmployeeId),
+    () => (employeesQuery.data?.content ?? []).find((row) => row.id === taskQuery.data?.assignedEmployeeId),
     [employeesQuery.data, taskQuery.data?.assignedEmployeeId],
   );
 
   const transportOrder = useMemo(
-    () => (transportOrdersQuery.data ?? []).find((row) => row.id === taskQuery.data?.transportOrderId),
+    () => (transportOrdersQuery.data?.content ?? []).find((row) => row.id === taskQuery.data?.transportOrderId),
     [taskQuery.data?.transportOrderId, transportOrdersQuery.data],
   );
 
   const stockMovement = useMemo(
-    () => (stockMovementsQuery.data ?? []).find((row) => row.id === taskQuery.data?.stockMovementId),
+    () => (stockMovementsQuery.data?.content ?? []).find((row) => row.id === taskQuery.data?.stockMovementId),
     [taskQuery.data?.stockMovementId, stockMovementsQuery.data],
   );
 

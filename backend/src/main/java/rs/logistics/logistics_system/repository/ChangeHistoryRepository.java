@@ -29,4 +29,6 @@ public interface ChangeHistoryRepository extends JpaRepository<ChangeHistory, Lo
     List<ChangeHistory> findByChangedAtBetween(LocalDateTime start, LocalDateTime end);
 
     List<ChangeHistory> findByChangedAtBetweenAndChangedBy_Company_Id(LocalDateTime start, LocalDateTime end, Long companyId);
+
+    long countByChangedBy_Company_Id(Long companyId);
 }

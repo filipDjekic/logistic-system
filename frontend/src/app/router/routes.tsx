@@ -32,6 +32,10 @@ import StockMovementsPage from '../../features/stock-movements/pages/StockMoveme
 import TasksPage from '../../features/tasks/pages/TasksPage';
 import TaskDetailsPage from '../../features/tasks/pages/TaskDetailsPage';
 import StarterPage from './StarterPage';
+import TransportReportPage from '../../features/reports/pages/TransportReportPage';
+import InventoryReportPage from '../../features/reports/pages/InventoryReportPage';
+import EmployeeTaskReportPage from '../../features/reports/pages/EmployeeTaskReportPage';
+import DataExchangePage from '../../features/data-exchange/pages/DataExchangePage';
 
 export const routes = [
   {
@@ -169,6 +173,42 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [{ path: '/stock-movements', element: <StockMovementsPage /> }],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [{ path: '/reports/transport', element: <TransportReportPage /> }],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [{ path: '/reports/inventory', element: <InventoryReportPage /> }],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [{ path: '/reports/employee-tasks', element: <EmployeeTaskReportPage /> }],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [{ path: '/data-exchange', element: <DataExchangePage /> }],
       },
     ],
   },

@@ -2,6 +2,9 @@ package rs.logistics.logistics_system.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,16 +16,19 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.EmployeeCreate;
 import rs.logistics.logistics_system.dto.create.EmployeeWithUserCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.EmployeeResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
+import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 
 @RestController
@@ -39,7 +45,7 @@ public class EmployeeController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
     @PostMapping("/with-user")
     public ResponseEntity<EmployeeResponse> createWithUser(@Valid @RequestBody EmployeeWithUserCreate dto) {
         EmployeeResponse response = employeeService.createWithUser(dto);
@@ -76,8 +82,14 @@ public class EmployeeController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
     @GetMapping
-    public ResponseEntity<List<EmployeeResponse>> getAll() {
-        List<EmployeeResponse> response = employeeService.getAll();
+    public ResponseEntity<PageResponse<EmployeeResponse>> getAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) EmployeePosition position,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String linkedUser,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<EmployeeResponse> response = employeeService.getAll(search, position, active, linkedUser, pageable);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

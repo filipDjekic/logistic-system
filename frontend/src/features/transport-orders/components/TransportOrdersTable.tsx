@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import type { DataTableColumn } from '../../../shared/types/common.types';
+import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import TransportOrderStatusChip from './TransportOrderStatusChip';
@@ -21,6 +22,9 @@ type TransportOrdersTableProps = {
   onRetry?: () => void;
   canManage?: boolean;
   onEdit?: (row: TransportOrderResponse) => void;
+  pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 function formatDateTime(value: string | null) {
@@ -49,12 +53,16 @@ export default function TransportOrdersTable({
   onRetry,
   canManage = false,
   onEdit,
+  pagination,
+  sort,
+  onSortChange,
 }: TransportOrdersTableProps) {
   const navigate = useNavigate();
 
   const columns: DataTableColumn<TransportOrderResponse>[] = [
     {
       id: 'orderNumber',
+      sortField: 'orderNumber',
       header: 'Order',
       minWidth: 180,
       render: (row) => (
@@ -150,12 +158,14 @@ export default function TransportOrdersTable({
     },
     {
       id: 'status',
+      sortField: 'status',
       header: 'Status',
       minWidth: 140,
       render: (row) => <TransportOrderStatusChip status={row.status} />,
     },
     {
       id: 'priority',
+      sortField: 'priority',
       header: 'Priority',
       minWidth: 120,
       render: (row) => <StatusChip value={row.priority} />,
@@ -206,6 +216,9 @@ export default function TransportOrdersTable({
       emptyTitle="No transport orders found"
       emptyDescription="There are no transport orders that match the current filters."
       minWidth={1600}
+      pagination={pagination}
+      sort={sort}
+      onSortChange={onSortChange}
     />
   );
 }

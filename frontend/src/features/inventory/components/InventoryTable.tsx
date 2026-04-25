@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import { Stack, Typography } from '@mui/material';
 import DataTable from '../../../shared/components/DataTable/DataTable';
-import type { DataTableColumn } from '../../../shared/types/common.types';
+import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { InventoryListRow } from '../types/inventory.types';
 import InventoryStatusChip from './InventoryStatusChip';
 
@@ -12,6 +13,9 @@ type Props = {
   onEdit: (row: InventoryListRow) => void;
   onDelete: (row: InventoryListRow) => void;
   canManage: boolean;
+  pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 export default function InventoryTable({
@@ -22,6 +26,9 @@ export default function InventoryTable({
   onEdit,
   onDelete,
   canManage,
+  pagination,
+  sort,
+  onSortChange,
 }: Props) {
   const columns: DataTableColumn<InventoryListRow>[] = [
     {
@@ -40,12 +47,14 @@ export default function InventoryTable({
       id: 'quantity',
       header: 'Total',
       accessor: 'quantity',
+      sortField: 'quantity',
       minWidth: 100,
     },
     {
       id: 'reservedQuantity',
       header: 'Reserved',
       accessor: 'reservedQuantity',
+      sortField: 'reservedQuantity',
       minWidth: 100,
     },
     {
@@ -58,6 +67,7 @@ export default function InventoryTable({
       id: 'minStockLevel',
       header: 'Min stock',
       accessor: 'minStockLevel',
+      sortField: 'minStockLevel',
       minWidth: 100,
     },
     {
@@ -116,6 +126,9 @@ export default function InventoryTable({
       onRetry={onRetry}
       getRowId={(row) => `${row.warehouseId}-${row.productId}`}
       columns={columns}
+      pagination={pagination}
+      sort={sort}
+      onSortChange={onSortChange}
     />
   );
 }

@@ -1,16 +1,18 @@
+import type { PageParams } from '../../../core/api/pagination';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { warehousesApi } from '../api/warehousesApi';
 import type {
   WarehouseCreateRequest,
+  WarehouseFilterParams,
   WarehouseUpdateRequest,
 } from '../types/warehouse.types';
 
-export function useWarehouses(enabled = true) {
+export function useWarehouses(filters: WarehouseFilterParams & PageParams = {}, enabled = true) {
   return useQuery({
-    queryKey: ['warehouses', 'all'],
-    queryFn: warehousesApi.getAll,
+    queryKey: ['warehouses', 'all', filters],
+    queryFn: () => warehousesApi.getAll(filters),
     enabled,
     staleTime: 30_000,
     refetchOnWindowFocus: false,

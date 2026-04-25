@@ -3,12 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
 import { transportOrdersApi } from '../../transport-orders/api/transportOrdersApi';
 import TaskFormDialog from '../components/TaskFormDialog';
@@ -18,24 +20,8 @@ import { useDeleteTask } from '../hooks/useDeleteTask';
 import { useMyTasks } from '../hooks/useMyTasks';
 import { useTasks } from '../hooks/useTasks';
 import { useUpdateTask } from '../hooks/useUpdateTask';
-import type {
-  TaskFiltersState,
-  TaskFormValues,
-  TaskLinkedProcessType,
-  TaskResponse,
-} from '../types/task.types';
-
-function resolveLinkedProcessType(task: TaskResponse): TaskLinkedProcessType {
-  if (task.transportOrderId != null) {
-    return 'TRANSPORT_ORDER';
-  }
-
-  if (task.stockMovementId != null) {
-    return 'STOCK_MOVEMENT';
-  }
-
-  return 'UNLINKED';
-}
+import type { SortState } from '../../../shared/types/common.types';
+import type { TaskFiltersState, TaskFormValues, TaskQueryParams, TaskResponse } from '../types/task.types';
 
 export default function TasksPage() {
   const auth = useAuthStore();
@@ -58,8 +44,62 @@ export default function TasksPage() {
 
   const isWarehouseManager = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
-  const managedTasksQuery = useTasks(canListManaged);
-  const myTasksQuery = useMyTasks(!canListManaged);
+  const [filters, setFilters] = useState<TaskFiltersState>({
+    search: '',
+    status: 'ALL',
+    priority: 'ALL',
+    assignedEmployeeId: 'ALL',
+    linkedProcessType: 'ALL',
+  });
+
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>({ field: 'dueDate', direction: 'asc' });
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
+  const taskQueryParams = useMemo<TaskQueryParams>(() => {
+    const params: TaskQueryParams = {};
+
+    if (filters.search.trim().length > 0) {
+      params.search = filters.search.trim();
+    }
+
+    if (filters.status !== 'ALL') {
+      params.status = filters.status;
+    }
+
+    if (filters.priority !== 'ALL') {
+      params.priority = filters.priority;
+    }
+
+    if (filters.assignedEmployeeId !== 'ALL' && canListManaged) {
+      params.assignedEmployeeId = filters.assignedEmployeeId;
+    }
+
+    if (filters.linkedProcessType !== 'ALL') {
+      params.linkedProcessType = filters.linkedProcessType;
+    }
+
+    return params;
+  }, [canListManaged, filters]);
+
+  const myTaskQueryParams = useMemo(() => {
+    const params = { ...taskQueryParams };
+    delete params.assignedEmployeeId;
+    return params;
+  }, [taskQueryParams]);
+
+  const managedTasksQuery = useTasks({ ...taskQueryParams, page, size, sort: buildSortParam(sort) }, canListManaged);
+  const myTasksQuery = useMyTasks({ ...myTaskQueryParams, page, size, sort: buildSortParam(sort) }, !canListManaged);
   const tasksQuery = canListManaged ? managedTasksQuery : myTasksQuery;
 
   const employeesQuery = useQuery({
@@ -72,7 +112,7 @@ export default function TasksPage() {
 
   const transportOrdersQuery = useQuery({
     queryKey: ['tasks', 'transport-orders'],
-    queryFn: transportOrdersApi.getAll,
+    queryFn: () => transportOrdersApi.getAll({ size: 1000, sort: 'createdAt,desc' }),
     enabled: canCreateOrAssign && !isWarehouseManager,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
@@ -80,7 +120,7 @@ export default function TasksPage() {
 
   const stockMovementsQuery = useQuery({
     queryKey: ['tasks', 'stock-movements'],
-    queryFn: stockMovementsApi.getAll,
+    queryFn: () => stockMovementsApi.getAll({ size: 1000, sort: 'createdAt,desc' }),
     enabled: canCreateOrAssign,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
@@ -89,14 +129,6 @@ export default function TasksPage() {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-
-  const [filters, setFilters] = useState<TaskFiltersState>({
-    search: '',
-    status: 'ALL',
-    priority: 'ALL',
-    assignedEmployeeId: 'ALL',
-    linkedProcessType: 'ALL',
-  });
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<TaskResponse | null>(null);
@@ -115,7 +147,7 @@ export default function TasksPage() {
 
   const managedRows = useMemo(
     () =>
-      (tasksQuery.data ?? []).filter((task) => {
+      (tasksQuery.data?.content ?? []).filter((task) => {
         if (isWarehouseManager && task.transportOrderId != null) {
           return false;
         }
@@ -129,75 +161,7 @@ export default function TasksPage() {
     [auth.user?.role, isWarehouseManager, tasksQuery.data],
   );
 
-  const employeesById = useMemo(
-    () =>
-      assignableEmployees.reduce<Record<number, string>>((acc, employee) => {
-        acc[employee.id] = `${employee.firstName} ${employee.lastName}`;
-        return acc;
-      }, {}),
-    [assignableEmployees],
-  );
-
-  const transportOrdersById = useMemo(
-    () =>
-      (transportOrdersQuery.data ?? []).reduce<Record<number, string>>((acc, order) => {
-        acc[order.id] = order.orderNumber;
-        return acc;
-      }, {}),
-    [transportOrdersQuery.data],
-  );
-
-  const stockMovementsById = useMemo(
-    () =>
-      (stockMovementsQuery.data ?? []).reduce<Record<number, string>>((acc, movement) => {
-        acc[movement.id] = `${movement.movementType} #${movement.id}`;
-        return acc;
-      }, {}),
-    [stockMovementsQuery.data],
-  );
-
-  const rows = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-
-    return managedRows.filter((task) => {
-      const linkedProcessType = resolveLinkedProcessType(task);
-      const assignedEmployeeName = employeesById[task.assignedEmployeeId] ?? '';
-      const transportOrderLabel =
-        task.transportOrderId != null
-          ? transportOrdersById[task.transportOrderId] ?? `#${task.transportOrderId}`
-          : '';
-      const stockMovementLabel =
-        task.stockMovementId != null
-          ? stockMovementsById[task.stockMovementId] ?? `#${task.stockMovementId}`
-          : '';
-
-      const matchesSearch =
-        search.length === 0 ||
-        task.title.toLowerCase().includes(search) ||
-        task.description?.toLowerCase().includes(search) ||
-        assignedEmployeeName.toLowerCase().includes(search) ||
-        transportOrderLabel.toLowerCase().includes(search) ||
-        stockMovementLabel.toLowerCase().includes(search) ||
-        String(task.id).includes(search);
-
-      const matchesStatus = filters.status === 'ALL' || task.status === filters.status;
-      const matchesPriority = filters.priority === 'ALL' || task.priority === filters.priority;
-      const matchesAssignedEmployee =
-        filters.assignedEmployeeId === 'ALL' ||
-        task.assignedEmployeeId === filters.assignedEmployeeId;
-      const matchesLinkedProcessType =
-        filters.linkedProcessType === 'ALL' ||
-        linkedProcessType === filters.linkedProcessType;
-
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesPriority &&
-        matchesAssignedEmployee &&
-        matchesLinkedProcessType
-      );
-    });
-  }, [employeesById, filters, stockMovementsById, managedRows, transportOrdersById]);
+  const rows = managedRows;
 
   return (
     <Stack spacing={3}>
@@ -388,6 +352,16 @@ export default function TasksPage() {
               }
               setDeleteTarget(row);
             }}
+          pagination={
+              <ServerTablePagination
+                page={tasksQuery.data}
+                disabled={tasksQuery.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
+            sort={sort}
+            onSortChange={handleSortChange}
           />
         </Stack>
       </SectionCard>
@@ -397,8 +371,8 @@ export default function TasksPage() {
           open={open}
           initialData={canMutateManaged ? selected : null}
           employees={assignableEmployees}
-          transportOrders={isWarehouseManager ? [] : transportOrdersQuery.data ?? []}
-          stockMovements={stockMovementsQuery.data ?? []}
+          transportOrders={isWarehouseManager ? [] : transportOrdersQuery.data?.content ?? []}
+          stockMovements={stockMovementsQuery.data?.content ?? []}
           loading={createTask.isPending || updateTask.isPending}
           allowTransportOrderLink={!isWarehouseManager}
           onClose={() => {

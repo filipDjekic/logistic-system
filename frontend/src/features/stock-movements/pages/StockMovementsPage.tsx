@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { stockMovementsApi } from '../api/stockMovementsApi';
 import StockMovementFormDialog from '../components/StockMovementFormDialog';
 import StockMovementsTable from '../components/StockMovementsTable';
 import { useCreateStockMovement, useStockMovements } from '../hooks/useStockMovements';
-import type { StockMovementFiltersState, StockMovementResponse } from '../types/stockMovement.types';
+import type { SortState } from '../../../shared/types/common.types';
+import type { StockMovementFiltersState } from '../types/stockMovement.types';
 import { stockMovementTypeOptions } from '../validation/stockMovementSchema';
 
 export default function StockMovementsPage() {
@@ -27,9 +30,23 @@ export default function StockMovementsPage() {
     productId: 'ALL',
   });
 
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>({ field: 'createdAt', direction: 'desc' });
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const stockMovementsQuery = useStockMovements(true);
+  const stockMovementsQuery = useStockMovements({ ...filters, page, size, sort: buildSortParam(sort) }, true);
   const createStockMovementMutation = useCreateStockMovement();
 
   const warehousesQuery = useQuery({
@@ -53,42 +70,6 @@ export default function StockMovementsPage() {
     refetchOnWindowFocus: false,
   });
 
-  const filteredRows = useMemo<StockMovementResponse[]>(() => {
-    const rows = stockMovementsQuery.data ?? [];
-    const search = filters.search.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesMovementType =
-        filters.movementType === 'ALL' || row.movementType === filters.movementType;
-
-      const matchesWarehouse =
-        filters.warehouseId === 'ALL' || row.warehouseId === filters.warehouseId;
-
-      const matchesProduct =
-        filters.productId === 'ALL' || row.productId === filters.productId;
-
-      if (!matchesMovementType || !matchesWarehouse || !matchesProduct) {
-        return false;
-      }
-
-      if (!search) {
-        return true;
-      }
-
-      return [
-        row.movementType,
-        row.warehouseName,
-        row.productName,
-        String(row.id),
-        String(row.quantity),
-        String(row.quantityBefore),
-        String(row.quantityAfter),
-        row.createdAt,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(search));
-    });
-  }, [filters, stockMovementsQuery.data]);
 
   const hasLookupError =
     warehousesQuery.isError ||
@@ -220,7 +201,7 @@ export default function StockMovementsPage() {
           </Stack>
 
           <StockMovementsTable
-            rows={filteredRows}
+            rows={stockMovementsQuery.data?.content ?? []}
             loading={stockMovementsQuery.isLoading || isLookupsLoading}
             error={stockMovementsQuery.isError || hasLookupError}
             onRetry={() => {
@@ -231,6 +212,16 @@ export default function StockMovementsPage() {
                 transportOrdersQuery.refetch(),
               ]);
             }}
+          pagination={
+              <ServerTablePagination
+                page={stockMovementsQuery.data}
+                disabled={stockMovementsQuery.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
+            sort={sort}
+            onSortChange={handleSortChange}
           />
         </Stack>
       </SectionCard>
@@ -240,7 +231,7 @@ export default function StockMovementsPage() {
           open={dialogOpen}
           warehouses={warehousesQuery.data ?? []}
           products={productsQuery.data ?? []}
-          transportOrders={transportOrdersQuery.data ?? []}
+          transportOrders={transportOrdersQuery.data?.content ?? []}
           loading={
             createStockMovementMutation.isPending ||
             warehousesQuery.isLoading ||

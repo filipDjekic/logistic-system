@@ -86,4 +86,23 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
             @Param("endTime") LocalDateTime endTime,
             @Param("companyId") Long companyId
     );
+
+    @Query("""
+            select count(s)
+            from Shift s
+            where s.employee.company.id = :companyId
+            and s.status = rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE
+            and s.startTime <= :now
+            and s.endTime > :now
+            """)
+    long countActiveForCompany(@Param("companyId") Long companyId, @Param("now") LocalDateTime now);
+
+    @Query("""
+            select count(s)
+            from Shift s
+            where s.employee.company.id = :companyId
+            and s.status = rs.logistics.logistics_system.enums.ShiftStatus.PLANNED
+            and s.startTime > :now
+            """)
+    long countPlannedForCompany(@Param("companyId") Long companyId, @Param("now") LocalDateTime now);
 }

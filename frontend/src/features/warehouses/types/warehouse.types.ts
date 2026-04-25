@@ -47,6 +47,14 @@ export type WarehouseUpdateRequest = {
 export type WarehouseFiltersState = {
   search: string;
   status: WarehouseStatus | 'ALL';
+  active: boolean | 'ALL';
+};
+
+export type WarehouseFilterParams = {
+  search?: string;
+  status?: WarehouseStatus;
+  active?: boolean;
+  managerId?: number;
 };
 
 export type WarehouseFormValues = {

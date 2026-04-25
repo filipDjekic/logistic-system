@@ -1,15 +1,17 @@
 import { apiClient } from '../../../core/api/client';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   VehicleCreateRequest,
   VehicleResponse,
+  VehicleSearchParams,
   VehicleStatus,
   VehicleUpdateRequest,
 } from '../types/vehicle.types';
 
 export const vehiclesApi = {
-  getAll() {
+  getAll(params?: VehicleSearchParams & PageParams) {
     return apiClient
-      .get<VehicleResponse[]>('/api/vehicles')
+      .get<PageResponse<VehicleResponse>>('/api/vehicles', { params })
       .then((response) => response.data);
   },
 
