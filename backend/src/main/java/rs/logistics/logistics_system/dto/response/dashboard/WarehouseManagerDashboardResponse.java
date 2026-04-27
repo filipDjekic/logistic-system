@@ -1,4 +1,4 @@
-package rs.logistics.logistics_system.dto.response;
+package rs.logistics.logistics_system.dto.response.dashboard;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

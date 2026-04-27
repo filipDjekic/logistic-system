@@ -1,9 +1,9 @@
-package rs.logistics.logistics_system.service.implementation;
+package rs.logistics.logistics_system.service.implementation.dashboard;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.response.CompanyAdminDashboardResponse;
+import rs.logistics.logistics_system.dto.response.dashboard.CompanyAdminDashboardResponse;
 import rs.logistics.logistics_system.entity.ActivityLog;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.TaskStatus;
@@ -20,7 +20,7 @@ import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.CompanyAdminDashboardServiceDefinition;
+import rs.logistics.logistics_system.service.definition.dashboard.CompanyAdminDashboardServiceDefinition;
 
 import java.math.BigDecimal;
 import java.util.Arrays;

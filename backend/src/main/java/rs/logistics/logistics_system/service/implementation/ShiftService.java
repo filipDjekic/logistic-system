@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.service.implementation;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +30,8 @@ import rs.logistics.logistics_system.service.definition.ShiftServiceDefinition;
 @Service
 @RequiredArgsConstructor
 public class ShiftService implements ShiftServiceDefinition {
+
+    private static final long MAX_SHIFT_DURATION_HOURS = 8;
 
     private final ShiftRepository _shiftRepository;
     private final EmployeeRepository _employeeRepository;
@@ -264,8 +267,6 @@ public class ShiftService implements ShiftServiceDefinition {
         return ShiftMapper.toResponse(updatedShift);
     }
 
-    // helpers
-
     private void notifyEmployee(Employee employee, String title, String message, NotificationType type) {
         if (employee == null || employee.getUser() == null) {
             return;
@@ -278,7 +279,6 @@ public class ShiftService implements ShiftServiceDefinition {
                 type
         );
     }
-
 
     private void validateEmployeeCanBeAssignedToShift(Employee employee) {
         if (!Boolean.TRUE.equals(employee.getActive())) {
@@ -301,6 +301,12 @@ public class ShiftService implements ShiftServiceDefinition {
 
         if (!endTime.isAfter(startTime)) {
             throw new BadRequestException("Shift end time must be after start time.");
+        }
+
+        Duration duration = Duration.between(startTime, endTime);
+
+        if (duration.toMinutes() > MAX_SHIFT_DURATION_HOURS * 60) {
+            throw new BadRequestException("Shift cannot be longer than 8 hours.");
         }
     }
 
@@ -362,17 +368,27 @@ public class ShiftService implements ShiftServiceDefinition {
 
     private Shift getShiftOrThrow(Long id) {
         if (authenticatedUserProvider.isOverlord()) {
-            return _shiftRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+            return _shiftRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
         }
 
-        return _shiftRepository.findByIdAndEmployee_Company_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        return _shiftRepository.findByIdAndEmployee_Company_Id(
+                        id,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
     }
 
     private Employee getAccessibleEmployee(Long employeeId) {
         if (authenticatedUserProvider.isOverlord()) {
-            return _employeeRepository.findById(employeeId).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+            return _employeeRepository.findById(employeeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         }
 
-        return _employeeRepository.findByIdAndCompany_Id(employeeId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        return _employeeRepository.findByIdAndCompany_Id(
+                        employeeId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
 }

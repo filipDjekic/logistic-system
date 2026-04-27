@@ -241,7 +241,6 @@ export default function EmployeeDetailsPage() {
       <PageHeader
         overline="Workforce"
         title={`${employee.firstName} ${employee.lastName}`}
-        description={`Employee #${employee.id}`}
         actions={
           <Stack direction="row" spacing={1}>
             <Button component={RouterLink} to="/employees" variant="outlined">
@@ -276,7 +275,6 @@ export default function EmployeeDetailsPage() {
         <Grid size={{ xs: 12, lg: 7 }}>
           <SectionCard
             title="Employee overview"
-            description="Confirmed fields from the backend employee response."
           >
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
@@ -331,10 +329,8 @@ export default function EmployeeDetailsPage() {
         <Grid size={{ xs: 12, lg: 5 }}>
           <SectionCard
             title="Linked user details"
-            description="Resolved from the confirmed /api/users endpoint."
           >
             <Stack spacing={2}>
-              <InfoRow label="User ID" value={employee.userId ?? '—'} />
               <InfoRow label="Role" value={linkedUser?.roleName ?? '—'} />
               <InfoRow
                 label="Enabled"
@@ -354,7 +350,6 @@ export default function EmployeeDetailsPage() {
 
       <SectionCard
         title="Assigned tasks"
-        description="Uses the confirmed employee tasks endpoint."
       >
         <DataTable
           columns={taskColumns}
@@ -372,7 +367,6 @@ export default function EmployeeDetailsPage() {
 
       <SectionCard
         title="Assigned shifts"
-        description="Uses the confirmed employee shifts endpoint."
       >
         <DataTable
           columns={shiftColumns}

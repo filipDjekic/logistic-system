@@ -183,7 +183,7 @@ export default function DataExchangePage() {
               <Typography variant="body2">Selected file: {selectedFile.name}</Typography>
             ) : null}
 
-            {importMutation.isPending ? <InlineLoader message="Importing CSV..." size={22} /> : null}
+            {importMutation.isPending ? <InlineLoader message="Importing CSV..." /> : null}
 
             {importMutation.isError ? (
               <ErrorState
@@ -239,7 +239,7 @@ export default function DataExchangePage() {
               Export CSV
             </Button>
 
-            {exportMutation.isPending ? <InlineLoader message="Preparing CSV export..." size={22} /> : null}
+            {exportMutation.isPending ? <InlineLoader message="Preparing CSV export..."/> : null}
 
             {exportMutation.isError ? (
               <ErrorState

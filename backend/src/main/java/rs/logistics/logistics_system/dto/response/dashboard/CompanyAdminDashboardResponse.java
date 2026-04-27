@@ -1,20 +1,18 @@
-package rs.logistics.logistics_system.dto.response;
+package rs.logistics.logistics_system.dto.response.dashboard;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-public record OverlordDashboardResponse(
-        long companiesTotal,
-        long activeCompanies,
-        long usersTotal,
-        Map<String, Long> usersByStatus,
+public record CompanyAdminDashboardResponse(
         long employeesTotal,
         long activeEmployees,
         long transportOrdersTotal,
+        long activeTransportOrders,
         Map<String, Long> transportOrdersByStatus,
         long tasksTotal,
+        long openTasksTotal,
         Map<String, Long> tasksByStatus,
         long vehiclesTotal,
         Map<String, Long> vehiclesByStatus,

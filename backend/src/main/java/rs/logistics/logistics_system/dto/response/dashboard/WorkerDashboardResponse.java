@@ -1,4 +1,4 @@
-package rs.logistics.logistics_system.dto.response;
+package rs.logistics.logistics_system.dto.response.dashboard;
 
 import java.time.LocalDateTime;
 import java.util.List;

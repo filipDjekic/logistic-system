@@ -1,16 +1,16 @@
-package rs.logistics.logistics_system.service.implementation;
+package rs.logistics.logistics_system.service.implementation.dashboard;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.response.HrManagerDashboardResponse;
+import rs.logistics.logistics_system.dto.response.dashboard.HrManagerDashboardResponse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.HrManagerDashboardServiceDefinition;
+import rs.logistics.logistics_system.service.definition.dashboard.HrManagerDashboardServiceDefinition;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

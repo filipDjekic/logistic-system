@@ -1,9 +1,9 @@
-package rs.logistics.logistics_system.service.implementation;
+package rs.logistics.logistics_system.service.implementation.dashboard;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.response.DriverDashboardResponse;
+import rs.logistics.logistics_system.dto.response.dashboard.DriverDashboardResponse;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
@@ -17,7 +17,7 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.DriverDashboardServiceDefinition;
+import rs.logistics.logistics_system.service.definition.dashboard.DriverDashboardServiceDefinition;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;

@@ -119,4 +119,11 @@ export const queryKeys = {
     managers: () => ['warehouses', 'managers'] as const,
     detail: (id: number) => ['warehouses', 'details', id] as const,
   },
+  
+  countries: {
+    root: () => ['countries'] as const,
+    all: () => ['countries', 'all'] as const,
+    active: () => ['countries', 'active'] as const,
+    detail: (id: number) => ['countries', 'details', id] as const,
+  },
 } as const;

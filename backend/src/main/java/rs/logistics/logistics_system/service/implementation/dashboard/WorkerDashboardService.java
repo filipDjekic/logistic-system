@@ -1,9 +1,9 @@
-package rs.logistics.logistics_system.service.implementation;
+package rs.logistics.logistics_system.service.implementation.dashboard;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.response.WorkerDashboardResponse;
+import rs.logistics.logistics_system.dto.response.dashboard.WorkerDashboardResponse;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Shift;
 import rs.logistics.logistics_system.entity.StockMovement;
@@ -20,7 +20,7 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
-import rs.logistics.logistics_system.service.definition.WorkerDashboardServiceDefinition;
+import rs.logistics.logistics_system.service.definition.dashboard.WorkerDashboardServiceDefinition;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
