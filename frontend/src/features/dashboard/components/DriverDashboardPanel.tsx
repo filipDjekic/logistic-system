@@ -6,6 +6,7 @@ import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
+import DashboardSummaryStrip from './DashboardSummaryStrip';
 import type { DriverDashboardResponse, DriverTransportOrderResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -95,6 +96,15 @@ export default function DriverDashboardPanel({ data }: Props) {
           />
         ))}
       </Box>
+
+      <DashboardSummaryStrip
+        items={[
+          { label: 'Active transports', value: formatNumber(data.activeTransportOrders), tone: 'info' },
+          { label: 'Open transport tasks', value: formatNumber(data.openTransportTasksTotal), tone: 'warning' },
+          { label: 'Assigned transports', value: formatNumber(data.assignedTransportOrdersTotal), tone: 'success' },
+          { label: 'Next transport', value: data.nextTransportOrder?.orderNumber ?? '-', tone: data.nextTransportOrder ? 'info' : 'default' },
+        ]}
+      />
 
       <Box
         sx={{

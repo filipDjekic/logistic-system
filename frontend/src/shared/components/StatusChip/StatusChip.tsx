@@ -5,6 +5,7 @@ type StatusChipProps = {
   value: string | null | undefined;
   size?: ChipProps['size'];
   variant?: 'filled' | 'outlined';
+  emphasis?: 'default' | 'strong';
 };
 
 function getToneStyles(tone: StatusTone, palette: Theme['palette']) {
@@ -58,6 +59,7 @@ export default function StatusChip({
   value,
   size = 'small',
   variant = 'filled',
+  emphasis = 'default',
 }: StatusChipProps) {
   const theme = useTheme();
 
@@ -74,10 +76,27 @@ export default function StatusChip({
       label={config.label}
       variant={variant}
       sx={{
-        fontWeight: 700,
+        fontWeight: 800,
+        letterSpacing: 0.2,
         color: styles.color,
         backgroundColor: variant === 'filled' ? styles.backgroundColor : 'transparent',
         borderColor: styles.borderColor,
+        borderWidth: 1,
+        borderStyle: 'solid',
+        minWidth: emphasis === 'strong' ? 118 : undefined,
+        justifyContent: 'flex-start',
+        '& .MuiChip-label': {
+          px: emphasis === 'strong' ? 1.25 : undefined,
+        },
+        '&::before': {
+          content: '""',
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          backgroundColor: styles.color,
+          ml: 1,
+          display: 'inline-block',
+        },
       }}
     />
   );

@@ -6,6 +6,7 @@ import TodayRoundedIcon from '@mui/icons-material/TodayRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
+import DashboardSummaryStrip from './DashboardSummaryStrip';
 import type { WorkerDashboardResponse, WorkerShiftResponse, WorkerTaskResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -143,6 +144,15 @@ export default function WorkerDashboardPanel({ data }: Props) {
           />
         ))}
       </Box>
+
+      <DashboardSummaryStrip
+        items={[
+          { label: 'Open tasks', value: formatNumber(data.openTasksTotal), tone: 'warning' },
+          { label: 'Today tasks', value: formatNumber(data.todayTasksTotal), tone: data.todayTasksTotal > 0 ? 'info' : 'success' },
+          { label: 'Current shift', value: data.currentShift?.status ?? '-', tone: data.currentShift ? 'success' : 'default' },
+          { label: 'Next shift', value: data.nextShift?.status ?? '-', tone: data.nextShift ? 'info' : 'default' },
+        ]}
+      />
 
       <Box
         sx={{

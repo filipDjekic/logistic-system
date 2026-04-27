@@ -5,6 +5,7 @@ import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
+import DashboardSummaryStrip from './DashboardSummaryStrip';
 import type { OverlordDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -84,6 +85,15 @@ export default function OverlordDashboardPanel({ data }: Props) {
           />
         ))}
       </Box>
+
+      <DashboardSummaryStrip
+        items={[
+          { label: 'Active transports', value: formatNumber((data.transportOrdersByStatus.ASSIGNED ?? 0) + (data.transportOrdersByStatus.IN_TRANSIT ?? 0)), tone: 'info' },
+          { label: 'Open tasks', value: formatNumber((data.tasksByStatus.NEW ?? 0) + (data.tasksByStatus.IN_PROGRESS ?? 0)), tone: 'warning' },
+          { label: 'Low stock rows', value: formatNumber(data.lowStockRowsTotal), tone: data.lowStockRowsTotal > 0 ? 'error' : 'success' },
+          { label: 'Available quantity', value: formatNumber(data.inventoryAvailableQuantityTotal), tone: 'success' },
+        ]}
+      />
 
       <Box
         sx={{

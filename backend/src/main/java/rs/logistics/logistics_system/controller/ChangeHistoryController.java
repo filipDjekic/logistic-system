@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,8 +14,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 
 @RestController
@@ -60,10 +66,17 @@ public class ChangeHistoryController {
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping
-    public ResponseEntity<List<ChangeHistoryResponse>> getAll() {
-        List<ChangeHistoryResponse> response = changeHistoryService.getAll();
+    public ResponseEntity<PageResponse<ChangeHistoryResponse>> getAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) ChangeType changeType,
+            @RequestParam(required = false) String entityName,
+            @RequestParam(required = false) Long entityId,
+            @RequestParam(required = false) Long userId,
+            @PageableDefault(size = 20, sort = "changedAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<ChangeHistoryResponse> response = changeHistoryService.search(search, changeType, entityName, entityId, userId, pageable);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

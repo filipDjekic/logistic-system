@@ -1,17 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { authApi } from '../api/authApi';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { authStore, useAuthStore } from '../../../core/auth/authStore';
+import { authApi } from '../api/authApi';
 
 export function useMe() {
   const auth = useAuthStore();
 
   return useQuery({
-    queryKey: ['auth', 'me'],
+    queryKey: queryKeys.auth.me(),
     queryFn: authApi.me,
     enabled: Boolean(auth.accessToken),
     retry: false,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.session,
   });
 }
 
@@ -19,11 +20,10 @@ export function useInitializeAuth() {
   const auth = useAuthStore();
 
   return useQuery({
-    queryKey: ['auth', 'bootstrap', auth.accessToken],
+    queryKey: queryKeys.auth.bootstrap(auth.accessToken),
     enabled: Boolean(auth.accessToken) && auth.status !== 'authenticated',
     retry: false,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.session,
     queryFn: async () => {
       authStore.setLoading();
 

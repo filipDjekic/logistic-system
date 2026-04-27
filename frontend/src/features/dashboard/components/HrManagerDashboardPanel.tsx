@@ -6,6 +6,7 @@ import WorkRoundedIcon from '@mui/icons-material/WorkRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
+import DashboardSummaryStrip from './DashboardSummaryStrip';
 import type { HrManagerDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -87,6 +88,15 @@ export default function HrManagerDashboardPanel({ data }: Props) {
           />
         ))}
       </Box>
+
+      <DashboardSummaryStrip
+        items={[
+          { label: 'Active employees', value: formatNumber(data.activeEmployees), tone: 'success' },
+          { label: 'Planned shifts', value: formatNumber(data.plannedShifts), tone: 'info' },
+          { label: 'Without shift', value: formatNumber(data.employeesWithoutActiveOrPlannedShift), tone: data.employeesWithoutActiveOrPlannedShift > 0 ? 'warning' : 'success' },
+          { label: 'New employees 30d', value: formatNumber(data.newEmployeesLast30Days), tone: 'info' },
+        ]}
+      />
 
       <Box
         sx={{

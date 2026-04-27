@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
-import { inventoryApi } from '../api/inventoryApi';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { PageParams, PageResponse } from '../../../core/api/pagination';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
+import { inventoryApi } from '../api/inventoryApi';
 import type {
   DerivedInventoryStatus,
   InventoryFiltersState,
@@ -27,7 +29,7 @@ type UseInventoryLookups = {
 
 export function useInventory(filters: InventoryFiltersState & PageParams, lookups: UseInventoryLookups) {
   return useQuery({
-    queryKey: ['inventory', 'list', filters],
+    queryKey: queryKeys.inventory.list(filters),
     queryFn: async () => {
       const page = await inventoryApi.getInventory(filters);
       const rows = page.content;
@@ -54,7 +56,7 @@ export function useInventory(filters: InventoryFiltersState & PageParams, lookup
 
       return { ...page, content } satisfies PageResponse<InventoryListRow>;
     },
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+    staleTime: cacheTimes.standard,
   });
 }

@@ -378,6 +378,7 @@ export default function TransportOrderDetailsPage() {
               : 'Transport order could not be loaded'
         }
         description={error.message}
+        details={error.fieldErrors}
         onRetry={() => void transportOrderQuery.refetch()}
       />
     );
@@ -414,6 +415,15 @@ export default function TransportOrderDetailsPage() {
                 onClick={() => setOrderDialogOpen(true)}
               >
                 Edit order
+              </Button>
+            ) : null}
+
+            {canManageOrder ? (
+              <Button
+                variant="contained"
+                onClick={() => navigate('/tasks?create=1')}
+              >
+                Create task
               </Button>
             ) : null}
 

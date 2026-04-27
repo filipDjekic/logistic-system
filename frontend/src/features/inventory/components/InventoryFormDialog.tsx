@@ -4,7 +4,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Grid,
+  Stack,
+  Typography,
 } from '@mui/material';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -45,8 +48,9 @@ export default function InventoryFormDialog({
   onClose,
   onSubmit,
 }: Props) {
-  const { control, handleSubmit, reset } = useForm<InventoryFormValues>({
+  const { control, formState, handleSubmit, reset } = useForm<InventoryFormValues>({
     defaultValues,
+    mode: 'onChange',
   });
 
   useEffect(() => {
@@ -67,62 +71,96 @@ export default function InventoryFormDialog({
     reset(defaultValues);
   }, [initialData, mode, open, reset]);
 
+  const disableSubmit = loading || !formState.isValid;
+
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
       <DialogTitle>
         {mode === 'create' ? 'Create inventory record' : 'Edit inventory record'}
       </DialogTitle>
 
-      <DialogContent>
-        <Grid container spacing={2} sx={{ pt: 1 }}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <FormSelect
-              name="warehouseId"
-              control={control}
-              label="Warehouse"
-              required
-              disabled={mode === 'edit'}
-              options={warehouses.map((warehouse) => ({
-                value: warehouse.id,
-                label: warehouse.name,
-              }))}
-            />
+      <DialogContent dividers>
+        <Stack spacing={2.5} sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Select warehouse and product, then set current quantity and minimum stock level.
+          </Typography>
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            Inventory location
+          </Typography>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="warehouseId"
+                control={control}
+                label="Warehouse"
+                required
+                disabled={mode === 'edit'}
+                rules={{ required: 'Warehouse is required' }}
+                helperText={mode === 'edit' ? 'Warehouse cannot be changed after record creation.' : undefined}
+                options={warehouses.map((warehouse) => ({
+                  value: warehouse.id,
+                  label: `${warehouse.name} (${warehouse.city})`,
+                }))}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="productId"
+                control={control}
+                label="Product"
+                required
+                disabled={mode === 'edit'}
+                rules={{ required: 'Product is required' }}
+                helperText={mode === 'edit' ? 'Product cannot be changed after record creation.' : undefined}
+                options={products.map((product) => ({
+                  value: product.id,
+                  label: `${product.name} (${product.sku})`,
+                }))}
+              />
+            </Grid>
           </Grid>
 
-          <Grid size={{ xs: 12, md: 6 }}>
-            <FormSelect
-              name="productId"
-              control={control}
-              label="Product"
-              required
-              disabled={mode === 'edit'}
-              options={products.map((product) => ({
-                value: product.id,
-                label: `${product.name} (${product.sku})`,
-              }))}
-            />
-          </Grid>
+          <Divider />
 
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Form
-              name="quantity"
-              control={control}
-              label="Quantity"
-              type="number"
-              required
-            />
-          </Grid>
+          <Typography variant="subtitle2" fontWeight={700}>
+            Stock levels
+          </Typography>
 
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Form
-              name="minStockLevel"
-              control={control}
-              label="Minimum stock level"
-              type="number"
-              required
-            />
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Form
+                name="quantity"
+                control={control}
+                label="Quantity"
+                type="number"
+                required
+                rules={{
+                  required: 'Quantity is required',
+                  min: { value: 0, message: 'Quantity cannot be negative' },
+                }}
+                slotProps={{ htmlInput: { min: 0, step: 1 } }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Form
+                name="minStockLevel"
+                control={control}
+                label="Minimum stock level"
+                type="number"
+                required
+                rules={{
+                  required: 'Minimum stock level is required',
+                  min: { value: 0, message: 'Minimum stock level cannot be negative' },
+                }}
+                slotProps={{ htmlInput: { min: 0, step: 1 } }}
+              />
+            </Grid>
           </Grid>
-        </Grid>
+        </Stack>
       </DialogContent>
 
       <DialogActions>
@@ -130,8 +168,8 @@ export default function InventoryFormDialog({
           Cancel
         </Button>
 
-        <Button variant="contained" onClick={handleSubmit(onSubmit)} disabled={loading}>
-          Save
+        <Button variant="contained" onClick={handleSubmit(onSubmit)} disabled={disableSubmit}>
+          {mode === 'create' ? 'Create record' : 'Save changes'}
         </Button>
       </DialogActions>
     </Dialog>

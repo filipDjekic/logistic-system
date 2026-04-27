@@ -82,6 +82,7 @@ export default function InventoryDetailsPage() {
               : 'Inventory record could not be loaded'
         }
         description={error.message}
+        details={error.fieldErrors}
         onRetry={() => {
           void inventoryRecordQuery.refetch();
         }}

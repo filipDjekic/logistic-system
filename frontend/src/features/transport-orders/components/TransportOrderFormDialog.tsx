@@ -5,6 +5,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Grid,
   Stack,
   Typography,
@@ -85,6 +86,7 @@ export default function TransportOrderFormDialog({
   const form = useForm<TransportOrderSchemaValues>({
     resolver: zodResolver(transportOrderSchema),
     defaultValues,
+    mode: 'onChange',
   });
 
   useEffect(() => {
@@ -128,27 +130,27 @@ export default function TransportOrderFormDialog({
   }));
 
   const isEditMode = initialData !== null;
+  const disableSubmit = loading || !form.formState.isValid;
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
       <DialogTitle>{isEditMode ? 'Update transport order' : 'Create transport order'}</DialogTitle>
 
       <DialogContent dividers>
-        <Stack spacing={2} sx={{ pt: 1 }}>
+        <Stack spacing={2.5} sx={{ pt: 1 }}>
           <Typography variant="body2" color="text.secondary">
             {isEditMode
-              ? 'Update transport order planning data while the order has not started.'
-              : 'Fill the confirmed backend fields for transport order creation.'}
+              ? 'Update only planning fields before the order starts.'
+              : 'Create the transport order, assign route, vehicle and driver in one flow.'}
+          </Typography>
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            Basic info
           </Typography>
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormTextField
-                name="orderNumber"
-                control={form.control}
-                label="Order number"
-                required
-              />
+              <FormTextField name="orderNumber" control={form.control} label="Order number" required />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
@@ -171,7 +173,15 @@ export default function TransportOrderFormDialog({
                 minRows={3}
               />
             </Grid>
+          </Grid>
 
+          <Divider />
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            Schedule
+          </Typography>
+
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 4 }}>
               <FormDatePicker
                 name="orderDate"
@@ -201,7 +211,15 @@ export default function TransportOrderFormDialog({
                 required
               />
             </Grid>
+          </Grid>
 
+          <Divider />
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            Route and assignment
+          </Typography>
+
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <FormSelect
                 name="sourceWarehouseId"
@@ -241,15 +259,17 @@ export default function TransportOrderFormDialog({
                 required
               />
             </Grid>
+          </Grid>
 
+          <Divider />
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            Notes
+          </Typography>
+
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12 }}>
-              <FormTextField
-                name="notes"
-                control={form.control}
-                label="Notes"
-                multiline
-                minRows={3}
-              />
+              <FormTextField name="notes" control={form.control} label="Notes" multiline minRows={3} />
             </Grid>
           </Grid>
         </Stack>
@@ -262,7 +282,7 @@ export default function TransportOrderFormDialog({
 
         <Button
           variant="contained"
-          disabled={loading}
+          disabled={disableSubmit}
           onClick={form.handleSubmit((values) => onSubmit(values))}
         >
           {isEditMode ? 'Update' : 'Create'}

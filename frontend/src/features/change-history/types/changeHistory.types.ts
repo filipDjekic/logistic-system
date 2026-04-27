@@ -20,6 +20,8 @@ export type ChangeHistoryFiltersState = {
 };
 
 export type ChangeHistoryQueryParams = {
+  search?: string;
+  changeType?: ChangeType;
   entityName?: string;
   entityId?: number | null;
   userId?: number | null;

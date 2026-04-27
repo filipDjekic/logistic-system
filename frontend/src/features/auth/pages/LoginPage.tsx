@@ -49,7 +49,7 @@ export default function LoginPage() {
         px: 2,
         py: 4,
         background:
-          'radial-gradient(circle at top left, rgba(91, 75, 255, 0.14), transparent 24%), radial-gradient(circle at bottom right, rgba(8, 145, 178, 0.14), transparent 24%)',
+          'radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 24%), radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.1), transparent 24%)',
       }}
     >
       <Paper

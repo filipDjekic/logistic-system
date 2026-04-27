@@ -12,7 +12,9 @@ import {
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import { useLocation } from 'react-router-dom';
 import { authStore, useAuthStore } from '../../core/auth/authStore';
+import { getRouteMetaByPath } from '../router/routeMeta';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 
 type TopbarProps = {
@@ -29,9 +31,11 @@ function getInitial(email: string | undefined) {
 
 export default function Topbar({ onOpenSidebar }: TopbarProps) {
   const auth = useAuthStore();
+  const location = useLocation();
   const [userAnchorEl, setUserAnchorEl] = useState<null | HTMLElement>(null);
 
   const userInitial = useMemo(() => getInitial(auth.user?.email), [auth.user?.email]);
+  const currentRouteMeta = useMemo(() => getRouteMetaByPath(location.pathname), [location.pathname]);
 
   const handleSignOut = () => {
     authStore.setUnauthenticated();
@@ -47,7 +51,7 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
         zIndex: 1100,
         backdropFilter: 'blur(12px)',
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-        backgroundColor: (theme) => alpha(theme.palette.background.default, 0.8),
+        backgroundColor: (theme) => alpha(theme.palette.background.default, 0.86),
       }}
     >
       <Stack
@@ -55,12 +59,12 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
         alignItems="center"
         justifyContent="space-between"
         sx={{
-          minHeight: 72,
-          px: { xs: 2, sm: 3, lg: 4 },
-          gap: 2,
+          minHeight: { xs: 56, sm: 64 },
+          px: { xs: 1.5, sm: 3, lg: 4 },
+          gap: { xs: 1, sm: 2 },
         }}
       >
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
           <IconButton
             onClick={onOpenSidebar}
             sx={{ display: { xs: 'inline-flex', lg: 'none' } }}
@@ -69,10 +73,12 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
             <MenuRoundedIcon />
           </IconButton>
 
-          <Stack spacing={0.25}>
-            <Typography variant="h6">Logistics System</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Operational workspace
+          <Stack spacing={0.15} sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, maxWidth: { xs: 160, sm: 320, md: 520 } }} noWrap>
+              {currentRouteMeta?.title ?? 'Logistics System'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: { xs: 'none', sm: 'block' } }}>
+              {currentRouteMeta?.breadcrumb ?? 'Operational workspace'}
             </Typography>
           </Stack>
         </Stack>
@@ -87,8 +93,8 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
             onClick={(event) => setUserAnchorEl(event.currentTarget)}
             sx={{
               px: 1,
-              py: 0.75,
-              borderRadius: 2,
+              py: 0.5,
+              borderRadius: 1.5,
               cursor: 'pointer',
               border: (theme) => `1px solid ${theme.palette.divider}`,
               '&:hover': {
@@ -96,18 +102,18 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
               },
             }}
           >
-            <Avatar sx={{ width: 34, height: 34 }}>{userInitial}</Avatar>
+            <Avatar sx={{ width: 32, height: 32 }}>{userInitial}</Avatar>
 
-            <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            <Box sx={{ display: { xs: 'none', sm: 'block' }, maxWidth: 220 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
                 {auth.user?.email ?? '-'}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" noWrap>
                 {auth.user?.role ?? '-'}
               </Typography>
             </Box>
 
-            <KeyboardArrowDownRoundedIcon fontSize="small" />
+            <KeyboardArrowDownRoundedIcon fontSize="small" sx={{ display: { xs: 'none', sm: 'block' } }} />
           </Stack>
         </Stack>
       </Stack>
@@ -122,6 +128,7 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
           sx: {
             width: 280,
             mt: 1,
+            borderRadius: 2,
           },
         }}
       >

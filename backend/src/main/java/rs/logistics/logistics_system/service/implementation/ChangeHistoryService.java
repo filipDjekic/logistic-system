@@ -1,8 +1,12 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.enums.ChangeType;
 import rs.logistics.logistics_system.entity.ChangeHistory;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.repository.ChangeHistoryRepository;
@@ -58,6 +62,30 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
     }
 
     @Override
+    public PageResponse<ChangeHistoryResponse> search(String search, ChangeType changeType, String entityName, Long entityId, Long userId, Pageable pageable) {
+        if (!authenticatedUserProvider.isOverlord() && userId != null) {
+            throw new ForbiddenException("Only OVERLORD can filter change history by user");
+        }
+
+        Page<ChangeHistory> page = _changeHistoryRepository.searchHistory(
+                trimToNull(search),
+                changeType,
+                trimToNull(entityName),
+                entityId,
+                userId,
+                pageable
+        );
+
+        List<ChangeHistoryResponse> content = page.getContent()
+                .stream()
+                .filter(this::canAccess)
+                .map(rs.logistics.logistics_system.mapper.ChangeHistoryMapper::toResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.fromContent(content, page);
+    }
+
+    @Override
     public List<ChangeHistoryResponse> getByEntityName(String entityName) {
         List<ChangeHistory> data = _changeHistoryRepository.findByEntityName(entityName);
         return toAccessibleResponses(data);
@@ -88,6 +116,14 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
         ensureOverlordOnly();
         List<ChangeHistory> data = _changeHistoryRepository.findAll();
         return toAccessibleResponses(data);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     private void ensureOverlordOnly() {

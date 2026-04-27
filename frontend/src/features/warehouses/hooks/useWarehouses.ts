@@ -1,6 +1,8 @@
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PageParams } from '../../../core/api/pagination';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { warehousesApi } from '../api/warehousesApi';
 import type {
@@ -11,21 +13,20 @@ import type {
 
 export function useWarehouses(filters: WarehouseFilterParams & PageParams = {}, enabled = true) {
   return useQuery({
-    queryKey: ['warehouses', 'all', filters],
+    queryKey: queryKeys.warehouses.all(filters),
     queryFn: () => warehousesApi.getAll(filters),
     enabled,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+    staleTime: cacheTimes.standard,
   });
 }
 
 export function useWarehouseManagers(enabled = true) {
   return useQuery({
-    queryKey: ['warehouses', 'managers'],
+    queryKey: queryKeys.warehouses.managers(),
     queryFn: warehousesApi.getManagers,
     enabled,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.reference,
   });
 }
 
@@ -42,9 +43,9 @@ export function useCreateWarehouse() {
       });
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['warehouses'] }),
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() }),
       ]);
     },
     onError: (error) => {
@@ -70,10 +71,10 @@ export function useUpdateWarehouse() {
       });
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['warehouses'] }),
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
-        queryClient.invalidateQueries({ queryKey: ['warehouses', 'details', variables.id] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.detail(variables.id) }),
       ]);
     },
     onError: (error) => {
@@ -98,9 +99,9 @@ export function useDeleteWarehouse() {
       });
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['warehouses'] }),
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() }),
       ]);
     },
     onError: (error) => {

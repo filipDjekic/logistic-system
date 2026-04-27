@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { InventoryListRow } from '../types/inventory.types';
@@ -82,35 +82,16 @@ export default function InventoryTable({
             id: 'actions',
             header: 'Actions',
             minWidth: 160,
+            align: 'right' as const,
             render: (row: InventoryListRow) => (
-              <Stack direction="row" spacing={1.5}>
-                <Typography
-                  component="button"
-                  sx={{
-                    border: 0,
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    color: 'primary.main',
-                    p: 0,
-                  }}
-                  onClick={() => onEdit(row)}
-                >
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button size="small" variant="contained" onClick={() => onEdit(row)}>
                   Edit
-                </Typography>
+                </Button>
 
-                <Typography
-                  component="button"
-                  sx={{
-                    border: 0,
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    color: 'error.main',
-                    p: 0,
-                  }}
-                  onClick={() => onDelete(row)}
-                >
+                <Button size="small" color="error" variant="text" onClick={() => onDelete(row)}>
                   Delete
-                </Typography>
+                </Button>
               </Stack>
             ),
           },
@@ -129,6 +110,7 @@ export default function InventoryTable({
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}
+      getRowStatus={(row) => row.derivedStatus}
     />
   );
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Stack, Typography } from '@mui/material';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn } from '../../../shared/types/common.types';
@@ -8,6 +9,7 @@ type ChangeHistoryTableProps = {
   loading?: boolean;
   error?: boolean;
   onRetry?: () => void;
+  pagination?: ReactNode;
 };
 
 export default function ChangeHistoryTable({
@@ -15,6 +17,7 @@ export default function ChangeHistoryTable({
   loading = false,
   error = false,
   onRetry,
+  pagination,
 }: ChangeHistoryTableProps) {
   const columns: DataTableColumn<ChangeHistoryResponse>[] = [
     {
@@ -83,6 +86,7 @@ export default function ChangeHistoryTable({
       emptyTitle="No change history found"
       emptyDescription="There are no change history records for the current filter combination."
       minWidth={1280}
+      pagination={pagination}
     />
   );
 }

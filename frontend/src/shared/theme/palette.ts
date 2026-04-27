@@ -6,26 +6,26 @@ export function createPalette(mode: PaletteMode): ThemeOptions['palette'] {
   return {
     mode,
     primary: {
-      main: isDark ? '#8B5CF6' : '#5B4BFF',
-      light: isDark ? '#A78BFA' : '#7C6DFF',
-      dark: isDark ? '#6D28D9' : '#4338CA',
+      main: isDark ? '#38BDF8' : '#2563EB',
+      light: isDark ? '#7DD3FC' : '#60A5FA',
+      dark: isDark ? '#0284C7' : '#1D4ED8',
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: isDark ? '#22D3EE' : '#0891B2',
-      light: isDark ? '#67E8F9' : '#06B6D4',
-      dark: isDark ? '#0891B2' : '#0E7490',
+      main: isDark ? '#14B8A6' : '#0F766E',
+      light: isDark ? '#5EEAD4' : '#2DD4BF',
+      dark: isDark ? '#0F766E' : '#115E59',
       contrastText: '#FFFFFF',
     },
     background: {
-      default: isDark ? '#0A0F1C' : '#F5F7FB',
-      paper: isDark ? '#121A2B' : '#FFFFFF',
+      default: isDark ? '#0B1120' : '#F6F8FB',
+      paper: isDark ? '#111827' : '#FFFFFF',
     },
     text: {
-      primary: isDark ? '#E6ECF8' : '#132238',
-      secondary: isDark ? '#9DB0CC' : '#5D728E',
+      primary: isDark ? '#E5E7EB' : '#111827',
+      secondary: isDark ? '#9CA3AF' : '#64748B',
     },
-    divider: isDark ? alpha('#D7E3F4', 0.1) : alpha('#10213A', 0.1),
+    divider: isDark ? alpha('#E5E7EB', 0.1) : alpha('#0F172A', 0.1),
     success: {
       main: '#16A34A',
       contrastText: '#FFFFFF',
@@ -39,7 +39,7 @@ export function createPalette(mode: PaletteMode): ThemeOptions['palette'] {
       contrastText: '#FFFFFF',
     },
     info: {
-      main: '#2563EB',
+      main: '#0284C7',
       contrastText: '#FFFFFF',
     },
   };

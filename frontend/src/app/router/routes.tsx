@@ -1,41 +1,48 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppLayout from '../layout/AppLayout';
 import AuthLayout from '../layout/AuthLayout';
+import PageLoader from '../../shared/components/Loader/PageLoader';
 import { GuestRoute, ProtectedRoute } from './guards';
 import { ROLES } from '../../core/constants/roles';
-import LoginPage from '../../features/auth/pages/LoginPage';
-import DashboardPage from '../../features/dashboard/pages/DashboardPage';
-import CompaniesPage from '../../features/companies/pages/CompaniesPage';
-import CompanyDetailsPage from '../../features/companies/pages/CompanyDetailsPage';
-import NotificationsPage from '../../features/notifications/pages/NotificationsPage';
-import ActivityLogsPage from '../../features/activity-logs/pages/ActivityLogsPage';
-import ChangeHistoryPage from '../../features/change-history/pages/ChangeHistoryPage';
-import RolesPage from '../../features/roles/pages/RolesPage';
-import RoleDetailsPage from '../../features/roles/pages/RoleDetailsPage';
-import UsersPage from '../../features/users/pages/UsersPage';
-import UserDetailsPage from '../../features/users/pages/UserDetailsPage';
-import EmployeesPage from '../../features/employees/pages/EmployeesPage';
-import EmployeeDetailsPage from '../../features/employees/pages/EmployeeDetailsPage';
-import ShiftsPage from '../../features/shifts/pages/ShiftsPage';
-import MyShiftsPage from '../../features/shifts/pages/MyShiftsPage';
-import TransportOrdersPage from '../../features/transport-orders/pages/TransportOrdersPage';
-import TransportOrderDetailsPage from '../../features/transport-orders/pages/TransportOrderDetailsPage';
-import VehiclesPage from '../../features/vehicles/pages/VehiclesPage';
-import VehicleDetailsPage from '../../features/vehicles/pages/VehicleDetailsPage';
-import WarehousesPage from '../../features/warehouses/pages/WarehousesPage';
-import WarehouseDetailsPage from '../../features/warehouses/pages/WarehouseDetailsPage';
-import ProductsPage from '../../features/product/pages/ProductsPage';
-import ProductDetailsPage from '../../features/product/pages/ProductDetailsPage';
-import InventoryPage from '../../features/inventory/pages/InventoryPage';
-import InventoryDetailsPage from '../../features/inventory/pages/InventoryDetailsPage';
-import StockMovementsPage from '../../features/stock-movements/pages/StockMovementsPage';
-import TasksPage from '../../features/tasks/pages/TasksPage';
-import TaskDetailsPage from '../../features/tasks/pages/TaskDetailsPage';
-import StarterPage from './StarterPage';
-import TransportReportPage from '../../features/reports/pages/TransportReportPage';
-import InventoryReportPage from '../../features/reports/pages/InventoryReportPage';
-import EmployeeTaskReportPage from '../../features/reports/pages/EmployeeTaskReportPage';
-import DataExchangePage from '../../features/data-exchange/pages/DataExchangePage';
+
+const StarterPage = lazy(() => import('./StarterPage'));
+const LoginPage = lazy(() => import('../../features/auth/pages/LoginPage'));
+const DashboardPage = lazy(() => import('../../features/dashboard/pages/DashboardPage'));
+const CompaniesPage = lazy(() => import('../../features/companies/pages/CompaniesPage'));
+const CompanyDetailsPage = lazy(() => import('../../features/companies/pages/CompanyDetailsPage'));
+const NotificationsPage = lazy(() => import('../../features/notifications/pages/NotificationsPage'));
+const ActivityLogsPage = lazy(() => import('../../features/activity-logs/pages/ActivityLogsPage'));
+const ChangeHistoryPage = lazy(() => import('../../features/change-history/pages/ChangeHistoryPage'));
+const RolesPage = lazy(() => import('../../features/roles/pages/RolesPage'));
+const RoleDetailsPage = lazy(() => import('../../features/roles/pages/RoleDetailsPage'));
+const UsersPage = lazy(() => import('../../features/users/pages/UsersPage'));
+const UserDetailsPage = lazy(() => import('../../features/users/pages/UserDetailsPage'));
+const EmployeesPage = lazy(() => import('../../features/employees/pages/EmployeesPage'));
+const EmployeeDetailsPage = lazy(() => import('../../features/employees/pages/EmployeeDetailsPage'));
+const ShiftsPage = lazy(() => import('../../features/shifts/pages/ShiftsPage'));
+const MyShiftsPage = lazy(() => import('../../features/shifts/pages/MyShiftsPage'));
+const TransportOrdersPage = lazy(() => import('../../features/transport-orders/pages/TransportOrdersPage'));
+const TransportOrderDetailsPage = lazy(() => import('../../features/transport-orders/pages/TransportOrderDetailsPage'));
+const VehiclesPage = lazy(() => import('../../features/vehicles/pages/VehiclesPage'));
+const VehicleDetailsPage = lazy(() => import('../../features/vehicles/pages/VehicleDetailsPage'));
+const WarehousesPage = lazy(() => import('../../features/warehouses/pages/WarehousesPage'));
+const WarehouseDetailsPage = lazy(() => import('../../features/warehouses/pages/WarehouseDetailsPage'));
+const ProductsPage = lazy(() => import('../../features/product/pages/ProductsPage'));
+const ProductDetailsPage = lazy(() => import('../../features/product/pages/ProductDetailsPage'));
+const InventoryPage = lazy(() => import('../../features/inventory/pages/InventoryPage'));
+const InventoryDetailsPage = lazy(() => import('../../features/inventory/pages/InventoryDetailsPage'));
+const StockMovementsPage = lazy(() => import('../../features/stock-movements/pages/StockMovementsPage'));
+const TasksPage = lazy(() => import('../../features/tasks/pages/TasksPage'));
+const TaskDetailsPage = lazy(() => import('../../features/tasks/pages/TaskDetailsPage'));
+const TransportReportPage = lazy(() => import('../../features/reports/pages/TransportReportPage'));
+const InventoryReportPage = lazy(() => import('../../features/reports/pages/InventoryReportPage'));
+const EmployeeTaskReportPage = lazy(() => import('../../features/reports/pages/EmployeeTaskReportPage'));
+const DataExchangePage = lazy(() => import('../../features/data-exchange/pages/DataExchangePage'));
+
+function lazyPage(page: ReactNode) {
+  return <Suspense fallback={<PageLoader message="Loading page..." />}>{page}</Suspense>;
+}
 
 export const routes = [
   {
@@ -44,8 +51,8 @@ export const routes = [
       {
         element: <AuthLayout />,
         children: [
-          { path: '/', element: <StarterPage /> },
-          { path: '/login', element: <LoginPage /> },
+          { path: '/', element: lazyPage(<StarterPage />) },
+          { path: '/login', element: lazyPage(<LoginPage />) },
         ],
       },
     ],
@@ -57,9 +64,9 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/dashboard', element: <DashboardPage /> },
-          { path: '/notifications', element: <NotificationsPage /> },
-          { path: '/my-shifts', element: <MyShiftsPage /> },
+          { path: '/dashboard', element: lazyPage(<DashboardPage />) },
+          { path: '/notifications', element: lazyPage(<NotificationsPage />) },
+          { path: '/my-shifts', element: lazyPage(<MyShiftsPage />) },
         ],
       },
     ],
@@ -70,9 +77,10 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/companies', element: <CompaniesPage /> },
-          { path: '/companies/:id', element: <CompanyDetailsPage /> },
-          { path: '/activity-logs', element: <ActivityLogsPage /> },
+          { path: '/companies', element: lazyPage(<CompaniesPage />) },
+          { path: '/companies/:id', element: lazyPage(<CompanyDetailsPage />) },
+          { path: '/activity-logs', element: lazyPage(<ActivityLogsPage />) },
+          { path: '/change-history', element: lazyPage(<ChangeHistoryPage />) },
         ],
       },
     ],
@@ -83,8 +91,8 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/roles', element: <RolesPage /> },
-          { path: '/roles/:id', element: <RoleDetailsPage /> },
+          { path: '/roles', element: lazyPage(<RolesPage />) },
+          { path: '/roles/:id', element: lazyPage(<RoleDetailsPage />) },
         ],
       },
     ],
@@ -95,9 +103,9 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/users', element: <UsersPage /> },
-          { path: '/users/:id', element: <UserDetailsPage /> },
-          { path: '/shifts', element: <ShiftsPage /> },
+          { path: '/users', element: lazyPage(<UsersPage />) },
+          { path: '/users/:id', element: lazyPage(<UserDetailsPage />) },
+          { path: '/shifts', element: lazyPage(<ShiftsPage />) },
         ],
       },
     ],
@@ -108,8 +116,8 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/employees', element: <EmployeesPage /> },
-          { path: '/employees/:id', element: <EmployeeDetailsPage /> },
+          { path: '/employees', element: lazyPage(<EmployeesPage />) },
+          { path: '/employees/:id', element: lazyPage(<EmployeeDetailsPage />) },
         ],
       },
     ],
@@ -120,8 +128,8 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/transport-orders', element: <TransportOrdersPage /> },
-          { path: '/transport-orders/:id', element: <TransportOrderDetailsPage /> },
+          { path: '/transport-orders', element: lazyPage(<TransportOrdersPage />) },
+          { path: '/transport-orders/:id', element: lazyPage(<TransportOrderDetailsPage />) },
         ],
       },
     ],
@@ -132,9 +140,8 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/tasks', element: <TasksPage /> },
-          { path: '/tasks/:id', element: <TaskDetailsPage /> },
-          { path: '/change-history', element: <ChangeHistoryPage /> },
+          { path: '/tasks', element: lazyPage(<TasksPage />) },
+          { path: '/tasks/:id', element: lazyPage(<TaskDetailsPage />) },
         ],
       },
     ],
@@ -145,8 +152,8 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/vehicles', element: <VehiclesPage /> },
-          { path: '/vehicles/:id', element: <VehicleDetailsPage /> },
+          { path: '/vehicles', element: lazyPage(<VehiclesPage />) },
+          { path: '/vehicles/:id', element: lazyPage(<VehicleDetailsPage />) },
         ],
       },
     ],
@@ -157,12 +164,12 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/warehouses', element: <WarehousesPage /> },
-          { path: '/warehouses/:id', element: <WarehouseDetailsPage /> },
-          { path: '/products', element: <ProductsPage /> },
-          { path: '/products/:id', element: <ProductDetailsPage /> },
-          { path: '/inventory', element: <InventoryPage /> },
-          { path: '/inventory/:warehouseId/:productId', element: <InventoryDetailsPage /> },
+          { path: '/warehouses', element: lazyPage(<WarehousesPage />) },
+          { path: '/warehouses/:id', element: lazyPage(<WarehouseDetailsPage />) },
+          { path: '/products', element: lazyPage(<ProductsPage />) },
+          { path: '/products/:id', element: lazyPage(<ProductDetailsPage />) },
+          { path: '/inventory', element: lazyPage(<InventoryPage />) },
+          { path: '/inventory/:warehouseId/:productId', element: lazyPage(<InventoryDetailsPage />) },
         ],
       },
     ],
@@ -172,7 +179,7 @@ export const routes = [
     children: [
       {
         element: <AppLayout />,
-        children: [{ path: '/stock-movements', element: <StockMovementsPage /> }],
+        children: [{ path: '/stock-movements', element: lazyPage(<StockMovementsPage />) }],
       },
     ],
   },
@@ -181,7 +188,7 @@ export const routes = [
     children: [
       {
         element: <AppLayout />,
-        children: [{ path: '/reports/transport', element: <TransportReportPage /> }],
+        children: [{ path: '/reports/transport', element: lazyPage(<TransportReportPage />) }],
       },
     ],
   },
@@ -190,7 +197,7 @@ export const routes = [
     children: [
       {
         element: <AppLayout />,
-        children: [{ path: '/reports/inventory', element: <InventoryReportPage /> }],
+        children: [{ path: '/reports/inventory', element: lazyPage(<InventoryReportPage />) }],
       },
     ],
   },
@@ -199,7 +206,7 @@ export const routes = [
     children: [
       {
         element: <AppLayout />,
-        children: [{ path: '/reports/employee-tasks', element: <EmployeeTaskReportPage /> }],
+        children: [{ path: '/reports/employee-tasks', element: lazyPage(<EmployeeTaskReportPage />) }],
       },
     ],
   },
@@ -208,7 +215,7 @@ export const routes = [
     children: [
       {
         element: <AppLayout />,
-        children: [{ path: '/data-exchange', element: <DataExchangePage /> }],
+        children: [{ path: '/data-exchange', element: lazyPage(<DataExchangePage />) }],
       },
     ],
   },

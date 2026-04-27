@@ -238,9 +238,9 @@ export const transportOrdersApi = {
 
   getProducts() {
     return apiClient
-      .get<ProductResponse[]>('/api/products')
+      .get<ProductResponse[] | PageResponse<ProductResponse>>('/api/products', { params: { size: 1000, sort: 'name,asc' } })
       .then((response) =>
-        response.data.map<ProductOption>((product) => ({
+        unwrapPageContent(response.data).map<ProductOption>((product) => ({
           id: product.id,
           name: product.name,
           description: product.description,

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
@@ -18,6 +19,7 @@ import { stockMovementTypeOptions } from '../validation/stockMovementSchema';
 
 export default function StockMovementsPage() {
   const auth = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const canCreate =
     auth.user?.role === ROLES.OVERLORD ||
@@ -80,6 +82,18 @@ export default function StockMovementsPage() {
     warehousesQuery.isLoading ||
     productsQuery.isLoading ||
     transportOrdersQuery.isLoading;
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1' || !canCreate || isLookupsLoading || dialogOpen) {
+      return;
+    }
+
+    setDialogOpen(true);
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('create');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [canCreate, dialogOpen, isLookupsLoading, searchParams, setSearchParams]);
 
   return (
     <Stack spacing={3}>

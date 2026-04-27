@@ -426,8 +426,31 @@ public class UserService implements UserServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
         }
 
-        return userRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        return userRepository.findByIdAndCompany_Id(id, companyId)
+                .orElseGet(() -> recoverCompanyScopedLinkedEmployeeUser(id, companyId));
+    }
+
+    private User recoverCompanyScopedLinkedEmployeeUser(Long id, Long companyId) {
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User with id not found"));
+
+        Employee employee = user.getEmployee();
+        Long employeeCompanyId = employee != null && employee.getCompany() != null
+                ? employee.getCompany().getId()
+                : null;
+
+        if (!companyId.equals(employeeCompanyId)) {
+            throw new ResourceNotFoundException("User with id not found");
+        }
+
+        if (user.getCompany() == null) {
+            user.setCompany(employee.getCompany());
+            return userRepository.save(user);
+        }
+
+        throw new ResourceNotFoundException("User with id not found");
     }
 
     private void validateUniqueEmail(String email) {

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
@@ -27,6 +28,7 @@ import { employeePositionOptions, type EmployeeFormValues } from '../validation/
 
 export default function EmployeesPage() {
   const auth = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
   const canEditEmployees = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
@@ -122,6 +124,20 @@ export default function EmployeesPage() {
     createEmployeeMutation.isPending ||
     updateEmployeeMutation.isPending ||
     updateUserMutation.isPending;
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1' || !canCreateEmployees || rolesQuery.isLoading || rolesQuery.isError || dialogOpen) {
+      return;
+    }
+
+    setDialogMode('create');
+    setSelectedEmployee(null);
+    setDialogOpen(true);
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('create');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [canCreateEmployees, dialogOpen, rolesQuery.isError, rolesQuery.isLoading, searchParams, setSearchParams]);
 
   const handleSubmit = (values: EmployeeFormValues) => {
     const matchedRole = roles.find((role) => role.name === values.position);

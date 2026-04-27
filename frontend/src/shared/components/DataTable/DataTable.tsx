@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import {
+  alpha,
   Box,
   Paper,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -13,8 +15,8 @@ import {
 } from '@mui/material';
 import EmptyState from '../EmptyState/EmptyState';
 import ErrorState from '../ErrorState/ErrorState';
-import InlineLoader from '../Loader/InlineLoader';
 import type { DataTableColumn, RowId, SortState } from '../../types/common.types';
+import { getStatusConfig } from '../../../core/constants/statuses';
 
 type DataTableProps<T> = {
   columns: DataTableColumn<T>[];
@@ -34,6 +36,7 @@ type DataTableProps<T> = {
   pagination?: ReactNode;
   sort?: SortState;
   onSortChange?: (sort: SortState) => void;
+  getRowStatus?: (row: T) => string | null | undefined;
 };
 
 function formatCellValue(value: unknown) {
@@ -70,6 +73,7 @@ export default function DataTable<T>({
   pagination,
   sort,
   onSortChange,
+  getRowStatus,
 }: DataTableProps<T>) {
   const hasRows = rows.length > 0;
 
@@ -78,12 +82,13 @@ export default function DataTable<T>({
       sx={{
         overflow: 'hidden',
         border: (theme) => `1px solid ${theme.palette.divider}`,
+        boxShadow: 'none',
       }}
     >
       {toolbar}
 
-      <TableContainer>
-        <Table stickyHeader={stickyHeader} size={size} sx={{ minWidth }}>
+      <TableContainer sx={{ maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', '&::-webkit-scrollbar': { height: 8 }, '&::-webkit-scrollbar-thumb': { borderRadius: 999, backgroundColor: 'divider' } }}>
+        <Table stickyHeader={stickyHeader} size={size} sx={{ minWidth: { xs: Math.min(minWidth, 680), md: minWidth } }}>
           <TableHead>
             <TableRow>
               {columns.map((column) => (
@@ -110,12 +115,12 @@ export default function DataTable<T>({
                         })
                       }
                     >
-                      <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                         {column.header}
                       </Typography>
                     </TableSortLabel>
                   ) : (
-                    <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       {column.header}
                     </Typography>
                   )}
@@ -125,15 +130,30 @@ export default function DataTable<T>({
           </TableHead>
 
           <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={columns.length}>
-                  <Box sx={{ py: 3, px: 1 }}>
-                    <InlineLoader message="Loading table data..." />
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ) : null}
+            {loading
+              ? Array.from({ length: 6 }).map((_, rowIndex) => (
+                  <TableRow key={`skeleton-${rowIndex}`}>
+                    {columns.map((column, columnIndex) => (
+                      <TableCell
+                        key={`${column.id}-skeleton-${rowIndex}`}
+                        align={column.align}
+                        sx={{
+                          minWidth: column.minWidth,
+                          width: column.width,
+                          whiteSpace: column.nowrap ? 'nowrap' : 'normal',
+                          ...column.cellSx,
+                        }}
+                      >
+                        <Skeleton
+                          variant="text"
+                          width={columnIndex === columns.length - 1 ? 72 : `${Math.max(45, 88 - columnIndex * 8)}%`}
+                          height={24}
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              : null}
 
             {!loading && error ? (
               <TableRow>
@@ -165,15 +185,50 @@ export default function DataTable<T>({
             {!loading && !error && hasRows
               ? rows.map((row, index) => {
                   const rowKey = getRowId ? getRowId(row, index) : index;
+                  const rowStatus = getRowStatus?.(row);
+                  const rowStatusTone = rowStatus ? getStatusConfig(rowStatus).tone : null;
 
                   return (
                     <TableRow
                       key={rowKey}
                       hover
-                      sx={{
-                        '&:last-child td': {
-                          borderBottom: 0,
-                        },
+                      tabIndex={0}
+                      sx={(theme) => {
+                        const toneColor = rowStatusTone === 'success'
+                          ? theme.palette.success.main
+                          : rowStatusTone === 'warning'
+                            ? theme.palette.warning.main
+                            : rowStatusTone === 'error'
+                              ? theme.palette.error.main
+                              : rowStatusTone === 'info'
+                                ? theme.palette.info.main
+                                : rowStatusTone === 'primary'
+                                  ? theme.palette.primary.main
+                                  : rowStatusTone === 'neutral'
+                                    ? theme.palette.text.secondary
+                                    : null;
+
+                        return {
+                          '&:last-child td': {
+                            borderBottom: 0,
+                          },
+                          '&:focus-visible': {
+                            outline: `2px solid ${theme.palette.primary.main}`,
+                            outlineOffset: -2,
+                          },
+                          ...(toneColor
+                            ? {
+                                '& td:first-of-type': {
+                                  borderLeft: `3px solid ${toneColor}`,
+                                },
+                              }
+                            : {}),
+                          ...(rowStatusTone === 'warning' || rowStatusTone === 'error'
+                            ? {
+                                backgroundColor: alpha(toneColor ?? theme.palette.text.primary, 0.035),
+                              }
+                            : {}),
+                        };
                       }}
                     >
                       {columns.map((column) => {

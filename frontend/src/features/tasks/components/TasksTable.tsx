@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { Stack, Typography } from '@mui/material';
+import { MenuItem, Select, Stack, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
-import type { TaskResponse } from '../types/task.types';
+import type { TaskResponse, TaskStatus } from '../types/task.types';
 import TaskStatusChip from './TaskStatusChip';
 
 type Props = {
@@ -14,6 +14,9 @@ type Props = {
   canMutate: boolean;
   onEdit: (row: TaskResponse) => void;
   onDelete: (row: TaskResponse) => void;
+  canChangeStatus?: boolean;
+  updatingStatusId?: number | null;
+  onStatusChange?: (row: TaskResponse, status: TaskStatus) => void;
   showLinks?: boolean;
   pagination?: ReactNode;
   sort?: SortState;
@@ -28,6 +31,9 @@ export default function TasksTable({
   canMutate,
   onEdit,
   onDelete,
+  canChangeStatus = false,
+  updatingStatusId = null,
+  onStatusChange,
   showLinks = true,
   pagination,
   sort,
@@ -58,7 +64,28 @@ export default function TasksTable({
       sortField: 'status',
       header: 'Status',
       minWidth: 140,
-      render: (row) => <TaskStatusChip status={row.status} />,
+      render: (row) => {
+        const isUpdating = updatingStatusId === row.id;
+
+        if (!canChangeStatus || !onStatusChange || row.status === 'COMPLETED' || row.status === 'CANCELLED') {
+          return <TaskStatusChip status={row.status} />;
+        }
+
+        return (
+          <Select
+            size="small"
+            value={row.status}
+            disabled={isUpdating}
+            onChange={(event) => onStatusChange(row, event.target.value as TaskStatus)}
+            sx={{ minWidth: 145 }}
+          >
+            <MenuItem value="NEW">NEW</MenuItem>
+            <MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem>
+            <MenuItem value="COMPLETED">COMPLETED</MenuItem>
+            <MenuItem value="CANCELLED">CANCELLED</MenuItem>
+          </Select>
+        );
+      },
     },
     {
       id: 'dueDate',
@@ -138,6 +165,7 @@ export default function TasksTable({
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}
+      getRowStatus={(row) => row.status}
     />
   );
 }

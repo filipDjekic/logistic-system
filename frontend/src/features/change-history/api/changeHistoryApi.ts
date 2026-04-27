@@ -1,13 +1,14 @@
 import { apiClient } from '../../../core/api/client';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   ChangeHistoryQueryParams,
   ChangeHistoryResponse,
 } from '../types/changeHistory.types';
 
 export const changeHistoryApi = {
-  getAll() {
+  getAll(params?: ChangeHistoryQueryParams & PageParams) {
     return apiClient
-      .get<ChangeHistoryResponse[]>('/api/history')
+      .get<PageResponse<ChangeHistoryResponse>>('/api/history', { params })
       .then((response) => response.data);
   },
 
@@ -41,21 +42,5 @@ export const changeHistoryApi = {
         `/api/history/${encodeURIComponent(startDate)}/${encodeURIComponent(endDate)}`,
       )
       .then((response) => response.data);
-  },
-
-  getContext(params: ChangeHistoryQueryParams) {
-    if (params.userId != null) {
-      return changeHistoryApi.getByUserId(params.userId);
-    }
-
-    if (params.entityId != null) {
-      return changeHistoryApi.getByEntityId(params.entityId);
-    }
-
-    if (params.entityName?.trim()) {
-      return changeHistoryApi.getByEntityName(params.entityName.trim());
-    }
-
-    return changeHistoryApi.getAll();
   },
 };

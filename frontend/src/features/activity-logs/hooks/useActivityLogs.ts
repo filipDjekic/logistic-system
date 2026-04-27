@@ -1,12 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import type { PageParams } from '../../../core/api/pagination';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { activityLogsApi } from '../api/activityLogsApi';
+import type { ActivityLogQueryParams } from '../types/activityLog.types';
 
-export function useActivityLogs(enabled = true) {
+export function useActivityLogs(params?: ActivityLogQueryParams & PageParams, enabled = true) {
   return useQuery({
-    queryKey: ['activity-logs', 'all'],
-    queryFn: activityLogsApi.getAll,
+    queryKey: queryKeys.activityLogs.list(params ?? {}),
+    queryFn: () => activityLogsApi.getAll(params),
     enabled,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+    staleTime: cacheTimes.volatile,
   });
 }

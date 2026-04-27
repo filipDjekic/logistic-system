@@ -6,6 +6,7 @@ import LocalShippingRoundedIcon from '@mui/icons-material/LocalShippingRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
+import DashboardSummaryStrip from './DashboardSummaryStrip';
 import type { CompanyAdminDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -87,6 +88,15 @@ export default function CompanyAdminDashboardPanel({ data }: Props) {
           />
         ))}
       </Box>
+
+      <DashboardSummaryStrip
+        items={[
+          { label: 'Active transports', value: formatNumber(data.activeTransportOrders), tone: 'info' },
+          { label: 'Open tasks', value: formatNumber(data.openTasksTotal), tone: 'warning' },
+          { label: 'Low stock rows', value: formatNumber(data.lowStockRowsTotal), tone: data.lowStockRowsTotal > 0 ? 'error' : 'success' },
+          { label: 'Available vehicles', value: formatNumber(data.vehiclesByStatus.AVAILABLE ?? 0), tone: 'success' },
+        ]}
+      />
 
       <Box
         sx={{

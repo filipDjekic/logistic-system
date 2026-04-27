@@ -5,8 +5,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Grid,
   Stack,
+  Typography,
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
@@ -119,6 +121,7 @@ export default function EmployeeFormDialog({
   const form = useForm<EmployeeFormValues>({
     resolver: zodResolver(getEmployeeFormSchema(mode, hasLinkedUser, requireCompany)),
     defaultValues,
+    mode: 'onChange',
   });
 
   const firstName = useWatch({ control: form.control, name: 'firstName' });
@@ -195,12 +198,22 @@ export default function EmployeeFormDialog({
     form.setValue('email', nextEmail, { shouldDirty: true, shouldValidate: true });
   }, [firstName, form, lastName, mode, selectedCompanyName, selectedPosition]);
 
+  const disableSubmit = loading || !form.formState.isValid || (mode === 'edit' && !canEdit);
+
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
       <DialogTitle>{mode === 'create' ? 'Create employee' : 'Edit employee'}</DialogTitle>
 
       <DialogContent dividers>
         <Stack spacing={2.5} sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Create or update the employee profile and linked user account data.
+          </Typography>
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            Personal info
+          </Typography>
+
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <FormTextField name="firstName" control={form.control} label="First name" required />
@@ -218,6 +231,15 @@ export default function EmployeeFormDialog({
               <FormTextField name="phoneNumber" control={form.control} label="Phone number" required />
             </Grid>
 
+          </Grid>
+
+          <Divider />
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            Employment
+          </Typography>
+
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <FormSelect
                 name="position"
@@ -257,6 +279,15 @@ export default function EmployeeFormDialog({
               />
             </Grid>
 
+          </Grid>
+
+          <Divider />
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            User account
+          </Typography>
+
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <FormTextField
                 name="email"
@@ -320,7 +351,7 @@ export default function EmployeeFormDialog({
         <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="contained" disabled={loading} onClick={form.handleSubmit(onSubmit)}>
+        <Button variant="contained" disabled={disableSubmit} onClick={form.handleSubmit(onSubmit)}>
           {mode === 'create' ? 'Create employee' : 'Save changes'}
         </Button>
       </DialogActions>

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, Stack, Typography } from '@mui/material';
+import { Button, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import DataTable from '../../../shared/components/DataTable/DataTable';
@@ -8,6 +8,7 @@ import TransportOrderStatusChip from './TransportOrderStatusChip';
 import type {
   EmployeeOption,
   TransportOrderResponse,
+  TransportOrderStatus,
   VehicleOption,
   WarehouseOption,
 } from '../types/transportOrder.types';
@@ -22,6 +23,9 @@ type TransportOrdersTableProps = {
   onRetry?: () => void;
   canManage?: boolean;
   onEdit?: (row: TransportOrderResponse) => void;
+  canChangeStatus?: boolean;
+  updatingStatusId?: number | null;
+  onStatusChange?: (row: TransportOrderResponse, status: TransportOrderStatus) => void;
   pagination?: ReactNode;
   sort?: SortState;
   onSortChange?: (sort: SortState) => void;
@@ -53,6 +57,9 @@ export default function TransportOrdersTable({
   onRetry,
   canManage = false,
   onEdit,
+  canChangeStatus = false,
+  updatingStatusId = null,
+  onStatusChange,
   pagination,
   sort,
   onSortChange,
@@ -161,7 +168,29 @@ export default function TransportOrdersTable({
       sortField: 'status',
       header: 'Status',
       minWidth: 140,
-      render: (row) => <TransportOrderStatusChip status={row.status} />,
+      render: (row) => {
+        const isUpdating = updatingStatusId === row.id;
+
+        if (!canChangeStatus || !onStatusChange || row.status === 'DELIVERED' || row.status === 'CANCELLED') {
+          return <TransportOrderStatusChip status={row.status} />;
+        }
+
+        return (
+          <Select
+            size="small"
+            value={row.status}
+            disabled={isUpdating}
+            onChange={(event) => onStatusChange(row, event.target.value as TransportOrderStatus)}
+            sx={{ minWidth: 150 }}
+          >
+            <MenuItem value="CREATED">CREATED</MenuItem>
+            <MenuItem value="ASSIGNED">ASSIGNED</MenuItem>
+            <MenuItem value="IN_TRANSIT">IN_TRANSIT</MenuItem>
+            <MenuItem value="DELIVERED">DELIVERED</MenuItem>
+            <MenuItem value="CANCELLED">CANCELLED</MenuItem>
+          </Select>
+        );
+      },
     },
     {
       id: 'priority',
@@ -219,6 +248,7 @@ export default function TransportOrdersTable({
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}
+      getRowStatus={(row) => row.status}
     />
   );
 }

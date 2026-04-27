@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { notificationsApi } from '../api/notificationsApi';
 
 export function useUnreadNotificationsCount() {
   return useQuery({
-    queryKey: ['notifications', 'my', 'unread-count'],
+    queryKey: queryKeys.notifications.myUnreadCount(),
     queryFn: notificationsApi.getMyUnreadCount,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.volatile,
   });
 }

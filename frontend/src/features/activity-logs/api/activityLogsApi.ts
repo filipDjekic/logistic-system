@@ -1,10 +1,11 @@
 import { apiClient } from '../../../core/api/client';
-import type { ActivityLogResponse } from '../types/activityLog.types';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
+import type { ActivityLogQueryParams, ActivityLogResponse } from '../types/activityLog.types';
 
 export const activityLogsApi = {
-  getAll() {
+  getAll(params?: ActivityLogQueryParams & PageParams) {
     return apiClient
-      .get<ActivityLogResponse[]>('/api/activity_logs')
+      .get<PageResponse<ActivityLogResponse>>('/api/activity_logs', { params })
       .then((response) => response.data);
   },
 

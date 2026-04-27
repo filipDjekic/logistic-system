@@ -1,18 +1,17 @@
-import { CircularProgress, Stack, Typography } from '@mui/material';
+import { Skeleton, Stack, Typography } from '@mui/material';
 
 type InlineLoaderProps = {
   message?: string;
-  size?: number;
+  lines?: number;
 };
 
-export default function InlineLoader({
-  message = 'Loading...',
-  size = 20,
-}: InlineLoaderProps) {
+export default function InlineLoader({ message = 'Loading...', lines = 3 }: InlineLoaderProps) {
   return (
-    <Stack direction="row" spacing={1.25} alignItems="center">
-      <CircularProgress size={size} />
-      <Typography variant="body2" color="text.secondary">
+    <Stack spacing={1} aria-busy="true" aria-live="polite">
+      {Array.from({ length: lines }).map((_, index) => (
+        <Skeleton key={index} variant="rounded" width={index === lines - 1 ? '72%' : '100%'} height={28} />
+      ))}
+      <Typography variant="caption" color="text.secondary">
         {message}
       </Typography>
     </Stack>

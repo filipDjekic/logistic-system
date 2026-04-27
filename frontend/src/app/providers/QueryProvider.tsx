@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cacheTimes, garbageCollectionTimes } from '../../core/constants/cache';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,8 +14,11 @@ const queryClient = new QueryClient({
 
         return failureCount < 2;
       },
+      gcTime: garbageCollectionTimes.standard,
+      refetchOnMount: false,
+      refetchOnReconnect: true,
       refetchOnWindowFocus: false,
-      staleTime: 30_000,
+      staleTime: cacheTimes.standard,
     },
     mutations: {
       retry: false,

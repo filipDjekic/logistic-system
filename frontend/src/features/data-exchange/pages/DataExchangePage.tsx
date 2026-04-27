@@ -9,6 +9,7 @@ import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import { downloadFile } from '../../../core/utils/downloadFile';
+import { normalizeApiError } from '../../../core/api/apiError';
 import {
   dataExchangeApi,
   importTemplates,
@@ -187,7 +188,8 @@ export default function DataExchangePage() {
             {importMutation.isError ? (
               <ErrorState
                 title="Import failed"
-                description={importMutation.error instanceof Error ? importMutation.error.message : 'Backend import endpoint failed.'}
+                description={normalizeApiError(importMutation.error, 'Backend import endpoint failed.').message}
+                details={normalizeApiError(importMutation.error).fieldErrors}
               />
             ) : null}
 
@@ -242,7 +244,8 @@ export default function DataExchangePage() {
             {exportMutation.isError ? (
               <ErrorState
                 title="Export failed"
-                description={exportMutation.error instanceof Error ? exportMutation.error.message : 'Backend export endpoint failed.'}
+                description={normalizeApiError(exportMutation.error, 'Backend export endpoint failed.').message}
+                details={normalizeApiError(exportMutation.error).fieldErrors}
               />
             ) : null}
           </Stack>

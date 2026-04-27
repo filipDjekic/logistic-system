@@ -53,7 +53,7 @@ export default function ShiftsPage() {
       const matchesStatus = filters.status === 'ALL' || shift.status === filters.status;
       const matchesSearch =
         search.length === 0 ||
-        shift.notes.toLowerCase().includes(search) ||
+        (shift.notes ?? '').toLowerCase().includes(search) ||
         shift.status.toLowerCase().includes(search) ||
         employeeLabel.includes(search) ||
         String(shift.id).includes(search);

@@ -1,4 +1,5 @@
 import { apiClient } from '../../../core/api/client';
+import { unwrapPageContent } from '../../../core/api/pagination';
 import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   EmployeeCreateWithUserRequest,
@@ -106,9 +107,11 @@ export const employeesApi = {
 
   getUsers() {
     return apiClient
-      .get<UserResponse[]>('/api/users')
+      .get<UserResponse[] | PageResponse<UserResponse>>('/api/users', {
+        params: { size: 1000, sort: 'lastName,asc' },
+      })
       .then((response) =>
-        response.data.map<EmployeeUserOption>((user) => ({
+        unwrapPageContent(response.data).map<EmployeeUserOption>((user) => ({
           id: user.id,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -124,9 +127,9 @@ export const employeesApi = {
 
   getRoles() {
     return apiClient
-      .get<RoleResponse[]>('/api/roles')
+      .get<RoleResponse[] | PageResponse<RoleResponse>>('/api/roles')
       .then((response) =>
-        response.data.map<EmployeeRoleOption>((role) => ({
+        unwrapPageContent(response.data).map<EmployeeRoleOption>((role) => ({
           id: role.id,
           name: role.name,
           description: role.description,

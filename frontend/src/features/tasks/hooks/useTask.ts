@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { tasksApi } from '../api/tasksApi';
 
 export function useTask(id: number | null) {
   return useQuery({
-    queryKey: ['tasks', 'details', id],
+    queryKey: queryKeys.tasks.detail(id as number),
     queryFn: () => tasksApi.getById(id as number),
     enabled: Number.isFinite(id),
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.standard,
   });
 }

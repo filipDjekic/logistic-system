@@ -7,9 +7,7 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          backgroundImage: isDark
-            ? 'radial-gradient(circle at top, rgba(139, 92, 246, 0.08), transparent 24%)'
-            : 'radial-gradient(circle at top, rgba(91, 75, 255, 0.06), transparent 24%)',
+          backgroundImage: 'none',
         },
       },
     },
@@ -26,13 +24,11 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
       },
       styleOverrides: {
         root: ({ theme }) => ({
-          borderRadius: 24,
+          borderRadius: 12,
           border: `1px solid ${theme.palette.divider}`,
-          background:
-            theme.palette.mode === 'dark'
-              ? 'linear-gradient(180deg, rgba(18,26,43,0.96), rgba(12,18,31,0.96))'
-              : 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,255,0.96))',
-          boxShadow: theme.shadows[2],
+          backgroundColor: theme.palette.background.paper,
+          backgroundImage: 'none',
+          boxShadow: theme.shadows[1],
         }),
       },
     },
@@ -42,19 +38,28 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
       },
       styleOverrides: {
         root: {
+          minHeight: 40,
+          whiteSpace: 'nowrap',
+          borderRadius: 8,
+          paddingInline: 16,
+        },
+        sizeSmall: {
+          minHeight: 34,
+          paddingInline: 12,
+        },
+        sizeLarge: {
           minHeight: 44,
-          borderRadius: 14,
           paddingInline: 18,
         },
         outlined: ({ theme }) => ({
-          borderColor: alpha(theme.palette.text.primary, 0.12),
+          borderColor: alpha(theme.palette.text.primary, 0.14),
         }),
       },
     },
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
+          borderRadius: 8,
           fontWeight: 700,
         },
       },
@@ -62,13 +67,23 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
     MuiOutlinedInput: {
       styleOverrides: {
         root: ({ theme }) => ({
-          borderRadius: 16,
-          backgroundColor:
-            theme.palette.mode === 'dark'
-              ? alpha(theme.palette.common.white, 0.03)
-              : alpha(theme.palette.common.black, 0.015),
-          minHeight: 44,
+          borderRadius: 10,
+          backgroundColor: isDark
+            ? alpha(theme.palette.common.white, 0.025)
+            : alpha(theme.palette.common.black, 0.012),
+          minHeight: 40,
         }),
+        input: {
+          paddingTop: 9,
+          paddingBottom: 9,
+        },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          fontWeight: 600,
+        },
       },
     },
     MuiTextField: {
@@ -79,7 +94,7 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
     MuiTableContainer: {
       styleOverrides: {
         root: {
-          borderRadius: 20,
+          borderRadius: 12,
         },
       },
     },
@@ -89,10 +104,9 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
           '& .MuiTableCell-root': {
             fontWeight: 700,
             color: theme.palette.text.secondary,
-            backgroundColor:
-              theme.palette.mode === 'dark'
-                ? alpha(theme.palette.common.white, 0.02)
-                : alpha(theme.palette.common.black, 0.02),
+            backgroundColor: isDark
+              ? alpha(theme.palette.common.white, 0.035)
+              : alpha(theme.palette.common.black, 0.025),
           },
         }),
       },
@@ -101,9 +115,14 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
       styleOverrides: {
         root: {
           borderBottomStyle: 'solid',
+          maxWidth: 360,
+          paddingTop: 12,
+          paddingBottom: 12,
         },
         head: {
           whiteSpace: 'nowrap',
+          paddingTop: 10,
+          paddingBottom: 10,
         },
       },
     },
@@ -111,10 +130,9 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
       styleOverrides: {
         root: ({ theme }) => ({
           '&:hover': {
-            backgroundColor:
-              theme.palette.mode === 'dark'
-                ? alpha(theme.palette.common.white, 0.02)
-                : alpha(theme.palette.common.black, 0.015),
+            backgroundColor: isDark
+              ? alpha(theme.palette.common.white, 0.035)
+              : alpha(theme.palette.common.black, 0.018),
           },
         }),
       },
@@ -122,25 +140,37 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
     MuiDialog: {
       styleOverrides: {
         paper: ({ theme }) => ({
-          borderRadius: 24,
+          borderRadius: 14,
+          margin: 12,
+          width: 'calc(100% - 24px)',
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: theme.shadows[4],
+          backgroundImage: 'none',
         }),
       },
     },
     MuiMenu: {
       styleOverrides: {
         paper: ({ theme }) => ({
-          borderRadius: 18,
+          borderRadius: 12,
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: theme.shadows[3],
+          backgroundImage: 'none',
         }),
       },
     },
     MuiAlert: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
+          borderRadius: 10,
+        },
+      },
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          borderRadius: 8,
+          fontWeight: 600,
         },
       },
     },

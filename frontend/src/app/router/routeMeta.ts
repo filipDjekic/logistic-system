@@ -165,6 +165,11 @@ export const routeMeta = {
     title: 'Change History',
     breadcrumb: 'Change History',
   },
+  dataExchange: {
+    path: '/data-exchange',
+    title: 'Import / Export',
+    breadcrumb: 'Import / Export',
+  },
 } satisfies Record<string, AppRouteMeta>;
 
 export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {

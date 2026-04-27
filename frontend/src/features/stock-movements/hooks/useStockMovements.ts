@@ -1,17 +1,19 @@
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PageParams } from '../../../core/api/pagination';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { stockMovementsApi } from '../api/stockMovementsApi';
 import type { StockMovementCreateRequest, StockMovementFiltersState } from '../types/stockMovement.types';
 
 export function useStockMovements(filters: StockMovementFiltersState & PageParams, enabled = true) {
   return useQuery({
-    queryKey: ['stock-movements', 'all', filters],
+    queryKey: queryKeys.stockMovements.list(filters),
     queryFn: () => stockMovementsApi.getAll(filters),
     enabled,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
+    staleTime: cacheTimes.standard,
   });
 }
 
@@ -29,8 +31,8 @@ export function useCreateStockMovement() {
       });
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() }),
       ]);
     },
     onError: (error) => {

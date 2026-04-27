@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { warehousesApi } from '../api/warehousesApi';
 
 export function useWarehouse(id: number | null) {
   return useQuery({
-    queryKey: ['warehouses', 'details', id],
+    queryKey: queryKeys.warehouses.detail(id as number),
     queryFn: () => warehousesApi.getById(id as number),
     enabled: Number.isFinite(id),
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.standard,
   });
 }

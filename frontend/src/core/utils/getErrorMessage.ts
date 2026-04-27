@@ -2,7 +2,7 @@ import { normalizeApiError } from '../api/apiError';
 
 export function getErrorMessage(
   error: unknown,
-  fallback = 'Something went wrong. Please try again.',
+  fallback = 'The request could not be completed. Check the data and try again.',
 ): string {
   return normalizeApiError(error, fallback).message;
 }

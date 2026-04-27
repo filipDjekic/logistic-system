@@ -3,6 +3,9 @@ package rs.logistics.logistics_system.controller;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 
 @PreAuthorize("hasRole('OVERLORD')")
@@ -31,8 +35,14 @@ public class ActivityLogController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ActivityLogResponse>> getAll(){
-        List<ActivityLogResponse> response = activityLogService.getAll();
+    public ResponseEntity<PageResponse<ActivityLogResponse>> getAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String entityName,
+            @RequestParam(required = false) Long userId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ){
+        PageResponse<ActivityLogResponse> response = activityLogService.search(search, action, entityName, userId, pageable);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

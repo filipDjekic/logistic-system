@@ -139,6 +139,20 @@ export default function WarehouseDetailsPage() {
         actions={
           <Stack direction="row" spacing={1}>
             <Button
+              variant="contained"
+              onClick={() => navigate(`/inventory?warehouseId=${warehouse.id}`)}
+            >
+              Open inventory
+            </Button>
+            {canManage ? (
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/stock-movements?create=1')}
+              >
+                Create stock movement
+              </Button>
+            ) : null}
+            <Button
               variant="outlined"
               onClick={() =>
                 navigate(`/change-history?entityName=WAREHOUSE&entityId=${warehouse.id}`)

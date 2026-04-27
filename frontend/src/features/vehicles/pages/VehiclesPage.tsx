@@ -9,6 +9,7 @@ import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
+import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
 import VehicleFormDialog from '../components/VehicleFormDialog';
 import VehiclesTable from '../components/VehiclesTable';
 import { useCreateVehicle } from '../hooks/useCreateVehicle';
@@ -86,6 +87,15 @@ export default function VehiclesPage() {
   }, [filters]);
 
   const vehiclesQuery = useVehicles({ ...vehicleSearchParams, page, size, sort: buildSortParam(sort) }, true);
+  const rows = vehiclesQuery.data?.content ?? [];
+
+  const statusOverviewItems = useMemo(
+    () => vehicleStatusOptions.map((status) => ({
+      value: status,
+      count: rows.filter((row) => row.status === status).length,
+    })),
+    [rows],
+  );
   const companiesQuery = useCompanies(
     canManage && isOverlord && dialogOpen && dialogMode === 'create',
   );
@@ -233,8 +243,10 @@ export default function VehiclesPage() {
             </Button>
           </Stack>
 
+          <StatusOverview items={statusOverviewItems} />
+
           <VehiclesTable
-            rows={vehiclesQuery.data?.content ?? []}
+            rows={rows}
             loading={vehiclesQuery.isLoading}
             error={vehiclesQuery.isError}
             onRetry={() => {

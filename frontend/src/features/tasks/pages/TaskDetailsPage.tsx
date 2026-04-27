@@ -144,6 +144,7 @@ export default function TaskDetailsPage() {
                 : 'Task could not be loaded'
           }
           description={error.message}
+        details={error.fieldErrors}
           onRetry={() => void taskQuery.refetch()}
         />
       </Stack>

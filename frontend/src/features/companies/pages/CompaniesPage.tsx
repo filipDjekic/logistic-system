@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -17,6 +18,7 @@ type CompanyFiltersState = {
 };
 
 export default function CompaniesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<CompanyFiltersState>({
     search: '',
     status: 'ALL',
@@ -53,6 +55,20 @@ export default function CompaniesPage() {
   }, [companiesQuery.data, filters]);
 
   const isSaving = createCompanyMutation.isPending || updateCompanyMutation.isPending;
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1' || dialogOpen) {
+      return;
+    }
+
+    setDialogMode('create');
+    setSelectedCompany(null);
+    setDialogOpen(true);
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('create');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [dialogOpen, searchParams, setSearchParams]);
 
   return (
     <Stack spacing={3}>

@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
@@ -11,6 +12,8 @@ import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
+import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
+import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
 import { transportOrdersApi } from '../../transport-orders/api/transportOrdersApi';
 import TaskFormDialog from '../components/TaskFormDialog';
@@ -20,12 +23,14 @@ import { useDeleteTask } from '../hooks/useDeleteTask';
 import { useMyTasks } from '../hooks/useMyTasks';
 import { useTasks } from '../hooks/useTasks';
 import { useUpdateTask } from '../hooks/useUpdateTask';
+import { useUpdateTaskStatus } from '../hooks/useUpdateTaskStatus';
 import type { SortState } from '../../../shared/types/common.types';
 import type { TaskFiltersState, TaskFormValues, TaskQueryParams, TaskResponse } from '../types/task.types';
 
 export default function TasksPage() {
   const auth = useAuthStore();
   const { showSnackbar } = useAppSnackbar();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const canListManaged =
     auth.user?.role === ROLES.OVERLORD ||
@@ -35,14 +40,18 @@ export default function TasksPage() {
 
   const canMutateManaged =
     auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.DISPATCHER;
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const canCreateOrAssign =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.DISPATCHER;
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const isWarehouseManager = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canExecuteTaskStatus =
+    canMutateManaged || auth.user?.role === ROLES.DRIVER || auth.user?.role === ROLES.WORKER;
 
   const [filters, setFilters] = useState<TaskFiltersState>({
     search: '',
@@ -129,6 +138,7 @@ export default function TasksPage() {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const updateTaskStatus = useUpdateTaskStatus();
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<TaskResponse | null>(null);
@@ -163,6 +173,55 @@ export default function TasksPage() {
 
   const rows = managedRows;
 
+  const taskSetupLoading = employeesQuery.isLoading || transportOrdersQuery.isLoading || stockMovementsQuery.isLoading;
+  const setupItems = [
+    {
+      title: 'Create at least one assignable employee',
+      description: 'Every task must have a responsible employee.',
+      done: !canCreateOrAssign || taskSetupLoading || assignableEmployees.length > 0,
+      action: { label: 'Open employees', to: '/employees' },
+    },
+    {
+      title: 'Create transport orders before transport-linked tasks',
+      description: 'Transport task context is available only after transport orders exist.',
+      done: !canCreateOrAssign || isWarehouseManager || taskSetupLoading || (transportOrdersQuery.data?.content ?? []).length > 0,
+      action: { label: 'Open transport orders', to: '/transport-orders' },
+    },
+    {
+      title: 'Create stock movements before warehouse-linked tasks',
+      description: 'Warehouse task context is clearer when a stock movement exists.',
+      done: !canCreateOrAssign || taskSetupLoading || (stockMovementsQuery.data?.content ?? []).length > 0,
+      action: { label: 'Open stock movements', to: '/stock-movements' },
+    },
+  ];
+
+  const hasRequiredTaskSetupBlockers = setupItems.some((item) => !item.done && item.title === 'Create at least one assignable employee');
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1' || !canCreateOrAssign || taskSetupLoading || hasRequiredTaskSetupBlockers || open) {
+      return;
+    }
+
+    setSelected(null);
+    setOpen(true);
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('create');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [canCreateOrAssign, hasRequiredTaskSetupBlockers, open, searchParams, setSearchParams, taskSetupLoading]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [filters.search, filters.status, filters.priority, filters.assignedEmployeeId, filters.linkedProcessType]);
+
+  const statusOverviewItems = useMemo(
+    () => ['NEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map((status) => ({
+      value: status,
+      count: rows.filter((row) => row.status === status).length,
+    })),
+    [rows],
+  );
+
   return (
     <Stack spacing={3}>
       <PageHeader
@@ -177,6 +236,7 @@ export default function TasksPage() {
           canCreateOrAssign ? (
             <Button
               variant="contained"
+              disabled={hasRequiredTaskSetupBlockers}
               onClick={() => {
                 setSelected(null);
                 setOpen(true);
@@ -193,6 +253,14 @@ export default function TasksPage() {
         description="Tasks are loaded from the real backend task endpoints and remain scoped by backend company access."
       >
         <Stack spacing={2}>
+          {canCreateOrAssign && !taskSetupLoading ? (
+            <SetupGuide
+              title="Task setup has missing context"
+              description="Create the required assignment data first. Process links are optional, but they make execution clearer."
+              items={setupItems}
+            />
+          ) : null}
+
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} flexWrap="wrap">
             <SearchToolbar
               value={filters.search}
@@ -310,6 +378,8 @@ export default function TasksPage() {
             </Button>
           </Stack>
 
+          <StatusOverview items={statusOverviewItems} />
+
           <TasksTable
             rows={rows}
             loading={
@@ -351,6 +421,15 @@ export default function TasksPage() {
                 return;
               }
               setDeleteTarget(row);
+            }}
+            canChangeStatus={canExecuteTaskStatus}
+            updatingStatusId={updateTaskStatus.isPending ? updateTaskStatus.variables?.id ?? null : null}
+            onStatusChange={(row, status) => {
+              if (row.status === status) {
+                return;
+              }
+
+              updateTaskStatus.mutate({ id: row.id, status });
             }}
           pagination={
               <ServerTablePagination

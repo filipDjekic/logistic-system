@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Stack } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
@@ -8,6 +9,8 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialo
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
+import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
+import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { inventoryApi } from '../api/inventoryApi';
 import InventoryFilters from '../components/InventoryFilters';
 import InventoryFormDialog from '../components/InventoryFormDialog';
@@ -27,6 +30,7 @@ import type {
 
 export default function InventoryPage() {
   const auth = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const canManage =
     auth.user?.role === ROLES.OVERLORD ||
@@ -76,12 +80,72 @@ export default function InventoryPage() {
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
   const inventoryQuery = useInventory({ ...filters, page, size, sort: buildSortParam(sort) }, { warehouses, products });
+  const rows = inventoryQuery.data?.content ?? [];
+
+  const statusOverviewItems = useMemo(
+    () => ['LOW_STOCK', 'SUFFICIENT'].map((status) => ({
+      value: status,
+      count: rows.filter((row) => row.derivedStatus === status).length,
+    })),
+    [rows],
+  );
   const createInventoryMutation = useCreateInventoryRecord();
   const updateInventoryMutation = useUpdateInventoryRecord();
   const deleteInventoryMutation = useDeleteInventoryRecord();
 
   const isLoadingLookups = warehousesQuery.isLoading || productsQuery.isLoading;
   const hasLookupError = warehousesQuery.isError || productsQuery.isError;
+
+  const setupItems = [
+    {
+      title: 'Create at least one warehouse',
+      description: 'Inventory records must belong to a warehouse.',
+      done: !canManage || isLoadingLookups || warehouses.length > 0,
+      action: { label: 'Open warehouses', to: '/warehouses' },
+    },
+    {
+      title: 'Create at least one product',
+      description: 'Inventory records must be connected to a product catalog item.',
+      done: !canManage || isLoadingLookups || products.length > 0,
+      action: { label: 'Open products', to: '/products' },
+    },
+  ];
+
+  const hasSetupBlockers = setupItems.some((item) => !item.done);
+
+  useEffect(() => {
+    const warehouseId = searchParams.get('warehouseId');
+    const productId = searchParams.get('productId');
+
+    setFilters((current) => {
+      const nextWarehouseId = warehouseId && Number.isFinite(Number(warehouseId)) ? Number(warehouseId) : current.warehouseId;
+      const nextProductId = productId && Number.isFinite(Number(productId)) ? Number(productId) : current.productId;
+
+      if (nextWarehouseId === current.warehouseId && nextProductId === current.productId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        warehouseId: nextWarehouseId,
+        productId: nextProductId,
+      };
+    });
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1' || !canManage || isLoadingLookups || hasSetupBlockers || dialogOpen) {
+      return;
+    }
+
+    setDialogMode('create');
+    setSelectedRecord(null);
+    setDialogOpen(true);
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('create');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [canManage, dialogOpen, hasSetupBlockers, isLoadingLookups, searchParams, setSearchParams]);
 
   return (
     <Stack spacing={3}>
@@ -93,6 +157,7 @@ export default function InventoryPage() {
           canManage ? (
             <Button
               variant="contained"
+              disabled={hasSetupBlockers}
               onClick={() => {
                 setDialogMode('create');
                 setSelectedRecord(null);
@@ -110,6 +175,13 @@ export default function InventoryPage() {
         description="Inventory search and filters are applied on the backend."
       >
         <Stack spacing={2}>
+          {canManage && !isLoadingLookups ? (
+            <SetupGuide
+              title="Inventory setup is incomplete"
+              description="Create the required warehouse and product data before adding stock records."
+              items={setupItems}
+            />
+          ) : null}
 
           <InventoryFilters
             value={filters}
@@ -126,8 +198,10 @@ export default function InventoryPage() {
             }}
           />
 
+          <StatusOverview items={statusOverviewItems} />
+
           <InventoryTable
-            rows={inventoryQuery.data?.content ?? []}
+            rows={rows}
             loading={inventoryQuery.isLoading || isLoadingLookups}
             error={inventoryQuery.isError || hasLookupError}
             onRetry={() => {

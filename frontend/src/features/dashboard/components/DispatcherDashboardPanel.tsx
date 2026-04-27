@@ -6,6 +6,7 @@ import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
+import DashboardSummaryStrip from './DashboardSummaryStrip';
 import type { DispatcherDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -89,6 +90,15 @@ export default function DispatcherDashboardPanel({ data }: Props) {
           />
         ))}
       </Box>
+
+      <DashboardSummaryStrip
+        items={[
+          { label: 'Active transports', value: formatNumber(data.activeTransportOrders), tone: 'info' },
+          { label: 'Unassigned transports', value: formatNumber(data.unassignedTransportOrders), tone: data.unassignedTransportOrders > 0 ? 'warning' : 'success' },
+          { label: 'Available vehicles', value: formatNumber(data.availableVehicles), tone: 'success' },
+          { label: 'Available drivers', value: formatNumber(data.availableDrivers), tone: 'success' },
+        ]}
+      />
 
       <Box
         sx={{

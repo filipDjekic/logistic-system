@@ -7,9 +7,10 @@ export default function PageContainer({ children }: PropsWithChildren) {
       sx={{
         width: '100%',
         maxWidth: 1440,
+        minWidth: 0,
         mx: 'auto',
-        px: { xs: 2, sm: 3, lg: 4 },
-        py: { xs: 2, sm: 3 },
+        px: { xs: 1.5, sm: 2.5, lg: 4 },
+        py: { xs: 1.5, sm: 2.5, md: 3 },
       }}
     >
       {children}

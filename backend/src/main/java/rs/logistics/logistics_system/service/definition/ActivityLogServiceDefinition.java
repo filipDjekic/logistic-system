@@ -1,6 +1,8 @@
 package rs.logistics.logistics_system.service.definition;
 
+import org.springframework.data.domain.Pageable;
 import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,6 +12,8 @@ public interface ActivityLogServiceDefinition {
     ActivityLogResponse getById(Long id);
 
     List<ActivityLogResponse> getAll();
+
+    PageResponse<ActivityLogResponse> search(String search, String action, String entityName, Long userId, Pageable pageable);
 
     List<ActivityLogResponse> getByUserId(Long id);
 

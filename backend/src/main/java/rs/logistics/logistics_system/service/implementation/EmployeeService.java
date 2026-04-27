@@ -400,13 +400,36 @@ public class EmployeeService implements EmployeeServiceDefinition {
             return null;
         }
 
-        return authenticatedUserProvider.isOverlord()
-                ? _userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"))
-                : _userRepository.findByIdAndCompany_Id(
-                userId,
-                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-        ).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (authenticatedUserProvider.isOverlord()) {
+            return _userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        }
+
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        return _userRepository.findByIdAndCompany_Id(userId, companyId)
+                .orElseGet(() -> recoverCompanyScopedLinkedEmployeeUser(userId, companyId));
+    }
+
+    private User recoverCompanyScopedLinkedEmployeeUser(Long userId, Long companyId) {
+        User user = _userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Employee employee = user.getEmployee();
+        Long employeeCompanyId = employee != null && employee.getCompany() != null
+                ? employee.getCompany().getId()
+                : null;
+
+        if (!companyId.equals(employeeCompanyId)) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        if (user.getCompany() == null) {
+            user.setCompany(employee.getCompany());
+            return _userRepository.save(user);
+        }
+
+        throw new ResourceNotFoundException("User not found");
     }
 
     private void validateUserNotAlreadyAssigned(Long userId) {

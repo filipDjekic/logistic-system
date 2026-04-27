@@ -80,8 +80,8 @@ export const inventoryApi = {
 
   getProducts() {
     return apiClient
-      .get<InventoryProductOption[]>('/api/products')
-      .then((response) => response.data);
+      .get<InventoryProductOption[] | PageResponse<InventoryProductOption>>('/api/products', { params: { size: 1000, sort: 'name,asc' } })
+      .then((response) => unwrapPageContent(response.data));
   },
 
   getProductById(id: number) {

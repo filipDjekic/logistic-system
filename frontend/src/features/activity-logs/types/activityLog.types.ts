@@ -14,3 +14,10 @@ export type ActivityLogFiltersState = {
   entityName: string;
   userId: string;
 };
+
+export type ActivityLogQueryParams = {
+  search?: string;
+  action?: string;
+  entityName?: string;
+  userId?: number;
+};

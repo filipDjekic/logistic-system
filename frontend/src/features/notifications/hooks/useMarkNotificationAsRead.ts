@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { notificationsApi } from '../api/notificationsApi';
 
 export function useMarkNotificationAsRead() {
@@ -7,9 +8,7 @@ export function useMarkNotificationAsRead() {
   return useMutation({
     mutationFn: notificationsApi.markAsRead,
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.root() });
     },
   });
 }

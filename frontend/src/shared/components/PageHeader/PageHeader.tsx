@@ -20,34 +20,32 @@ export default function PageHeader({
       justifyContent="space-between"
       alignItems={{ xs: 'flex-start', md: 'center' }}
       spacing={2}
+      sx={{ mb: { xs: 2, md: 3 } }}
     >
-      <Stack spacing={0.75}>
+      <Stack spacing={0.75} sx={{ minWidth: 0 }}>
         {overline ? (
           <Typography
             variant="overline"
             color="text.secondary"
-            sx={{ letterSpacing: 1.2, fontWeight: 700 }}
+            sx={{ letterSpacing: '0.1em', fontWeight: 800, lineHeight: 1.2 }}
           >
             {overline}
           </Typography>
         ) : null}
 
-        <Typography variant="h4">{title}</Typography>
+        <Typography variant="h4" sx={{ maxWidth: 900, fontSize: { xs: '1.6rem', sm: '2rem', md: '2.125rem' }, overflowWrap: 'anywhere' }}>
+          {title}
+        </Typography>
 
         {description ? (
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 760 }}>
             {description}
           </Typography>
         ) : null}
       </Stack>
 
       {actions ? (
-        <Stack
-          direction="row"
-          spacing={1.25}
-          alignItems="center"
-          sx={{ width: { xs: '100%', md: 'auto' } }}
-        >
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap" useFlexGap sx={{ width: { xs: '100%', sm: 'auto' }, '& > *': { width: { xs: '100%', sm: 'auto' } } }}>
           {actions}
         </Stack>
       ) : null}

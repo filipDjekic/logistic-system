@@ -55,8 +55,8 @@ export const stockMovementsApi = {
 
   getProducts() {
     return apiClient
-      .get<StockMovementProductOption[]>('/api/products')
-      .then((response) => response.data);
+      .get<StockMovementProductOption[] | PageResponse<StockMovementProductOption>>('/api/products', { params: { size: 1000, sort: 'name,asc' } })
+      .then((response) => unwrapPageContent(response.data));
   },
 
   getTransportOrders() {

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
@@ -8,12 +9,15 @@ import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
+import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
+import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { transportOrdersApi } from '../api/transportOrdersApi';
 import TransportOrderFormDialog from '../components/TransportOrderFormDialog';
 import TransportOrdersTable from '../components/TransportOrdersTable';
 import { useCreateTransportOrder } from '../hooks/useCreateTransportOrder';
 import { useTransportOrders } from '../hooks/useTransportOrders';
 import { useUpdateTransportOrder } from '../hooks/useUpdateTransportOrder';
+import { useUpdateTransportOrderStatus } from '../hooks/useUpdateTransportOrderStatus';
 import type { SortState } from '../../../shared/types/common.types';
 import type {
   EmployeeOption,
@@ -28,6 +32,7 @@ const statusOptions = ['ALL', 'CREATED', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 
 
 export default function TransportOrdersPage() {
   const auth = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.DISPATCHER;
   const canReadAll = canManage || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER || auth.user?.role === ROLES.DRIVER;
@@ -38,6 +43,7 @@ export default function TransportOrdersPage() {
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.DISPATCHER;
   const canResolveEmployees = canManage;
+  const canChangeStatus = canManage || auth.user?.role === ROLES.DRIVER;
 
   const [filters, setFilters] = useState<TransportOrderFiltersState>({
     search: '',
@@ -89,6 +95,7 @@ export default function TransportOrdersPage() {
 
   const createTransportOrderMutation = useCreateTransportOrder();
   const updateTransportOrderMutation = useUpdateTransportOrder();
+  const updateTransportOrderStatusMutation = useUpdateTransportOrderStatus();
 
   const warehousesById = useMemo<Record<number, WarehouseOption>>(
     () =>
@@ -119,6 +126,16 @@ export default function TransportOrdersPage() {
 
   const rows = transportOrdersQuery.data?.content ?? [];
 
+  const statusOverviewItems = useMemo(
+    () => statusOptions
+      .filter((status) => status !== 'ALL')
+      .map((status) => ({
+        value: status,
+        count: rows.filter((row) => row.status === status).length,
+      })),
+    [rows],
+  );
+
   const isLookupsLoading =
     (canResolveWarehouses && warehousesQuery.isLoading) ||
     (canResolveVehicles && vehiclesQuery.isLoading) ||
@@ -126,6 +143,47 @@ export default function TransportOrdersPage() {
 
   const isDialogLoading =
     createTransportOrderMutation.isPending || updateTransportOrderMutation.isPending;
+
+  const availableVehiclesCount = (vehiclesQuery.data ?? []).filter((vehicle) => vehicle.status === 'AVAILABLE').length;
+  const setupItems = [
+    {
+      title: 'Create at least one warehouse',
+      description: 'Transport orders need source and destination warehouse data.',
+      done: !canManage || isLookupsLoading || (warehousesQuery.data ?? []).length > 0,
+      action: { label: 'Open warehouses', to: '/warehouses' },
+    },
+    {
+      title: 'Create an available vehicle',
+      description: 'Dispatcher cannot assign a transport order without an available vehicle.',
+      done: !canManage || isLookupsLoading || availableVehiclesCount > 0,
+      action: { label: 'Open vehicles', to: '/vehicles' },
+    },
+    {
+      title: 'Create an employee with DRIVER position',
+      description: 'Transport assignment requires at least one driver employee.',
+      done: !canManage || isLookupsLoading || (employeesQuery.data ?? []).length > 0,
+      action: { label: 'Open employees', to: '/employees' },
+    },
+  ];
+
+  const hasSetupBlockers = setupItems.some((item) => !item.done);
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1' || !canManage || isLookupsLoading || hasSetupBlockers || dialogOpen) {
+      return;
+    }
+
+    setSelectedOrder(null);
+    setDialogOpen(true);
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('create');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [canManage, dialogOpen, hasSetupBlockers, isLookupsLoading, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [filters.search, filters.status, filters.priority]);
 
   return (
     <Stack spacing={3}>
@@ -137,6 +195,7 @@ export default function TransportOrdersPage() {
           canManage ? (
             <Button
               variant="contained"
+              disabled={hasSetupBlockers}
               onClick={() => {
                 setSelectedOrder(null);
                 setDialogOpen(true);
@@ -153,6 +212,14 @@ export default function TransportOrdersPage() {
         description="Search and filter transport orders using confirmed backend data."
       >
         <Stack spacing={2}>
+          {canManage && !isLookupsLoading ? (
+            <SetupGuide
+              title="Transport setup is incomplete"
+              description="Create the required operational data before opening a new transport order."
+              items={setupItems}
+            />
+          ) : null}
+
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
             <SearchToolbar
               value={filters.search}
@@ -173,6 +240,8 @@ export default function TransportOrdersPage() {
               ))}
             </TextField>
           </Stack>
+
+          <StatusOverview items={statusOverviewItems} />
 
           <TransportOrdersTable
             rows={canReadAll ? rows : []}
@@ -212,6 +281,15 @@ export default function TransportOrdersPage() {
             }
             sort={sort}
             onSortChange={handleSortChange}
+            canChangeStatus={canChangeStatus}
+            updatingStatusId={updateTransportOrderStatusMutation.isPending ? updateTransportOrderStatusMutation.variables?.id ?? null : null}
+            onStatusChange={(order, status) => {
+              if (order.status === status) {
+                return;
+              }
+
+              updateTransportOrderStatusMutation.mutate({ id: order.id, status });
+            }}
             onEdit={(order) => {
               setSelectedOrder(order);
               setDialogOpen(true);

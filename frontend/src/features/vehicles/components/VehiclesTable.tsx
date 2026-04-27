@@ -131,6 +131,7 @@ export default function VehiclesTable({
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}
+      getRowStatus={(row) => row.status}
     />
   );
 }

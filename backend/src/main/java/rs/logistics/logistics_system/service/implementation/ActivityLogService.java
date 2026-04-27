@@ -1,8 +1,11 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.entity.ActivityLog;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -41,6 +44,29 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
                 : _activityLogRepository.findAllByUser_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
 
         return logs.stream().map(ActivityLogMapper::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public PageResponse<ActivityLogResponse> search(String search, String action, String entityName, Long userId, Pageable pageable) {
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        Page<ActivityLog> logs = _activityLogRepository.searchLogs(
+                companyId,
+                trimToNull(search),
+                trimToNull(action),
+                trimToNull(entityName),
+                userId,
+                pageable
+        );
+
+        List<ActivityLogResponse> content = logs.getContent()
+                .stream()
+                .map(ActivityLogMapper::toResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.fromContent(content, logs);
     }
 
     @Override
@@ -128,6 +154,14 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
                 );
 
         return logs.stream().map(ActivityLogMapper::toResponse).collect(Collectors.toList());
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     private User getAccessibleUser(Long userId) {

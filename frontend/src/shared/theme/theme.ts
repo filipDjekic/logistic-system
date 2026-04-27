@@ -69,7 +69,7 @@ export function createAppTheme(mode: ThemeMode) {
     components: createComponents(paletteMode),
     customStatus: getCustomStatusTokens(),
     shape: {
-      borderRadius: 18,
+      borderRadius: 10,
     },
   });
 }

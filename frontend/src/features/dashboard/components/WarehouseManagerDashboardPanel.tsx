@@ -6,6 +6,7 @@ import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
+import DashboardSummaryStrip from './DashboardSummaryStrip';
 import type { WarehouseManagerDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -85,6 +86,15 @@ export default function WarehouseManagerDashboardPanel({ data }: Props) {
           />
         ))}
       </Box>
+
+      <DashboardSummaryStrip
+        items={[
+          { label: 'Managed warehouses', value: formatNumber(data.managedWarehousesTotal), tone: 'info' },
+          { label: 'Available quantity', value: formatNumber(data.inventoryAvailableQuantityTotal), tone: 'success' },
+          { label: 'Low stock rows', value: formatNumber(data.lowStockRowsTotal), tone: data.lowStockRowsTotal > 0 ? 'error' : 'success' },
+          { label: 'Open warehouse tasks', value: formatNumber(data.openWarehouseTasksTotal), tone: 'warning' },
+        ]}
+      />
 
       <Box
         sx={{

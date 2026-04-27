@@ -2,17 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../../core/auth/authStore';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { ROLES } from '../../../core/constants/roles';
 import EmptyState from '../../../shared/components/EmptyState/EmptyState';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import ChangeHistoryTable from '../components/ChangeHistoryTable';
 import { useChangeHistory } from '../hooks/useChangeHistory';
 import {
   changeTypeOptions,
   type ChangeHistoryFiltersState,
+  type ChangeHistoryQueryParams,
 } from '../types/changeHistory.types';
 
 function getInitialFilters(searchParams: URLSearchParams): ChangeHistoryFiltersState {
@@ -35,6 +38,8 @@ export default function ChangeHistoryPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<ChangeHistoryFiltersState>(() => getInitialFilters(searchParams));
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
 
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
@@ -55,14 +60,45 @@ export default function ChangeHistoryPage() {
 
   const isContextView = Boolean(contextEntityName || contextEntityId != null || contextUserId != null);
 
+  const queryParams = useMemo<ChangeHistoryQueryParams>(() => {
+    const params: ChangeHistoryQueryParams = {};
+
+    if (debouncedSearch.trim()) {
+      params.search = debouncedSearch.trim();
+    }
+
+    if (filters.changeType !== 'ALL') {
+      params.changeType = filters.changeType;
+    }
+
+    if (contextEntityName) {
+      params.entityName = contextEntityName;
+    }
+
+    if (contextEntityId != null) {
+      params.entityId = contextEntityId;
+    }
+
+    if (contextUserId != null && isOverlord) {
+      params.userId = contextUserId;
+    }
+
+    return params;
+  }, [contextEntityId, contextEntityName, contextUserId, debouncedSearch, filters.changeType, isOverlord]);
+
   const changeHistoryQuery = useChangeHistory(
     {
-      entityName: contextEntityName || undefined,
-      entityId: contextEntityId,
-      userId: contextUserId,
+      ...queryParams,
+      page,
+      size,
+      sort: buildSortParam({ field: 'changedAt', direction: 'desc' }),
     },
     isOverlord || isContextView,
   );
+
+  useEffect(() => {
+    setPage(0);
+  }, [queryParams]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -90,53 +126,10 @@ export default function ChangeHistoryPage() {
     setSearchParams(nextParams, { replace: true });
   }, [filters, setSearchParams]);
 
-  const filteredRows = useMemo(() => {
-    const rows = changeHistoryQuery.data ?? [];
-    const search = debouncedSearch.trim().toLowerCase();
-    const entityName = contextEntityName.toLowerCase();
-    const entityId = debouncedEntityId.trim();
-    const userId = debouncedUserId.trim();
-
-    return rows.filter((row) => {
-      const matchesChangeType =
-        filters.changeType === 'ALL' || row.changeType === filters.changeType;
-
-      const matchesEntityName =
-        entityName.length === 0 || row.entityName.toLowerCase().includes(entityName);
-
-      const matchesEntityId =
-        entityId.length === 0 || String(row.entityId).includes(entityId);
-
-      const matchesUserId =
-        userId.length === 0 || String(row.userId).includes(userId);
-
-      const matchesSearch =
-        search.length === 0 ||
-        row.entityName.toLowerCase().includes(search) ||
-        row.changeType.toLowerCase().includes(search) ||
-        (row.fieldName ?? '').toLowerCase().includes(search) ||
-        (row.oldValue ?? '').toLowerCase().includes(search) ||
-        (row.newValue ?? '').toLowerCase().includes(search) ||
-        String(row.id).includes(search) ||
-        String(row.entityId).includes(search) ||
-        String(row.userId).includes(search);
-
-      return (
-        matchesChangeType &&
-        matchesEntityName &&
-        matchesEntityId &&
-        matchesUserId &&
-        matchesSearch
-      );
-    });
-  }, [
-    changeHistoryQuery.data,
-    contextEntityName,
-    debouncedEntityId,
-    debouncedSearch,
-    debouncedUserId,
-    filters.changeType,
-  ]);
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
 
   if (!isOverlord && !isContextView) {
     return (
@@ -173,20 +166,20 @@ export default function ChangeHistoryPage() {
         description={
           isContextView
             ? 'Review change history for the selected entity context.'
-            : 'Review confirmed backend change history records for important entity updates.'
+            : 'Review backend change history records.'
         }
       />
 
       <SectionCard
         title="Change history list"
-        description="History results are filtered again in the backend by entity access, not only by company."
+        description="Use filters and server pagination for history review."
       >
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5}>
             <SearchToolbar
               value={filters.search}
               onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by entity, change type, field, values or IDs"
+              placeholder="Search by entity, field, or values"
               fullWidth
             />
 
@@ -315,10 +308,18 @@ export default function ChangeHistoryPage() {
           </Stack>
 
           <ChangeHistoryTable
-            rows={filteredRows}
+            rows={changeHistoryQuery.data?.content ?? []}
             loading={changeHistoryQuery.isLoading}
             error={changeHistoryQuery.isError}
             onRetry={() => void changeHistoryQuery.refetch()}
+            pagination={
+              <ServerTablePagination
+                page={changeHistoryQuery.data}
+                disabled={changeHistoryQuery.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
           />
         </Stack>
       </SectionCard>
