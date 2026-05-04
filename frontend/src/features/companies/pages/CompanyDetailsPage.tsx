@@ -69,6 +69,33 @@ export default function CompanyDetailsPage() {
           <Typography variant="body2">
             <strong>Status:</strong> {company.active ? 'Active' : 'Inactive'}
           </Typography>
+          <Typography variant="body2">
+            <strong>Country:</strong> {company.countryName ?? '—'} {company.countryCode ? `(${company.countryCode})` : ''}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Currency:</strong> {company.effectiveCurrencyCode ?? company.currencyCode ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Timezone:</strong> {company.effectiveTimezone ?? company.timezone ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Address:</strong> {company.address ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>City:</strong> {company.city ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Phone:</strong> {company.phoneNumber ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Email:</strong> {company.email ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Tax number:</strong> {company.taxNumber ?? '—'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Registration number:</strong> {company.registrationNumber ?? '—'}
+          </Typography>
         </Stack>
       </SectionCard>
 

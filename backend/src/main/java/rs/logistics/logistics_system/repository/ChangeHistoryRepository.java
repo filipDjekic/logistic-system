@@ -19,7 +19,8 @@ public interface ChangeHistoryRepository extends JpaRepository<ChangeHistory, Lo
 
     @Query("""
             select h from ChangeHistory h
-            where (:search is null or :search = ''
+            where (:companyId is null or h.changedBy.company.id = :companyId)
+              and (:search is null or :search = ''
                    or lower(h.entityName) like lower(concat('%', :search, '%'))
                    or lower(coalesce(h.fieldName, '')) like lower(concat('%', :search, '%'))
                    or lower(coalesce(h.oldValue, '')) like lower(concat('%', :search, '%'))
@@ -30,6 +31,7 @@ public interface ChangeHistoryRepository extends JpaRepository<ChangeHistory, Lo
               and (:userId is null or h.changedBy.id = :userId)
             """)
     Page<ChangeHistory> searchHistory(
+            @Param("companyId") Long companyId,
             @Param("search") String search,
             @Param("changeType") ChangeType changeType,
             @Param("entityName") String entityName,

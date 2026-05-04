@@ -2,10 +2,10 @@ package rs.logistics.logistics_system.service.definition;
 
 import rs.logistics.logistics_system.dto.auth.ChangePasswordRequest;
 import rs.logistics.logistics_system.dto.create.UserCreate;
+import org.springframework.data.domain.Pageable;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
-
-import java.util.List;
 
 public interface UserServiceDefinition {
 
@@ -15,7 +15,7 @@ public interface UserServiceDefinition {
 
     UserResponse getById(Long id);
 
-    List<UserResponse> getAll();
+    PageResponse<UserResponse> getAll(Pageable pageable);
 
     void delete(Long id);
 

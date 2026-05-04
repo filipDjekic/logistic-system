@@ -6,5 +6,6 @@ public enum StockMovementReferenceType {
     INVENTORY_COUNT,
     PURCHASE_DOCUMENT,
     RETURN_DOCUMENT,
-    SYSTEM
+    SYSTEM,
+    STOCK_MOVEMENT
 }

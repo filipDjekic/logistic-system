@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.enums.ChangeType;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
 
     private final ChangeHistoryRepository _changeHistoryRepository;
@@ -68,6 +70,7 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
         }
 
         Page<ChangeHistory> page = _changeHistoryRepository.searchHistory(
+                authenticatedUserProvider.isOverlord() ? null : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
                 trimToNull(search),
                 changeType,
                 trimToNull(entityName),
@@ -224,11 +227,7 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
                     })
                     .orElse(false);
 
-            case "WAREHOUSE_INVENTORY" -> warehouseRepository.findByIdAndCompany_Id(entityId, companyId).isPresent()
-                    || warehouseInventoryRepository.findByWarehouse_IdAndWarehouse_Company_Id(entityId, companyId)
-                    .stream()
-                    .findAny()
-                    .isPresent();
+            case "WAREHOUSE_INVENTORY" -> canAccessWarehouseInventory(changeHistory, companyId);
 
             case "NOTIFICATION" -> notificationRepository.findByIdAndUser_Company_Id(entityId, companyId)
                     .map(notification -> notification.getUser() != null && notification.getUser().getId().equals(currentUserId))
@@ -238,6 +237,41 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
                     && changeHistory.getChangedBy().getCompany() != null
                     && companyId.equals(changeHistory.getChangedBy().getCompany().getId());
         };
+    }
+
+    private boolean canAccessWarehouseInventory(ChangeHistory changeHistory, Long companyId) {
+        String identifier = changeHistory.getEntityIdentifier();
+
+        if (identifier != null) {
+            Long warehouseId = extractIdentifierPart(identifier, "warehouseId");
+            Long productId = extractIdentifierPart(identifier, "productId");
+
+            if (warehouseId != null && productId != null) {
+                return warehouseInventoryRepository.findByWarehouse_IdAndProduct_IdAndWarehouse_Company_Id(warehouseId, productId, companyId).isPresent();
+            }
+
+            if (warehouseId != null) {
+                return warehouseRepository.findByIdAndCompany_Id(warehouseId, companyId).isPresent();
+            }
+        }
+
+        return changeHistory.getEntityId() != null
+                && warehouseRepository.findByIdAndCompany_Id(changeHistory.getEntityId(), companyId).isPresent();
+    }
+
+    private Long extractIdentifierPart(String identifier, String key) {
+        String prefix = key + "=";
+        for (String part : identifier.split(",")) {
+            String trimmed = part.trim();
+            if (trimmed.startsWith(prefix)) {
+                try {
+                    return Long.valueOf(trimmed.substring(prefix.length()).trim());
+                } catch (NumberFormatException ex) {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 
     private String normalize(String value) {

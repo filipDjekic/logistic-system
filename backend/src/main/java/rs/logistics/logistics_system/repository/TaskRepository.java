@@ -10,6 +10,7 @@ import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,6 +62,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             and (:priority is null or t.priority = :priority)
             and (:transportOrderId is null or transportOrder.id = :transportOrderId)
             and (:stockMovementId is null or stockMovement.id = :stockMovementId)
+            and (:excludeTransportOrders = false or transportOrder is null)
+            and (:requireTransportOrder = false or transportOrder is not null)
+            and (:restrictManagedWarehouses = false or stockMovement.warehouse.id in :managedWarehouseIds)
             and (
                 :linkedProcessType is null
                 or (:linkedProcessType = 'UNLINKED' and transportOrder is null and stockMovement is null)
@@ -77,17 +81,37 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 or str(stockMovement.id) like concat('%', :search, '%')
             )
             """)
-    Page<Task> searchTasks(
-            @Param("companyId") Long companyId,
-            @Param("assignedEmployeeId") Long assignedEmployeeId,
-            @Param("search") String search,
-            @Param("status") TaskStatus status,
-            @Param("priority") TaskPriority priority,
-            @Param("transportOrderId") Long transportOrderId,
-            @Param("stockMovementId") Long stockMovementId,
-            @Param("linkedProcessType") String linkedProcessType,
-            Pageable pageable
-    );
+    Page<Task> searchTasks(@Param("companyId") Long companyId, @Param("assignedEmployeeId") Long assignedEmployeeId, @Param("search") String search, @Param("status") TaskStatus status, @Param("priority") TaskPriority priority, @Param("transportOrderId") Long transportOrderId, @Param("stockMovementId") Long stockMovementId, @Param("excludeTransportOrders") boolean excludeTransportOrders, @Param("requireTransportOrder") boolean requireTransportOrder, @Param("restrictManagedWarehouses") boolean restrictManagedWarehouses, @Param("managedWarehouseIds") Collection<Long> managedWarehouseIds, @Param("linkedProcessType") String linkedProcessType, Pageable pageable);
+
+    @Query("""
+            select t
+            from Task t
+            join fetch t.assignedEmployee assignedEmployee
+            left join fetch t.transportOrder transportOrder
+            left join fetch t.stockMovement stockMovement
+            where (:companyId is null or assignedEmployee.company.id = :companyId)
+            and (:employeeId is null or assignedEmployee.id = :employeeId)
+            and (:position is null or assignedEmployee.position = :position)
+            and (:status is null or t.status = :status)
+            and (:priority is null or t.priority = :priority)
+            and (
+                (:fromDate is null and :toDate is null)
+                or (:fromDate is null and (t.createdAt <= :toDate or t.dueDate <= :toDate))
+                or (:toDate is null and (t.createdAt >= :fromDate or t.dueDate >= :fromDate))
+                or (t.createdAt between :fromDate and :toDate or t.dueDate between :fromDate and :toDate)
+            )
+            """)
+    List<Task> searchReportTasks(@Param("companyId") Long companyId, @Param("employeeId") Long employeeId, @Param("position") rs.logistics.logistics_system.enums.EmployeePosition position, @Param("status") TaskStatus status, @Param("priority") TaskPriority priority, @Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+
+    @Query("""
+            select t
+            from Task t
+            join fetch t.assignedEmployee assignedEmployee
+            left join fetch assignedEmployee.user user
+            where t.transportOrder.id = :transportOrderId
+            and t.status in :statuses
+            """)
+    List<Task> findOpenTasksByTransportOrderId(@Param("transportOrderId") Long transportOrderId, @Param("statuses") Collection<TaskStatus> statuses);
 
     @Query("select t.status, count(t) from Task t group by t.status")
     List<Object[]> countGroupedByStatus();

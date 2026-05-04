@@ -1,4 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useWatch } from 'react-hook-form';
+import { vehiclesApi } from '../api/vehiclesApi';
 import {
   Button,
   Dialog,
@@ -19,6 +22,7 @@ import {
   vehicleStatusOptions,
   type VehicleSchemaValues,
 } from '../validation/vehicleSchema';
+import { fuelTypeOptions, vehicleTypeOptions } from '../types/vehicle.types';
 
 type VehicleFormDialogProps = {
   open: boolean;
@@ -36,14 +40,27 @@ const statusOptions = vehicleStatusOptions.map((status: VehicleStatus) => ({
   label: status,
 }));
 
+const typeOptions = vehicleTypeOptions.map((type) => ({
+  value: type,
+  label: type,
+}));
+
+const fuelOptions = fuelTypeOptions.map((fuelType) => ({
+  value: fuelType,
+  label: fuelType,
+}));
+
 const defaultValues: VehicleSchemaValues = {
   registrationNumber: '',
-  brand: '',
-  model: '',
+  vehicleBrandId: '',
+  vehicleModelId: '',
   type: '',
-  capacity: 0,
+  capacity: '',
+  maxWeight: '',
+  maxVolume: '',
+  maxItems: '',
   fuelType: '',
-  yearOfProduction: 1990,
+  yearOfProduction: '',
   status: 'AVAILABLE',
   companyId: '',
 };
@@ -62,6 +79,7 @@ export default function VehicleFormDialog({
     resolver: zodResolver(vehicleSchema),
     defaultValues,
   });
+  const previousBrandIdRef = useRef<string>('');
 
   useEffect(() => {
     if (!open) {
@@ -71,10 +89,13 @@ export default function VehicleFormDialog({
     if (mode === 'edit' && initialData) {
       form.reset({
         registrationNumber: initialData.registrationNumber,
-        brand: initialData.brand,
-        model: initialData.model,
+        vehicleBrandId: initialData.vehicleBrandId != null ? String(initialData.vehicleBrandId) : '',
+        vehicleModelId: initialData.vehicleModelId != null ? String(initialData.vehicleModelId) : '',
         type: initialData.type,
         capacity: initialData.capacity,
+        maxWeight: initialData.maxWeight,
+        maxVolume: initialData.maxVolume ?? '',
+        maxItems: initialData.maxItems ?? '',
         fuelType: initialData.fuelType,
         yearOfProduction: initialData.yearOfProduction,
         status: initialData.status,
@@ -91,6 +112,58 @@ export default function VehicleFormDialog({
     value: String(company.id),
     label: company.name,
   }));
+
+  const selectedBrandId = useWatch({
+    control: form.control,
+    name: 'vehicleBrandId',
+  });
+
+  const brandsQuery = useQuery({
+    queryKey: ['vehicle-catalog', 'brands'],
+    queryFn: vehiclesApi.getBrands,
+    enabled: open,
+  });
+
+  const modelsQuery = useQuery({
+    queryKey: ['vehicle-catalog', 'models', selectedBrandId],
+    queryFn: () => vehiclesApi.getModelsByBrand(Number(selectedBrandId)),
+    enabled: open && Boolean(selectedBrandId),
+  });
+
+  const brandOptions = useMemo(
+    () => (brandsQuery.data ?? []).map((brand) => ({
+      value: String(brand.id),
+      label: brand.name,
+    })),
+    [brandsQuery.data],
+  );
+
+  const modelOptions = useMemo(
+    () => (modelsQuery.data ?? []).map((model) => ({
+      value: String(model.id),
+      label: model.name,
+    })),
+    [modelsQuery.data],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      previousBrandIdRef.current = '';
+      return;
+    }
+
+    if (!selectedBrandId) {
+      previousBrandIdRef.current = '';
+      form.setValue('vehicleModelId', '');
+      return;
+    }
+
+    if (previousBrandIdRef.current && previousBrandIdRef.current !== selectedBrandId) {
+      form.setValue('vehicleModelId', '');
+    }
+
+    previousBrandIdRef.current = selectedBrandId;
+  }, [form, open, selectedBrandId]);
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
@@ -131,37 +204,42 @@ export default function VehicleFormDialog({
             ) : null}
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormTextField
-                name="brand"
+              <FormSelect
+                name="vehicleBrandId"
                 control={form.control}
                 label="Brand"
+                options={brandOptions}
                 required
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormTextField
-                name="model"
+              <FormSelect
+                name="vehicleModelId"
                 control={form.control}
                 label="Model"
+                options={modelOptions}
                 required
+                disabled={!selectedBrandId}
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormTextField
+              <FormSelect
                 name="type"
                 control={form.control}
                 label="Type"
+                options={typeOptions}
                 required
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormTextField
+              <FormSelect
                 name="fuelType"
                 control={form.control}
                 label="Fuel type"
+                options={fuelOptions}
                 required
               />
             </Grid>
@@ -173,6 +251,34 @@ export default function VehicleFormDialog({
                 label="Capacity"
                 type="number"
                 required
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField
+                name="maxWeight"
+                control={form.control}
+                label="Max weight"
+                type="number"
+                required
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField
+                name="maxVolume"
+                control={form.control}
+                label="Max volume"
+                type="number"
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField
+                name="maxItems"
+                control={form.control}
+                label="Max items"
+                type="number"
               />
             </Grid>
 

@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { queryKeys } from '../../../core/constants/queryKeys';
+import { getAllowedTaskStatusTransitions } from '../../../core/permissions/operationGuards';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
@@ -48,51 +49,40 @@ export default function TaskDetailsPage() {
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
-  const canUpdateStatus =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER ||
-    auth.user?.role === ROLES.WORKER ||
-    auth.user?.role === ROLES.DRIVER;
 
   const employeesQuery = useQuery({
-    queryKey: ['task-details', 'employees'],
-    queryFn: () => employeesApi.getAll({ size: 1000, sort: 'lastName,asc' }),
-    enabled: isValidTaskId && canResolveEmployee,
+    queryKey: queryKeys.tasks.detailEmployee(taskQuery.data?.assignedEmployeeId),
+    queryFn: () => employeesApi.getById(Number(taskQuery.data?.assignedEmployeeId)),
+    enabled: isValidTaskId && canResolveEmployee && taskQuery.data?.assignedEmployeeId != null,
     staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    refetchInterval: 45_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const transportOrdersQuery = useQuery({
-    queryKey: ['task-details', 'transport-orders'],
-    queryFn: () => transportOrdersApi.getAll({ size: 1000, sort: 'createdAt,desc' }),
-    enabled: isValidTaskId && canResolveTransportOrder,
+    queryKey: queryKeys.tasks.detailTransportOrder(taskQuery.data?.transportOrderId),
+    queryFn: () => transportOrdersApi.getById(Number(taskQuery.data?.transportOrderId)),
+    enabled: isValidTaskId && canResolveTransportOrder && taskQuery.data?.transportOrderId != null,
     staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    refetchInterval: 45_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const stockMovementsQuery = useQuery({
-    queryKey: ['task-details', 'stock-movements'],
-    queryFn: () => stockMovementsApi.getAll({ size: 1000, sort: 'createdAt,desc' }),
-    enabled: isValidTaskId && canResolveStockMovement,
+    queryKey: queryKeys.tasks.detailStockMovement(taskQuery.data?.stockMovementId),
+    queryFn: () => stockMovementsApi.getById(Number(taskQuery.data?.stockMovementId)),
+    enabled: isValidTaskId && canResolveStockMovement && taskQuery.data?.stockMovementId != null,
     staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    refetchInterval: 45_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
-  const assignedEmployee = useMemo(
-    () => (employeesQuery.data?.content ?? []).find((row) => row.id === taskQuery.data?.assignedEmployeeId),
-    [employeesQuery.data, taskQuery.data?.assignedEmployeeId],
-  );
-
-  const transportOrder = useMemo(
-    () => (transportOrdersQuery.data?.content ?? []).find((row) => row.id === taskQuery.data?.transportOrderId),
-    [taskQuery.data?.transportOrderId, transportOrdersQuery.data],
-  );
-
-  const stockMovement = useMemo(
-    () => (stockMovementsQuery.data?.content ?? []).find((row) => row.id === taskQuery.data?.stockMovementId),
-    [taskQuery.data?.stockMovementId, stockMovementsQuery.data],
-  );
+  const assignedEmployee = employeesQuery.data ?? null;
+  const transportOrder = transportOrdersQuery.data ?? null;
+  const stockMovement = stockMovementsQuery.data ?? null;
 
   if (!isValidTaskId) {
     return (
@@ -153,19 +143,17 @@ export default function TaskDetailsPage() {
 
   const task = taskQuery.data;
 
-  const statusActions = canUpdateStatus
-    ? task.status === 'NEW'
-      ? [
-          { label: 'Start task', status: 'IN_PROGRESS' as const },
-          { label: 'Cancel task', status: 'CANCELLED' as const },
-        ]
-      : task.status === 'IN_PROGRESS'
-        ? [
-            { label: 'Complete task', status: 'COMPLETED' as const },
-            { label: 'Cancel task', status: 'CANCELLED' as const },
-          ]
-        : []
-    : [];
+  const statusActions = getAllowedTaskStatusTransitions(auth.user?.role, task).map((status) => ({
+    label:
+      status === 'IN_PROGRESS'
+        ? 'Start task'
+        : status === 'COMPLETED'
+          ? 'Complete task'
+          : status === 'CANCELLED'
+            ? 'Cancel task'
+            : `Set status to ${status}`,
+    status,
+  }));
 
   return (
     <Stack spacing={3}>

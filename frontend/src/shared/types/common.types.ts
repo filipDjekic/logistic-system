@@ -27,6 +27,7 @@ export type DataTableColumn<T> = {
   nowrap?: boolean;
   headerSx?: SxProps<Theme>;
   cellSx?: SxProps<Theme>;
+  sticky?: 'right';
   sortField?: string;
   render?: (row: T) => ReactNode;
 };

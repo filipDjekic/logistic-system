@@ -5,13 +5,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.report.TransportReportResponse;
 import rs.logistics.logistics_system.entity.Employee;
+import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.PriorityLevel;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.report.TransportReportServiceDefinition;
 
@@ -21,6 +26,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -30,12 +36,14 @@ import org.springframework.data.domain.Pageable;
 @RequiredArgsConstructor
 public class TransportReportService implements TransportReportServiceDefinition {
 
-    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = List.of(
+    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = java.util.Arrays.asList(
             TransportOrderStatus.ASSIGNED,
             TransportOrderStatus.IN_TRANSIT
     );
 
     private final TransportOrderRepository transportOrderRepository;
+    private final EmployeeRepository employeeRepository;
+    private final WarehouseRepository warehouseRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
@@ -56,6 +64,12 @@ public class TransportReportService implements TransportReportServiceDefinition 
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
+        validateReportFilters(companyId, sourceWarehouseId, destinationWarehouseId, vehicleId, assignedEmployeeId);
+
+        Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
+        validateWarehouseFilterAllowedForWarehouseManager(sourceWarehouseId, managedWarehouseIds);
+        validateWarehouseFilterAllowedForWarehouseManager(destinationWarehouseId, managedWarehouseIds);
+
         List<TransportOrder> orders = transportOrderRepository.searchTransportOrders(
                 companyId,
                 null,
@@ -69,7 +83,9 @@ public class TransportReportService implements TransportReportServiceDefinition 
                 toDate,
                 null,
                 Pageable.unpaged()
-        ).getContent();
+        ).getContent().stream()
+                .filter(order -> isAllowedTransportForWarehouseManager(order, managedWarehouseIds))
+                .toList();
 
         BigDecimal totalPlannedWeight = sumWeight(orders);
         BigDecimal completedTransportWeight = sumWeight(
@@ -94,6 +110,140 @@ public class TransportReportService implements TransportReportServiceDefinition 
                 buildRouteUsage(orders),
                 buildRows(orders)
         );
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportTransportReportCsv(
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            TransportOrderStatus status,
+            PriorityLevel priority,
+            Long sourceWarehouseId,
+            Long destinationWarehouseId,
+            Long vehicleId,
+            Long assignedEmployeeId
+    ) {
+        TransportReportResponse report = getTransportReport(
+                fromDate,
+                toDate,
+                status,
+                priority,
+                sourceWarehouseId,
+                destinationWarehouseId,
+                vehicleId,
+                assignedEmployeeId
+        );
+
+        List<List<?>> rows = new java.util.ArrayList<>();
+        rows.add(java.util.Arrays.asList("Transport report"));
+        rows.add(java.util.Arrays.asList("fromDate", report.fromDate(), "toDate", report.toDate()));
+        rows.add(java.util.Arrays.asList("totalTransports", report.totalTransports(), "activeTransports", report.activeTransports(), "completedTransports", report.completedTransports(), "cancelledTransports", report.cancelledTransports()));
+        rows.add(java.util.Arrays.asList("totalPlannedWeight", report.totalPlannedWeight(), "completedTransportWeight", report.completedTransportWeight()));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Transport rows");
+        rows.add(java.util.Arrays.asList("id", "orderNumber", "status", "priority", "totalWeight", "orderDate", "departureTime", "plannedArrivalTime", "actualArrivalTime", "sourceWarehouseId", "sourceWarehouseName", "destinationWarehouseId", "destinationWarehouseName", "vehicleId", "vehicleRegistrationNumber", "assignedEmployeeId", "assignedEmployeeName"));
+        report.rows().forEach(row -> rows.add(java.util.Arrays.asList(
+                row.id(),
+                row.orderNumber(),
+                row.status(),
+                row.priority(),
+                row.totalWeight(),
+                row.orderDate(),
+                row.departureTime(),
+                row.plannedArrivalTime(),
+                row.actualArrivalTime(),
+                row.sourceWarehouseId(),
+                row.sourceWarehouseName(),
+                row.destinationWarehouseId(),
+                row.destinationWarehouseName(),
+                row.vehicleId(),
+                row.vehicleRegistrationNumber(),
+                row.assignedEmployeeId(),
+                row.assignedEmployeeName()
+        )));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Status breakdown");
+        ReportCsvExportHelper.addMapRows(rows, report.transportsByStatus(), "status", "count");
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Priority breakdown");
+        ReportCsvExportHelper.addMapRows(rows, report.transportsByPriority(), "priority", "count");
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Vehicle usage");
+        rows.add(java.util.Arrays.asList("vehicleId", "registrationNumber", "vehicleLabel", "transportsTotal", "completedTransports", "totalWeight"));
+        report.vehicleUsage().forEach(row -> rows.add(java.util.Arrays.asList(row.vehicleId(), row.registrationNumber(), row.vehicleLabel(), row.transportsTotal(), row.completedTransports(), row.totalWeight())));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Driver usage");
+        rows.add(java.util.Arrays.asList("employeeId", "driverName", "driverEmail", "transportsTotal", "completedTransports", "totalWeight"));
+        report.driverUsage().forEach(row -> rows.add(java.util.Arrays.asList(row.employeeId(), row.driverName(), row.driverEmail(), row.transportsTotal(), row.completedTransports(), row.totalWeight())));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Route usage");
+        rows.add(java.util.Arrays.asList("sourceWarehouseId", "sourceWarehouseName", "destinationWarehouseId", "destinationWarehouseName", "transportsTotal", "completedTransports", "totalWeight"));
+        report.routeUsage().forEach(row -> rows.add(java.util.Arrays.asList(row.sourceWarehouseId(), row.sourceWarehouseName(), row.destinationWarehouseId(), row.destinationWarehouseName(), row.transportsTotal(), row.completedTransports(), row.totalWeight())));
+
+        return ReportCsvExportHelper.toCsvBytes(rows);
+    }
+
+    private void validateReportFilters(Long companyId, Long sourceWarehouseId, Long destinationWarehouseId, Long vehicleId, Long assignedEmployeeId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        if (sourceWarehouseId != null && warehouseRepository.findByIdAndCompany_Id(sourceWarehouseId, companyId).isEmpty()) {
+            throw new ForbiddenException("Source warehouse is outside authenticated company scope");
+        }
+
+        if (destinationWarehouseId != null && warehouseRepository.findByIdAndCompany_Id(destinationWarehouseId, companyId).isEmpty()) {
+            throw new ForbiddenException("Destination warehouse is outside authenticated company scope");
+        }
+
+        if (vehicleId != null && !transportOrderRepository.existsVehicleInCompany(vehicleId, companyId)) {
+            throw new ForbiddenException("Vehicle is outside authenticated company scope");
+        }
+
+        if (assignedEmployeeId != null && employeeRepository.findByIdAndCompany_Id(assignedEmployeeId, companyId).isEmpty()) {
+            throw new ForbiddenException("Assigned employee is outside authenticated company scope");
+        }
+    }
+
+    private Set<Long> resolveManagedWarehouseIdsForWarehouseManager() {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return Set.of();
+        }
+
+        User user = authenticatedUserProvider.getAuthenticatedUser();
+        Employee employee = employeeRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user is not linked to an employee"));
+
+        return warehouseRepository.findByManagerIdAndCompany_Id(
+                        employee.getId(),
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .stream()
+                .map(Warehouse::getId)
+                .collect(Collectors.toSet());
+    }
+
+    private void validateWarehouseFilterAllowedForWarehouseManager(Long warehouseId, Set<Long> managedWarehouseIds) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || warehouseId == null) {
+            return;
+        }
+
+        if (!managedWarehouseIds.contains(warehouseId)) {
+            throw new ForbiddenException("WAREHOUSE_MANAGER can report only managed warehouses");
+        }
+    }
+
+    private boolean isAllowedTransportForWarehouseManager(TransportOrder order, Set<Long> managedWarehouseIds) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return true;
+        }
+
+        Long sourceWarehouseId = order.getSourceWarehouse() == null ? null : order.getSourceWarehouse().getId();
+        Long destinationWarehouseId = order.getDestinationWarehouse() == null ? null : order.getDestinationWarehouse().getId();
+
+        return managedWarehouseIds.contains(sourceWarehouseId) || managedWarehouseIds.contains(destinationWarehouseId);
     }
 
     private void validateDateRange(LocalDateTime fromDate, LocalDateTime toDate) {
@@ -220,7 +370,7 @@ public class TransportReportService implements TransportReportServiceDefinition 
     }
 
     private String buildVehicleLabel(Vehicle vehicle) {
-        return String.join(" ", List.of(
+        return String.join(" ", java.util.Arrays.asList(
                 vehicle.getBrand() != null ? vehicle.getBrand() : "",
                 vehicle.getModel() != null ? vehicle.getModel() : ""
         )).trim();

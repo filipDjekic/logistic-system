@@ -14,4 +14,12 @@ public interface InventoryReportServiceDefinition {
             Long productId,
             StockMovementType movementType
     );
+
+    byte[] exportInventoryReportCsv(
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            Long warehouseId,
+            Long productId,
+            StockMovementType movementType
+    );
 }

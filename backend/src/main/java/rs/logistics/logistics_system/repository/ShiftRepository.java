@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,6 +25,8 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     List<Shift> findByStatusAndEmployee_Company_Id(ShiftStatus status, Long companyId);
 
     List<Shift> findAllByEmployee_Company_Id(Long companyId);
+
+    Page<Shift> findAllByEmployee_Company_Id(Long companyId, Pageable pageable);
 
     @Query("""
             SELECT s
@@ -53,39 +57,67 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     List<Shift> findShiftsForDay(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
 
     @Query("""
-        SELECT s
-        FROM Shift s
-        WHERE s.startTime >= :startTime
-        AND s.endTime <= :endTime
-        """)
+            SELECT s
+            FROM Shift s
+            WHERE s.startTime >= :startTime
+            AND s.endTime <= :endTime
+            """)
     List<Shift> findShiftByBetweenDates(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 
     @Query("""
-        SELECT s
-        FROM Shift s
-        WHERE s.startTime < :endOfDay
-        AND s.endTime > :startOfDay
-        AND s.employee.company.id = :companyId
-        ORDER BY s.startTime ASC
-        """)
-    List<Shift> findShiftsForDayAndCompany(
-            @Param("startOfDay") LocalDateTime startOfDay,
-            @Param("endOfDay") LocalDateTime endOfDay,
-            @Param("companyId") Long companyId
-    );
+            SELECT s
+            FROM Shift s
+            WHERE s.startTime < :endOfDay
+            AND s.endTime > :startOfDay
+            AND s.employee.company.id = :companyId
+            ORDER BY s.startTime ASC
+            """)
+    List<Shift> findShiftsForDayAndCompany(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay, @Param("companyId") Long companyId);
 
     @Query("""
-        SELECT s
-        FROM Shift s
-        WHERE s.startTime >= :startTime
-        AND s.endTime <= :endTime
-        AND s.employee.company.id = :companyId
-        """)
-    List<Shift> findShiftByBetweenDatesAndCompany(
-            @Param("startTime") LocalDateTime startTime,
-            @Param("endTime") LocalDateTime endTime,
-            @Param("companyId") Long companyId
-    );
+            SELECT s
+            FROM Shift s
+            WHERE s.startTime >= :startTime
+            AND s.endTime <= :endTime
+            AND s.employee.company.id = :companyId
+            """)
+    List<Shift> findShiftByBetweenDatesAndCompany(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("companyId") Long companyId);
+
+    @Query("""
+            select s
+            from Shift s
+            join fetch s.employee employee
+            where (:companyId is null or employee.company.id = :companyId)
+            and (:employeeId is null or employee.id = :employeeId)
+            and (:position is null or employee.position = :position)
+            and (
+                (:fromDate is null and :toDate is null)
+                or (:fromDate is null and s.startTime <= :toDate)
+                or (:toDate is null and s.endTime >= :fromDate)
+                or (s.startTime <= :toDate and s.endTime >= :fromDate)
+            )
+            """)
+    List<Shift> searchReportShifts(@Param("companyId") Long companyId, @Param("employeeId") Long employeeId, @Param("position") rs.logistics.logistics_system.enums.EmployeePosition position, @Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+
+    @Query("""
+            select s
+            from Shift s
+            join fetch s.employee employee
+            left join fetch employee.user user
+            where s.status = rs.logistics.logistics_system.enums.ShiftStatus.PLANNED
+            and s.startTime <= :now
+            """)
+    List<Shift> findPlannedShiftsToActivate(@Param("now") LocalDateTime now);
+
+    @Query("""
+            select s
+            from Shift s
+            join fetch s.employee employee
+            left join fetch employee.user user
+            where s.status = rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE
+            and s.endTime <= :now
+            """)
+    List<Shift> findActiveShiftsToFinish(@Param("now") LocalDateTime now);
 
     @Query("""
             select count(s)

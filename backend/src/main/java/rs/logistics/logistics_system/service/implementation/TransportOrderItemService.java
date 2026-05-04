@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.TransportOrderItemCreate;
+import org.springframework.data.domain.Pageable;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TransportOrderItemResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderItemUpdate;
 import rs.logistics.logistics_system.entity.Product;
@@ -21,10 +23,10 @@ import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.TransportOrderItemServiceDefinition;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
+import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +36,9 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     private final TransportOrderRepository _transportOrderRepository;
     private final ProductRepository _productRepository;
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
+    private final WarehouseInventoryServiceDefinition warehouseInventoryService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final AuditFacadeDefinition auditFacade;
 
     @Override
     @Transactional
@@ -64,7 +68,11 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         validateProjectedVehicleCapacityOnCreate(transportOrder, transportOrderItem);
 
+        reserveInventoryForItem(transportOrder, product, dto.getQuantity());
+        markItemReserved(transportOrderItem, dto.getQuantity());
+
         TransportOrderItem saved = _transportOrderItemRepository.save(transportOrderItem);
+        auditTransportItemQuantity("TRANSPORT_ITEM_RESERVED", saved, "reservedQuantity", BigDecimal.ZERO, saved.getSafeReservedQuantity());
 
         transportOrder.getTransportOrderItems().add(saved);
         recalculateAndPersistOrderTotalWeight(transportOrder);
@@ -100,8 +108,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         WarehouseInventory warehouseInventory = getWarehouseInventoryForTransportOrder(transportOrderItemTargetOrder, product);
 
         BigDecimal currentReservedByThisItem = BigDecimal.ZERO;
-        if (transportOrderItem.getProduct().getId().equals(product.getId())) {
-            currentReservedByThisItem = transportOrderItem.getQuantity();
+        if (sameReservationTarget(transportOrderItem, transportOrderItemTargetOrder, product)) {
+            currentReservedByThisItem = transportOrderItem.getSafeReservedQuantity();
         }
 
         BigDecimal effectiveAvailable = warehouseInventory.getAvailableQuantity().add(currentReservedByThisItem);
@@ -112,9 +120,16 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         validateProjectedVehicleCapacityOnUpdate(transportOrderItem, transportOrderItemTargetOrder, product, dto.getQuantity());
 
+        BigDecimal oldReservedQuantity = transportOrderItem.getSafeReservedQuantity();
+
+        releaseInventoryForItem(previousTransportOrder, transportOrderItem.getProduct(), oldReservedQuantity);
+        reserveInventoryForItem(transportOrderItemTargetOrder, product, dto.getQuantity());
+
         TransportOrderItemMapper.updateEntity(dto, transportOrderItem, transportOrderItemTargetOrder, product);
+        markItemReserved(transportOrderItem, dto.getQuantity());
 
         TransportOrderItem updated = _transportOrderItemRepository.save(transportOrderItem);
+        auditTransportItemQuantity("TRANSPORT_ITEM_RESERVATION_UPDATED", updated, "reservedQuantity", oldReservedQuantity, updated.getSafeReservedQuantity());
 
         if (previousTransportOrder != null && !previousTransportOrder.getId().equals(transportOrderItemTargetOrder.getId())) {
             previousTransportOrder.getTransportOrderItems().removeIf(item -> item.getId().equals(updated.getId()));
@@ -135,14 +150,34 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     }
 
     @Override
-    public List<TransportOrderItemResponse> getAll() {
-        List<TransportOrderItem> items = authenticatedUserProvider.isOverlord()
-                ? _transportOrderItemRepository.findAll()
+    public PageResponse<TransportOrderItemResponse> getAll(Pageable pageable) {
+        var items = authenticatedUserProvider.isOverlord()
+                ? _transportOrderItemRepository.findAll(pageable)
                 : _transportOrderItemRepository.findAllByTransportOrder_CreatedBy_Company_Id(
-                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                        pageable
                 );
 
-        return items.stream().map(TransportOrderItemMapper::toResponse).collect(Collectors.toList());
+        return PageResponse.from(items.map(TransportOrderItemMapper::toResponse));
+    }
+
+    @Override
+    public PageResponse<TransportOrderItemResponse> getByTransportOrderId(Long transportOrderId, Pageable pageable) {
+        if (transportOrderId == null || transportOrderId <= 0) {
+            throw new BadRequestException("Transport order ID must be a positive number");
+        }
+
+        getTransportOrderOrThrow(transportOrderId);
+
+        var items = authenticatedUserProvider.isOverlord()
+                ? _transportOrderItemRepository.findByTransportOrderId(transportOrderId, pageable)
+                : _transportOrderItemRepository.findByTransportOrderIdAndTransportOrder_CreatedBy_Company_Id(
+                        transportOrderId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                        pageable
+                );
+
+        return PageResponse.from(items.map(TransportOrderItemMapper::toResponse));
     }
 
     @Override
@@ -153,6 +188,11 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         TransportOrder transportOrder = getTransportOrderOrThrow(transportOrderItem.getTransportOrder().getId());
 
         validateTransportOrderEditable(transportOrder);
+
+        BigDecimal reservedQuantity = transportOrderItem.getSafeReservedQuantity();
+        releaseInventoryForItem(transportOrder, transportOrderItem.getProduct(), reservedQuantity);
+        auditTransportItemQuantity("TRANSPORT_ITEM_RESERVATION_RELEASED", transportOrderItem, "reservedQuantity", reservedQuantity, BigDecimal.ZERO);
+        transportOrderItem.releaseReservation();
 
         transportOrder.getTransportOrderItems().removeIf(item -> item.getId().equals(transportOrderItem.getId()));
         _transportOrderItemRepository.delete(transportOrderItem);
@@ -197,11 +237,85 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
             ).orElseThrow(() -> new ResourceNotFoundException("Warehouse Inventory Not Found"));
         }
 
-        return _warehouseInventoryRepository.findByWarehouse_IdAndProduct_IdAndWarehouse_Company_Id(
+        WarehouseInventory inventory = _warehouseInventoryRepository.findByWarehouseIdAndProductIdForUpdate(
                 transportOrder.getSourceWarehouse().getId(),
-                product.getId(),
-                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                product.getId()
         ).orElseThrow(() -> new ResourceNotFoundException("Warehouse Inventory Not Found"));
+
+        Long inventoryCompanyId = inventory.getWarehouse() != null && inventory.getWarehouse().getCompany() != null
+                ? inventory.getWarehouse().getCompany().getId()
+                : null;
+        authenticatedUserProvider.ensureCompanyAccess(inventoryCompanyId);
+
+        return inventory;
+    }
+
+
+    private boolean sameReservationTarget(TransportOrderItem currentItem, TransportOrder targetOrder, Product targetProduct) {
+        return currentItem.getTransportOrder() != null
+                && targetOrder != null
+                && currentItem.getTransportOrder().getSourceWarehouse() != null
+                && targetOrder.getSourceWarehouse() != null
+                && currentItem.getTransportOrder().getSourceWarehouse().getId().equals(targetOrder.getSourceWarehouse().getId())
+                && currentItem.getProduct() != null
+                && targetProduct != null
+                && currentItem.getProduct().getId().equals(targetProduct.getId());
+    }
+
+    private void reserveInventoryForItem(TransportOrder transportOrder, Product product, BigDecimal quantity) {
+        try {
+            warehouseInventoryService.reserveStock(
+                    transportOrder.getSourceWarehouse().getId(),
+                    product.getId(),
+                    quantity
+            );
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private void markItemReserved(TransportOrderItem item, BigDecimal quantity) {
+        try {
+            item.markReserved(quantity);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private void releaseInventoryForItem(TransportOrder transportOrder, Product product, BigDecimal quantity) {
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
+
+        try {
+            warehouseInventoryService.releaseReservedStock(
+                    transportOrder.getSourceWarehouse().getId(),
+                    product.getId(),
+                    quantity
+            );
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private void auditTransportItemQuantity(String action,
+                                            TransportOrderItem item,
+                                            String field,
+                                            BigDecimal oldValue,
+                                            BigDecimal newValue) {
+        if (item == null || item.getId() == null) {
+            return;
+        }
+
+        auditFacade.recordFieldChange("TRANSPORT_ORDER_ITEM", item.getId(), field, oldValue, newValue);
+        auditFacade.log(
+                action,
+                "TRANSPORT_ORDER_ITEM",
+                item.getId(),
+                "Transport order item " + item.getId()
+                        + " for transport order " + (item.getTransportOrder() != null ? item.getTransportOrder().getId() : null)
+                        + " changed " + field + " from " + oldValue + " to " + newValue
+        );
     }
 
     private void validateSharedCompanyContext(TransportOrder transportOrder, Product product) {
@@ -321,3 +435,4 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         }
     }
 }
+

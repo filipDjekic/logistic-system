@@ -27,6 +27,7 @@ export const queryKeys = {
 
   dashboard: {
     root: () => ['dashboard'] as const,
+    role: (role: string) => ['dashboard', role] as const,
     myTasks: () => ['dashboard', 'my-tasks'] as const,
     myUnreadNotificationsCount: () => ['dashboard', 'my-unread-notifications-count'] as const,
     transportOrders: () => ['dashboard', 'transport-orders'] as const,
@@ -48,11 +49,13 @@ export const queryKeys = {
     root: () => ['inventory'] as const,
     list: (filters: unknown) => ['inventory', 'list', filters] as const,
     detail: (warehouseId: number, productId: number) => ['inventory', 'details', warehouseId, productId] as const,
+    warehouses: () => ['inventory', 'warehouses'] as const,
+    products: () => ['inventory', 'products'] as const,
   },
 
   notifications: {
     root: () => ['notifications'] as const,
-    my: (page: number, size: number) => ['notifications', 'my', page, size] as const,
+    my: (params: unknown) => ['notifications', 'my', params] as const,
     myUnreadCount: () => ['notifications', 'my', 'unread-count'] as const,
   },
 
@@ -71,6 +74,7 @@ export const queryKeys = {
   shifts: {
     root: () => ['shifts'] as const,
     all: () => ['shifts', 'all'] as const,
+    list: (params: unknown) => ['shifts', 'list', params] as const,
     my: () => ['shifts', 'my'] as const,
     detail: (id: number) => ['shifts', 'details', id] as const,
   },
@@ -79,6 +83,10 @@ export const queryKeys = {
     root: () => ['stock-movements'] as const,
     list: (params: unknown) => ['stock-movements', 'list', params] as const,
     detail: (id: number) => ['stock-movements', 'details', id] as const,
+    operationWarehouseSearch: (search: string) => ['stock-operation', 'warehouse-search', search] as const,
+    operationProductSearch: (search: string) => ['stock-operation', 'product-search', search] as const,
+    operationTransportOrderSearch: (search: string) => ['stock-operation', 'transport-order-search', search] as const,
+    operationWarehouseInventory: (warehouseId: number | null | undefined) => ['stock-operation-warehouse-inventory', warehouseId ?? null] as const,
   },
 
   tasks: {
@@ -86,6 +94,12 @@ export const queryKeys = {
     all: (params?: unknown) => ['tasks', 'all', params ?? {}] as const,
     my: (params?: unknown) => ['tasks', 'my', params ?? {}] as const,
     detail: (id: number) => ['tasks', 'details', id] as const,
+    employees: () => ['tasks', 'employees'] as const,
+    transportOrders: () => ['tasks', 'transport-orders'] as const,
+    stockMovements: () => ['tasks', 'stock-movements'] as const,
+    detailEmployee: (employeeId: number | null | undefined) => ['task-details', 'employee', employeeId ?? null] as const,
+    detailTransportOrder: (transportOrderId: number | null | undefined) => ['task-details', 'transport-order', transportOrderId ?? null] as const,
+    detailStockMovement: (stockMovementId: number | null | undefined) => ['task-details', 'stock-movement', stockMovementId ?? null] as const,
   },
 
   transportOrders: {
@@ -118,6 +132,13 @@ export const queryKeys = {
     all: (params?: unknown) => ['warehouses', 'all', params ?? {}] as const,
     managers: () => ['warehouses', 'managers'] as const,
     detail: (id: number) => ['warehouses', 'details', id] as const,
+  },
+  
+  cities: {
+    root: () => ['cities'] as const,
+    all: () => ['cities', 'all'] as const,
+    byCountry: (countryId: number | null) => ['cities', 'country', countryId] as const,
+    detail: (id: number) => ['cities', 'details', id] as const,
   },
   
   countries: {

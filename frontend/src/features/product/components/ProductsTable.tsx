@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-import type { DataTableColumn } from '../../../shared/types/common.types';
+import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { ProductResponse } from '../types/product.types';
 
 type Props = {
@@ -13,6 +14,9 @@ type Props = {
   onEdit: (row: ProductResponse) => void;
   onDelete: (row: ProductResponse) => void;
   canManage: boolean;
+  pagination?: ReactNode;
+  sort?: SortState;
+  onSortChange?: (sort: SortState) => void;
 };
 
 export default function ProductsTable({
@@ -23,13 +27,16 @@ export default function ProductsTable({
   onEdit,
   onDelete,
   canManage,
+  pagination,
+  sort,
+  onSortChange,
 }: Props) {
   const columns: DataTableColumn<ProductResponse>[] = [
-    { id: 'name', header: 'Name', accessor: 'name', minWidth: 160 },
-    { id: 'sku', header: 'SKU', accessor: 'sku', minWidth: 120 },
-    { id: 'unit', header: 'Unit', accessor: 'unit', minWidth: 100 },
-    { id: 'price', header: 'Price', accessor: 'price', minWidth: 100 },
-    { id: 'weight', header: 'Weight', accessor: 'weight', minWidth: 100 },
+    { id: 'name', header: 'Name', accessor: 'name', minWidth: 160, sortField: 'name' },
+    { id: 'sku', header: 'SKU', accessor: 'sku', minWidth: 120, sortField: 'sku' },
+    { id: 'unit', header: 'Unit', accessor: 'unit', minWidth: 100, sortField: 'unit' },
+    { id: 'price', header: 'Price', accessor: 'price', minWidth: 100, sortField: 'price' },
+    { id: 'weight', header: 'Weight', accessor: 'weight', minWidth: 100, sortField: 'weight' },
     {
       id: 'fragile',
       header: 'Fragile',
@@ -51,6 +58,7 @@ export default function ProductsTable({
     {
       id: 'actions',
       header: 'Actions',
+      sticky: 'right',
       minWidth: 220,
       align: 'right',
       render: (row) => (
@@ -88,6 +96,9 @@ export default function ProductsTable({
       onRetry={onRetry}
       getRowId={(row) => row.id}
       columns={columns}
+      pagination={pagination}
+      sort={sort}
+      onSortChange={onSortChange}
     />
   );
 }

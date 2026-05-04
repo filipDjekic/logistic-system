@@ -17,6 +17,7 @@ import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateVehicleState } from '../../../core/utils/invalidateAppState';
 import { vehiclesApi } from '../api/vehiclesApi';
 import { useVehicle } from '../hooks/useVehicle';
 import type { VehicleStatus } from '../types/vehicle.types';
@@ -87,12 +88,7 @@ export default function VehicleDetailsPage() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({
-          queryKey: ['vehicles', 'details', variables.id],
-        }),
-      ]);
+      await invalidateVehicleState(queryClient, variables.id);
 
       setSelectedStatus('');
     },
@@ -189,7 +185,16 @@ export default function VehicleDetailsPage() {
             <InfoRow label="Year of production" value={vehicle.yearOfProduction} />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <InfoRow label="Capacity" value={formatCapacity(vehicle.capacity)} />
+            <InfoRow label="Capacity (items/pallets)" value={formatCapacity(vehicle.capacity)} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <InfoRow label="Max weight" value={formatOptionalNumber(vehicle.maxWeight, " kg")} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <InfoRow label="Max volume" value={formatOptionalNumber(vehicle.maxVolume)} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <InfoRow label="Max items" value={formatOptionalNumber(vehicle.maxItems)} />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <Stack spacing={0.5}>

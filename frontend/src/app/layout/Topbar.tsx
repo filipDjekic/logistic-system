@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useContext } from 'react';
 import {
   alpha,
   Avatar,
@@ -12,10 +12,13 @@ import {
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
+import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
 import { useLocation } from 'react-router-dom';
 import { authStore, useAuthStore } from '../../core/auth/authStore';
 import { getRouteMetaByPath } from '../router/routeMeta';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
+import { ColorModeContext } from '@/shared/theme/theme';
 
 type TopbarProps = {
   onOpenSidebar: () => void;
@@ -33,6 +36,7 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
   const auth = useAuthStore();
   const location = useLocation();
   const [userAnchorEl, setUserAnchorEl] = useState<null | HTMLElement>(null);
+  const { mode, toggleMode } = useContext(ColorModeContext);
 
   const userInitial = useMemo(() => getInitial(auth.user?.email), [auth.user?.email]);
   const currentRouteMeta = useMemo(() => getRouteMetaByPath(location.pathname), [location.pathname]);
@@ -84,6 +88,10 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
         </Stack>
 
         <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton onClick={toggleMode} color="inherit" aria-label="Toggle theme">
+            {mode === 'dark' ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+          </IconButton>
+
           <NotificationBadge />
 
           <Stack
@@ -138,9 +146,6 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Role: {auth.user?.role ?? '-'}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            User ID: {auth.user?.id ?? '-'}
           </Typography>
         </Box>
 

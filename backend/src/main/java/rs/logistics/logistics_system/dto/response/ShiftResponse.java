@@ -18,20 +18,10 @@ public class ShiftResponse {
     private LocalDateTime endTime;
     private ShiftStatus status;
     private String notes;
+    private Long timezoneId;
+    private String timezoneName;
+    private String timezoneDisplayName;
+    private String timezone;
 
     private Long employeeId;
-
-    public ShiftResponse(Long id,
-                         LocalDateTime startTime,
-                         LocalDateTime endTime,
-                         ShiftStatus status,
-                         String notes,
-                         Long employeeId) {
-        this.id = id;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.status = status;
-        this.notes = notes;
-        this.employeeId = employeeId;
-    }
 }

@@ -12,7 +12,12 @@ import rs.logistics.logistics_system.enums.NotificationType;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "NOTIFICATIONS")
+@Table(
+        name = "NOTIFICATIONS",
+        indexes = {
+                @Index(name = "idx_notifications_user_status_created", columnList = "user_id, status, created_at")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor

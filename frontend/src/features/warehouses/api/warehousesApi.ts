@@ -48,7 +48,7 @@ export const warehousesApi = {
   },
 
   getManagers() {
-    return apiClient.get<WarehouseEmployeeOption[] | PageResponse<WarehouseEmployeeOption>>('/api/employees', { params: { size: 1000, sort: 'lastName,asc' } }).then((response) =>
+    return apiClient.get<WarehouseEmployeeOption[] | PageResponse<WarehouseEmployeeOption>>('/api/employees', { params: { size: 25, sort: 'lastName,asc' } }).then((response) =>
       unwrapPageContent(response.data)
         .filter((employee) => employee.position === 'WAREHOUSE_MANAGER')
         .map((employee) => ({

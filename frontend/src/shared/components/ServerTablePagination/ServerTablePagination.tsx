@@ -1,7 +1,9 @@
 import { TablePagination } from '@mui/material';
 import type { PageResponse } from '../../../core/api/pagination';
 
-const rowsPerPageOptions = [10, 20, 50, 100];
+import { appConfig } from '../../../core/config/appConfig';
+
+const rowsPerPageOptions = [...appConfig.pagination.pageSizeOptions];
 
 type Props<T> = {
   page?: PageResponse<T>;

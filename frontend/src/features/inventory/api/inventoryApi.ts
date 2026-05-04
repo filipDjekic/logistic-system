@@ -68,7 +68,7 @@ export const inventoryApi = {
 
   getWarehouses() {
     return apiClient
-      .get<InventoryWarehouseOption[] | PageResponse<InventoryWarehouseOption>>('/api/warehouses', { params: { size: 1000, sort: 'name,asc' } })
+      .get<InventoryWarehouseOption[] | PageResponse<InventoryWarehouseOption>>('/api/warehouses', { params: { size: 25, sort: 'name,asc' } })
       .then((response) => unwrapPageContent(response.data));
   },
 
@@ -80,7 +80,7 @@ export const inventoryApi = {
 
   getProducts() {
     return apiClient
-      .get<InventoryProductOption[] | PageResponse<InventoryProductOption>>('/api/products', { params: { size: 1000, sort: 'name,asc' } })
+      .get<InventoryProductOption[] | PageResponse<InventoryProductOption>>('/api/products', { params: { size: 25, sort: 'name,asc' } })
       .then((response) => unwrapPageContent(response.data));
   },
 

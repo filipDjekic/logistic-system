@@ -10,6 +10,7 @@ import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateWarehouseState } from '../../../core/utils/invalidateAppState';
 import { warehousesApi } from '../api/warehousesApi';
 import { useWarehouse } from '../hooks/useWarehouse';
 import type { WarehouseStatus } from '../types/warehouse.types';
@@ -73,14 +74,7 @@ export default function WarehouseDetailsPage() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['warehouses'] }),
-        queryClient.invalidateQueries({
-          queryKey: ['warehouses', 'details', variables.id],
-        }),
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
-      ]);
+      await invalidateWarehouseState(queryClient, variables.id);
 
       setSelectedStatus('');
     },
@@ -147,7 +141,7 @@ export default function WarehouseDetailsPage() {
             {canManage ? (
               <Button
                 variant="outlined"
-                onClick={() => navigate('/stock-movements?create=1')}
+                onClick={() => navigate('/stock/inbound')}
               >
                 Create stock movement
               </Button>

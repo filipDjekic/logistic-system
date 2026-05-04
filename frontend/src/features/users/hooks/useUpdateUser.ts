@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateUserState } from '../../../core/utils/invalidateAppState';
 import { usersApi } from '../api/usersApi';
 import type { UserUpdateRequest } from '../types/user.types';
 
@@ -21,11 +22,7 @@ export function useUpdateUser() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['users'] }),
-        queryClient.invalidateQueries({ queryKey: ['users', 'details', variables.id] }),
-        queryClient.invalidateQueries({ queryKey: ['roles'] }),
-      ]);
+      await invalidateUserState(queryClient, variables.id);
     },
     onError: (error) => {
       showSnackbar({

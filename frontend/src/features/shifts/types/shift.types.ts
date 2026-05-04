@@ -6,6 +6,10 @@ export type ShiftResponse = {
   endTime: string;
   status: ShiftStatus;
   notes: string;
+  timezoneId: number;
+  timezoneName?: string | null;
+  timezoneDisplayName?: string | null;
+  timezone?: string | null;
   employeeId: number;
 };
 
@@ -14,6 +18,10 @@ export type ShiftCreateRequest = {
   endTime: string;
   status: ShiftStatus;
   notes: string;
+  timezoneId: number;
+  timezoneName?: string | null;
+  timezoneDisplayName?: string | null;
+  timezone?: string | null;
   employeeId: number;
 };
 
@@ -23,6 +31,10 @@ export type ShiftUpdateRequest = {
   endTime: string;
   status: ShiftStatus;
   notes?: string;
+  timezoneId: number;
+  timezoneName?: string | null;
+  timezoneDisplayName?: string | null;
+  timezone?: string | null;
 };
 
 export type ShiftFiltersState = {
@@ -42,5 +54,6 @@ export type ShiftFormValues = {
   endTime: string;
   status: ShiftStatus;
   notes: string;
+  timezoneId?: number | '';
   employeeId: number | '';
 };

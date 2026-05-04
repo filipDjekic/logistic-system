@@ -1,5 +1,6 @@
 import { apiClient } from '../../../core/api/client';
 import { unwrapPageContent } from '../../../core/api/pagination';
+import { compactParams, enumFilter, trimSearch } from '../../../core/api/params';
 import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   EmployeeOption,
@@ -61,7 +62,7 @@ type VehicleResponse = {
   capacity: number;
   fuelType: string;
   yearOfProduction: number;
-  status: 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
+  status: 'AVAILABLE' | 'RESERVED' | 'IN_USE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
 };
 
 function buildTransportOrderParams(filters?: TransportOrderListFilters & PageParams) {
@@ -69,58 +70,20 @@ function buildTransportOrderParams(filters?: TransportOrderListFilters & PagePar
     return undefined;
   }
 
-  const params: Record<string, string | number> = {};
-
-  if (filters.page != null) {
-    params.page = filters.page;
-  }
-
-  if (filters.size != null) {
-    params.size = filters.size;
-  }
-
-  if (filters.sort) {
-    params.sort = filters.sort;
-  }
-  const search = filters.search?.trim();
-
-  if (search) {
-    params.search = search;
-  }
-
-  if (filters.status && filters.status !== 'ALL') {
-    params.status = filters.status;
-  }
-
-  if (filters.priority && filters.priority !== 'ALL') {
-    params.priority = filters.priority;
-  }
-
-  if (filters.sourceWarehouseId) {
-    params.sourceWarehouseId = filters.sourceWarehouseId;
-  }
-
-  if (filters.destinationWarehouseId) {
-    params.destinationWarehouseId = filters.destinationWarehouseId;
-  }
-
-  if (filters.vehicleId) {
-    params.vehicleId = filters.vehicleId;
-  }
-
-  if (filters.assignedEmployeeId) {
-    params.assignedEmployeeId = filters.assignedEmployeeId;
-  }
-
-  if (filters.fromDate) {
-    params.fromDate = filters.fromDate;
-  }
-
-  if (filters.toDate) {
-    params.toDate = filters.toDate;
-  }
-
-  return params;
+  return compactParams({
+    page: filters.page,
+    size: filters.size,
+    sort: filters.sort,
+    search: trimSearch(filters.search),
+    status: enumFilter(filters.status),
+    priority: enumFilter(filters.priority),
+    sourceWarehouseId: filters.sourceWarehouseId,
+    destinationWarehouseId: filters.destinationWarehouseId,
+    vehicleId: filters.vehicleId,
+    assignedEmployeeId: filters.assignedEmployeeId,
+    fromDate: filters.fromDate,
+    toDate: filters.toDate,
+  });
 }
 
 export const transportOrdersApi = {
@@ -156,18 +119,12 @@ export const transportOrdersApi = {
       .then((response) => response.data);
   },
 
-  getAllItems() {
-    return apiClient
-      .get<TransportOrderItemResponse[]>('/api/transport_order_items')
-      .then((response) => response.data);
-  },
-
   getItemsByTransportOrderId(transportOrderId: number) {
-    return transportOrdersApi.getAllItems().then((items) =>
-      items
-        .filter((item) => item.transportOrderId === transportOrderId)
-        .sort((a, b) => a.id - b.id),
-    );
+    return apiClient
+      .get<PageResponse<TransportOrderItemResponse>>('/api/transport_order_items', {
+        params: { transportOrderId, page: 0, size: 100, sort: 'id,asc' },
+      })
+      .then((response) => response.data.content);
   },
 
   createItem(payload: TransportOrderItemCreateRequest) {
@@ -188,7 +145,7 @@ export const transportOrdersApi = {
 
   getWarehouses() {
     return apiClient
-      .get<WarehouseResponse[] | PageResponse<WarehouseResponse>>('/api/warehouses', { params: { size: 1000, sort: 'name,asc' } })
+      .get<WarehouseResponse[] | PageResponse<WarehouseResponse>>('/api/warehouses', { params: { size: 25, sort: 'name,asc' } })
       .then((response) =>
         unwrapPageContent(response.data).map<WarehouseOption>((warehouse) => ({
           id: warehouse.id,
@@ -204,7 +161,7 @@ export const transportOrdersApi = {
 
   getVehicles() {
     return apiClient
-      .get<VehicleResponse[] | PageResponse<VehicleResponse>>('/api/vehicles', { params: { size: 1000, sort: 'registrationNumber,asc' } })
+      .get<VehicleResponse[] | PageResponse<VehicleResponse>>('/api/vehicles', { params: { size: 25, sort: 'registrationNumber,asc' } })
       .then((response) =>
         unwrapPageContent(response.data).map<VehicleOption>((vehicle) => ({
           id: vehicle.id,
@@ -222,7 +179,7 @@ export const transportOrdersApi = {
 
   getEmployees() {
     return apiClient
-      .get<EmployeeResponse[] | PageResponse<EmployeeResponse>>('/api/employees', { params: { size: 1000, sort: 'lastName,asc' } })
+      .get<EmployeeResponse[] | PageResponse<EmployeeResponse>>('/api/employees', { params: { size: 25, sort: 'lastName,asc' } })
       .then((response) =>
         unwrapPageContent(response.data)
           .filter((employee) => employee.position === 'DRIVER')
@@ -238,7 +195,7 @@ export const transportOrdersApi = {
 
   getProducts() {
     return apiClient
-      .get<ProductResponse[] | PageResponse<ProductResponse>>('/api/products', { params: { size: 1000, sort: 'name,asc' } })
+      .get<ProductResponse[] | PageResponse<ProductResponse>>('/api/products', { params: { size: 25, sort: 'name,asc' } })
       .then((response) =>
         unwrapPageContent(response.data).map<ProductOption>((product) => ({
           id: product.id,

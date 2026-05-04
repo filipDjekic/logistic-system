@@ -7,8 +7,9 @@ import { ROLES } from '../../../core/constants/roles';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { useUpdateUser } from '../../users/hooks/useUpdateUser';
 import EmployeeFormDialog from '../components/EmployeeFormDialog';
@@ -31,7 +32,10 @@ export default function EmployeesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
-  const canEditEmployees = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+  const canEditEmployees =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.HR_MANAGER;
   const canCreateEmployees =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.HR_MANAGER ||
@@ -154,6 +158,13 @@ export default function EmployeesPage() {
           jmbg: values.jmbg,
           phoneNumber: values.phoneNumber,
           email: values.email,
+          address: values.address?.trim() || null,
+          cityId: values.cityId ? Number(values.cityId) : null,
+          city: values.city?.trim() || null,
+          postalCode: values.postalCode?.trim() || null,
+          countryId: values.countryId ? Number(values.countryId) : null,
+          timezoneId: values.timezoneId ? Number(values.timezoneId) : null,
+          primaryWarehouseId: values.primaryWarehouseId ? Number(values.primaryWarehouseId) : null,
           position: values.position,
           employmentDate: values.employmentDate,
           salary: Number(values.salary),
@@ -212,6 +223,13 @@ export default function EmployeesPage() {
           firstName: values.firstName,
           lastName: values.lastName,
           jmbg: values.jmbg,
+          address: values.address?.trim() || null,
+          cityId: values.cityId ? Number(values.cityId) : null,
+          city: values.city?.trim() || null,
+          postalCode: values.postalCode?.trim() || null,
+          countryId: values.countryId ? Number(values.countryId) : null,
+          timezoneId: values.timezoneId ? Number(values.timezoneId) : null,
+          primaryWarehouseId: values.primaryWarehouseId ? Number(values.primaryWarehouseId) : null,
           phoneNumber: values.phoneNumber,
           email: values.email,
           position: values.position,
@@ -250,16 +268,26 @@ export default function EmployeesPage() {
         }
       />
 
-      <SectionCard title="Employee list" description="">
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5}>
-            <SearchToolbar
-              value={filters.search}
-              onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by name, email, JMBG, phone, role or status"
-              fullWidth
-            />
-
+      <TableLayout
+        title="Employee list"
+        toolbar={
+          <TableToolbar
+            searchValue={filters.search}
+            onSearchChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+            searchPlaceholder="Search by name, email, JMBG, phone, role or status"
+            onRefresh={() => {
+              void Promise.all([
+                employeesQuery.refetch(),
+                rolesQuery.refetch(),
+                ...(canEditEmployees ? [usersQuery.refetch()] : []),
+                ...(isOverlord && dialogOpen && dialogMode === 'create' ? [companiesQuery.refetch()] : []),
+              ]);
+            }}
+            refreshDisabled={employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching}
+          />
+        }
+        filters={
+          <FilterPanel minColumnWidth={180}>
             <TextField
               select
               size="small"
@@ -271,16 +299,12 @@ export default function EmployeesPage() {
                   position: event.target.value as EmployeeFiltersState['position'],
                 }))
               }
-              sx={{ minWidth: { xs: '100%', lg: 220 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
               {employeePositionOptions.map((position) => (
-                <MenuItem key={position} value={position}>
-                  {position}
-                </MenuItem>
+                <MenuItem key={position} value={position}>{position}</MenuItem>
               ))}
             </TextField>
-
             <TextField
               select
               size="small"
@@ -292,13 +316,11 @@ export default function EmployeesPage() {
                   active: event.target.value as EmployeeFiltersState['active'],
                 }))
               }
-              sx={{ minWidth: { xs: '100%', lg: 160 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="ACTIVE">Active</MenuItem>
               <MenuItem value="INACTIVE">Inactive</MenuItem>
             </TextField>
-
             <TextField
               select
               size="small"
@@ -310,36 +332,14 @@ export default function EmployeesPage() {
                   linkedUser: event.target.value as EmployeeFiltersState['linkedUser'],
                 }))
               }
-              sx={{ minWidth: { xs: '100%', lg: 180 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="LINKED">Has account</MenuItem>
               <MenuItem value="UNLINKED">No account</MenuItem>
             </TextField>
-
-            <Button
-              variant="outlined"
-              disabled={
-                employeesQuery.isFetching ||
-                usersQuery.isFetching ||
-                rolesQuery.isFetching ||
-                companiesQuery.isFetching
-              }
-              onClick={() => {
-                void Promise.all([
-                  employeesQuery.refetch(),
-                  rolesQuery.refetch(),
-                  ...(canEditEmployees ? [usersQuery.refetch()] : []),
-                  ...(isOverlord && dialogOpen && dialogMode === 'create'
-                    ? [companiesQuery.refetch()]
-                    : []),
-                ]);
-              }}
-            >
-              Refresh
-            </Button>
-          </Stack>
-
+          </FilterPanel>
+        }
+        table={
           <EmployeesTable
             rows={employeesQuery.data?.content ?? []}
             usersById={usersById}
@@ -353,10 +353,7 @@ export default function EmployeesPage() {
               ]);
             }}
             onEdit={(employee) => {
-              if (!canEditEmployees) {
-                return;
-              }
-
+              if (!canEditEmployees) return;
               setDialogMode('edit');
               setSelectedEmployee(employee);
               setDialogOpen(true);
@@ -375,8 +372,8 @@ export default function EmployeesPage() {
             sort={sort}
             onSortChange={handleSortChange}
           />
-        </Stack>
-      </SectionCard>
+        }
+      />
 
       <EmployeeFormDialog
         open={dialogOpen}

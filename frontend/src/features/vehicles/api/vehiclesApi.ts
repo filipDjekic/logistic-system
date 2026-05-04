@@ -1,7 +1,9 @@
 import { apiClient } from '../../../core/api/client';
 import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
+  VehicleBrandResponse,
   VehicleCreateRequest,
+  VehicleModelResponse,
   VehicleResponse,
   VehicleSearchParams,
   VehicleStatus,
@@ -42,6 +44,18 @@ export const vehiclesApi = {
       .patch<VehicleResponse>(`/api/vehicles/${id}/status`, null, {
         params: { status },
       })
+      .then((response) => response.data);
+  },
+
+  getBrands() {
+    return apiClient
+      .get<VehicleBrandResponse[]>('/api/vehicle-catalog/brands')
+      .then((response) => response.data);
+  },
+
+  getModelsByBrand(brandId: number) {
+    return apiClient
+      .get<VehicleModelResponse[]>(`/api/vehicle-catalog/brands/${brandId}/models`)
       .then((response) => response.data);
   },
 };

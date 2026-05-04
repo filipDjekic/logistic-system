@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { transportOrdersApi } from '../api/transportOrdersApi';
+import { invalidateTransportOrderState } from '../../../core/utils/invalidateAppState';
 import type { TransportOrderStatus } from '../types/transportOrder.types';
 
 type UpdateTransportOrderStatusPayload = {
@@ -22,10 +23,7 @@ export function useUpdateTransportOrderStatus() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['transport-orders'] }),
-        queryClient.invalidateQueries({ queryKey: ['transport-order-items'] }),
-      ]);
+      await invalidateTransportOrderState(queryClient, variables.id);
     },
     onError: (error) => {
       showSnackbar({

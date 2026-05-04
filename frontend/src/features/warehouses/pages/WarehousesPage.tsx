@@ -1,27 +1,23 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
-import { useCompanies } from '../../companies/hooks/useCompanies';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
-import WarehouseFormDialog from '../components/WarehouseFormDialog';
 import WarehousesTable from '../components/WarehousesTable';
 import {
-  useCreateWarehouse,
   useDeleteWarehouse,
-  useUpdateWarehouse,
-  useWarehouseManagers,
   useWarehouses,
 } from '../hooks/useWarehouses';
 import type { SortState } from '../../../shared/types/common.types';
 import type {
   WarehouseFiltersState,
-  WarehouseFormValues,
   WarehouseResponse,
 } from '../types/warehouse.types';
 
@@ -29,7 +25,7 @@ const warehouseStatusOptions = ['ACTIVE', 'INACTIVE', 'FULL', 'UNDER_MAINTENANCE
 
 export default function WarehousesPage() {
   const auth = useAuthStore();
-  const isOverlord = auth.user?.role === ROLES.OVERLORD;
+  const navigate = useNavigate();
 
   const canCreate =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
@@ -43,6 +39,7 @@ export default function WarehousesPage() {
     active: 'ALL',
   });
 
+  const [deleteTarget, setDeleteTarget] = useState<WarehouseResponse | null>(null);
 
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -57,10 +54,6 @@ export default function WarehousesPage() {
     setPage(0);
     setSort(nextSort);
   };
-  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
-  const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseResponse | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<WarehouseResponse | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const queryFilters = useMemo(
     () => ({
@@ -72,16 +65,9 @@ export default function WarehousesPage() {
   );
 
   const warehousesQuery = useWarehouses({ ...queryFilters, page, size, sort: buildSortParam(sort) }, true);
-  const managersQuery = useWarehouseManagers(canCreate && dialogOpen && dialogMode === 'create');
-  const companiesQuery = useCompanies(canCreate && isOverlord && dialogOpen && dialogMode === 'create');
-  const createWarehouseMutation = useCreateWarehouse();
-  const updateWarehouseMutation = useUpdateWarehouse();
   const deleteWarehouseMutation = useDeleteWarehouse();
 
   const rows = warehousesQuery.data?.content ?? [];
-
-  const isSaving =
-    createWarehouseMutation.isPending || updateWarehouseMutation.isPending;
 
   return (
     <Stack spacing={3}>
@@ -93,11 +79,7 @@ export default function WarehousesPage() {
           canCreate ? (
             <Button
               variant="contained"
-              onClick={() => {
-                setDialogMode('create');
-                setSelectedWarehouse(null);
-                setDialogOpen(true);
-              }}
+              onClick={() => navigate('/warehouses/create')}
             >
               Create warehouse
             </Button>
@@ -105,40 +87,32 @@ export default function WarehousesPage() {
         }
       />
 
-      <SectionCard
+      <TableLayout
         title="Warehouse list"
         description="Warehouse data is loaded through backend company-scoped endpoints."
-      >
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-            <SearchToolbar
-              value={filters.search}
-              onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by name, city, address, manager, company or ID"
-              fullWidth
-            />
-
+        toolbar={
+          <TableToolbar
+            searchValue={filters.search}
+            onSearchChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+            searchPlaceholder="Search by name, city, address, manager, company or ID"
+            onRefresh={() => { void warehousesQuery.refetch(); }}
+            refreshDisabled={warehousesQuery.isFetching}
+          />
+        }
+        filters={
+          <FilterPanel minColumnWidth={180}>
             <TextField
               select
               size="small"
               label="Status"
               value={filters.status}
               onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  status: event.target.value as WarehouseFiltersState['status'],
-                }))
+                setFilters((prev) => ({ ...prev, status: event.target.value as WarehouseFiltersState['status'] }))
               }
-              sx={{ minWidth: { xs: '100%', md: 220 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
-              {warehouseStatusOptions.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
-                </MenuItem>
-              ))}
+              {warehouseStatusOptions.map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
             </TextField>
-
             <TextField
               select
               size="small"
@@ -147,63 +121,28 @@ export default function WarehousesPage() {
               onChange={(event) =>
                 setFilters((prev) => ({
                   ...prev,
-                  active:
-                    event.target.value === 'ALL'
-                      ? 'ALL'
-                      : event.target.value === 'true',
+                  active: event.target.value === 'ALL' ? 'ALL' : event.target.value === 'true',
                 }))
               }
-              sx={{ minWidth: { xs: '100%', md: 180 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="true">Active</MenuItem>
               <MenuItem value="false">Inactive</MenuItem>
             </TextField>
-
-            <Button
-              variant="outlined"
-              onClick={() => {
-                void warehousesQuery.refetch();
-
-                if (canCreate && dialogOpen && dialogMode === 'create') {
-                  void managersQuery.refetch();
-                }
-
-                if (canCreate && isOverlord && dialogOpen && dialogMode === 'create') {
-                  void companiesQuery.refetch();
-                }
-              }}
-              disabled={
-                warehousesQuery.isFetching ||
-                managersQuery.isFetching ||
-                companiesQuery.isFetching
-              }
-            >
-              Refresh
-            </Button>
-          </Stack>
-
+          </FilterPanel>
+        }
+        table={
           <WarehousesTable
             rows={rows}
             loading={warehousesQuery.isLoading}
             error={warehousesQuery.isError}
-            onRetry={() => {
-              void warehousesQuery.refetch();
-            }}
+            onRetry={() => { void warehousesQuery.refetch(); }}
             onEdit={(warehouse) => {
-              if (!canManage) {
-                return;
-              }
-
-              setDialogMode('edit');
-              setSelectedWarehouse(warehouse);
-              setDialogOpen(true);
+              if (!canManage) return;
+              navigate(`/warehouses/${warehouse.id}/edit`);
             }}
             onDelete={(warehouse) => {
-              if (!canManage) {
-                return;
-              }
-
+              if (!canManage) return;
               setDeleteTarget(warehouse);
             }}
             canManage={canManage}
@@ -218,54 +157,8 @@ export default function WarehousesPage() {
             sort={sort}
             onSortChange={handleSortChange}
           />
-        </Stack>
-      </SectionCard>
-
-      {canCreate ? (
-        <WarehouseFormDialog
-          open={dialogOpen}
-          mode={dialogMode}
-          initialData={selectedWarehouse}
-          managers={managersQuery.data ?? []}
-          companies={companiesQuery.data ?? []}
-          isOverlord={isOverlord}
-          loading={isSaving || managersQuery.isLoading || companiesQuery.isLoading}
-          onClose={() => setDialogOpen(false)}
-          onSubmit={(values: WarehouseFormValues) => {
-            if (dialogMode === 'create') {
-              const capacity = values.capacity === '' ? undefined : Number(values.capacity);
-              const employeeId = values.employeeId === '' ? undefined : Number(values.employeeId);
-              const companyId = values.companyId ? Number(values.companyId) : undefined;
-
-              createWarehouseMutation.mutate({
-                name: values.name,
-                address: values.address,
-                city: values.city,
-                capacity: capacity as number,
-                status: values.status,
-                employeeId: employeeId as number,
-                companyId,
-              });
-              return;
-            }
-
-            if (!selectedWarehouse) {
-              return;
-            }
-
-            const updatedCapacity = values.capacity === '' ? undefined : Number(values.capacity);
-            updateWarehouseMutation.mutate({
-              id: selectedWarehouse.id,
-              data: {
-                name: values.name,
-                address: values.address,
-                city: values.city,
-                capacity: updatedCapacity as number,
-              },
-            });
-          }}
-        />
-      ) : null}
+        }
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

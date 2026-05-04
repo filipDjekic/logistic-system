@@ -34,14 +34,9 @@ public class NotificationService implements NotificationServiceDefinition {
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
+    @Transactional
     public NotificationResponse create(NotificationCreate dto) {
-        User user = _userRepository.findById(dto.getUserId()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (!authenticatedUserProvider.isOverlord()) {
-            authenticatedUserProvider.ensureCompanyAccess(
-                    user.getCompany() != null ? user.getCompany().getId() : null
-            );
-        }
+        User user = getAccessibleUserForNotificationTarget(dto.getUserId());
 
         if (user.getStatus() == null) {
             throw new BadRequestException("User status is invalid");
@@ -60,6 +55,7 @@ public class NotificationService implements NotificationServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         Notification notification = getAccessibleNotification(id);
         _notificationRepository.delete(notification);
@@ -84,23 +80,30 @@ public class NotificationService implements NotificationServiceDefinition {
     @Override
     @Transactional(readOnly = true)
     public NotificationPageResponse getByUser(Long userId, int page, int size) {
+        return getByUser(userId, null, null, page, size);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public NotificationPageResponse getByUser(Long userId, NotificationStatus status, NotificationType type, int page, int size) {
         validateUserAccess(userId);
 
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Notification> notificationPage;
-        long unreadCount;
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        if (authenticatedUserProvider.isOverlord()) {
-            notificationPage = _notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
-            unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
-        } else if (authenticatedUserProvider.isCompanyAdmin()) {
-            Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
-            notificationPage = _notificationRepository.findByUserIdAndUser_Company_IdOrderByCreatedAtDesc(userId, companyId, pageable);
-            unreadCount = _notificationRepository.countByUserIdAndStatusAndUser_Company_Id(userId, NotificationStatus.UNREAD, companyId);
-        } else {
-            notificationPage = _notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
-            unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
-        }
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Notification> notificationPage = _notificationRepository.searchForUser(
+                userId,
+                companyId,
+                status,
+                type,
+                pageable
+        );
+
+        long unreadCount = companyId == null
+                ? _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD)
+                : _notificationRepository.countByUserIdAndStatusAndUser_Company_Id(userId, NotificationStatus.UNREAD, companyId);
 
         List<NotificationResponse> items = notificationPage.getContent()
                 .stream()
@@ -121,43 +124,7 @@ public class NotificationService implements NotificationServiceDefinition {
     @Override
     @Transactional(readOnly = true)
     public NotificationPageResponse getByUserAndStatus(Long userId, NotificationStatus status, int page, int size) {
-        validateUserAccess(userId);
-
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Notification> notificationPage;
-        long unreadCount;
-
-        if (authenticatedUserProvider.isOverlord()) {
-            notificationPage = _notificationRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, status, pageable);
-            unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
-        } else if (authenticatedUserProvider.isCompanyAdmin()) {
-            Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
-            notificationPage = _notificationRepository.findByUserIdAndStatusAndUser_Company_IdOrderByCreatedAtDesc(
-                    userId,
-                    status,
-                    companyId,
-                    pageable
-            );
-            unreadCount = _notificationRepository.countByUserIdAndStatusAndUser_Company_Id(userId, NotificationStatus.UNREAD, companyId);
-        } else {
-            notificationPage = _notificationRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, status, pageable);
-            unreadCount = _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
-        }
-
-        List<NotificationResponse> items = notificationPage.getContent()
-                .stream()
-                .map(NotificationMapper::toResponse)
-                .toList();
-
-        return new NotificationPageResponse(
-                items,
-                notificationPage.getNumber(),
-                notificationPage.getSize(),
-                notificationPage.getTotalElements(),
-                notificationPage.getTotalPages(),
-                notificationPage.isLast(),
-                unreadCount
-        );
+        return getByUser(userId, status, null, page, size);
     }
 
     @Override
@@ -170,13 +137,7 @@ public class NotificationService implements NotificationServiceDefinition {
     @Override
     @Transactional
     public NotificationResponse createSystemNotification(Long userId, String title, String message, NotificationType type) {
-        User user = _userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (!authenticatedUserProvider.isOverlord()) {
-            authenticatedUserProvider.ensureCompanyAccess(
-                    user.getCompany() != null ? user.getCompany().getId() : null
-            );
-        }
+        User user = getAccessibleUserForNotificationTarget(userId);
 
         boolean duplicateUnreadExists = _notificationRepository.existsByUserIdAndTitleAndMessageAndTypeAndStatus(
                 userId,
@@ -211,6 +172,16 @@ public class NotificationService implements NotificationServiceDefinition {
         return NotificationMapper.toResponse(saved);
     }
 
+    private User getAccessibleUserForNotificationTarget(Long userId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return _userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        }
+
+        return _userRepository.findByIdAndCompany_Id(userId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
     private Notification getAccessibleNotification(Long notificationId) {
         if (authenticatedUserProvider.isOverlord()) {
             return _notificationRepository.findById(notificationId)
@@ -237,12 +208,7 @@ public class NotificationService implements NotificationServiceDefinition {
         }
 
         if (authenticatedUserProvider.isCompanyAdmin()) {
-            User targetUser = _userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-            authenticatedUserProvider.ensureCompanyAccess(
-                    targetUser.getCompany() != null ? targetUser.getCompany().getId() : null
-            );
+            getAccessibleUserForNotificationTarget(userId);
             return;
         }
 

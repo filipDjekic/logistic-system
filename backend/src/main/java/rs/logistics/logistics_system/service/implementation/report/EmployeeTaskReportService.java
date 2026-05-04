@@ -16,6 +16,7 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.report.EmployeeTaskReportServiceDefinition;
 
 import java.time.LocalDateTime;
@@ -36,6 +37,7 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
     private final TaskRepository taskRepository;
     private final ShiftRepository shiftRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final TimeServiceDefinition timeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -53,41 +55,33 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        List<Employee> employees = companyId == null
-                ? employeeRepository.findAll()
-                : employeeRepository.findAllByCompany_Id(companyId);
+        validateReportFilters(companyId, employeeId);
 
-        employees = employees.stream()
-                .filter(employee -> employeeId == null || Objects.equals(employee.getId(), employeeId))
-                .filter(employee -> position == null || employee.getPosition() == position)
-                .toList();
+        List<Employee> employees = employeeRepository.searchReportEmployees(
+                companyId,
+                employeeId,
+                position
+        );
 
-        Set<Long> employeeIds = employees.stream()
-                .map(Employee::getId)
-                .collect(Collectors.toSet());
+        List<Task> tasks = taskRepository.searchReportTasks(
+                companyId,
+                employeeId,
+                position,
+                taskStatus,
+                taskPriority,
+                fromDate,
+                toDate
+        );
 
-        List<Task> tasks = companyId == null
-                ? taskRepository.findAll()
-                : taskRepository.findAllByAssignedEmployee_Company_Id(companyId);
+        List<Shift> shifts = shiftRepository.searchReportShifts(
+                companyId,
+                employeeId,
+                position,
+                fromDate,
+                toDate
+        );
 
-        tasks = tasks.stream()
-                .filter(task -> task.getAssignedEmployee() != null && employeeIds.contains(task.getAssignedEmployee().getId()))
-                .filter(task -> taskStatus == null || task.getStatus() == taskStatus)
-                .filter(task -> taskPriority == null || task.getPriority() == taskPriority)
-                .filter(task -> isWithinDateRange(task.getCreatedAt(), fromDate, toDate)
-                        || isWithinDateRange(task.getDueDate(), fromDate, toDate))
-                .toList();
-
-        List<Shift> shifts = companyId == null
-                ? shiftRepository.findAll()
-                : shiftRepository.findAllByEmployee_Company_Id(companyId);
-
-        shifts = shifts.stream()
-                .filter(shift -> shift.getEmployee() != null && employeeIds.contains(shift.getEmployee().getId()))
-                .filter(shift -> isShiftWithinDateRange(shift, fromDate, toDate))
-                .toList();
-
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = timeService.nowSystem();
         Set<Long> employeesWithTasks = tasks.stream()
                 .filter(task -> task.getAssignedEmployee() != null)
                 .map(task -> task.getAssignedEmployee().getId())
@@ -116,39 +110,109 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
         );
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportEmployeeTaskReportCsv(
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            Long employeeId,
+            EmployeePosition position,
+            TaskStatus taskStatus,
+            TaskPriority taskPriority
+    ) {
+        EmployeeTaskReportResponse report = getEmployeeTaskReport(
+                fromDate,
+                toDate,
+                employeeId,
+                position,
+                taskStatus,
+                taskPriority
+        );
+
+        List<List<?>> rows = new java.util.ArrayList<>();
+        rows.add(java.util.Arrays.asList("Employee task report"));
+        rows.add(java.util.Arrays.asList("fromDate", report.fromDate(), "toDate", report.toDate()));
+        rows.add(java.util.Arrays.asList("employeesTotal", report.employeesTotal(), "activeEmployees", report.activeEmployees(), "inactiveEmployees", report.inactiveEmployees()));
+        rows.add(java.util.Arrays.asList("tasksTotal", report.tasksTotal(), "completedTasks", report.completedTasks(), "openTasks", report.openTasks(), "overdueOpenTasks", report.overdueOpenTasks()));
+        rows.add(java.util.Arrays.asList("shiftsTotal", report.shiftsTotal(), "employeesWithoutTasks", report.employeesWithoutTasks()));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Employee rows");
+        rows.add(java.util.Arrays.asList("employeeId", "employeeName", "email", "position", "active", "employmentDate", "userId", "tasksTotal", "completedTasks", "openTasks", "shiftsTotal"));
+        report.employeeRows().forEach(row -> rows.add(java.util.Arrays.asList(
+                row.employeeId(),
+                row.employeeName(),
+                row.email(),
+                row.position(),
+                row.active(),
+                row.employmentDate(),
+                row.userId(),
+                row.tasksTotal(),
+                row.completedTasks(),
+                row.openTasks(),
+                row.shiftsTotal()
+        )));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Task rows");
+        rows.add(java.util.Arrays.asList("taskId", "title", "status", "priority", "dueDate", "createdAt", "assignedEmployeeId", "assignedEmployeeName", "assignedEmployeePosition", "transportOrderId", "stockMovementId"));
+        report.taskRows().forEach(row -> rows.add(java.util.Arrays.asList(
+                row.taskId(),
+                row.title(),
+                row.status(),
+                row.priority(),
+                row.dueDate(),
+                row.createdAt(),
+                row.assignedEmployeeId(),
+                row.assignedEmployeeName(),
+                row.assignedEmployeePosition(),
+                row.transportOrderId(),
+                row.stockMovementId()
+        )));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Shift rows");
+        rows.add(java.util.Arrays.asList("shiftId", "status", "startTime", "endTime", "employeeId", "employeeName", "employeePosition"));
+        report.shiftRows().forEach(row -> rows.add(java.util.Arrays.asList(
+                row.shiftId(),
+                row.status(),
+                row.startTime(),
+                row.endTime(),
+                row.employeeId(),
+                row.employeeName(),
+                row.employeePosition()
+        )));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Tasks by assignee");
+        rows.add(java.util.Arrays.asList("employeeId", "employeeName", "position", "tasksTotal", "completedTasks", "openTasks", "overdueOpenTasks"));
+        report.tasksByAssignee().forEach(row -> rows.add(java.util.Arrays.asList(row.employeeId(), row.employeeName(), row.position(), row.tasksTotal(), row.completedTasks(), row.openTasks(), row.overdueOpenTasks())));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Employees by position");
+        ReportCsvExportHelper.addMapRows(rows, report.employeesByPosition(), "position", "count");
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Tasks by status");
+        ReportCsvExportHelper.addMapRows(rows, report.tasksByStatus(), "status", "count");
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Tasks by priority");
+        ReportCsvExportHelper.addMapRows(rows, report.tasksByPriority(), "priority", "count");
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Shifts by status");
+        ReportCsvExportHelper.addMapRows(rows, report.shiftsByStatus(), "status", "count");
+
+        return ReportCsvExportHelper.toCsvBytes(rows);
+    }
+
+    private void validateReportFilters(Long companyId, Long employeeId) {
+        if (authenticatedUserProvider.isOverlord() || employeeId == null) {
+            return;
+        }
+
+        if (employeeRepository.findByIdAndCompany_Id(employeeId, companyId).isEmpty()) {
+            throw new rs.logistics.logistics_system.exception.ForbiddenException("Employee is outside authenticated company scope");
+        }
+    }
+
     private void validateDateRange(LocalDateTime fromDate, LocalDateTime toDate) {
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
             throw new BadRequestException("fromDate cannot be after toDate");
         }
-    }
-
-    private boolean isWithinDateRange(LocalDateTime value, LocalDateTime fromDate, LocalDateTime toDate) {
-        if (fromDate == null && toDate == null) {
-            return true;
-        }
-
-        if (value == null) {
-            return false;
-        }
-
-        return (fromDate == null || !value.isBefore(fromDate))
-                && (toDate == null || !value.isAfter(toDate));
-    }
-
-    private boolean isShiftWithinDateRange(Shift shift, LocalDateTime fromDate, LocalDateTime toDate) {
-        if (fromDate == null && toDate == null) {
-            return true;
-        }
-
-        LocalDateTime start = shift.getStartTime();
-        LocalDateTime end = shift.getEndTime();
-
-        if (start == null || end == null) {
-            return false;
-        }
-
-        return (toDate == null || !start.isAfter(toDate))
-                && (fromDate == null || !end.isBefore(fromDate));
     }
 
     private boolean isOpenTask(Task task) {
@@ -156,7 +220,15 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
     }
 
     private boolean isOverdueOpenTask(Task task, LocalDateTime now) {
-        return isOpenTask(task) && task.getDueDate() != null && task.getDueDate().isBefore(now);
+        if (!isOpenTask(task) || task.getDueDate() == null) {
+            return false;
+        }
+
+        LocalDateTime effectiveNow = task.getAssignedEmployee() != null
+                ? timeService.nowForEmployee(task.getAssignedEmployee())
+                : now;
+
+        return task.getDueDate().isBefore(effectiveNow);
     }
 
     private <T, E extends Enum<E>> Map<String, Long> countByEnum(
@@ -222,8 +294,8 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
         return employees.stream()
                 .sorted(Comparator.comparing(Employee::getId).reversed())
                 .map(employee -> {
-                    List<Task> employeeTasks = tasksByEmployee.getOrDefault(employee.getId(), List.of());
-                    List<Shift> employeeShifts = shiftsByEmployee.getOrDefault(employee.getId(), List.of());
+                    List<Task> employeeTasks = tasksByEmployee.getOrDefault(employee.getId(), java.util.Arrays.asList());
+                    List<Shift> employeeShifts = shiftsByEmployee.getOrDefault(employee.getId(), java.util.Arrays.asList());
                     return new EmployeeTaskReportResponse.EmployeeTaskReportRowResponse(
                             employee.getId(),
                             fullName(employee),
@@ -280,7 +352,7 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
     }
 
     private String fullName(Employee employee) {
-        return String.join(" ", List.of(
+        return String.join(" ", java.util.Arrays.asList(
                 employee.getFirstName() != null ? employee.getFirstName() : "",
                 employee.getLastName() != null ? employee.getLastName() : ""
         )).trim();

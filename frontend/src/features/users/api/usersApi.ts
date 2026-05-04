@@ -1,4 +1,5 @@
 import { apiClient } from '../../../core/api/client';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type {
   UserCreateRequest,
   UserResponse,
@@ -6,9 +7,9 @@ import type {
 } from '../types/user.types';
 
 export const usersApi = {
-  getAll() {
+  getAll(params?: PageParams) {
     return apiClient
-      .get<UserResponse[]>('/api/users')
+      .get<PageResponse<UserResponse>>('/api/users', { params })
       .then((response) => response.data);
   },
 

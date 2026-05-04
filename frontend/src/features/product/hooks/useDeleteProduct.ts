@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '../../../core/constants/queryKeys';
 import { productsApi } from '../api/productsApi';
+import { invalidateProductState } from '../../../core/utils/invalidateAppState';
 
 export const useDeleteProduct = () => {
   const queryClient = useQueryClient();
@@ -8,10 +8,7 @@ export const useDeleteProduct = () => {
   return useMutation({
     mutationFn: productsApi.delete,
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.products.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() }),
-      ]);
+      await invalidateProductState(queryClient);
     },
   });
 };

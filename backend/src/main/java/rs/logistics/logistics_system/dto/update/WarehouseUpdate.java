@@ -25,18 +25,35 @@ public class WarehouseUpdate {
     @Size(min = 1, max = 200)
     private String address;
 
-    @NotBlank
+    @NotNull
+    @Positive
+    private Long cityId;
+
     @Size(min = 1, max = 200)
     private String city;
+    @Size(max = 20)
+    private String postalCode;
+
+    @Positive
+    private Long countryId;
+
+    @NotNull
+    @Positive
+    private Long timezoneId;
+
+    private BigDecimal latitude;
+
+    private BigDecimal longitude;
 
     @NotNull
     @Positive
     private BigDecimal capacity;;
 
-    public WarehouseUpdate(Long id, String name, String address, String city, BigDecimal capacity) {
+    public WarehouseUpdate(Long id, String name, String address, Long cityId, String city, BigDecimal capacity) {
         this.id = id;
         this.name = name;
         this.address = address;
+        this.cityId = cityId;
         this.city = city;
         this.capacity = capacity;
     }

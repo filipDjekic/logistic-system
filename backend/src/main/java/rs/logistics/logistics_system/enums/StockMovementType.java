@@ -5,5 +5,8 @@ public enum StockMovementType {
     OUTBOUND,
     TRANSFER_IN,
     TRANSFER_OUT,
-    ADJUSTMENT
+    ADJUSTMENT,
+    WRITE_OFF,
+    RETURN_IN,
+    RETURN_OUT
 }

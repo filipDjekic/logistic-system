@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, Stack } from '@mui/material';
+import { Button, Stack, Typography } from '@mui/material';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { InventoryListRow } from '../types/inventory.types';
@@ -34,14 +34,24 @@ export default function InventoryTable({
     {
       id: 'warehouseName',
       header: 'Warehouse',
-      accessor: 'warehouseName',
-      minWidth: 160,
+      minWidth: 190,
+      render: (row) => (
+        <Stack spacing={0.25}>
+          <Typography variant="body2" fontWeight={600}>{row.warehouseName}</Typography>
+          <Typography variant="caption" color="text.secondary">{row.warehouseCity ?? '—'} · {row.warehouseStatus ?? '—'}</Typography>
+        </Stack>
+      ),
     },
     {
       id: 'productName',
       header: 'Product',
-      accessor: 'productName',
-      minWidth: 160,
+      minWidth: 190,
+      render: (row) => (
+        <Stack spacing={0.25}>
+          <Typography variant="body2" fontWeight={600}>{row.productName}</Typography>
+          <Typography variant="caption" color="text.secondary">{row.productSku ?? '—'} · {row.productUnit ?? '—'}</Typography>
+        </Stack>
+      ),
     },
     {
       id: 'quantity',
@@ -82,6 +92,7 @@ export default function InventoryTable({
             id: 'actions',
             header: 'Actions',
             minWidth: 160,
+            sticky: 'right' as const,
             align: 'right' as const,
             render: (row: InventoryListRow) => (
               <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -111,6 +122,9 @@ export default function InventoryTable({
       sort={sort}
       onSortChange={onSortChange}
       getRowStatus={(row) => row.derivedStatus}
+      emptyTitle="No inventory records found"
+      emptyDescription="There are no inventory records that match the current filters."
+      minWidth={1180}
     />
   );
 }

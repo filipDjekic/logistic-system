@@ -1,5 +1,5 @@
 import { apiClient } from '../../../core/api/client';
-import { unwrapPageContent, type PageResponse } from '../../../core/api/pagination';
+import { unwrapPageContent, type PageParams, type PageResponse } from '../../../core/api/pagination';
 import type {
   ShiftCreateRequest,
   ShiftEmployeeOption,
@@ -41,8 +41,8 @@ function normalizeShiftUpdatePayload(payload: ShiftUpdateRequest): ShiftUpdateRe
 }
 
 export const shiftsApi = {
-  getAll() {
-    return apiClient.get<ShiftResponse[]>('/api/shifts').then((response) => response.data);
+  getAll(params?: PageParams) {
+    return apiClient.get<PageResponse<ShiftResponse>>('/api/shifts', { params }).then((response) => response.data);
   },
 
   getMy() {
@@ -68,7 +68,7 @@ export const shiftsApi = {
   getEmployees() {
     return apiClient
       .get<EmployeeResponse[] | PageResponse<EmployeeResponse>>('/api/employees', {
-        params: { size: 1000, sort: 'lastName,asc' },
+        params: { size: 25, sort: 'lastName,asc' },
       })
       .then((response) =>
         unwrapPageContent(response.data).map<ShiftEmployeeOption>((employee) => ({

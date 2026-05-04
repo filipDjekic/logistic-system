@@ -15,10 +15,12 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,7 +28,16 @@ import lombok.Setter;
 import rs.logistics.logistics_system.enums.ProductUnit;
 
 @Entity
-@Table(name = "PRODUCTS")
+@Table(
+        name = "PRODUCTS",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_products_company_sku", columnNames = {"company_id", "sku"})
+        },
+        indexes = {
+                @Index(name = "idx_products_company_id", columnList = "company_id"),
+                @Index(name = "idx_products_company_active", columnList = "company_id, active")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -43,7 +54,7 @@ public class Product {
     @Column(name = "description", length = 255)
     private String description;
 
-    @Column(name = "sku", nullable = false, unique = true, length = 50)
+    @Column(name = "sku", nullable = false, length = 50)
     private String sku;
 
     @Enumerated(EnumType.STRING)
@@ -66,8 +77,8 @@ public class Product {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
     //relations

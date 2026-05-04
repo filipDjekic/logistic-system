@@ -1,9 +1,13 @@
 package rs.logistics.logistics_system.service.implementation;
+import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import rs.logistics.logistics_system.config.AppProperties;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
@@ -11,6 +15,7 @@ import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Task;
+import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.TaskPriority;
@@ -25,13 +30,17 @@ import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,11 +51,14 @@ public class TaskService implements TaskServiceDefinition {
     private final EmployeeRepository _employeeRepository;
     private final TransportOrderRepository _transportOrderRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final WarehouseRepository warehouseRepository;
 
     private final NotificationServiceDefinition notificationService;
     private final AuditFacadeDefinition auditFacade;
+    private final AppProperties appProperties;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final TimeServiceDefinition timeService;
 
     @Override
     @Transactional
@@ -174,6 +186,55 @@ public class TaskService implements TaskServiceDefinition {
     }
 
 
+    @Override
+    @Transactional
+    public int closeTransportTasks(Long transportOrderId, TaskStatus status) {
+        if (transportOrderId == null) {
+            throw new BadRequestException("Transport order id is required");
+        }
+
+        if (status != TaskStatus.COMPLETED && status != TaskStatus.CANCELLED) {
+            throw new BadRequestException("Transport tasks can be auto-closed only as COMPLETED or CANCELLED");
+        }
+
+        List<Task> tasks = _taskRepository.findOpenTasksByTransportOrderId(
+                transportOrderId,
+                List.of(TaskStatus.NEW, TaskStatus.IN_PROGRESS)
+        );
+
+        for (Task task : tasks) {
+            TaskStatus oldStatus = task.getStatus();
+            task.setStatus(status);
+            Task saved = _taskRepository.save(task);
+
+            auditFacade.recordStatusChange("TASK", saved.getId(), "status", oldStatus, saved.getStatus());
+            auditFacade.log(
+                    "TASK_AUTO_CLOSED",
+                    "TASK",
+                    saved.getId(),
+                    "TASK " + saved.getId() + " automatically changed from " + oldStatus + " to " + saved.getStatus() + " because transport order " + transportOrderId + " was closed"
+            );
+
+            if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
+                NotificationType type = status == TaskStatus.CANCELLED ? NotificationType.WARNING : NotificationType.INFO;
+                notificationService.createSystemNotification(
+                        saved.getAssignedEmployee().getUser().getId(),
+                        "Transport task closed",
+                        "Task '" + saved.getTitle() + "' was automatically changed to " + saved.getStatus() + " because transport order #" + transportOrderId + " was closed.",
+                        type
+                );
+            }
+        }
+
+        return tasks.size();
+    }
+
+    private void validateStatusTransition(TaskStatus current, TaskStatus next) {
+        if (!appProperties.isTaskStatusTransitionAllowed(current, next)) {
+            throw new BadRequestException("Task status cannot be changed from " + current + " to " + next);
+        }
+    }
+
     private void validateAssigneeRole(Employee employee, TransportOrder transportOrder, StockMovement stockMovement) {
         if (employee == null || employee.getPosition() == null) {
             throw new BadRequestException("Assigned employee is invalid");
@@ -220,20 +281,23 @@ public class TaskService implements TaskServiceDefinition {
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        var tasks = _taskRepository.searchTasks(
+        Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
+        Page<Task> tasks = searchTasks(
                 companyId,
                 assignedEmployeeId,
-                normalizeSearch(search),
+                QueryParameterNormalizer.trimToNull(search),
                 status,
                 priority,
                 transportOrderId,
                 stockMovementId,
+                authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER"),
+                false,
+                managedWarehouseIds,
                 normalizeLinkedProcessType(linkedProcessType),
                 pageable
         );
 
         var content = tasks.getContent().stream()
-                .filter(this::canWarehouseManagerAccessTask)
                 .map(TaskMapper::toResponse)
                 .collect(Collectors.toList());
 
@@ -257,21 +321,23 @@ public class TaskService implements TaskServiceDefinition {
         Long employeeId = authenticatedUserProvider.getAuthenticatedUser().getEmployee().getId();
         Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        var tasks = _taskRepository.searchTasks(
+        Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
+        Page<Task> tasks = searchTasks(
                 companyId,
                 employeeId,
-                normalizeSearch(search),
+                QueryParameterNormalizer.trimToNull(search),
                 status,
                 priority,
                 transportOrderId,
                 stockMovementId,
+                authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER"),
+                authenticatedUserProvider.hasRole("DRIVER"),
+                managedWarehouseIds,
                 normalizeLinkedProcessType(linkedProcessType),
                 pageable
         );
 
         var content = tasks.getContent().stream()
-                .filter(this::canWarehouseManagerAccessTask)
-                .filter(task -> !authenticatedUserProvider.hasRole("DRIVER") || task.getTransportOrder() != null)
                 .map(TaskMapper::toResponse)
                 .collect(Collectors.toList());
 
@@ -338,24 +404,7 @@ public class TaskService implements TaskServiceDefinition {
             throw new BadRequestException("Task already has selected status");
         }
 
-        switch (current) {
-            case NEW:
-                if (status != TaskStatus.IN_PROGRESS && status != TaskStatus.CANCELLED) {
-                    throw new BadRequestException("Task status cannot be changed");
-                }
-                break;
-            case IN_PROGRESS:
-                if (status != TaskStatus.COMPLETED && status != TaskStatus.CANCELLED) {
-                    throw new BadRequestException("Task status cannot be changed");
-                }
-                break;
-            case CANCELLED:
-                throw new BadRequestException("Task is already cancelled");
-            case COMPLETED:
-                throw new BadRequestException("Task is already completed");
-            default:
-                throw new BadRequestException("Unsupported task status");
-        }
+        validateStatusTransition(current, status);
 
         task.setStatus(status);
         Task saved = _taskRepository.save(task);
@@ -392,6 +441,7 @@ public class TaskService implements TaskServiceDefinition {
 
         Employee oldEmployee = task.getAssignedEmployee();
         Employee employee = getActiveEmployee(employeeId);
+        validateAssigneeRole(employee, task.getTransportOrder(), task.getStockMovement());
         validateReassign(task, employee);
 
         if (!authenticatedUserProvider.isOverlord()) {
@@ -438,12 +488,60 @@ public class TaskService implements TaskServiceDefinition {
         return TaskMapper.toResponse(saved);
     }
 
-    private String normalizeSearch(String search) {
-        if (search == null || search.trim().isEmpty()) {
-            return null;
+    private Page<Task> searchTasks(
+            Long companyId,
+            Long assignedEmployeeId,
+            String search,
+            TaskStatus status,
+            TaskPriority priority,
+            Long transportOrderId,
+            Long stockMovementId,
+            boolean excludeTransportOrders,
+            boolean requireTransportOrder,
+            Set<Long> managedWarehouseIds,
+            String linkedProcessType,
+            Pageable pageable
+    ) {
+        boolean restrictManagedWarehouses = authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER");
+
+        if (restrictManagedWarehouses && managedWarehouseIds.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
 
-        return search.trim();
+        return _taskRepository.searchTasks(
+                companyId,
+                assignedEmployeeId,
+                search,
+                status,
+                priority,
+                transportOrderId,
+                stockMovementId,
+                excludeTransportOrders,
+                requireTransportOrder,
+                restrictManagedWarehouses,
+                restrictManagedWarehouses ? managedWarehouseIds : Set.of(-1L),
+                linkedProcessType,
+                pageable
+        );
+    }
+
+    private Set<Long> resolveManagedWarehouseIdsForWarehouseManager() {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return Set.of();
+        }
+
+        User user = authenticatedUserProvider.getAuthenticatedUser();
+        if (user.getEmployee() == null) {
+            throw new BadRequestException("Authenticated warehouse manager is not linked to an employee");
+        }
+
+        return warehouseRepository.findByManagerIdAndCompany_Id(
+                        user.getEmployee().getId(),
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .stream()
+                .map(warehouse -> warehouse.getId())
+                .collect(Collectors.toSet());
     }
 
     private String normalizeLinkedProcessType(String linkedProcessType) {
@@ -467,7 +565,15 @@ public class TaskService implements TaskServiceDefinition {
             return true;
         }
 
-        return task.getTransportOrder() == null;
+        if (task.getTransportOrder() != null) {
+            return false;
+        }
+
+        if (task.getStockMovement() == null || task.getStockMovement().getWarehouse() == null) {
+            return false;
+        }
+
+        return resolveManagedWarehouseIdsForWarehouseManager().contains(task.getStockMovement().getWarehouse().getId());
     }
 
     private void validateWarehouseManagerTaskAccess(Task task) {
@@ -528,19 +634,33 @@ public class TaskService implements TaskServiceDefinition {
         ).orElseThrow(() -> new ResourceNotFoundException("TransportOrder not found"));
 
         if (transportOrder.getStatus() == TransportOrderStatus.DELIVERED
+                || transportOrder.getStatus() == TransportOrderStatus.FAILED
                 || transportOrder.getStatus() == TransportOrderStatus.CANCELLED) {
-            throw new BadRequestException("Task cannot be linked to a completed or cancelled transport order");
+            throw new BadRequestException("Task cannot be linked to a terminal transport order");
         }
 
         return transportOrder;
     }
 
     private void validateDueDate(LocalDateTime dueDate) {
-        if (dueDate == null || dueDate.isBefore(LocalDateTime.now())) {
+        if (dueDate == null || dueDate.isBefore(resolveNowForTaskContext())) {
             throw new BadRequestException("Due date is invalid");
         }
     }
 
+
+    private LocalDateTime resolveNowForTaskContext() {
+        if (authenticatedUserProvider.isOverlord()) {
+            return timeService.nowSystem();
+        }
+
+        User user = authenticatedUserProvider.getAuthenticatedUser();
+        if (user != null && user.getEmployee() != null) {
+            return timeService.nowForEmployee(user.getEmployee());
+        }
+
+        return timeService.nowSystem();
+    }
     private void validateTaskUpdatable(Task task) {
         if (task.getStatus() != TaskStatus.NEW) {
             throw new BadRequestException("Only NEW task can be updated");

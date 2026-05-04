@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -17,6 +17,7 @@ import type {
   ShiftFormValues,
   ShiftResponse,
 } from '../types/shift.types';
+import { timezonesApi } from '../../timezones/api/timezonesApi';
 import { shiftSchema, shiftStatusOptions, type ShiftSchemaValues } from '../validation/shiftSchema';
 
 type ShiftFormDialogProps = {
@@ -50,6 +51,7 @@ export default function ShiftFormDialog({
       endTime: '',
       status: 'PLANNED',
       notes: '',
+      timezoneId: '',
       employeeId: '',
     },
   });
@@ -65,6 +67,7 @@ export default function ShiftFormDialog({
         endTime: initialData.endTime.slice(0, 16),
         status: initialData.status,
         notes: initialData.notes ?? '',
+        timezoneId: initialData.timezoneId ?? '',
         employeeId: initialData.employeeId,
       });
 
@@ -76,9 +79,27 @@ export default function ShiftFormDialog({
       endTime: '',
       status: 'PLANNED',
       notes: '',
+      timezoneId: '',
       employeeId: '',
     });
   }, [form, initialData, mode, open]);
+
+  const [timezones, setTimezones] = useState([] as { id: number; name: string; displayName: string }[]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    timezonesApi.getActive().then(setTimezones).catch(() => setTimezones([]));
+  }, [open]);
+
+  const timezoneOptions = useMemo(
+    () => timezones.map((timezone) => ({
+      value: timezone.id,
+      label: timezone.displayName + " (" + timezone.name + ")",
+    })),
+    [timezones],
+  );
 
   const employeeOptions = employees.map((employee) => ({
     value: employee.id,
@@ -125,6 +146,14 @@ export default function ShiftFormDialog({
               required
             />
           ) : null}
+
+          <FormSelect
+            name="timezoneId"
+            control={form.control}
+            label="Timezone"
+            options={timezoneOptions}
+            required
+          />
 
           <FormTextField
             name="notes"

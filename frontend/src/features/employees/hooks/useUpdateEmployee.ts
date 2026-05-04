@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateEmployeeState } from '../../../core/utils/invalidateAppState';
 import { employeesApi } from '../api/employeesApi';
 import type { EmployeeUpdateRequest } from '../types/employee.types';
 
@@ -21,11 +22,7 @@ export function useUpdateEmployee() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['employees'] }),
-        queryClient.invalidateQueries({ queryKey: ['employees', 'details', variables.id] }),
-        queryClient.invalidateQueries({ queryKey: ['users'] }),
-      ]);
+      await invalidateEmployeeState(queryClient, variables.id);
     },
     onError: (error) => {
       showSnackbar({

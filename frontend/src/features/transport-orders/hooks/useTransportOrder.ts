@@ -8,6 +8,9 @@ export function useTransportOrder(id: number | null) {
     queryKey: queryKeys.transportOrders.detail(id as number),
     queryFn: () => transportOrdersApi.getById(id as number),
     enabled: Number.isFinite(id),
-    staleTime: cacheTimes.standard,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 45_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 }

@@ -17,12 +17,12 @@ const employeeFormSchemaBase = z.object({
     .string()
     .trim()
     .min(1, 'First name is required')
-    .max(30, 'First name must be at most 30 characters'),
+    .max(60, 'First name must be at most 60 characters'),
   lastName: z
     .string()
     .trim()
     .min(1, 'Last name is required')
-    .max(30, 'Last name must be at most 30 characters'),
+    .max(60, 'Last name must be at most 60 characters'),
   jmbg: z
     .string()
     .trim()
@@ -32,7 +32,7 @@ const employeeFormSchemaBase = z.object({
     .string()
     .trim()
     .min(1, 'Phone number is required')
-    .max(20, 'Phone number must be at most 20 characters'),
+    .max(30, 'Phone number must be at most 30 characters'),
   email: z
     .string()
     .trim()
@@ -60,6 +60,10 @@ const employeeFormSchemaBase = z.object({
   status: z.enum(userStatusOptions),
   enabled: z.boolean(),
   companyId: z.string().trim(),
+  countryId: z.coerce.number().positive('Country is required').optional().nullable(),
+  cityId: z.coerce.number().positive('City is required').optional().nullable(),
+  timezoneId: z.coerce.number().positive('Timezone is required').optional().nullable(),
+  primaryWarehouseId: z.coerce.number().positive('Primary warehouse is not valid').optional().nullable(),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchemaBase>;

@@ -38,6 +38,21 @@ export default function CompaniesTable({
       ),
     },
     {
+      id: 'countryDefaults',
+      header: 'Country / defaults',
+      minWidth: 220,
+      render: (row) => (
+        <Stack spacing={0.25}>
+          <Typography variant="body2" fontWeight={600}>
+            {row.countryName ?? '—'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {[row.effectiveCurrencyCode ?? row.currencyCode, row.effectiveTimezone ?? row.timezone].filter(Boolean).join(' · ') || '—'}
+          </Typography>
+        </Stack>
+      ),
+    },
+    {
       id: 'bootstrapAdmin',
       header: 'Bootstrap admin',
       minWidth: 260,
@@ -70,6 +85,7 @@ export default function CompaniesTable({
     {
       id: 'actions',
       header: 'Actions',
+      sticky: 'right',
       align: 'right',
       minWidth: 220,
       render: (row) => (

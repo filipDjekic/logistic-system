@@ -108,7 +108,7 @@ export const employeesApi = {
   getUsers() {
     return apiClient
       .get<UserResponse[] | PageResponse<UserResponse>>('/api/users', {
-        params: { size: 1000, sort: 'lastName,asc' },
+        params: { size: 25, sort: 'lastName,asc' },
       })
       .then((response) =>
         unwrapPageContent(response.data).map<EmployeeUserOption>((user) => ({

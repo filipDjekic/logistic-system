@@ -1,35 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Stack } from '@mui/material';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
 import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { inventoryApi } from '../api/inventoryApi';
 import InventoryFilters from '../components/InventoryFilters';
-import InventoryFormDialog from '../components/InventoryFormDialog';
 import InventoryTable from '../components/InventoryTable';
 import { useInventory } from '../hooks/useInventory';
-import {
-  useCreateInventoryRecord,
-  useDeleteInventoryRecord,
-  useUpdateInventoryRecord,
-} from '../hooks/useInventoryMutations';
+import { useDeleteInventoryRecord } from '../hooks/useInventoryMutations';
 import type { SortState } from '../../../shared/types/common.types';
-import type {
-  InventoryFiltersState,
-  InventoryFormValues,
-  InventoryListRow,
-} from '../types/inventory.types';
+import type { InventoryFiltersState, InventoryListRow } from '../types/inventory.types';
 
 export default function InventoryPage() {
   const auth = useAuthStore();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const canManage =
@@ -42,35 +36,20 @@ export default function InventoryPage() {
     productId: 'ALL',
     status: 'ALL',
   });
-
-
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [sort, setSort] = useState<SortState>({ field: 'quantity', direction: 'desc' });
-
-  const handleSizeChange = (nextSize: number) => {
-    setPage(0);
-    setSize(nextSize);
-  };
-
-  const handleSortChange = (nextSort: SortState) => {
-    setPage(0);
-    setSort(nextSort);
-  };
-  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<InventoryListRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InventoryListRow | null>(null);
 
   const warehousesQuery = useQuery({
-    queryKey: ['inventory', 'warehouses'],
+    queryKey: queryKeys.inventory.warehouses(),
     queryFn: inventoryApi.getWarehouses,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
   const productsQuery = useQuery({
-    queryKey: ['inventory', 'products'],
+    queryKey: queryKeys.inventory.products(),
     queryFn: inventoryApi.getProducts,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -79,8 +58,15 @@ export default function InventoryPage() {
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
-  const inventoryQuery = useInventory({ ...filters, page, size, sort: buildSortParam(sort) }, { warehouses, products });
+  const inventoryQuery = useInventory(
+    { ...filters, page, size, sort: buildSortParam(sort) },
+    { warehouses, products },
+  );
   const rows = inventoryQuery.data?.content ?? [];
+  const deleteInventoryMutation = useDeleteInventoryRecord();
+
+  const isLoadingLookups = warehousesQuery.isLoading || productsQuery.isLoading;
+  const hasLookupError = warehousesQuery.isError || productsQuery.isError;
 
   const statusOverviewItems = useMemo(
     () => ['LOW_STOCK', 'SUFFICIENT'].map((status) => ({
@@ -89,12 +75,6 @@ export default function InventoryPage() {
     })),
     [rows],
   );
-  const createInventoryMutation = useCreateInventoryRecord();
-  const updateInventoryMutation = useUpdateInventoryRecord();
-  const deleteInventoryMutation = useDeleteInventoryRecord();
-
-  const isLoadingLookups = warehousesQuery.isLoading || productsQuery.isLoading;
-  const hasLookupError = warehousesQuery.isError || productsQuery.isError;
 
   const setupItems = [
     {
@@ -112,6 +92,16 @@ export default function InventoryPage() {
   ];
 
   const hasSetupBlockers = setupItems.some((item) => !item.done);
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
 
   useEffect(() => {
     const warehouseId = searchParams.get('warehouseId');
@@ -134,18 +124,15 @@ export default function InventoryPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1' || !canManage || isLoadingLookups || hasSetupBlockers || dialogOpen) {
+    if (searchParams.get('create') !== '1' || !canManage || isLoadingLookups || hasSetupBlockers) {
       return;
     }
-
-    setDialogMode('create');
-    setSelectedRecord(null);
-    setDialogOpen(true);
 
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete('create');
     setSearchParams(nextSearchParams, { replace: true });
-  }, [canManage, dialogOpen, hasSetupBlockers, isLoadingLookups, searchParams, setSearchParams]);
+    navigate('/inventory/create');
+  }, [canManage, hasSetupBlockers, isLoadingLookups, navigate, searchParams, setSearchParams]);
 
   return (
     <Stack spacing={3}>
@@ -158,11 +145,7 @@ export default function InventoryPage() {
             <Button
               variant="contained"
               disabled={hasSetupBlockers}
-              onClick={() => {
-                setDialogMode('create');
-                setSelectedRecord(null);
-                setDialogOpen(true);
-              }}
+              onClick={() => navigate('/inventory/create')}
             >
               Create inventory record
             </Button>
@@ -170,36 +153,40 @@ export default function InventoryPage() {
         }
       />
 
-      <SectionCard
+      <TableLayout
         title="Inventory overview"
         description="Inventory search and filters are applied on the backend."
-      >
-        <Stack spacing={2}>
-          {canManage && !isLoadingLookups ? (
-            <SetupGuide
-              title="Inventory setup is incomplete"
-              description="Create the required warehouse and product data before adding stock records."
-              items={setupItems}
-            />
-          ) : null}
+        filters={
+          <>
+            {canManage && !isLoadingLookups ? (
+              <SetupGuide
+                title="Inventory setup is incomplete"
+                description="Create the required warehouse and product data before adding stock records."
+                items={setupItems}
+              />
+            ) : null}
 
-          <InventoryFilters
-            value={filters}
-            warehouses={warehouses}
-            products={products}
-            loading={inventoryQuery.isFetching || isLoadingLookups}
-            onChange={setFilters}
-            onRefresh={() => {
-              void Promise.all([
-                warehousesQuery.refetch(),
-                productsQuery.refetch(),
-                inventoryQuery.refetch(),
-              ]);
-            }}
-          />
-
-          <StatusOverview items={statusOverviewItems} />
-
+            <FilterPanel>
+              <InventoryFilters
+                value={filters}
+                loading={inventoryQuery.isFetching || isLoadingLookups}
+                onChange={(nextFilters) => {
+                  setPage(0);
+                  setFilters(nextFilters);
+                }}
+                onRefresh={() => {
+                  void Promise.all([
+                    warehousesQuery.refetch(),
+                    productsQuery.refetch(),
+                    inventoryQuery.refetch(),
+                  ]);
+                }}
+              />
+            </FilterPanel>
+          </>
+        }
+        summary={<StatusOverview items={statusOverviewItems} />}
+        table={
           <InventoryTable
             rows={rows}
             loading={inventoryQuery.isLoading || isLoadingLookups}
@@ -211,11 +198,7 @@ export default function InventoryPage() {
                 inventoryQuery.refetch(),
               ]);
             }}
-            onEdit={(row) => {
-              setDialogMode('edit');
-              setSelectedRecord(row);
-              setDialogOpen(true);
-            }}
+            onEdit={(row) => navigate(`/inventory/${row.warehouseId}/${row.productId}/edit`)}
             onDelete={(row) => setDeleteTarget(row)}
             canManage={canManage}
             pagination={
@@ -229,66 +212,8 @@ export default function InventoryPage() {
             sort={sort}
             onSortChange={handleSortChange}
           />
-        </Stack>
-      </SectionCard>
-
-      {canManage ? (
-        <InventoryFormDialog
-          open={dialogOpen}
-          mode={dialogMode}
-          initialData={selectedRecord}
-          warehouses={warehouses}
-          products={products}
-          loading={
-            createInventoryMutation.isPending ||
-            updateInventoryMutation.isPending ||
-            warehousesQuery.isLoading ||
-            productsQuery.isLoading
-          }
-          onClose={() => setDialogOpen(false)}
-          onSubmit={(values: InventoryFormValues) => {
-            if (dialogMode === 'create') {
-              createInventoryMutation.mutate(
-                {
-                  warehouseId: Number(values.warehouseId),
-                  productId: Number(values.productId),
-                  quantity: Number(values.quantity),
-                  minStockLevel: Number(values.minStockLevel),
-                },
-                {
-                  onSuccess: () => {
-                    setDialogOpen(false);
-                  },
-                },
-              );
-              return;
-            }
-
-            if (!selectedRecord) {
-              return;
-            }
-
-            updateInventoryMutation.mutate(
-              {
-                warehouseId: selectedRecord.warehouseId,
-                productId: selectedRecord.productId,
-                data: {
-                  warehouseId: selectedRecord.warehouseId,
-                  productId: selectedRecord.productId,
-                  quantity: Number(values.quantity),
-                  minStockLevel: Number(values.minStockLevel),
-                },
-              },
-              {
-                onSuccess: () => {
-                  setDialogOpen(false);
-                  setSelectedRecord(null);
-                },
-              },
-            );
-          }}
-        />
-      ) : null}
+        }
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

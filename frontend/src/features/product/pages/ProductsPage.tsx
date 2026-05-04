@@ -2,25 +2,47 @@ import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import ProductsTable from '../components/ProductsTable';
 import ProductFormDialog from '../components/ProductFormDialog';
 import { useProducts } from '../hooks/useProducts';
 import { useCreateProduct } from '../hooks/useCreateProduct';
 import { useUpdateProduct } from '../hooks/useUpdateProduct';
 import { useDeleteProduct } from '../hooks/useDeleteProduct';
+import type { SortState } from '../../../shared/types/common.types';
 import type { ProductFormValues, ProductResponse } from '../types/product.types';
+import type { ProductSearchParams } from '../api/productsApi';
 
 type ProductFiltersState = {
   search: string;
   active: 'ALL' | 'ACTIVE' | 'INACTIVE';
 };
+
+function normalizeTextFilter(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeActiveFilter(value: ProductFiltersState['active']) {
+  if (value === 'ACTIVE') {
+    return true;
+  }
+
+  if (value === 'INACTIVE') {
+    return false;
+  }
+
+  return undefined;
+}
 
 export default function ProductsPage() {
   const auth = useAuthStore();
@@ -35,12 +57,36 @@ export default function ProductsPage() {
     search: '',
     active: 'ALL',
   });
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState>({ field: 'id', direction: 'desc' });
+
+  const handleSizeChange = (nextSize: number) => {
+    setPage(0);
+    setSize(nextSize);
+  };
+
+  const handleSortChange = (nextSort: SortState) => {
+    setPage(0);
+    setSort(nextSort);
+  };
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<ProductResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductResponse | null>(null);
 
-  const query = useProducts();
+  const productSearchParams = useMemo<ProductSearchParams>(() => {
+    return {
+      search: normalizeTextFilter(filters.search),
+      active: normalizeActiveFilter(filters.active),
+      page,
+      size,
+      sort: buildSortParam(sort),
+    };
+  }, [filters, page, size, sort]);
+
+  const query = useProducts(productSearchParams);
+  const rows = query.data?.content ?? [];
   const companiesQuery = useCompanies(
     canManage && isOverlord && open && selected === null,
   );
@@ -48,33 +94,11 @@ export default function ProductsPage() {
   const update = useUpdateProduct();
   const remove = useDeleteProduct();
 
-  const filteredRows = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-
-    return (query.data ?? []).filter((product) => {
-      const matchesActive =
-        filters.active === 'ALL' ||
-        (filters.active === 'ACTIVE' && product.active) ||
-        (filters.active === 'INACTIVE' && !product.active);
-
-      const matchesSearch =
-        search.length === 0 ||
-        product.name.toLowerCase().includes(search) ||
-        product.sku.toLowerCase().includes(search) ||
-        product.unit.toLowerCase().includes(search) ||
-        product.description?.toLowerCase().includes(search) ||
-        String(product.id).includes(search);
-
-      return matchesActive && matchesSearch;
-    });
-  }, [filters, query.data]);
-
   return (
     <Stack spacing={3}>
       <PageHeader
         overline="Catalog"
         title="Products"
-        description="Company admin has read-only visibility here. Product maintenance stays with warehouse operations or OVERLORD."
         actions={
           canManage ? (
             <Button
@@ -90,70 +114,64 @@ export default function ProductsPage() {
         }
       />
 
-      <SectionCard
+      <TableLayout
         title="Product list"
         description="Products are loaded through the real backend product endpoints and scoped by backend authorization."
-      >
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-            <SearchToolbar
-              value={filters.search}
-              onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by name, SKU, unit, description or ID"
-              fullWidth
-            />
-
+        toolbar={
+          <TableToolbar
+            searchValue={filters.search}
+            onSearchChange={(value) => {
+              setPage(0);
+              setFilters((prev) => ({ ...prev, search: value }));
+            }}
+            searchPlaceholder="Search by name, SKU, unit, description or ID"
+            onRefresh={() => {
+              void query.refetch();
+              if (canManage && isOverlord && open && selected === null) void companiesQuery.refetch();
+            }}
+            refreshDisabled={query.isFetching || companiesQuery.isFetching}
+          />
+        }
+        filters={
+          <FilterPanel minColumnWidth={180}>
             <TextField
               select
               size="small"
               label="Status"
               value={filters.active}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  active: event.target.value as ProductFiltersState['active'],
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 180 } }}
+              onChange={(event) => {
+                setPage(0);
+                setFilters((prev) => ({ ...prev, active: event.target.value as ProductFiltersState['active'] }));
+              }}
             >
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="ACTIVE">Active</MenuItem>
               <MenuItem value="INACTIVE">Inactive</MenuItem>
             </TextField>
-
-            <Button
-              variant="outlined"
-              onClick={() => {
-                void query.refetch();
-
-                if (canManage && isOverlord && open && selected === null) {
-                  void companiesQuery.refetch();
-                }
-              }}
-              disabled={query.isFetching || companiesQuery.isFetching}
-            >
-              Refresh
-            </Button>
-          </Stack>
-
+          </FilterPanel>
+        }
+        table={
           <ProductsTable
-            rows={filteredRows}
+            rows={rows}
             loading={query.isLoading}
             error={query.isError}
-            onRetry={() => {
-              void query.refetch();
-            }}
-            onEdit={(row) => {
-              setSelected(row);
-              setOpen(true);
-            }}
-            onDelete={(row) => {
-              setDeleteTarget(row);
-            }}
+            onRetry={() => { void query.refetch(); }}
+            onEdit={(row) => { setSelected(row); setOpen(true); }}
+            onDelete={(row) => { setDeleteTarget(row); }}
             canManage={canManage}
+            pagination={
+              <ServerTablePagination
+                page={query.data}
+                disabled={query.isFetching}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+              />
+            }
+            sort={sort}
+            onSortChange={handleSortChange}
           />
-        </Stack>
-      </SectionCard>
+        }
+      />
 
       {canManage ? (
         <ProductFormDialog

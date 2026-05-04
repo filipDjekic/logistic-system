@@ -1,7 +1,8 @@
 package rs.logistics.logistics_system.controller;
 
-import java.util.List;
-
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,11 +13,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.ProductCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ProductResponse;
 import rs.logistics.logistics_system.dto.update.ProductUpdate;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
@@ -48,8 +51,12 @@ public class ProductController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
-    public ResponseEntity<List<ProductResponse>> getAll() {
-        return new ResponseEntity<>(productService.getAll(), HttpStatus.OK);
+    public ResponseEntity<PageResponse<ProductResponse>> getAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return new ResponseEntity<>(productService.getAll(search, active, pageable), HttpStatus.OK);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")

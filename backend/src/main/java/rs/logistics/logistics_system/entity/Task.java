@@ -13,7 +13,18 @@ import rs.logistics.logistics_system.enums.TaskStatus;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "TASKS")
+@Table(
+        name = "TASKS",
+        indexes = {
+                @Index(name = "idx_tasks_assigned_employee_id", columnList = "assigned_employee_id"),
+                @Index(name = "idx_tasks_status", columnList = "status"),
+                @Index(name = "idx_tasks_priority", columnList = "priority"),
+                @Index(name = "idx_tasks_transport_order_id", columnList = "transport_order_id"),
+                @Index(name = "idx_tasks_stock_movement_id", columnList = "stock_movement_id"),
+                @Index(name = "idx_tasks_assignee_status_priority", columnList = "assigned_employee_id, status, priority"),
+                @Index(name = "idx_tasks_due_date_status", columnList = "due_date, status")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor

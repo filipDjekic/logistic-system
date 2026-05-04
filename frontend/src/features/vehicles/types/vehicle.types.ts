@@ -1,16 +1,54 @@
 export type VehicleStatus =
   | 'AVAILABLE'
+  | 'RESERVED'
   | 'IN_USE'
   | 'MAINTENANCE'
   | 'OUT_OF_SERVICE';
 
+export const vehicleTypeOptions = [
+  'VAN',
+  'TRUCK',
+  'BOX_TRUCK',
+  'SEMI_TRUCK',
+  'REFRIGERATED_TRUCK',
+  'TANKER',
+  'PICKUP',
+  'FORKLIFT',
+] as const;
+
+export const fuelTypeOptions = [
+  'DIESEL',
+  'PETROL',
+  'ELECTRIC',
+  'HYBRID',
+  'LPG',
+  'CNG',
+] as const;
+
+export type VehicleBrandResponse = {
+  id: number;
+  name: string;
+};
+
+export type VehicleModelResponse = {
+  id: number;
+  brandId: number;
+  brandName: string;
+  name: string;
+};
+
 export type VehicleResponse = {
   id: number;
   registrationNumber: string;
+  vehicleBrandId: number;
   brand: string;
+  vehicleModelId: number;
   model: string;
   type: string;
   capacity: number;
+  maxWeight: number;
+  maxVolume?: number | null;
+  maxItems?: number | null;
   fuelType: string;
   yearOfProduction: number;
   status: VehicleStatus;
@@ -21,10 +59,12 @@ export type VehicleResponse = {
 
 export type VehicleCreateRequest = {
   registrationNumber: string;
-  brand: string;
-  model: string;
+  vehicleModelId: number;
   type: string;
   capacity: number;
+  maxWeight: number;
+  maxVolume?: number | null;
+  maxItems?: number | null;
   fuelType: string;
   yearOfProduction: number;
   status: VehicleStatus;
@@ -34,10 +74,12 @@ export type VehicleCreateRequest = {
 export type VehicleUpdateRequest = {
   id?: number;
   registrationNumber: string;
-  brand: string;
-  model: string;
+  vehicleModelId: number;
   type: string;
   capacity: number;
+  maxWeight: number;
+  maxVolume?: number | null;
+  maxItems?: number | null;
   fuelType: string;
   yearOfProduction: number;
   status: VehicleStatus;
@@ -63,10 +105,13 @@ export type VehicleSearchParams = {
 
 export type VehicleFormValues = {
   registrationNumber: string;
-  brand: string;
-  model: string;
+  vehicleBrandId: string;
+  vehicleModelId: string;
   type: string;
   capacity: number | '';
+  maxWeight: number | '';
+  maxVolume: number | '';
+  maxItems: number | '';
   fuelType: string;
   yearOfProduction: number | '';
   status: VehicleStatus;

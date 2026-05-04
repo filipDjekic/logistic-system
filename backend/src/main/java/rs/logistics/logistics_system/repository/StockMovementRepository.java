@@ -38,6 +38,8 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
             Long companyId
     );
 
+    boolean existsByWarehouse_Id(Long warehouseId);
+
     long countByWarehouse_Company_Id(Long companyId);
 
     @Query("""

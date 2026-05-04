@@ -3,6 +3,7 @@ export type TransportOrderStatus =
   | 'ASSIGNED'
   | 'IN_TRANSIT'
   | 'DELIVERED'
+  | 'FAILED'
   | 'CANCELLED';
 
 export type TransportOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
@@ -63,6 +64,9 @@ export type TransportOrderStatusUpdateRequest = {
 export type TransportOrderItemResponse = {
   id: number;
   quantity: number;
+  reservedQuantity: number;
+  dispatchedQuantity: number;
+  deliveredQuantity: number;
   weight: number;
   note: string | null;
   transportOrderId: number;
@@ -102,7 +106,7 @@ export type VehicleOption = {
   capacity: number;
   fuelType: string;
   yearOfProduction: number;
-  status: 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
+  status: 'AVAILABLE' | 'RESERVED' | 'IN_USE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
 };
 
 export type EmployeeOption = {

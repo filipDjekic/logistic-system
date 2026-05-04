@@ -31,7 +31,7 @@ public class CompanyAdminCreate {
     private String jmbg;
 
     @NotBlank
-    @Size(min = 1, max = 20)
+    @Size(max = 30, message = "Phone number must be at most 30 characters")
     private String phoneNumber;
 
     @NotNull

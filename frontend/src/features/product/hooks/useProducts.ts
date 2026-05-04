@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { cacheTimes } from '../../../core/constants/cache';
 import { queryKeys } from '../../../core/constants/queryKeys';
-import { productsApi } from '../api/productsApi';
+import { productsApi, type ProductSearchParams } from '../api/productsApi';
 
-export const useProducts = () => {
+export const useProducts = (params: ProductSearchParams = {}) => {
   return useQuery({
-    queryKey: queryKeys.products.all(),
-    queryFn: productsApi.getAll,
+    queryKey: [...queryKeys.products.all(), params],
+    queryFn: () => productsApi.getAll(params),
     staleTime: cacheTimes.reference,
   });
 };

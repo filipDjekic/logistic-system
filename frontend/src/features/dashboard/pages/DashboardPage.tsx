@@ -6,6 +6,8 @@ import { alpha, Box, Button, Chip, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
+import { cacheTimes } from '../../../core/constants/cache';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { ROLES } from '../../../core/constants/roles';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
@@ -48,7 +50,7 @@ function getDashboardActions(role: string): DashboardAction[] {
     case ROLES.WAREHOUSE_MANAGER:
       return [
         { label: 'Create inventory record', to: '/inventory?create=1', variant: 'contained', icon: 'add' },
-        { label: 'Create stock movement', to: '/stock-movements?create=1', icon: 'add' },
+        { label: 'Create stock movement', to: '/stock/inbound', icon: 'add' },
         { label: 'Create warehouse task', to: '/tasks?create=1', icon: 'add' },
       ];
     case ROLES.DISPATCHER:
@@ -118,59 +120,73 @@ export default function DashboardPage() {
   const isWorker = role === ROLES.WORKER;
 
   const overlordDashboardQuery = useQuery({
-    queryKey: ['dashboard', 'overlord'],
+    queryKey: queryKeys.dashboard.role('overlord'),
     queryFn: dashboardApi.getOverlordDashboard,
     enabled: isOverlord,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const companyAdminDashboardQuery = useQuery({
-    queryKey: ['dashboard', 'company-admin'],
+    queryKey: queryKeys.dashboard.role('company-admin'),
     queryFn: dashboardApi.getCompanyAdminDashboard,
     enabled: isCompanyAdmin,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const hrManagerDashboardQuery = useQuery({
-    queryKey: ['dashboard', 'hr-manager'],
+    queryKey: queryKeys.dashboard.role('hr-manager'),
     queryFn: dashboardApi.getHrManagerDashboard,
     enabled: isHrManager,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const warehouseManagerDashboardQuery = useQuery({
-    queryKey: ['dashboard', 'warehouse-manager'],
+    queryKey: queryKeys.dashboard.role('warehouse-manager'),
     queryFn: dashboardApi.getWarehouseManagerDashboard,
     enabled: isWarehouseManager,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const dispatcherDashboardQuery = useQuery({
-    queryKey: ['dashboard', 'dispatcher'],
+    queryKey: queryKeys.dashboard.role('dispatcher'),
     queryFn: dashboardApi.getDispatcherDashboard,
     enabled: isDispatcher,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const driverDashboardQuery = useQuery({
-    queryKey: ['dashboard', 'driver'],
+    queryKey: queryKeys.dashboard.role('driver'),
     queryFn: dashboardApi.getDriverDashboard,
     enabled: isDriver,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const workerDashboardQuery = useQuery({
-    queryKey: ['dashboard', 'worker'],
+    queryKey: queryKeys.dashboard.role('worker'),
     queryFn: dashboardApi.getWorkerDashboard,
     enabled: isWorker,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   if (!role) {

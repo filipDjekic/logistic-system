@@ -1,6 +1,8 @@
 package rs.logistics.logistics_system.service.definition;
 
 import rs.logistics.logistics_system.dto.create.ShiftCreate;
+import org.springframework.data.domain.Pageable;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 
@@ -16,7 +18,7 @@ public interface ShiftServiceDefinition {
 
     ShiftResponse getById(Long id);
 
-    List<ShiftResponse> getAll();
+    PageResponse<ShiftResponse> getAll(Pageable pageable);
 
     void delete(Long id);
 
@@ -27,4 +29,6 @@ public interface ShiftServiceDefinition {
     void cancelShift(Long id);
 
     ShiftResponse assignShiftToEmployee(Long shiftId, Long employeeId);
+
+    void synchronizeShiftStatuses();
 }

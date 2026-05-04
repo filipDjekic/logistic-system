@@ -20,17 +20,14 @@ public class WarehouseInventoryMapper {
         );
     }
 
-    public static void updateEntity(WarehouseInventoryUpdate dto, Warehouse warehouse, Product product, WarehouseInventory warehouseInventory) {
-        warehouseInventory.setQuantity(dto.getQuantity());
-        warehouseInventory.setMinStockLevel(dto.getMinStockLevel());
-        warehouseInventory.setProduct(product);
-        warehouseInventory.setWarehouse(warehouse);
+    public static void updateEntity(WarehouseInventoryUpdate dto, WarehouseInventory warehouseInventory) {
+        warehouseInventory.updateMinStockLevel(dto.getMinStockLevel());
     }
 
     public static WarehouseInventoryResponse toResponse(WarehouseInventory warehouseInventory) {
-        BigDecimal quantity = warehouseInventory.getQuantity() == null ? BigDecimal.ZERO : warehouseInventory.getQuantity();
-        BigDecimal reserved = warehouseInventory.getReservedQuantity() == null ? BigDecimal.ZERO : warehouseInventory.getReservedQuantity();
-        BigDecimal available = quantity.subtract(reserved);
+        BigDecimal quantity = warehouseInventory.getSafeQuantity();
+        BigDecimal reserved = warehouseInventory.getSafeReservedQuantity();
+        BigDecimal available = warehouseInventory.getAvailableQuantity();
 
         return new WarehouseInventoryResponse(
                 warehouseInventory.getWarehouse().getId(),

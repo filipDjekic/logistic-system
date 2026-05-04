@@ -3,9 +3,11 @@ package rs.logistics.logistics_system.repository;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,6 +17,14 @@ import rs.logistics.logistics_system.enums.WarehouseStatus;
 public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
     Optional<Warehouse> findByIdAndCompany_Id(Long id, Long companyId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select w from Warehouse w where w.id = :id")
+    Optional<Warehouse> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select w from Warehouse w where w.id = :id and w.company.id = :companyId")
+    Optional<Warehouse> findByIdAndCompanyIdForUpdate(@Param("id") Long id, @Param("companyId") Long companyId);
 
     List<Warehouse> findAllByCompany_Id(Long companyId);
 
@@ -26,9 +36,9 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
     List<Warehouse> findByStatusAndCompany_Id(WarehouseStatus status, Long companyId);
 
-    List<Warehouse> findByCityContainingIgnoreCase(String city);
+    List<Warehouse> findByCity_NameContainingIgnoreCase(String city);
 
-    List<Warehouse> findByCityContainingIgnoreCaseAndCompany_Id(String city, Long companyId);
+    List<Warehouse> findByCity_NameContainingIgnoreCaseAndCompany_Id(String city, Long companyId);
 
     long countByCompany_Id(Long companyId);
 
@@ -44,7 +54,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
         and (
             :search is null
             or lower(w.name) like lower(concat('%', :search, '%'))
-            or lower(w.city) like lower(concat('%', :search, '%'))
+            or lower(w.city.name) like lower(concat('%', :search, '%'))
             or lower(w.address) like lower(concat('%', :search, '%'))
             or lower(coalesce(m.firstName, '')) like lower(concat('%', :search, '%'))
             or lower(coalesce(m.lastName, '')) like lower(concat('%', :search, '%'))

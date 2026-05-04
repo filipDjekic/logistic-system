@@ -86,6 +86,7 @@ export default function WarehousesTable({
     {
       id: 'actions',
       header: 'Actions',
+      sticky: 'right',
       minWidth: 220,
       align: 'right',
       render: (warehouse) => (

@@ -1,15 +1,14 @@
 package rs.logistics.logistics_system.service.definition;
 
-import rs.logistics.logistics_system.dto.create.VehicleCreate;
+import java.math.BigDecimal;
+
 import org.springframework.data.domain.Pageable;
 
-import rs.logistics.logistics_system.dto.response.VehicleResponse;
+import rs.logistics.logistics_system.dto.create.VehicleCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.dto.response.VehicleResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
 import rs.logistics.logistics_system.enums.VehicleStatus;
-
-import java.math.BigDecimal;
-import java.util.List;
 
 public interface VehicleServiceDefinition {
 

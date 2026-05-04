@@ -59,6 +59,8 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     List<TransportOrder> findByDestinationWarehouseIdAndCreatedBy_Company_Id(Long warehouseId, Long companyId);
 
+    boolean existsBySourceWarehouseIdOrDestinationWarehouseId(Long sourceWarehouseId, Long destinationWarehouseId);
+
     @Query("""
         select count(t) > 0
         from TransportOrder t
@@ -163,12 +165,12 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             or lower(t.description) like lower(concat('%', :search, '%'))
             or lower(coalesce(t.notes, '')) like lower(concat('%', :search, '%'))
             or lower(sourceWarehouse.name) like lower(concat('%', :search, '%'))
-            or lower(sourceWarehouse.city) like lower(concat('%', :search, '%'))
+            or lower(sourceWarehouse.city.name) like lower(concat('%', :search, '%'))
             or lower(destinationWarehouse.name) like lower(concat('%', :search, '%'))
-            or lower(destinationWarehouse.city) like lower(concat('%', :search, '%'))
+            or lower(destinationWarehouse.city.name) like lower(concat('%', :search, '%'))
             or lower(vehicle.registrationNumber) like lower(concat('%', :search, '%'))
-            or lower(vehicle.brand) like lower(concat('%', :search, '%'))
-            or lower(vehicle.model) like lower(concat('%', :search, '%'))
+            or lower(vehicle.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
+            or lower(vehicle.vehicleModel.name) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.firstName) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.lastName) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.email) like lower(concat('%', :search, '%'))
@@ -188,4 +190,13 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             @Param("search") String search,
             Pageable pageable
     );
+
+    @Query("""
+        select count(v) > 0
+        from Vehicle v
+        where v.id = :vehicleId
+        and v.company.id = :companyId
+    """)
+    boolean existsVehicleInCompany(@Param("vehicleId") Long vehicleId, @Param("companyId") Long companyId);
+
 }

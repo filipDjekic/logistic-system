@@ -22,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.security.JwtAuthenticationFilter;
+import rs.logistics.logistics_system.security.IdempotencyFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -30,6 +31,7 @@ import rs.logistics.logistics_system.security.JwtAuthenticationFilter;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final IdempotencyFilter idempotencyFilter;
 
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
@@ -52,6 +54,10 @@ public class SecurityConfig {
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class
+                )
+                .addFilterAfter(
+                        idempotencyFilter,
+                        JwtAuthenticationFilter.class
                 );
         return http.build();
     }

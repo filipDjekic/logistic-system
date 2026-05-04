@@ -13,7 +13,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "COMPANIES")
+@Table(
+        name = "COMPANIES",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_companies_name", columnNames = "name")
+        },
+        indexes = {
+                @Index(name = "idx_companies_active", columnList = "active"),
+                @Index(name = "idx_companies_country_id", columnList = "country_id"),
+                @Index(name = "idx_companies_timezone_id", columnList = "timezone_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -29,6 +39,39 @@ public class Company {
 
     @Column(name = "active", nullable = false)
     private Boolean active;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "country_id", nullable = false)
+    private Country country;
+
+    @Column(name = "phone_code", length = 10)
+    private String phoneCode;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "timezone_id", nullable = false)
+    private Timezone timezone;
+
+    @Column(name = "address", length = 200)
+    private String address;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "city_id")
+    private City city;
+
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
+
+    @Column(name = "phone_number", length = 30)
+    private String phoneNumber;
+
+    @Column(name = "email", length = 255)
+    private String email;
+
+    @Column(name = "tax_number", length = 40)
+    private String taxNumber;
+
+    @Column(name = "registration_number", length = 40)
+    private String registrationNumber;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
@@ -63,6 +106,21 @@ public class Company {
     private void normalize() {
         if (name != null) {
             name = name.trim();
+        }
+        if (address != null) {
+            address = address.trim();
+        }
+        if (phoneNumber != null) {
+            phoneNumber = phoneNumber.trim();
+        }
+        if (email != null) {
+            email = email.trim().toLowerCase();
+        }
+        if (taxNumber != null) {
+            taxNumber = taxNumber.trim();
+        }
+        if (registrationNumber != null) {
+            registrationNumber = registrationNumber.trim();
         }
     }
 }

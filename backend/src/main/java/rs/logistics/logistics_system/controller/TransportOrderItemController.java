@@ -1,7 +1,8 @@
 package rs.logistics.logistics_system.controller;
 
-import java.util.List;
-
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,11 +13,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.TransportOrderItemCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TransportOrderItemResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderItemUpdate;
 import rs.logistics.logistics_system.service.definition.TransportOrderItemServiceDefinition;
@@ -51,8 +54,14 @@ public class TransportOrderItemController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping
-    public ResponseEntity<List<TransportOrderItemResponse>> getAllTransportOrderItems() {
-        List<TransportOrderItemResponse> response = transportOrderItemService.getAll();
+    public ResponseEntity<PageResponse<TransportOrderItemResponse>> getAllTransportOrderItems(
+            @RequestParam(required = false) Long transportOrderId,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<TransportOrderItemResponse> response = transportOrderId == null
+                ? transportOrderItemService.getAll(pageable)
+                : transportOrderItemService.getByTransportOrderId(transportOrderId, pageable);
+
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

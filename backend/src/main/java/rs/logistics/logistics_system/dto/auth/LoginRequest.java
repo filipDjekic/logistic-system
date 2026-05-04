@@ -2,7 +2,6 @@ package rs.logistics.logistics_system.dto.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,15 +14,12 @@ import lombok.Setter;
 @NoArgsConstructor
 public class LoginRequest {
 
-    @NotBlank
-    @Email
-    @Pattern(
-        regexp = "^[a-zA-Z]+\\.[a-zA-Z]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}$",
-        message = "Email must be in format firstName.lastName@firm.sector.countryCode"
-    )
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email is not valid")
+    @Size(max = 255, message = "Email must be at most 255 characters")
     private String email;
 
-    @NotBlank
-    @Size(min = 1, max = 255)
+    @NotBlank(message = "Password is required")
+    @Size(max = 255, message = "Password must be at most 255 characters")
     private String password;
 }

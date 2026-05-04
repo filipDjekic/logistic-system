@@ -4,6 +4,7 @@ import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { cacheTimes } from '../../../core/constants/cache';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateWarehouseState } from '../../../core/utils/invalidateAppState';
 import { warehousesApi } from '../api/warehousesApi';
 import type {
   WarehouseCreateRequest,
@@ -42,11 +43,7 @@ export function useCreateWarehouse() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() }),
-      ]);
+      await invalidateWarehouseState(queryClient);
     },
     onError: (error) => {
       showSnackbar({
@@ -70,12 +67,7 @@ export function useUpdateWarehouse() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.detail(variables.id) }),
-      ]);
+      await invalidateWarehouseState(queryClient, variables.id);
     },
     onError: (error) => {
       showSnackbar({
@@ -98,11 +90,7 @@ export function useDeleteWarehouse() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() }),
-      ]);
+      await invalidateWarehouseState(queryClient);
     },
     onError: (error) => {
       showSnackbar({

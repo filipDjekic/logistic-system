@@ -84,6 +84,7 @@ export default function UsersTable({
     {
       id: 'actions',
       header: 'Actions',
+      sticky: 'right',
       align: 'right',
       minWidth: 180,
       render: (row) => (

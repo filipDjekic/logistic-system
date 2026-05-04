@@ -18,7 +18,23 @@ import java.util.List;
 import java.util.Objects;
 
 @Entity
-@Table(name = "TRANSPORT_ORDERS")
+@Table(
+        name = "TRANSPORT_ORDERS",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_transport_orders_order_number", columnNames = "order_number")
+        },
+        indexes = {
+                @Index(name = "idx_transport_orders_created_by_user_id", columnList = "created_by_user_id"),
+                @Index(name = "idx_transport_orders_assigned_employee_id", columnList = "assigned_employee_id"),
+                @Index(name = "idx_transport_orders_vehicle_id", columnList = "vehicle_id"),
+                @Index(name = "idx_transport_orders_status", columnList = "status"),
+                @Index(name = "idx_transport_orders_created_by_status", columnList = "created_by_user_id, status"),
+                @Index(name = "idx_transport_orders_vehicle_status_time", columnList = "vehicle_id, status, departure_time, planned_arrival_time"),
+                @Index(name = "idx_transport_orders_driver_status_time", columnList = "assigned_employee_id, status, departure_time, planned_arrival_time"),
+                @Index(name = "idx_transport_orders_source_warehouse_id", columnList = "source_warehouse_id"),
+                @Index(name = "idx_transport_orders_destination_warehouse_id", columnList = "destination_warehouse_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor

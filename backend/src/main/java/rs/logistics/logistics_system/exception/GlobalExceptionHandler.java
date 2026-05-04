@@ -1,30 +1,35 @@
 package rs.logistics.logistics_system.exception;
 
 import java.time.LocalDateTime;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException e, HttpServletRequest request) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.NOT_FOUND.value(),
-                HttpStatus.NOT_FOUND.getReasonPhrase(),
-                e.getMessage(),
-                request.getRequestURI()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+            ResourceNotFoundException ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", safeMessage(ex, "Resource not found"), request);
     }
 
     @ExceptionHandler(BadRequestException.class)
@@ -32,15 +37,7 @@ public class GlobalExceptionHandler {
             BadRequestException ex,
             HttpServletRequest request
     ) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI()
-        );
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return build(HttpStatus.BAD_REQUEST, "BAD_REQUEST", safeMessage(ex, "Invalid request"), request);
     }
 
     @ExceptionHandler(ConflictException.class)
@@ -48,15 +45,7 @@ public class GlobalExceptionHandler {
             ConflictException ex,
             HttpServletRequest request
     ) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                HttpStatus.CONFLICT.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI()
-        );
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+        return build(HttpStatus.CONFLICT, "CONFLICT", safeMessage(ex, "Request conflicts with existing data"), request);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
@@ -64,31 +53,15 @@ public class GlobalExceptionHandler {
             UnauthorizedException ex,
             HttpServletRequest request
     ) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.UNAUTHORIZED.value(),
-                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI()
-        );
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+        return build(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", safeMessage(ex, "Authentication is required"), request);
     }
 
-    @ExceptionHandler(ForbiddenException.class)
+    @ExceptionHandler({ForbiddenException.class, AccessDeniedException.class})
     public ResponseEntity<ErrorResponse> handleForbiddenException(
-            ForbiddenException ex,
+            RuntimeException ex,
             HttpServletRequest request
     ) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.FORBIDDEN.value(),
-                HttpStatus.FORBIDDEN.getReasonPhrase(),
-                ex.getMessage(),
-                request.getRequestURI()
-        );
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+        return build(HttpStatus.FORBIDDEN, "FORBIDDEN", safeMessage(ex, "Access denied"), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -96,37 +69,43 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex,
             HttpServletRequest request
     ) {
-        String message = ex.getBindingResult()
+        List<FieldErrorResponse> fieldErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .collect(Collectors.joining(", "));
+                .map(this::mapFieldError)
+                .toList();
 
-        ErrorResponse errorResponse = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                message,
-                request.getRequestURI()
-        );
+        String message = fieldErrors.isEmpty()
+                ? "Validation failed"
+                : "Validation failed for " + fieldErrors.size() + " field" + (fieldErrors.size() == 1 ? "" : "s");
 
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message, request, fieldErrors);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(
-            Exception ex,
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+            ConstraintViolationException ex,
             HttpServletRequest request
     ) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-                "Unexpected internal server error",
-                request.getRequestURI()
-        );
+        List<FieldErrorResponse> fieldErrors = ex.getConstraintViolations()
+                .stream()
+                .map(this::mapConstraintViolation)
+                .toList();
 
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Validation failed", request, fieldErrors);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request
+    ) {
+        return build(
+                HttpStatus.CONFLICT,
+                "DATA_INTEGRITY_VIOLATION",
+                "Request conflicts with existing data or database constraints",
+                request
+        );
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -134,15 +113,44 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException ex,
             HttpServletRequest request
     ) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Request payload is invalid or contains unsupported enum/value format",
-                request.getRequestURI()
+        return build(
+                HttpStatus.BAD_REQUEST,
+                "INVALID_REQUEST_BODY",
+                "Request body is invalid or contains unsupported enum/value format",
+                request
+        );
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException ex,
+            HttpServletRequest request
+    ) {
+        List<FieldErrorResponse> fieldErrors = List.of(
+                new FieldErrorResponse(ex.getParameterName(), "Required request parameter is missing")
         );
 
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return build(HttpStatus.BAD_REQUEST, "MISSING_REQUEST_PARAMETER", "Required request parameter is missing", request, fieldErrors);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request
+    ) {
+        List<FieldErrorResponse> fieldErrors = List.of(
+                new FieldErrorResponse(ex.getName(), "Invalid value format")
+        );
+
+        return build(HttpStatus.BAD_REQUEST, "INVALID_REQUEST_PARAMETER", "Request parameter has invalid value format", request, fieldErrors);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", "HTTP method is not supported for this endpoint", request);
     }
 
     @ExceptionHandler({IllegalStateException.class, IllegalArgumentException.class})
@@ -150,18 +158,62 @@ public class GlobalExceptionHandler {
             RuntimeException ex,
             HttpServletRequest request
     ) {
-        String message = ex.getMessage() != null && !ex.getMessage().isBlank()
-                ? ex.getMessage()
-                : "Request payload is invalid";
+        return build(HttpStatus.BAD_REQUEST, "INVALID_OPERATION", safeMessage(ex, "Request payload is invalid"), request);
+    }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Unexpected internal server error", request);
+    }
+
+    private ResponseEntity<ErrorResponse> build(
+            HttpStatus status,
+            String code,
+            String message,
+            HttpServletRequest request
+    ) {
+        return build(status, code, message, request, List.of());
+    }
+
+    private ResponseEntity<ErrorResponse> build(
+            HttpStatus status,
+            String code,
+            String message,
+            HttpServletRequest request,
+            List<FieldErrorResponse> fieldErrors
+    ) {
         ErrorResponse errorResponse = new ErrorResponse(
                 LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                status.value(),
+                status.getReasonPhrase(),
+                code,
                 message,
-                request.getRequestURI()
+                request.getRequestURI(),
+                fieldErrors == null ? new ArrayList<>() : fieldErrors
         );
 
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(errorResponse, status);
+    }
+
+    private FieldErrorResponse mapFieldError(FieldError error) {
+        String message = error.getDefaultMessage() == null || error.getDefaultMessage().isBlank()
+                ? "Invalid value"
+                : error.getDefaultMessage();
+
+        return new FieldErrorResponse(error.getField(), message);
+    }
+
+    private FieldErrorResponse mapConstraintViolation(ConstraintViolation<?> violation) {
+        return new FieldErrorResponse(
+                violation.getPropertyPath().toString(),
+                violation.getMessage() == null || violation.getMessage().isBlank() ? "Invalid value" : violation.getMessage()
+        );
+    }
+
+    private String safeMessage(RuntimeException ex, String fallback) {
+        return ex.getMessage() == null || ex.getMessage().isBlank() ? fallback : ex.getMessage();
     }
 }

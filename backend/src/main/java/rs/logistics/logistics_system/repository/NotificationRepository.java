@@ -37,6 +37,22 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             Pageable pageable
     );
 
+    @Query("""
+            select n from Notification n
+            where n.user.id = :userId
+              and (:companyId is null or n.user.company.id = :companyId)
+              and (:status is null or n.status = :status)
+              and (:type is null or n.type = :type)
+            order by n.createdAt desc
+            """)
+    Page<Notification> searchForUser(
+            @Param("userId") Long userId,
+            @Param("companyId") Long companyId,
+            @Param("status") NotificationStatus status,
+            @Param("type") NotificationType type,
+            Pageable pageable
+    );
+
     long countByUserIdAndStatus(Long userId, NotificationStatus status);
 
     long countByUserIdAndStatusAndUser_Company_Id(Long userId, NotificationStatus status, Long companyId);

@@ -1,16 +1,17 @@
 package rs.logistics.logistics_system.repository;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.enums.VehicleStatus;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
 
 public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
@@ -21,6 +22,10 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     boolean existsByRegistrationNumber(String registrationNumber);
 
     boolean existsByRegistrationNumberIgnoreCase(String registrationNumber);
+
+    boolean existsByRegistrationNumberIgnoreCaseAndCompany_Id(String registrationNumber, Long companyId);
+
+    boolean existsByRegistrationNumberIgnoreCaseAndCompany_IdAndIdNot(String registrationNumber, Long companyId, Long id);
 
     boolean existsByRegistrationNumberIgnoreCaseAndIdNot(String registrationNumber, Long id);
 
@@ -45,8 +50,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
         and (
             :search is null
             or lower(v.registrationNumber) like lower(concat('%', :search, '%'))
-            or lower(v.brand) like lower(concat('%', :search, '%'))
-            or lower(v.model) like lower(concat('%', :search, '%'))
+            or lower(v.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
+            or lower(v.vehicleModel.name) like lower(concat('%', :search, '%'))
             or lower(v.type) like lower(concat('%', :search, '%'))
             or lower(v.fuelType) like lower(concat('%', :search, '%'))
             or lower(str(v.yearOfProduction)) like lower(concat('%', :search, '%'))

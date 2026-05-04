@@ -68,6 +68,24 @@ export default function TransportOrderItemsTable({
       render: (row) => <Typography variant="body2">{row.quantity}</Typography>,
     },
     {
+      id: 'reservedQuantity',
+      header: 'Reserved',
+      minWidth: 120,
+      render: (row) => <Typography variant="body2">{row.reservedQuantity}</Typography>,
+    },
+    {
+      id: 'dispatchedQuantity',
+      header: 'Dispatched',
+      minWidth: 120,
+      render: (row) => <Typography variant="body2">{row.dispatchedQuantity}</Typography>,
+    },
+    {
+      id: 'deliveredQuantity',
+      header: 'Delivered',
+      minWidth: 120,
+      render: (row) => <Typography variant="body2">{row.deliveredQuantity}</Typography>,
+    },
+    {
       id: 'weight',
       header: 'Weight',
       minWidth: 120,

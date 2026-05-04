@@ -18,9 +18,17 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     boolean existsByJmbg(String jmbg);
 
+    boolean existsByJmbgAndCompany_Id(String jmbg, Long companyId);
+
+    boolean existsByJmbgAndCompany_IdAndIdNot(String jmbg, Long companyId, Long id);
+
     boolean existsByJmbgAndIdNot(String jmbg, Long id);
 
     boolean existsByEmailIgnoreCase(String email);
+
+    boolean existsByEmailIgnoreCaseAndCompany_Id(String email, Long companyId);
+
+    boolean existsByEmailIgnoreCaseAndCompany_IdAndIdNot(String email, Long companyId, Long id);
 
     boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
 
@@ -93,6 +101,21 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             @Param("active") Boolean active,
             @Param("linkedUser") String linkedUser,
             Pageable pageable
+    );
+
+
+    @Query("""
+            select e
+            from Employee e
+            left join fetch e.user u
+            where (:companyId is null or e.company.id = :companyId)
+            and (:employeeId is null or e.id = :employeeId)
+            and (:position is null or e.position = :position)
+            """)
+    List<Employee> searchReportEmployees(
+            @Param("companyId") Long companyId,
+            @Param("employeeId") Long employeeId,
+            @Param("position") EmployeePosition position
     );
 
     @Query("""

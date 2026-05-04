@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Button,
   Dialog,
@@ -17,6 +17,8 @@ import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
 import type { CompanyResponse } from '../../companies/types/company.types';
+import { useCitiesByCountry } from '../../cities/hooks/useCities';
+import { useActiveCountries } from '../../countries/hooks/useCountries';
 import type {
   EmployeeResponse,
   EmployeeRoleOption,
@@ -60,6 +62,13 @@ const defaultValues: EmployeeFormValues = {
   password: '',
   status: 'ACTIVE',
   enabled: true,
+  address: '',
+  countryId: null,
+  cityId: null,
+  city: '',
+  postalCode: '',
+  timezoneId: null,
+  primaryWarehouseId: null,
   companyId: '',
 };
 
@@ -81,7 +90,13 @@ function normalizeForEmail(value: string, allowHyphen: boolean) {
   return normalized;
 }
 
-function buildEmail(firstName: string, lastName: string, companyName?: string | null, position?: string) {
+function buildEmail(
+  firstName: string,
+  lastName: string,
+  companyName?: string | null,
+  position?: string,
+  countryCode?: string | null,
+) {
   const localPart = [
     normalizeForEmail(firstName, false),
     normalizeForEmail(lastName, false),
@@ -93,12 +108,13 @@ function buildEmail(firstName: string, lastName: string, companyName?: string | 
 
   const companyPart = normalizeForEmail(companyName ?? 'company', true) || 'company';
   const positionPart = normalizeForEmail(position ?? 'worker', true) || 'worker';
+  const countryPart = normalizeForEmail(countryCode ?? '', true) || 'country';
 
   if (!localPart) {
     return '';
   }
 
-  return `${localPart}@${companyPart}.${positionPart}.rs`;
+  return `${localPart}@${companyPart}.${positionPart}.${countryPart}`;
 }
 
 export default function EmployeeFormDialog({
@@ -116,6 +132,8 @@ export default function EmployeeFormDialog({
   onSubmit,
 }: EmployeeFormDialogProps) {
   const hasLinkedUser = mode === 'edit' && Boolean(linkedUser);
+  const countriesQuery = useActiveCountries(open);
+  const previousCountryIdRef = useRef<number | null>(null);
   const requireCompany = mode === 'create' && isOverlord;
 
   const form = useForm<EmployeeFormValues>({
@@ -128,6 +146,9 @@ export default function EmployeeFormDialog({
   const lastName = useWatch({ control: form.control, name: 'lastName' });
   const selectedPosition = useWatch({ control: form.control, name: 'position' });
   const selectedCompanyId = useWatch({ control: form.control, name: 'companyId' });
+  const selectedCountryId = useWatch({ control: form.control, name: 'countryId' });
+  const selectedCityId = useWatch({ control: form.control, name: 'cityId' });
+  const citiesQuery = useCitiesByCountry(Number(selectedCountryId) || null, open && Boolean(selectedCountryId));
 
   const positionOptions = useMemo(
     () =>
@@ -136,6 +157,40 @@ export default function EmployeeFormDialog({
         label: role.name,
       })),
     [roles],
+  );
+
+  const countryOptions = useMemo(
+    () => (countriesQuery.data ?? []).map((country) => ({
+      value: country.id,
+      label: `${country.name} (${country.iso2Code})`,
+    })),
+    [countriesQuery.data],
+  );
+
+  const selectedCountry = useMemo(
+    () => (countriesQuery.data ?? []).find((country) => country.id === Number(selectedCountryId)),
+    [countriesQuery.data, selectedCountryId],
+  );
+
+  const cityOptions = useMemo(
+    () => (citiesQuery.data ?? []).map((city) => ({
+      value: city.id,
+      label: city.postalCode ? `${city.name} (${city.postalCode})` : city.name,
+    })),
+    [citiesQuery.data],
+  );
+
+  const selectedCity = useMemo(
+    () => (citiesQuery.data ?? []).find((city) => city.id === Number(selectedCityId)),
+    [citiesQuery.data, selectedCityId],
+  );
+
+  const timezoneOptions = useMemo(
+    () => selectedCountry?.timezones?.map((timezone) => ({
+      value: timezone.id,
+      label: `${timezone.displayName} (${timezone.name})`,
+    })) ?? [],
+    [selectedCountry],
   );
 
   const companyOptions = useMemo(
@@ -163,6 +218,22 @@ export default function EmployeeFormDialog({
     return selectedCompany?.name ?? null;
   }, [companies, companyName, isOverlord, mode, selectedCompanyId]);
 
+  const selectedCompanyCountryCode = useMemo(() => {
+    if (mode !== 'create') {
+      return selectedCountry?.iso2Code ?? initialData?.countryCode ?? null;
+    }
+
+    if (!isOverlord) {
+      return selectedCountry?.iso2Code ?? null;
+    }
+
+    const selectedCompany = companies.find(
+      (company) => String(company.id) === String(selectedCompanyId),
+    );
+
+    return selectedCompany?.countryCode ?? selectedCountry?.iso2Code ?? null;
+  }, [companies, initialData?.countryCode, isOverlord, mode, selectedCompanyId, selectedCountry?.iso2Code]);
+
   useEffect(() => {
     if (!open) {
       return;
@@ -178,6 +249,13 @@ export default function EmployeeFormDialog({
         position: initialData.position,
         employmentDate: initialData.employmentDate,
         salary: String(initialData.salary),
+        address: initialData.address ?? '',
+        countryId: initialData.countryId ?? null,
+        cityId: initialData.cityId ?? null,
+        city: initialData.cityName ?? initialData.city ?? '',
+        postalCode: initialData.postalCode ?? '',
+        timezoneId: initialData.timezoneId ?? null,
+        primaryWarehouseId: initialData.primaryWarehouseId ?? null,
         password: '',
         status: linkedUser?.status ?? 'ACTIVE',
         enabled: linkedUser?.enabled ?? true,
@@ -190,13 +268,55 @@ export default function EmployeeFormDialog({
   }, [form, initialData, linkedUser, mode, open]);
 
   useEffect(() => {
+    if (!open) {
+      previousCountryIdRef.current = null;
+      return;
+    }
+    const currentCountryId = Number(selectedCountryId) || null;
+    if (previousCountryIdRef.current === null) {
+      previousCountryIdRef.current = currentCountryId;
+      return;
+    }
+    if (previousCountryIdRef.current !== currentCountryId) {
+      form.setValue('cityId', null, { shouldDirty: true, shouldValidate: true });
+      form.setValue('city', '', { shouldDirty: true, shouldValidate: true });
+      previousCountryIdRef.current = currentCountryId;
+    }
+  }, [form, open, selectedCountryId]);
+
+  useEffect(() => {
+    if (!open || !selectedCity) {
+      return;
+    }
+    form.setValue('city', selectedCity.name, { shouldDirty: true, shouldValidate: true });
+    if (selectedCity.postalCode && !form.getValues('postalCode')) {
+      form.setValue('postalCode', selectedCity.postalCode, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [form, open, selectedCity]);
+
+  useEffect(() => {
+    if (!open || !selectedCountry?.defaultTimezoneId) {
+      return;
+    }
+    if (!form.getValues('timezoneId')) {
+      form.setValue('timezoneId', selectedCountry.defaultTimezoneId, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [form, open, selectedCountry?.defaultTimezoneId]);
+
+  useEffect(() => {
     if (mode !== 'create') {
       return;
     }
 
-    const nextEmail = buildEmail(firstName ?? '', lastName ?? '', selectedCompanyName, selectedPosition);
+    const nextEmail = buildEmail(
+      firstName ?? '',
+      lastName ?? '',
+      selectedCompanyName,
+      selectedPosition,
+      selectedCompanyCountryCode,
+    );
     form.setValue('email', nextEmail, { shouldDirty: true, shouldValidate: true });
-  }, [firstName, form, lastName, mode, selectedCompanyName, selectedPosition]);
+  }, [firstName, form, lastName, mode, selectedCompanyCountryCode, selectedCompanyName, selectedPosition]);
 
   const disableSubmit = loading || !form.formState.isValid || (mode === 'edit' && !canEdit);
 
@@ -231,6 +351,63 @@ export default function EmployeeFormDialog({
               <FormTextField name="phoneNumber" control={form.control} label="Phone number" required />
             </Grid>
 
+          </Grid>
+
+          <Divider />
+
+          <Typography variant="subtitle2" fontWeight={700}>
+            Location
+          </Typography>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="countryId"
+                control={form.control}
+                label="Country"
+                options={countryOptions}
+                disabled={mode === 'edit' && !canEdit}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="cityId"
+                control={form.control}
+                label="City"
+                options={cityOptions}
+                disabled={!selectedCountryId || citiesQuery.isLoading || cityOptions.length === 0 || (mode === 'edit' && !canEdit)}
+                helperText={!selectedCountryId ? 'Select country first' : undefined}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <FormTextField
+                name="address"
+                control={form.control}
+                label="Address"
+                disabled={mode === 'edit' && !canEdit}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormTextField
+                name="postalCode"
+                control={form.control}
+                label="Postal code"
+                disabled={mode === 'edit' && !canEdit}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="timezoneId"
+                control={form.control}
+                label="Timezone"
+                options={timezoneOptions}
+                disabled={!selectedCountryId || timezoneOptions.length === 0 || (mode === 'edit' && !canEdit)}
+              />
+            </Grid>
           </Grid>
 
           <Divider />

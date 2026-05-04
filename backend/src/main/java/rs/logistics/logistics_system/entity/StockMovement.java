@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import rs.logistics.logistics_system.enums.StockAdjustmentDirection;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
@@ -14,7 +15,17 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "STOCK_MOVEMENTS")
+@Table(
+        name = "STOCK_MOVEMENTS",
+        indexes = {
+                @Index(name = "idx_stock_movements_warehouse_product_created", columnList = "warehouse_id, product_id, created_at"),
+                @Index(name = "idx_stock_movements_transport_order_id", columnList = "transport_order_id"),
+                @Index(name = "idx_stock_movements_reference", columnList = "reference_type, reference_id"),
+                @Index(name = "idx_stock_movements_transfer_group_id", columnList = "transfer_group_id"),
+                @Index(name = "idx_stock_movements_product_created", columnList = "product_id, created_at"),
+                @Index(name = "idx_stock_movements_warehouse_type_created", columnList = "warehouse_id, movement_type, created_at")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -51,6 +62,13 @@ public class StockMovement {
 
     @Column(name = "reference_note", length = 255)
     private String referenceNote;
+
+    @Column(name = "transfer_group_id", length = 100)
+    private String transferGroupId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "adjustment_direction", length = 20)
+    private StockAdjustmentDirection adjustmentDirection;
 
     @Column(name = "quantity_before", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantityBefore;
@@ -102,6 +120,8 @@ public class StockMovement {
             Long referenceId,
             String referenceNumber,
             String referenceNote,
+            String transferGroupId,
+            StockAdjustmentDirection adjustmentDirection,
             BigDecimal quantityBefore,
             BigDecimal quantityAfter,
             BigDecimal reservedBefore,
@@ -121,6 +141,8 @@ public class StockMovement {
         this.referenceId = referenceId;
         this.referenceNumber = referenceNumber;
         this.referenceNote = referenceNote;
+        this.transferGroupId = transferGroupId;
+        this.adjustmentDirection = adjustmentDirection;
         this.quantityBefore = quantityBefore;
         this.quantityAfter = quantityAfter;
         this.reservedBefore = reservedBefore;

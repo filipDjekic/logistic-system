@@ -4,6 +4,7 @@ import java.util.List;
 
 public record ImportResultResponse(
         String importType,
+        String transactionMode,
         boolean success,
         int totalRows,
         int importedRows,

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { SxProps, Theme } from '@mui/material/styles';
 import {
   alpha,
   Box,
@@ -31,6 +32,7 @@ type DataTableProps<T> = {
   emptyDescription?: string;
   minWidth?: number;
   stickyHeader?: boolean;
+  stickyActions?: boolean;
   size?: 'small' | 'medium';
   toolbar?: ReactNode;
   pagination?: ReactNode;
@@ -67,7 +69,8 @@ export default function DataTable<T>({
   emptyTitle = 'No data available',
   emptyDescription = 'There are no records to display for the current view.',
   minWidth = 720,
-  stickyHeader = false,
+  stickyHeader = true,
+  stickyActions = true,
   size = 'medium',
   toolbar,
   pagination,
@@ -76,6 +79,21 @@ export default function DataTable<T>({
   getRowStatus,
 }: DataTableProps<T>) {
   const hasRows = rows.length > 0;
+
+  const getStickySx = (column: DataTableColumn<T>, isHead = false): SxProps<Theme> | undefined => {
+    const sticky = column.sticky === 'right' || (stickyActions && column.id === 'actions');
+    if (!sticky) {
+      return undefined;
+    }
+
+    return {
+      position: 'sticky',
+      right: 0,
+      zIndex: isHead ? 4 : 3,
+      backgroundColor: isHead ? 'background.paper' : 'background.default',
+      boxShadow: (theme) => `-1px 0 0 ${theme.palette.divider}`,
+    };
+  };
 
   return (
     <Paper
@@ -98,6 +116,7 @@ export default function DataTable<T>({
                   sx={{
                     minWidth: column.minWidth,
                     width: column.width,
+                    ...getStickySx(column, true),
                     ...column.headerSx,
                   }}
                 >
@@ -141,6 +160,7 @@ export default function DataTable<T>({
                           minWidth: column.minWidth,
                           width: column.width,
                           whiteSpace: column.nowrap ? 'nowrap' : 'normal',
+                          ...getStickySx(column),
                           ...column.cellSx,
                         }}
                       >
@@ -158,7 +178,7 @@ export default function DataTable<T>({
             {!loading && error ? (
               <TableRow>
                 <TableCell colSpan={columns.length}>
-                  <Box sx={{ py: 1 }}>
+                  <Box sx={{ py: { xs: 4, md: 6 }, px: 2 }}>
                     <ErrorState
                       title={errorTitle}
                       description={errorDescription}
@@ -172,7 +192,7 @@ export default function DataTable<T>({
             {!loading && !error && !hasRows ? (
               <TableRow>
                 <TableCell colSpan={columns.length}>
-                  <Box sx={{ py: 1 }}>
+                  <Box sx={{ py: { xs: 4, md: 6 }, px: 2 }}>
                     <EmptyState
                       title={emptyTitle}
                       description={emptyDescription}
@@ -244,6 +264,7 @@ export default function DataTable<T>({
                             align={column.align}
                             sx={{
                               whiteSpace: column.nowrap ? 'nowrap' : 'normal',
+                              ...getStickySx(column),
                               ...column.cellSx,
                             }}
                           >
@@ -259,7 +280,11 @@ export default function DataTable<T>({
         </Table>
       </TableContainer>
 
-      {pagination}
+      {pagination ? (
+        <Box sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}` }}>
+          {pagination}
+        </Box>
+      ) : null}
     </Paper>
   );
 }

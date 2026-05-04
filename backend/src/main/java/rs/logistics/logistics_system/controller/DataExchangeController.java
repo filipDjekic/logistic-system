@@ -1,6 +1,23 @@
 package rs.logistics.logistics_system.controller;
 
-import lombok.RequiredArgsConstructor;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +34,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
+import lombok.RequiredArgsConstructor;
+import rs.logistics.logistics_system.dto.create.EmployeeCreate;
 import rs.logistics.logistics_system.dto.create.ProductCreate;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
@@ -27,6 +49,7 @@ import rs.logistics.logistics_system.dto.response.report.EmployeeTaskReportRespo
 import rs.logistics.logistics_system.dto.response.report.InventoryReportResponse;
 import rs.logistics.logistics_system.dto.response.report.TransportReportResponse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.FuelType;
 import rs.logistics.logistics_system.enums.PriorityLevel;
 import rs.logistics.logistics_system.enums.ProductUnit;
 import rs.logistics.logistics_system.enums.StockMovementType;
@@ -34,8 +57,12 @@ import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
+import rs.logistics.logistics_system.enums.VehicleType;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.repository.TimezoneRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
@@ -43,35 +70,29 @@ import rs.logistics.logistics_system.service.definition.WarehouseServiceDefiniti
 import rs.logistics.logistics_system.service.definition.report.EmployeeTaskReportServiceDefinition;
 import rs.logistics.logistics_system.service.definition.report.InventoryReportServiceDefinition;
 import rs.logistics.logistics_system.service.definition.report.TransportReportServiceDefinition;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import rs.logistics.logistics_system.service.implementation.VehicleCatalogService;
 
 @RestController
 @RequestMapping("/api/data")
 @RequiredArgsConstructor
 public class DataExchangeController {
 
+    private static final String TRANSACTION_MODE = "ALL_OR_NOTHING";
+
     private final ProductServiceDefinition productService;
     private final VehicleServiceDefinition vehicleService;
     private final WarehouseServiceDefinition warehouseService;
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
+    private final EmployeeServiceDefinition employeeService;
     private final TransportReportServiceDefinition transportReportService;
     private final InventoryReportServiceDefinition inventoryReportService;
     private final EmployeeTaskReportServiceDefinition employeeTaskReportService;
+    private final VehicleCatalogService vehicleCatalogService;
+    private final TimezoneRepository timezoneRepository;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final Validator validator;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
     @PostMapping(value = "/import/{type}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Transactional
     public ResponseEntity<ImportResultResponse> importCsv(
@@ -85,6 +106,7 @@ public class DataExchangeController {
             case "vehicles" -> importRows(normalizedType, file, this::parseVehicleRow, vehicleService::create);
             case "warehouses" -> importRows(normalizedType, file, this::parseWarehouseRow, warehouseService::create);
             case "warehouse-inventory" -> importRows(normalizedType, file, this::parseWarehouseInventoryRow, warehouseInventoryService::create);
+            case "employees" -> importRows(normalizedType, file, this::parseEmployeeRow, employeeService::create);
             default -> throw new BadRequestException("Unsupported import type: " + type);
         });
     }
@@ -175,9 +197,7 @@ public class DataExchangeController {
     }
 
     private <T> ImportResultResponse importRows(String type, MultipartFile file, Function<Map<String, String>, T> rowParser, Consumer<T> rowImporter) {
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException("CSV file is required");
-        }
+        validateImportFile(file);
 
         List<ParsedImportRow<T>> parsedRows = new ArrayList<>();
         List<ImportRowErrorResponse> errors = new ArrayList<>();
@@ -193,6 +213,7 @@ public class DataExchangeController {
                     .toList();
 
             validateHeaders(type, headers, errors);
+            validateCompanyHeader(type, headers, errors);
 
             String line;
             int lineNumber = 1;
@@ -210,7 +231,14 @@ public class DataExchangeController {
 
                 try {
                     Map<String, String> row = toRow(headers, values);
-                    parsedRows.add(new ParsedImportRow<>(lineNumber, rowParser.apply(row)));
+                    T payload = rowParser.apply(row);
+                    enforceImportCompanyScope(type, payload);
+                    List<ImportRowErrorResponse> dtoErrors = validateDto(lineNumber, payload);
+                    if (dtoErrors.isEmpty()) {
+                        parsedRows.add(new ParsedImportRow<>(lineNumber, payload));
+                    } else {
+                        errors.addAll(dtoErrors);
+                    }
                 } catch (CsvRowValidationException ex) {
                     errors.add(new ImportRowErrorResponse(lineNumber, ex.field(), ex.value(), ex.getMessage()));
                 } catch (RuntimeException ex) {
@@ -223,8 +251,13 @@ public class DataExchangeController {
 
         int totalRows = parsedRows.size() + (int) errors.stream().filter(error -> error.line() > 1).count();
 
+        if (totalRows == 0 && errors.isEmpty()) {
+            errors.add(new ImportRowErrorResponse(1, "row", null, "CSV file must contain at least one data row"));
+        }
+
         if (!errors.isEmpty()) {
-            return new ImportResultResponse(type, false, totalRows, 0, totalRows, errors);
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return new ImportResultResponse(type, TRANSACTION_MODE, false, totalRows, 0, Math.max(totalRows, errors.size()), errors);
         }
 
         int importedRows = 0;
@@ -236,6 +269,7 @@ public class DataExchangeController {
                 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
                 return new ImportResultResponse(
                         type,
+                        TRANSACTION_MODE,
                         false,
                         totalRows,
                         0,
@@ -245,15 +279,51 @@ public class DataExchangeController {
             }
         }
 
-        return new ImportResultResponse(type, true, totalRows, importedRows, 0, List.of());
+        return new ImportResultResponse(type, TRANSACTION_MODE, true, totalRows, importedRows, 0, List.of());
+    }
+
+    private <T> List<ImportRowErrorResponse> validateDto(int lineNumber, T payload) {
+        return validator.validate(payload).stream()
+                .map(violation -> new ImportRowErrorResponse(
+                        lineNumber,
+                        violation.getPropertyPath().toString(),
+                        invalidValue(violation),
+                        violation.getMessage()
+                ))
+                .toList();
+    }
+
+    private static String invalidValue(ConstraintViolation<?> violation) {
+        Object invalidValue = violation.getInvalidValue();
+        return invalidValue == null ? null : String.valueOf(invalidValue);
+    }
+
+    private void validateCompanyHeader(String type, List<String> headers, List<ImportRowErrorResponse> errors) {
+        if (!authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        if (List.of("products", "vehicles", "warehouses", "employees").contains(type) && !headers.contains("companyid")) {
+            errors.add(new ImportRowErrorResponse(1, "companyId", null, "OVERLORD CSV import requires companyId header"));
+        }
     }
 
     private static void validateHeaders(String type, List<String> headers, List<ImportRowErrorResponse> errors) {
+        Set<String> seenHeaders = new HashSet<>();
+        for (String header : headers) {
+            if (header.isBlank()) {
+                errors.add(new ImportRowErrorResponse(1, "header", null, "CSV header cannot be blank"));
+            } else if (!seenHeaders.add(header)) {
+                errors.add(new ImportRowErrorResponse(1, header, null, "Duplicate CSV header: " + header));
+            }
+        }
+
         List<String> requiredHeaders = switch (type) {
             case "products" -> List.of("name", "sku", "unit", "price", "fragile", "weight");
-            case "vehicles" -> List.of("registrationnumber", "brand", "model", "type", "capacity", "fueltype", "yearofproduction", "status");
-            case "warehouses" -> List.of("name", "address", "city", "capacity", "status", "employeeid");
+            case "vehicles" -> List.of("registrationnumber", "brand", "model", "type", "capacity", "maxweight", "fueltype", "yearofproduction", "status");
+            case "warehouses" -> List.of("name", "address", "cityid", "postalcode", "countryid", "capacity", "status", "employeeid");
             case "warehouse-inventory" -> List.of("warehouseid", "productid", "quantity", "minstocklevel");
+            case "employees" -> List.of("firstname", "lastname", "jmbg", "phonenumber", "email", "position", "employmentdate", "salary");
             default -> List.of();
         };
 
@@ -270,52 +340,83 @@ public class DataExchangeController {
         dto.setDescription(optional(row, "description"));
         dto.setSku(required(row, "sku"));
         dto.setUnit(enumValue(ProductUnit.class, required(row, "unit"), "unit"));
-        dto.setPrice(decimal(required(row, "price"), "price"));
+        dto.setPrice(positiveDecimal(required(row, "price"), "price"));
         dto.setFragile(bool(required(row, "fragile"), "fragile"));
-        dto.setWeight(decimal(required(row, "weight"), "weight"));
-        dto.setCompanyId(optionalLong(row, "companyid"));
+        dto.setWeight(positiveDecimal(required(row, "weight"), "weight"));
+        dto.setCompanyId(optionalPositiveLong(row, "companyid"));
         return dto;
     }
 
     private VehicleCreate parseVehicleRow(Map<String, String> row) {
         VehicleCreate dto = new VehicleCreate();
         dto.setRegistrationNumber(required(row, "registrationnumber"));
-        dto.setBrand(required(row, "brand"));
-        dto.setModel(required(row, "model"));
-        dto.setType(required(row, "type"));
-        dto.setCapacity(decimal(required(row, "capacity"), "capacity"));
-        dto.setFuelType(required(row, "fueltype"));
-        dto.setYearOfProduction(integer(required(row, "yearofproduction"), "yearOfProduction"));
+        dto.setVehicleModelId(vehicleCatalogService.getOrCreateModel(required(row, "brand"), required(row, "model")).getId());
+        dto.setType(enumValue(VehicleType.class, required(row, "type"), "type"));
+        dto.setCapacity(positiveDecimal(required(row, "capacity"), "capacity"));
+        dto.setMaxWeight(positiveDecimal(required(row, "maxweight"), "maxWeight"));
+        dto.setMaxVolume(optionalPositiveDecimal(row, "maxvolume"));
+        dto.setMaxItems(optionalPositiveInteger(row, "maxitems"));
+        dto.setFuelType(enumValue(FuelType.class, required(row, "fueltype"), "fuelType"));
+        dto.setYearOfProduction(minInteger(required(row, "yearofproduction"), "yearOfProduction", 1990));
         dto.setStatus(enumValue(VehicleStatus.class, required(row, "status"), "status"));
-        dto.setCompanyId(optionalLong(row, "companyid"));
+        dto.setCompanyId(optionalPositiveLong(row, "companyid"));
         return dto;
     }
 
     private WarehouseCreate parseWarehouseRow(Map<String, String> row) {
-        WarehouseCreate dto = new WarehouseCreate();
-        dto.setName(required(row, "name"));
-        dto.setAddress(required(row, "address"));
-        dto.setCity(required(row, "city"));
-        dto.setCapacity(decimal(required(row, "capacity"), "capacity"));
-        dto.setStatus(enumValue(WarehouseStatus.class, required(row, "status"), "status"));
-        dto.setEmployeeId(longValue(required(row, "employeeid"), "employeeId"));
-        dto.setCompanyId(optionalLong(row, "companyid"));
-        return dto;
+        return new WarehouseCreate(
+                required(row, "name"),
+                required(row, "address"),
+                positiveLongValue(required(row, "cityid"), "cityId"),
+                optional(row, "city"),
+                required(row, "postalcode"),
+                positiveLongValue(required(row, "countryid"), "countryId"),
+                requiredTimezoneId(row),
+                optionalDecimal(row, "latitude"),
+                optionalDecimal(row, "longitude"),
+                positiveDecimal(required(row, "capacity"), "capacity"),
+                enumValue(WarehouseStatus.class, required(row, "status"), "status"),
+                positiveLongValue(required(row, "employeeid"), "employeeId"),
+                optionalPositiveLong(row, "companyid")
+        );
     }
 
     private WarehouseInventoryCreate parseWarehouseInventoryRow(Map<String, String> row) {
         WarehouseInventoryCreate dto = new WarehouseInventoryCreate();
-        dto.setWarehouseId(longValue(required(row, "warehouseid"), "warehouseId"));
-        dto.setProductId(longValue(required(row, "productid"), "productId"));
-        dto.setQuantity(decimal(required(row, "quantity"), "quantity"));
-        dto.setMinStockLevel(decimal(required(row, "minstocklevel"), "minStockLevel"));
+        dto.setWarehouseId(positiveLongValue(required(row, "warehouseid"), "warehouseId"));
+        dto.setProductId(positiveLongValue(required(row, "productid"), "productId"));
+        dto.setQuantity(nonNegativeDecimal(required(row, "quantity"), "quantity"));
+        dto.setMinStockLevel(nonNegativeDecimal(required(row, "minstocklevel"), "minStockLevel"));
         return dto;
     }
 
+    private EmployeeCreate parseEmployeeRow(Map<String, String> row) {
+        return new EmployeeCreate(
+                required(row, "firstname"),
+                required(row, "lastname"),
+                required(row, "jmbg"),
+                required(row, "phonenumber"),
+                required(row, "email"),
+                optional(row, "address"),
+                optionalPositiveLong(row, "cityid"),
+                optional(row, "city"),
+                optional(row, "postalcode"),
+                optionalTimezoneId(row),
+                optionalPositiveLong(row, "countryid"),
+                optionalPositiveLong(row, "primarywarehouseid"),
+                enumValue(EmployeePosition.class, required(row, "position"), "position"),
+                localDate(required(row, "employmentdate"), "employmentDate"),
+                positiveDecimal(required(row, "salary"), "salary"),
+                optionalPositiveLong(row, "userid"),
+                optionalPositiveLong(row, "companyid")
+        );
+    }
+
     private static ResponseEntity<byte[]> csvResponse(String fileName, String csv) {
-        byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+        byte[] bytes = ("\uFEFF" + csv).getBytes(StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(fileName).build().toString())
+                .contentLength(bytes.length)
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .body(bytes);
     }
@@ -402,9 +503,39 @@ public class DataExchangeController {
         return value == null || value.trim().isEmpty() ? null : value.trim();
     }
 
-    private static Long optionalLong(Map<String, String> row, String key) {
+    private static Long optionalPositiveLong(Map<String, String> row, String key) {
         String value = optional(row, key);
-        return value == null ? null : longValue(value, key);
+        return value == null ? null : positiveLongValue(value, key);
+    }
+
+    private static BigDecimal optionalPositiveDecimal(Map<String, String> row, String key) {
+        String value = optional(row, key);
+        return value == null ? null : positiveDecimal(value, key);
+    }
+
+    private static BigDecimal optionalDecimal(Map<String, String> row, String key) {
+        String value = optional(row, key);
+        return value == null ? null : decimal(value, key);
+    }
+
+    private static Integer optionalPositiveInteger(Map<String, String> row, String key) {
+        String value = optional(row, key);
+        if (value == null) {
+            return null;
+        }
+        Integer parsed = integer(value, key);
+        if (parsed <= 0) {
+            throw new CsvRowValidationException(key, value, key + " must be greater than zero");
+        }
+        return parsed;
+    }
+
+    private static Long positiveLongValue(String value, String field) {
+        Long parsed = longValue(value, field);
+        if (parsed <= 0) {
+            throw new CsvRowValidationException(field, value, field + " must be greater than zero");
+        }
+        return parsed;
     }
 
     private static Long longValue(String value, String field) {
@@ -415,6 +546,14 @@ public class DataExchangeController {
         }
     }
 
+    private static Integer minInteger(String value, String field, int minValue) {
+        Integer parsed = integer(value, field);
+        if (parsed < minValue) {
+            throw new CsvRowValidationException(field, value, field + " must be greater than or equal to " + minValue);
+        }
+        return parsed;
+    }
+
     private static Integer integer(String value, String field) {
         try {
             return Integer.parseInt(value.trim());
@@ -423,11 +562,35 @@ public class DataExchangeController {
         }
     }
 
+    private static BigDecimal positiveDecimal(String value, String field) {
+        BigDecimal parsed = decimal(value, field);
+        if (parsed.signum() <= 0) {
+            throw new CsvRowValidationException(field, value, field + " must be greater than zero");
+        }
+        return parsed;
+    }
+
+    private static BigDecimal nonNegativeDecimal(String value, String field) {
+        BigDecimal parsed = decimal(value, field);
+        if (parsed.signum() < 0) {
+            throw new CsvRowValidationException(field, value, field + " must be zero or greater");
+        }
+        return parsed;
+    }
+
     private static BigDecimal decimal(String value, String field) {
         try {
             return new BigDecimal(value.trim());
         } catch (NumberFormatException ex) {
             throw new CsvRowValidationException(field, value, field + " must be a valid decimal number");
+        }
+    }
+
+    private static LocalDate localDate(String value, String field) {
+        try {
+            return LocalDate.parse(value.trim());
+        } catch (DateTimeParseException ex) {
+            throw new CsvRowValidationException(field, value, field + " must be a valid ISO date, for example 2026-05-01");
         }
     }
 
@@ -440,6 +603,17 @@ public class DataExchangeController {
             return false;
         }
         throw new CsvRowValidationException(field, value, field + " must be true or false");
+    }
+
+    private static void validateImportFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("CSV file is required");
+        }
+
+        String originalFileName = file.getOriginalFilename();
+        if (originalFileName != null && !originalFileName.isBlank() && !originalFileName.toLowerCase(Locale.ROOT).endsWith(".csv")) {
+            throw new BadRequestException("Only .csv files are supported");
+        }
     }
 
     private static <T extends Enum<T>> T enumValue(Class<T> enumClass, String value, String field) {
@@ -474,6 +648,79 @@ public class DataExchangeController {
 
         private String value() {
             return value;
+        }
+    }
+
+    private Long requiredTimezoneId(Map<String, String> row) {
+        Long timezoneId = optionalTimezoneId(row);
+        if (timezoneId == null) {
+            throw new CsvRowValidationException("timezoneId", null, "Missing required column: timezoneId");
+        }
+        return timezoneId;
+    }
+
+    private Long optionalTimezoneId(Map<String, String> row) {
+        Long timezoneId = optionalPositiveLong(row, "timezoneid");
+        if (timezoneId != null) {
+            return timezoneId;
+        }
+
+        String timezoneName = optional(row, "timezone");
+        if (timezoneName == null) {
+            return null;
+        }
+
+        return timezoneRepository.findByNameIgnoreCase(timezoneName)
+                .orElseThrow(() -> new CsvRowValidationException("timezone", timezoneName, "Unknown timezone: " + timezoneName))
+                .getId();
+    }
+    private <T> void enforceImportCompanyScope(String type, T payload) {
+    if ("warehouse-inventory".equals(type)) {
+        return;
+    }
+
+    Long payloadCompanyId = extractCompanyId(payload);
+
+    if (authenticatedUserProvider.isOverlord()) {
+        if (payloadCompanyId == null) {
+            throw new CsvRowValidationException("companyId", null, "companyId is required for OVERLORD CSV import");
+        }
+        return;
+    }
+
+    Long authenticatedCompanyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+    if (payloadCompanyId != null && !authenticatedCompanyId.equals(payloadCompanyId)) {
+        throw new CsvRowValidationException("companyId", String.valueOf(payloadCompanyId), "CSV row cannot target another company");
+    }
+
+    applyAuthenticatedCompanyId(payload, authenticatedCompanyId);
+}
+
+    private Long extractCompanyId(Object payload) {
+        if (payload instanceof ProductCreate dto) {
+            return dto.getCompanyId();
+        }
+        if (payload instanceof VehicleCreate dto) {
+            return dto.getCompanyId();
+        }
+        if (payload instanceof WarehouseCreate dto) {
+            return dto.getCompanyId();
+        }
+        if (payload instanceof EmployeeCreate dto) {
+            return dto.getCompanyId();
+        }
+        return null;
+    }
+
+    private void applyAuthenticatedCompanyId(Object payload, Long companyId) {
+        if (payload instanceof ProductCreate dto) {
+            dto.setCompanyId(companyId);
+        } else if (payload instanceof VehicleCreate dto) {
+            dto.setCompanyId(companyId);
+        } else if (payload instanceof WarehouseCreate dto) {
+            dto.setCompanyId(companyId);
+        } else if (payload instanceof EmployeeCreate dto) {
+            dto.setCompanyId(companyId);
         }
     }
 }

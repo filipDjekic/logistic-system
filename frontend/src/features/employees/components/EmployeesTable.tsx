@@ -125,6 +125,7 @@ export default function EmployeesTable({
     {
       id: 'actions',
       header: 'Actions',
+      sticky: 'right',
       align: 'right',
       minWidth: 180,
       render: (row) => (

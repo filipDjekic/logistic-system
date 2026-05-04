@@ -11,6 +11,7 @@ import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateEmployeeState } from '../../../core/utils/invalidateAppState';
 import { employeesApi } from '../api/employeesApi';
 import { useEmployee } from '../hooks/useEmployee';
 import type {
@@ -85,7 +86,7 @@ export default function EmployeeDetailsPage() {
   const usersQuery = useQuery({
     queryKey: ['users', 'all'],
     queryFn: employeesApi.getUsers,
-    enabled: auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER,
+    enabled: auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -98,11 +99,7 @@ export default function EmployeeDetailsPage() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['employees'] }),
-        queryClient.invalidateQueries({ queryKey: ['employees', 'details', employeeId] }),
-        queryClient.invalidateQueries({ queryKey: ['users'] }),
-      ]);
+      await invalidateEmployeeState(queryClient, employeeId);
     },
     onError: (error) => {
       showSnackbar({

@@ -17,6 +17,10 @@ export const shiftSchema = z
     notes: z
       .string()
       .max(255, 'Notes must be at most 255 characters'),
+    timezoneId: z.union([
+      z.number().positive('Timezone is required'),
+      z.literal(''),
+    ]),
     employeeId: z
       .union([
         z.number().positive('Employee is required'),

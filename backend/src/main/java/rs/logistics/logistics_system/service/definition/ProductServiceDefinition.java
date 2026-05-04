@@ -1,6 +1,8 @@
 package rs.logistics.logistics_system.service.definition;
 
+import org.springframework.data.domain.Pageable;
 import rs.logistics.logistics_system.dto.create.ProductCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ProductResponse;
 import rs.logistics.logistics_system.dto.update.ProductUpdate;
 
@@ -13,6 +15,8 @@ public interface ProductServiceDefinition {
     ProductResponse update(Long id, ProductUpdate dto);
 
     ProductResponse getById(Long id);
+
+    PageResponse<ProductResponse> getAll(String search, Boolean active, Pageable pageable);
 
     List<ProductResponse> getAll();
 

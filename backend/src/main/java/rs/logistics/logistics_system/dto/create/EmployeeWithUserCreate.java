@@ -20,11 +20,11 @@ import rs.logistics.logistics_system.enums.UserStatus;
 public class EmployeeWithUserCreate {
 
     @NotBlank
-    @Size(min = 1, max = 30)
+    @Size(min = 1, max = 60)
     private String firstName;
 
     @NotBlank
-    @Size(min = 1, max = 30)
+    @Size(min = 1, max = 60)
     private String lastName;
 
     @NotBlank
@@ -32,13 +32,34 @@ public class EmployeeWithUserCreate {
     private String jmbg;
 
     @NotBlank
-    @Size(min = 1, max = 20)
+    @Size(max = 30)
     private String phoneNumber;
 
     @NotBlank
     @Email
-    @Size(min = 1, max = 50)
+    @Size(max = 255)
     private String email;
+
+    @Size(max = 200)
+    private String address;
+
+    @Positive
+    private Long cityId;
+
+    @Size(max = 100)
+    private String city;
+
+    @Size(max = 20)
+    private String postalCode;
+
+    @Positive
+    private Long timezoneId;
+
+    @Positive
+    private Long countryId;
+
+    @Positive
+    private Long primaryWarehouseId;
 
     @NotNull
     private EmployeePosition position;
@@ -51,7 +72,7 @@ public class EmployeeWithUserCreate {
     private BigDecimal salary;
 
     @NotBlank
-    @Size(min = 1, max = 255)
+    @Size(min = 8, max = 255)
     private String password;
 
     @NotNull
@@ -63,30 +84,4 @@ public class EmployeeWithUserCreate {
 
     @Positive
     private Long companyId;
-
-    public EmployeeWithUserCreate(String firstName,
-                                  String lastName,
-                                  String jmbg,
-                                  String phoneNumber,
-                                  String email,
-                                  EmployeePosition position,
-                                  LocalDate employmentDate,
-                                  BigDecimal salary,
-                                  String password,
-                                  Long roleId,
-                                  UserStatus status,
-                                  Long companyId) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.jmbg = jmbg;
-        this.phoneNumber = phoneNumber;
-        this.email = email;
-        this.position = position;
-        this.employmentDate = employmentDate;
-        this.salary = salary;
-        this.password = password;
-        this.roleId = roleId;
-        this.status = status;
-        this.companyId = companyId;
-    }
 }

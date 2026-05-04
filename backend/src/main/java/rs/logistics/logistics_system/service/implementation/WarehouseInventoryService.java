@@ -1,5 +1,4 @@
 package rs.logistics.logistics_system.service.implementation;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -9,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import rs.logistics.logistics_system.config.AppProperties;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
@@ -33,6 +33,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
+import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 
 @Service
 @RequiredArgsConstructor
@@ -45,11 +46,12 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final AuditFacadeDefinition auditFacade;
     private final NotificationServiceDefinition notificationService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final AppProperties appProperties;
 
     @Override
     @Transactional
     public WarehouseInventoryResponse create(WarehouseInventoryCreate dto) {
-        Warehouse warehouse = getAccessibleWarehouse(dto.getWarehouseId());
+        Warehouse warehouse = getAccessibleWarehouseForUpdate(dto.getWarehouseId());
         Product product = getAccessibleProduct(dto.getProductId());
 
         validateSameCompany(warehouse, product);
@@ -58,12 +60,12 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             throw new BadRequestException("Warehouse inventory already exists for selected warehouse and product");
         }
 
-        WarehouseInventory warehouseInventory = WarehouseInventoryMapper.toEntity(dto, warehouse, product);
-        warehouseInventory.setReservedQuantity(BigDecimal.ZERO);
+        WarehouseInventory warehouseInventory = createInventory(dto, warehouse, product);
+        validateWarehouseCapacity(warehouse, BigDecimal.ZERO, warehouseInventory.getSafeQuantity());
 
         WarehouseInventory saved = warehouseInventoryRepository.save(warehouseInventory);
 
-        if (defaultZero(saved.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
+        if (QueryParameterNormalizer.zeroIfNull(saved.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
             recordInventoryMovement(
                     saved,
                     StockMovementType.INBOUND,
@@ -93,7 +95,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Override
     @Transactional
     public WarehouseInventoryResponse update(Long warehouseId, Long productId, WarehouseInventoryUpdate dto) {
-        Warehouse warehouse = getAccessibleWarehouse(warehouseId);
+        Warehouse warehouse = getAccessibleWarehouseForUpdate(warehouseId);
         Product product = getAccessibleProduct(productId);
 
         validateSameCompany(warehouse, product);
@@ -102,44 +104,23 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 .findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
 
-        BigDecimal oldQuantity = defaultZero(inventory.getQuantity());
-        BigDecimal oldReserved = defaultZero(inventory.getReservedQuantity());
+        BigDecimal oldQuantity = QueryParameterNormalizer.zeroIfNull(inventory.getQuantity());
+        BigDecimal oldReserved = QueryParameterNormalizer.zeroIfNull(inventory.getReservedQuantity());
         BigDecimal oldMinStock = inventory.getMinStockLevel();
 
-        if (dto.getQuantity().compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Quantity cannot be negative");
-        }
-
-        BigDecimal reserved = defaultZero(inventory.getReservedQuantity());
-        if (dto.getQuantity().compareTo(reserved) < 0) {
-            throw new BadRequestException("Quantity cannot be less than reserved quantity");
+        if (dto.getQuantity() != null && dto.getQuantity().compareTo(oldQuantity) != 0) {
+            throw new BadRequestException("Inventory quantity can only be changed through stock movement operations");
         }
 
         dto.setWarehouseId(warehouseId);
         dto.setProductId(productId);
 
-        WarehouseInventoryMapper.updateEntity(dto, warehouse, product, inventory);
+        applyInventoryChange(() -> inventory.updateMinStockLevel(dto.getMinStockLevel()));
         WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
-
-        BigDecimal newQuantity = defaultZero(saved.getQuantity());
-        BigDecimal newReserved = defaultZero(saved.getReservedQuantity());
-
-        if (oldQuantity.compareTo(newQuantity) != 0 || oldReserved.compareTo(newReserved) != 0) {
-            recordInventoryMovement(
-                    saved,
-                    StockMovementType.ADJUSTMENT,
-                    StockMovementReasonCode.INVENTORY_ADJUSTMENT,
-                    "Inventory record updated",
-                    oldQuantity,
-                    newQuantity,
-                    oldReserved,
-                    newReserved
-            );
-        }
 
         auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "quantity", oldQuantity, saved.getQuantity());
         auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "reservedQuantity", oldReserved, saved.getReservedQuantity());
-        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "availableQuantity", oldQuantity.subtract(oldReserved), defaultZero(saved.getQuantity()).subtract(defaultZero(saved.getReservedQuantity())));
+        auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "availableQuantity", oldQuantity.subtract(oldReserved), QueryParameterNormalizer.zeroIfNull(saved.getQuantity()).subtract(QueryParameterNormalizer.zeroIfNull(saved.getReservedQuantity())));
         auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "minStockLevel", oldMinStock, saved.getMinStockLevel());
         auditFacade.log(
                 "UPDATE",
@@ -169,7 +150,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Override
     @Transactional(readOnly = true)
     public PageResponse<WarehouseInventoryResponse> search(String search, Long warehouseId, Long productId, String status, Pageable pageable) {
-        String normalizedSearch = normalizeSearch(search);
+        String normalizedSearch = QueryParameterNormalizer.trimToNull(search);
         String normalizedStatus = normalizeStatus(status);
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
@@ -225,7 +206,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     @Override
     @Transactional
     public void delete(Long warehouseId, Long productId) {
-        Warehouse warehouse = getAccessibleWarehouse(warehouseId);
+        Warehouse warehouse = getAccessibleWarehouseForUpdate(warehouseId);
         Product product = getAccessibleProduct(productId);
 
         validateSameCompany(warehouse, product);
@@ -234,16 +215,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 .findByWarehouse_IdAndProduct_Id(warehouseId, productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
 
-        BigDecimal reserved = defaultZero(inventory.getReservedQuantity());
-        BigDecimal quantity = defaultZero(inventory.getQuantity());
-
-        if (reserved.compareTo(BigDecimal.ZERO) > 0) {
-            throw new BadRequestException("Warehouse inventory cannot be deleted while it has reserved quantity");
-        }
-
-        if (quantity.compareTo(BigDecimal.ZERO) > 0) {
-            throw new BadRequestException("Warehouse inventory cannot be deleted while quantity is greater than zero");
-        }
+        applyInventoryChange(inventory::assertDeletable);
 
         warehouseInventoryRepository.delete(inventory);
 
@@ -262,15 +234,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
         BigDecimal requested = positiveQuantity(quantity, "Reserve quantity must be greater than zero");
-        BigDecimal quantityBefore = defaultZero(inventory.getQuantity());
-        BigDecimal reservedBefore = defaultZero(inventory.getReservedQuantity());
-        BigDecimal available = quantityBefore.subtract(reservedBefore);
+        BigDecimal quantityBefore = inventory.getSafeQuantity();
+        BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
 
-        if (available.compareTo(requested) < 0) {
-            throw new BadRequestException("Not enough available quantity to reserve");
-        }
-
-        inventory.setReservedQuantity(reservedBefore.add(requested));
+        applyInventoryChange(() -> inventory.reserve(requested));
         WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
         recordInventoryMovement(
@@ -293,14 +260,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
         BigDecimal requested = positiveQuantity(quantity, "Release quantity must be greater than zero");
-        BigDecimal quantityBefore = defaultZero(inventory.getQuantity());
-        BigDecimal reservedBefore = defaultZero(inventory.getReservedQuantity());
+        BigDecimal quantityBefore = inventory.getSafeQuantity();
+        BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
 
-        if (reservedBefore.compareTo(requested) < 0) {
-            throw new BadRequestException("Not enough reserved quantity to release");
-        }
-
-        inventory.setReservedQuantity(reservedBefore.subtract(requested));
+        applyInventoryChange(() -> inventory.release(requested));
         WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
         recordInventoryMovement(
@@ -321,23 +284,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
         BigDecimal requested = positiveQuantity(quantity, "Move-out quantity must be greater than zero");
-        BigDecimal reserved = defaultZero(inventory.getReservedQuantity());
-        BigDecimal current = defaultZero(inventory.getQuantity());
+        BigDecimal quantityBefore = inventory.getSafeQuantity();
+        BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
 
-        if (reserved.compareTo(requested) < 0) {
-            throw new BadRequestException("Not enough reserved quantity to move out");
-        }
-
-        if (current.compareTo(requested) < 0) {
-            throw new BadRequestException("Not enough total quantity to move out");
-        }
-
-        BigDecimal quantityBefore = current;
-        BigDecimal reservedBefore = reserved;
-
-        inventory.setReservedQuantity(reserved.subtract(requested));
-        inventory.setQuantity(current.subtract(requested));
-
+        applyInventoryChange(() -> inventory.moveOutReserved(requested));
         WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
         recordInventoryMovement(
@@ -360,10 +310,13 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
         BigDecimal requested = positiveQuantity(quantity, "Move-in quantity must be greater than zero");
-        BigDecimal quantityBefore = defaultZero(inventory.getQuantity());
-        BigDecimal reservedBefore = defaultZero(inventory.getReservedQuantity());
+        BigDecimal quantityBefore = inventory.getSafeQuantity();
+        BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
+        BigDecimal quantityAfter = quantityBefore.add(requested);
 
-        inventory.setQuantity(quantityBefore.add(requested));
+        validateWarehouseCapacity(inventory.getWarehouse(), quantityBefore, quantityAfter);
+
+        applyInventoryChange(() -> inventory.increase(requested));
         WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
 
         recordInventoryMovement(
@@ -384,10 +337,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             return;
         }
 
-        BigDecimal quantity = defaultZero(inventory.getQuantity());
-        BigDecimal minStockLevel = defaultZero(inventory.getMinStockLevel());
+        BigDecimal availableQuantity = inventory.getAvailableQuantity();
+        BigDecimal minStockLevel = QueryParameterNormalizer.zeroIfNull(inventory.getMinStockLevel());
 
-        if (minStockLevel.compareTo(BigDecimal.ZERO) > 0 && quantity.compareTo(minStockLevel) <= 0) {
+        if (minStockLevel.compareTo(BigDecimal.ZERO) > 0 && availableQuantity.compareTo(minStockLevel) <= 0) {
             auditFacade.log(
                     "LOW_STOCK",
                     "WAREHOUSE_INVENTORY",
@@ -409,8 +362,24 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
     }
 
+    private WarehouseInventory createInventory(WarehouseInventoryCreate dto, Warehouse warehouse, Product product) {
+        try {
+            return WarehouseInventoryMapper.toEntity(dto, warehouse, product);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private void applyInventoryChange(Runnable inventoryMutation) {
+        try {
+            inventoryMutation.run();
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
     private WarehouseInventory getInventoryForUpdate(Long warehouseId, Long productId) {
-        Warehouse warehouse = getAccessibleWarehouse(warehouseId);
+        Warehouse warehouse = getAccessibleWarehouseForUpdate(warehouseId);
         Product product = getAccessibleProduct(productId);
         validateSameCompany(warehouse, product);
 
@@ -425,6 +394,19 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
 
         return warehouseRepository.findByIdAndCompany_Id(
+                        warehouseId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+    }
+
+    private Warehouse getAccessibleWarehouseForUpdate(Long warehouseId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return warehouseRepository.findByIdForUpdate(warehouseId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        }
+
+        return warehouseRepository.findByIdAndCompanyIdForUpdate(
                         warehouseId,
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 )
@@ -525,19 +507,33 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 + ",movementId=" + movement.getId();
     }
 
+    private void validateWarehouseCapacity(Warehouse warehouse, BigDecimal quantityBefore, BigDecimal quantityAfter) {
+        if (!appProperties.isWarehouseCapacityValidationEnabled()
+                || warehouse == null
+                || warehouse.getCapacity() == null
+                || quantityAfter.compareTo(quantityBefore) <= 0) {
+            return;
+        }
+
+        BigDecimal currentWarehouseQuantity = QueryParameterNormalizer.zeroIfNull(warehouseInventoryRepository.sumQuantityByWarehouseId(warehouse.getId()));
+        BigDecimal projectedWarehouseQuantity = currentWarehouseQuantity.subtract(QueryParameterNormalizer.zeroIfNull(quantityBefore)).add(QueryParameterNormalizer.zeroIfNull(quantityAfter));
+
+        if (projectedWarehouseQuantity.compareTo(warehouse.getCapacity()) > 0) {
+            throw new BadRequestException("Warehouse capacity exceeded. Current quantity: "
+                    + currentWarehouseQuantity
+                    + ", requested quantity after change: "
+                    + projectedWarehouseQuantity
+                    + ", capacity: "
+                    + warehouse.getCapacity());
+        }
+    }
+
     private BigDecimal positiveQuantity(BigDecimal quantity, String message) {
-        BigDecimal value = defaultZero(quantity);
+        BigDecimal value = QueryParameterNormalizer.zeroIfNull(quantity);
         if (value.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException(message);
         }
         return value;
-    }
-
-    private String normalizeSearch(String search) {
-        if (search == null || search.trim().isBlank()) {
-            return null;
-        }
-        return search.trim();
     }
 
     private String normalizeStatus(String status) {
@@ -551,9 +547,5 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
 
         return normalized;
-    }
-
-    private BigDecimal defaultZero(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
     }
 }

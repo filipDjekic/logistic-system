@@ -203,6 +203,24 @@ export const reportsApi = {
       })
       .then((response) => response.data);
   },
+
+  exportTransportReport(filters: TransportReportFilters) {
+    return apiClient
+      .get<Blob>('/api/reports/transport/export', {
+        params: buildTransportReportParams(filters),
+        responseType: 'blob',
+      })
+      .then((response) => response.data);
+  },
+
+  exportInventoryReport(filters: InventoryReportFilters) {
+    return apiClient
+      .get<Blob>('/api/reports/inventory/export', {
+        params: buildInventoryReportParams(filters),
+        responseType: 'blob',
+      })
+      .then((response) => response.data);
+  },
 };
 
 export type EmployeeTaskReportFilters = {
@@ -302,6 +320,15 @@ export const employeeTaskReportsApi = {
     return apiClient
       .get<EmployeeTaskReportResponse>('/api/reports/employee-tasks', {
         params: buildEmployeeTaskReportParams(filters),
+      })
+      .then((response) => response.data);
+  },
+
+  exportEmployeeTaskReport(filters: EmployeeTaskReportFilters) {
+    return apiClient
+      .get<Blob>('/api/reports/employee-tasks/export', {
+        params: buildEmployeeTaskReportParams(filters),
+        responseType: 'blob',
       })
       .then((response) => response.data);
   },

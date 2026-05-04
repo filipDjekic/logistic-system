@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import CompanyFormDialog from '../components/CompanyFormDialog';
 import CompaniesTable from '../components/CompaniesTable';
 import { useCompanies } from '../hooks/useCompanies';
@@ -16,6 +17,25 @@ type CompanyFiltersState = {
   search: string;
   status: 'ALL' | 'ACTIVE' | 'INACTIVE';
 };
+
+const optionalText = (value: string | null | undefined) => {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+};
+
+const companyBasePayload = (values: CompanySchemaValues) => ({
+  name: values.name,
+  countryId: values.countryId,
+  timezoneId: Number(values.timezoneId),
+  address: optionalText(values.address),
+  cityId: values.cityId ? Number(values.cityId) : null,
+  city: optionalText(values.city),
+  postalCode: optionalText(values.postalCode),
+  phoneNumber: optionalText(values.phoneNumber),
+  email: optionalText(values.email),
+  taxNumber: optionalText(values.taxNumber),
+  registrationNumber: optionalText(values.registrationNumber),
+});
 
 export default function CompaniesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,6 +64,9 @@ export default function CompaniesPage() {
       const matchesSearch =
         search.length === 0 ||
         company.name.toLowerCase().includes(search) ||
+        (company.countryName ?? '').toLowerCase().includes(search)  ||
+        (company.timezoneName ?? company.timezone ?? '').toLowerCase().includes(search) ||
+        (company.timezoneDisplayName ?? '').toLowerCase().includes(search) ||
         (company.adminFullName ?? '').toLowerCase().includes(search) ||
         (company.adminEmail ?? '').toLowerCase().includes(search) ||
         String(company.id).includes(search) ||
@@ -90,19 +113,20 @@ export default function CompaniesPage() {
         }
       />
 
-      <SectionCard
+      <TableLayout
         title="Company list"
         description="A company should never exist without its initial administrative account."
-      >
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-            <SearchToolbar
-              value={filters.search}
-              onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by company name, admin name, admin email, or IDs"
-              fullWidth
-            />
-
+        toolbar={
+          <TableToolbar
+            searchValue={filters.search}
+            onSearchChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+            searchPlaceholder="Search by company name, country, admin, timezone, or IDs"
+            onRefresh={() => { void companiesQuery.refetch(); }}
+            refreshDisabled={companiesQuery.isFetching}
+          />
+        }
+        filters={
+          <FilterPanel minColumnWidth={180}>
             <TextField
               select
               size="small"
@@ -114,39 +138,27 @@ export default function CompaniesPage() {
                   status: event.target.value as CompanyFiltersState['status'],
                 }))
               }
-              sx={{ minWidth: { xs: '100%', md: 180 } }}
             >
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="ACTIVE">Active</MenuItem>
               <MenuItem value="INACTIVE">Inactive</MenuItem>
             </TextField>
-
-            <Button
-              variant="outlined"
-              onClick={() => {
-                void companiesQuery.refetch();
-              }}
-              disabled={companiesQuery.isFetching}
-            >
-              Refresh
-            </Button>
-          </Stack>
-
+          </FilterPanel>
+        }
+        table={
           <CompaniesTable
             rows={filteredRows}
             loading={companiesQuery.isLoading}
             error={companiesQuery.isError}
-            onRetry={() => {
-              void companiesQuery.refetch();
-            }}
+            onRetry={() => { void companiesQuery.refetch(); }}
             onEdit={(company: CompanyResponse) => {
               setDialogMode('edit');
               setSelectedCompany(company);
               setDialogOpen(true);
             }}
           />
-        </Stack>
-      </SectionCard>
+        }
+      />
 
       <CompanyFormDialog
         open={dialogOpen}
@@ -157,7 +169,7 @@ export default function CompaniesPage() {
         onSubmit={(values: CompanySchemaValues) => {
           if (dialogMode === 'create') {
             createCompanyMutation.mutate({
-              name: values.name,
+              ...companyBasePayload(values),
               admin: {
                 password: values.adminPassword,
                 firstName: values.adminFirstName,
@@ -177,7 +189,7 @@ export default function CompaniesPage() {
           updateCompanyMutation.mutate({
             id: selectedCompany.id,
             data: {
-              name: values.name,
+              ...companyBasePayload(values),
               active: values.active,
             },
           });

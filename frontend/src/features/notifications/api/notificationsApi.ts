@@ -12,6 +12,8 @@ export const notificationsApi = {
         params: {
           page: params.page ?? 0,
           size: params.size ?? 20,
+          status: params.status || undefined,
+          type: params.type || undefined,
         },
       })
       .then((response) => response.data);
@@ -26,6 +28,12 @@ export const notificationsApi = {
   markAsRead(id: number) {
     return apiClient
       .patch<NotificationResponse>(`/api/notifications/${id}/mark_as_read`)
+      .then((response) => response.data);
+  },
+
+  markAllMyAsRead() {
+    return apiClient
+      .patch<void>('/api/notifications/my/mark_all_as_read')
       .then((response) => response.data);
   },
 };

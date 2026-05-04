@@ -23,8 +23,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.EmployeeCreate;
 import rs.logistics.logistics_system.dto.create.EmployeeWithUserCreate;
-import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.EmployeeResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
@@ -45,14 +45,14 @@ public class EmployeeController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD', 'COMPANY_ADMIN','HR_MANAGER')")
     @PostMapping("/with-user")
     public ResponseEntity<EmployeeResponse> createWithUser(@Valid @RequestBody EmployeeWithUserCreate dto) {
         EmployeeResponse response = employeeService.createWithUser(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD', 'COMPANY_ADMIN','HR_MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<EmployeeResponse> update(@PathVariable Long id, @Valid @RequestBody EmployeeUpdate dto) {
         EmployeeResponse response = employeeService.update(id, dto);
@@ -80,7 +80,7 @@ public class EmployeeController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
     @GetMapping
     public ResponseEntity<PageResponse<EmployeeResponse>> getAll(
             @RequestParam(required = false) String search,

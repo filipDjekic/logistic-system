@@ -4,6 +4,7 @@ import type {
   TaskCreateRequest,
   TaskQueryParams,
   TaskResponse,
+  TaskStatusUpdateRequest,
   TaskStatus,
   TaskUpdateRequest,
 } from '../types/task.types';
@@ -88,12 +89,10 @@ export const tasksApi = {
   },
 
   updateStatus(id: number, status: TaskStatus) {
+    const payload: TaskStatusUpdateRequest = { status };
+
     return apiClient
-      .patch<TaskResponse>(`/api/tasks/${id}/status`, JSON.stringify(status), {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
+      .patch<TaskResponse>(`/api/tasks/${id}/status`, payload)
       .then((response) => response.data);
   },
 

@@ -30,6 +30,18 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
 
     boolean existsByWarehouse_IdAndProduct_Id(Long warehouseId, Long productId);
 
+    boolean existsByWarehouse_Id(Long warehouseId);
+
+    boolean existsByProduct_Id(Long productId);
+
+    @Query("""
+            select case when count(wi) > 0 then true else false end
+            from WarehouseInventory wi
+            where wi.warehouse.id = :warehouseId
+            and (wi.quantity > 0 or wi.reservedQuantity > 0)
+            """)
+    boolean existsNonEmptyByWarehouseId(@Param("warehouseId") Long warehouseId);
+
     List<WarehouseInventory> findAllByWarehouse_Company_Id(Long companyId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -41,6 +53,9 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
 
     @Query("select coalesce(sum(wi.quantity), 0) from WarehouseInventory wi")
     BigDecimal sumQuantity();
+
+    @Query("select coalesce(sum(wi.quantity), 0) from WarehouseInventory wi where wi.warehouse.id = :warehouseId")
+    BigDecimal sumQuantityByWarehouseId(@Param("warehouseId") Long warehouseId);
 
     @Query("select coalesce(sum(wi.quantity - wi.reservedQuantity), 0) from WarehouseInventory wi")
     BigDecimal sumAvailableQuantity();
@@ -64,7 +79,7 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
         and (
             :search is null
             or lower(wi.warehouse.name) like lower(concat('%', :search, '%'))
-            or lower(wi.warehouse.city) like lower(concat('%', :search, '%'))
+            or lower(wi.warehouse.city.name) like lower(concat('%', :search, '%'))
             or lower(wi.product.name) like lower(concat('%', :search, '%'))
             or lower(wi.product.sku) like lower(concat('%', :search, '%'))
         )
@@ -82,5 +97,14 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
             @Param("status") String status,
             Pageable pageable
     );
+
+
+    @Query("""
+        select count(wi) > 0
+        from WarehouseInventory wi
+        where wi.product.id = :productId
+        and wi.warehouse.company.id = :companyId
+    """)
+    boolean existsProductInCompany(@Param("productId") Long productId, @Param("companyId") Long companyId);
 
 }

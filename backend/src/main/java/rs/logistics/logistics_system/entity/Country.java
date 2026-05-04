@@ -1,14 +1,27 @@
 package rs.logistics.logistics_system.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import javax.annotation.processing.Generated;
-
 @Entity
-@Table(name = "countries")
+@Table(
+        name = "countries",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_countries_code", columnNames = "code"),
+                @UniqueConstraint(name = "uk_countries_code_three", columnNames = "codeThree"),
+                @UniqueConstraint(name = "uk_countries_numeric_code", columnNames = "numeric_code")
+        },
+        indexes = {
+                @Index(name = "idx_countries_active", columnList = "active"),
+                @Index(name = "idx_countries_currency_code", columnList = "currencyCode"),
+                @Index(name = "idx_countries_default_timezone_id", columnList = "default_timezone_id")
+        }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,10 +31,13 @@ public class Country {
     private Long id;
 
     @Column(name = "code", nullable = false, unique = true, length = 2)
-    private String code;
+    private String iso2Code;
 
     @Column(name = "codeThree", nullable = false, unique = true, length = 3)
-    private String codeThree;
+    private String iso3Code;
+
+    @Column(name = "numeric_code", unique = true, length = 3)
+    private String numericCode;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -32,9 +48,25 @@ public class Country {
     @Column(name = "currencyCode", length = 3)
     private String currencyCode;
 
+    @Column(name = "currency_name", length = 80)
+    private String currencyName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_timezone_id")
+    private Timezone defaultTimezone;
+
+    @OneToMany(mappedBy = "country")
+    private List<Timezone> timezones = new ArrayList<>();
+
+    @OneToMany(mappedBy = "country")
+    private List<City> cities = new ArrayList<>();
+
     @Column(name = "euMember", nullable = false)
     private Boolean euMember;
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
+
+    public String getCode() { return iso2Code; }
+    public String getCodeThree() { return iso3Code; }
 }

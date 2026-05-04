@@ -86,6 +86,7 @@ export default function VehiclesTable({
     {
       id: 'actions',
       header: 'Actions',
+      sticky: 'right',
       minWidth: canManage ? 260 : 120,
       align: 'right',
       render: (row) => (

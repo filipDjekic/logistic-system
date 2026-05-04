@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
-import { queryKeys } from '../../../core/constants/queryKeys';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateCompanyState } from '../../../core/utils/invalidateAppState';
 import { companiesApi } from '../api/companiesApi';
 import type { CompanyCreateRequest } from '../types/company.types';
 
@@ -19,9 +19,7 @@ export function useCreateCompany() {
         severity: 'success',
       });
 
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.companies.all(),
-      });
+      await invalidateCompanyState(queryClient, createdCompany.id);
     },
     onError: (error) => {
       showSnackbar({

@@ -3,6 +3,7 @@ import { appEnv } from '../config/env';
 import { authStore } from '../auth/authStore';
 import { getAccessToken } from '../auth/token';
 import type { ApiErrorResponse } from '../../shared/types/api.types';
+import { applyIdempotencyKey } from './idempotency';
 
 export const apiClient = axios.create({
   baseURL: appEnv.apiBaseUrl,
@@ -12,6 +13,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+  applyIdempotencyKey(config);
   const token = getAccessToken();
 
   if (token) {

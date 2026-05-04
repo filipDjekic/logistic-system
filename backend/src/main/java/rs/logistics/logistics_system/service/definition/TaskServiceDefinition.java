@@ -31,4 +31,6 @@ public interface TaskServiceDefinition {
 
     @Transactional
     TaskResponse assignTask(Long id, Long employeeId);
+
+    int closeTransportTasks(Long transportOrderId, TaskStatus status);
 }

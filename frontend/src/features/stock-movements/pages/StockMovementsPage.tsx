@@ -1,25 +1,26 @@
-import { useEffect, useState } from 'react';
-import { Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { Button, Grid, MenuItem, TextField } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
-import { stockMovementsApi } from '../api/stockMovementsApi';
-import StockMovementFormDialog from '../components/StockMovementFormDialog';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
+import { ProductSearchSelect } from '../../search-select/components/ProductSearchSelect';
+import { TransportOrderSearchSelect } from '../../search-select/components/TransportOrderSearchSelect';
+import { WarehouseSearchSelect } from '../../search-select/components/WarehouseSearchSelect';
 import StockMovementsTable from '../components/StockMovementsTable';
-import { useCreateStockMovement, useStockMovements } from '../hooks/useStockMovements';
+import { useStockMovements } from '../hooks/useStockMovements';
 import type { SortState } from '../../../shared/types/common.types';
 import type { StockMovementFiltersState } from '../types/stockMovement.types';
 import { stockMovementTypeOptions } from '../validation/stockMovementSchema';
 
 export default function StockMovementsPage() {
   const auth = useAuthStore();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const canCreate =
     auth.user?.role === ROLES.OVERLORD ||
@@ -30,8 +31,10 @@ export default function StockMovementsPage() {
     movementType: 'ALL',
     warehouseId: 'ALL',
     productId: 'ALL',
+    transportOrderId: 'ALL',
+    fromDate: '',
+    toDate: '',
   });
-
 
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -46,187 +49,137 @@ export default function StockMovementsPage() {
     setPage(0);
     setSort(nextSort);
   };
-  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const stockMovementsQuery = useStockMovements({ ...filters, page, size, sort: buildSortParam(sort) }, true);
-  const createStockMovementMutation = useCreateStockMovement();
+  const stockMovementQueryFilters = useMemo(
+    () => ({ ...filters, page, size, sort: buildSortParam(sort) }),
+    [filters, page, size, sort],
+  );
 
-  const warehousesQuery = useQuery({
-    queryKey: ['stock-movements', 'warehouses'],
-    queryFn: stockMovementsApi.getWarehouses,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
-  });
+  const stockMovementsQuery = useStockMovements(stockMovementQueryFilters, true);
 
-  const productsQuery = useQuery({
-    queryKey: ['stock-movements', 'products'],
-    queryFn: stockMovementsApi.getProducts,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
-  });
+  const updateFilters = (next: Partial<StockMovementFiltersState>) => {
+    setPage(0);
+    setFilters((prev) => ({ ...prev, ...next }));
+  };
 
-  const transportOrdersQuery = useQuery({
-    queryKey: ['stock-movements', 'transport-orders'],
-    queryFn: stockMovementsApi.getTransportOrders,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
-  });
+  const clearFilters = () => {
+    setPage(0);
+    setFilters({
+      search: '',
+      movementType: 'ALL',
+      warehouseId: 'ALL',
+      productId: 'ALL',
+      transportOrderId: 'ALL',
+      fromDate: '',
+      toDate: '',
+    });
+  };
 
-
-  const hasLookupError =
-    warehousesQuery.isError ||
-    productsQuery.isError ||
-    transportOrdersQuery.isError;
-
-  const isLookupsLoading =
-    warehousesQuery.isLoading ||
-    productsQuery.isLoading ||
-    transportOrdersQuery.isLoading;
-
-  useEffect(() => {
-    if (searchParams.get('create') !== '1' || !canCreate || isLookupsLoading || dialogOpen) {
-      return;
-    }
-
-    setDialogOpen(true);
-
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.delete('create');
-    setSearchParams(nextSearchParams, { replace: true });
-  }, [canCreate, dialogOpen, isLookupsLoading, searchParams, setSearchParams]);
+  const hasActiveFilters =
+    filters.search.trim().length > 0 ||
+    filters.movementType !== 'ALL' ||
+    filters.warehouseId !== 'ALL' ||
+    filters.productId !== 'ALL' ||
+    filters.transportOrderId !== 'ALL' ||
+    filters.fromDate.length > 0 ||
+    filters.toDate.length > 0;
 
   return (
-    <Stack spacing={3}>
+    <>
       <PageHeader
         overline="Inventory"
         title="Stock Movements"
-        description="Company admin has read-only visibility here. Stock execution remains in warehouse operations scope."
+        description="Movement history is read-only here. Stock operations are created through one controlled create page."
         actions={
           canCreate ? (
-            <Button variant="contained" onClick={() => setDialogOpen(true)}>
+            <Button variant="contained" onClick={() => navigate('/stock-movements/create')}>
               Create stock movement
             </Button>
           ) : null
         }
       />
 
-      <SectionCard
+      <TableLayout
         title="Movement history"
-        description="The backend currently confirms list and create operations for stock movements."
-      >
-        <Stack spacing={2}>
+        description="Use server-side filters. Warehouse, product and transport filters use search panels instead of loading large dropdown lists."
+        toolbar={
+          <TableToolbar
+            searchValue={filters.search}
+            onSearchChange={(search) => updateFilters({ search })}
+            searchPlaceholder="Search by movement, warehouse, product, quantity or ID"
+            onRefresh={() => void stockMovementsQuery.refetch()}
+            refreshDisabled={stockMovementsQuery.isFetching}
+            onClearFilters={clearFilters}
+            clearDisabled={stockMovementsQuery.isFetching || !hasActiveFilters}
+          />
+        }
+        filters={
+          <>
+            <FilterPanel minColumnWidth={240}>
+              <TextField
+                select
+                size="small"
+                label="Movement type"
+                value={filters.movementType}
+                onChange={(event) => updateFilters({ movementType: event.target.value as StockMovementFiltersState['movementType'] })}
+              >
+                <MenuItem value="ALL">All</MenuItem>
+                {stockMovementTypeOptions.map((option) => (
+                  <MenuItem key={option} value={option}>{option}</MenuItem>
+                ))}
+              </TextField>
 
-          <Stack direction={{ xs: 'column', xl: 'row' }} spacing={1.5}>
-            <SearchToolbar
-              value={filters.search}
-              onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by movement, warehouse, product, quantity or ID"
-              fullWidth
-            />
+              <TextField
+                size="small"
+                label="From date"
+                type="datetime-local"
+                value={filters.fromDate}
+                onChange={(event) => updateFilters({ fromDate: event.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
 
-            <TextField
-              select
-              size="small"
-              label="Movement type"
-              value={filters.movementType}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  movementType: event.target.value as StockMovementFiltersState['movementType'],
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 220 } }}
-            >
-              <MenuItem value="ALL">All</MenuItem>
-              {stockMovementTypeOptions.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
+              <TextField
+                size="small"
+                label="To date"
+                type="datetime-local"
+                value={filters.toDate}
+                onChange={(event) => updateFilters({ toDate: event.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </FilterPanel>
 
-            <TextField
-              select
-              size="small"
-              label="Warehouse"
-              value={filters.warehouseId}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  warehouseId:
-                    event.target.value === 'ALL'
-                      ? 'ALL'
-                      : Number(event.target.value),
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 220 } }}
-            >
-              <MenuItem value="ALL">All</MenuItem>
-              {(warehousesQuery.data ?? []).map((warehouse) => (
-                <MenuItem key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              size="small"
-              label="Product"
-              value={filters.productId}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  productId:
-                    event.target.value === 'ALL'
-                      ? 'ALL'
-                      : Number(event.target.value),
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 220 } }}
-            >
-              <MenuItem value="ALL">All</MenuItem>
-              {(productsQuery.data ?? []).map((product) => (
-                <MenuItem key={product.id} value={product.id}>
-                  {product.name}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <Button
-              variant="outlined"
-              onClick={() => {
-                void Promise.all([
-                  stockMovementsQuery.refetch(),
-                  warehousesQuery.refetch(),
-                  productsQuery.refetch(),
-                  transportOrdersQuery.refetch(),
-                ]);
-              }}
-              disabled={
-                stockMovementsQuery.isFetching ||
-                warehousesQuery.isFetching ||
-                productsQuery.isFetching ||
-                transportOrdersQuery.isFetching
-              }
-            >
-              Refresh
-            </Button>
-          </Stack>
-
+            <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
+              <Grid size={{ xs: 12, lg: 4 }}>
+                <WarehouseSearchSelect
+                  title="Warehouse filter"
+                  value={filters.warehouseId === 'ALL' ? null : filters.warehouseId}
+                  onSelect={(warehouse) => updateFilters({ warehouseId: warehouse.id })}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, lg: 4 }}>
+                <ProductSearchSelect
+                  title="Product filter"
+                  value={filters.productId === 'ALL' ? null : filters.productId}
+                  onSelect={(product) => updateFilters({ productId: product.id })}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, lg: 4 }}>
+                <TransportOrderSearchSelect
+                  title="Transport order filter"
+                  value={filters.transportOrderId === 'ALL' ? null : filters.transportOrderId}
+                  onSelect={(transportOrder) => updateFilters({ transportOrderId: transportOrder.id })}
+                />
+              </Grid>
+            </Grid>
+          </>
+        }
+        table={
           <StockMovementsTable
             rows={stockMovementsQuery.data?.content ?? []}
-            loading={stockMovementsQuery.isLoading || isLookupsLoading}
-            error={stockMovementsQuery.isError || hasLookupError}
-            onRetry={() => {
-              void Promise.all([
-                stockMovementsQuery.refetch(),
-                warehousesQuery.refetch(),
-                productsQuery.refetch(),
-                transportOrdersQuery.refetch(),
-              ]);
-            }}
-          pagination={
+            loading={stockMovementsQuery.isLoading}
+            error={stockMovementsQuery.isError}
+            onRetry={() => void stockMovementsQuery.refetch()}
+            pagination={
               <ServerTablePagination
                 page={stockMovementsQuery.data}
                 disabled={stockMovementsQuery.isFetching}
@@ -237,44 +190,8 @@ export default function StockMovementsPage() {
             sort={sort}
             onSortChange={handleSortChange}
           />
-        </Stack>
-      </SectionCard>
-
-      {canCreate ? (
-        <StockMovementFormDialog
-          open={dialogOpen}
-          warehouses={warehousesQuery.data ?? []}
-          products={productsQuery.data ?? []}
-          transportOrders={transportOrdersQuery.data?.content ?? []}
-          loading={
-            createStockMovementMutation.isPending ||
-            warehousesQuery.isLoading ||
-            productsQuery.isLoading ||
-            transportOrdersQuery.isLoading
-          }
-          onClose={() => setDialogOpen(false)}
-          onSubmit={(values) => {
-            createStockMovementMutation.mutate(
-              {
-                movementType: values.movementType,
-                quantity: Number(values.quantity),
-                reasonCode: values.reasonCode,
-                reasonDescription: values.reasonDescription?.trim() || undefined,
-                referenceType: values.referenceType,
-                referenceId: values.referenceId ?? undefined,
-                referenceNumber: values.referenceNumber?.trim() || undefined,
-                referenceNote: values.referenceNote?.trim() || undefined,
-                transportOrderId: values.transportOrderId ?? undefined,
-                warehouseId: Number(values.warehouseId),
-                productId: Number(values.productId),
-              },
-              {
-                onSuccess: () => setDialogOpen(false),
-              },
-            );
-          }}
-        />
-      ) : null}
-    </Stack>
+        }
+      />
+    </>
   );
 }

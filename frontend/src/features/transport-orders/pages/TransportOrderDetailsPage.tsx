@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { canChangeTransportOrderStatus, canEditTransportOrder, canManageTransportOrders, canMutateTransportOrderItems, getAllowedTransportOrderStatusTransitions } from '../../../core/permissions/operationGuards';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import EmptyState from '../../../shared/components/EmptyState/EmptyState';
@@ -19,7 +20,9 @@ import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateTransportOrderState } from '../../../core/utils/invalidateAppState';
 import { transportOrdersApi } from '../api/transportOrdersApi';
 import TransportOrderItemsTable from '../components/TransportOrderItemsTable';
 import TransportOrderStatusChip from '../components/TransportOrderStatusChip';
@@ -57,41 +60,14 @@ function formatWeight(value: number | null) {
   return `${value} kg`;
 }
 
-function getAllowedNextStatuses(
-  status: TransportOrderStatus,
-  role: string | null | undefined,
-): TransportOrderStatus[] {
-  if (role === ROLES.DRIVER) {
-    switch (status) {
-      case 'ASSIGNED':
-        return ['IN_TRANSIT'];
-      case 'IN_TRANSIT':
-        return ['DELIVERED'];
-      default:
-        return [];
-    }
-  }
-
-  switch (status) {
-    case 'CREATED':
-      return ['ASSIGNED', 'CANCELLED'];
-    case 'ASSIGNED':
-      return ['IN_TRANSIT', 'CANCELLED'];
-    case 'IN_TRANSIT':
-      return ['DELIVERED'];
-    case 'DELIVERED':
-    case 'CANCELLED':
-    default:
-      return [];
-  }
-}
-
 function getStatusActionLabel(status: TransportOrderStatus) {
   switch (status) {
     case 'IN_TRANSIT':
       return 'Start transport';
     case 'DELIVERED':
       return 'Complete transport';
+    case 'FAILED':
+      return 'Mark as failed';
     default:
       return `Set status to ${status}`;
   }
@@ -114,23 +90,14 @@ export default function TransportOrderDetailsPage() {
   const isValidTransportOrderId =
     Number.isInteger(transportOrderId) && transportOrderId > 0;
 
-  const canManageOrder =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.DISPATCHER;
-
-  const canMutateItems =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.DISPATCHER;
+  const currentRole = auth.user?.role;
+  const canManageOrder = canManageTransportOrders(currentRole);
 
   const canReadItems =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.DISPATCHER;
 
-  const canChangeStatus =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.DRIVER;
 
   const canViewHistory = auth.user?.role !== ROLES.DRIVER;
 
@@ -156,15 +123,17 @@ export default function TransportOrderDetailsPage() {
   );
 
   const itemsQuery = useQuery({
-    queryKey: ['transport-order-items', transportOrderId],
+    queryKey: queryKeys.transportOrders.items(transportOrderId),
     queryFn: () => transportOrdersApi.getItemsByTransportOrderId(transportOrderId),
     enabled: isValidTransportOrderId && canReadItems,
     staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    refetchInterval: 45_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   const warehousesQuery = useQuery({
-    queryKey: ['transport-orders', 'warehouses'],
+    queryKey: queryKeys.transportOrders.warehouses(),
     queryFn: transportOrdersApi.getWarehouses,
     enabled: canResolveWarehouses,
     staleTime: 30_000,
@@ -172,7 +141,7 @@ export default function TransportOrderDetailsPage() {
   });
 
   const vehiclesQuery = useQuery({
-    queryKey: ['transport-orders', 'vehicles'],
+    queryKey: queryKeys.transportOrders.vehicles(),
     queryFn: transportOrdersApi.getVehicles,
     enabled: canResolveVehicles,
     staleTime: 30_000,
@@ -180,7 +149,7 @@ export default function TransportOrderDetailsPage() {
   });
 
   const employeesQuery = useQuery({
-    queryKey: ['transport-orders', 'employees'],
+    queryKey: queryKeys.transportOrders.employees(),
     queryFn: transportOrdersApi.getEmployees,
     enabled: canResolveEmployees,
     staleTime: 30_000,
@@ -188,7 +157,7 @@ export default function TransportOrderDetailsPage() {
   });
 
   const productsQuery = useQuery({
-    queryKey: ['transport-orders', 'products'],
+    queryKey: queryKeys.transportOrders.products(),
     queryFn: transportOrdersApi.getProducts,
     enabled: canResolveProducts,
     staleTime: 30_000,
@@ -206,11 +175,7 @@ export default function TransportOrderDetailsPage() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['transport-order-items', transportOrderId] }),
-        queryClient.invalidateQueries({ queryKey: ['transport-orders'] }),
-        queryClient.invalidateQueries({ queryKey: ['transport-orders', 'details', transportOrderId] }),
-      ]);
+      await invalidateTransportOrderState(queryClient, transportOrderId);
     },
     onError: (error) => {
       showSnackbar({
@@ -239,11 +204,7 @@ export default function TransportOrderDetailsPage() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['transport-order-items', transportOrderId] }),
-        queryClient.invalidateQueries({ queryKey: ['transport-orders'] }),
-        queryClient.invalidateQueries({ queryKey: ['transport-orders', 'details', transportOrderId] }),
-      ]);
+      await invalidateTransportOrderState(queryClient, transportOrderId);
     },
     onError: (error) => {
       showSnackbar({
@@ -261,11 +222,7 @@ export default function TransportOrderDetailsPage() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['transport-order-items', transportOrderId] }),
-        queryClient.invalidateQueries({ queryKey: ['transport-orders'] }),
-        queryClient.invalidateQueries({ queryKey: ['transport-orders', 'details', transportOrderId] }),
-      ]);
+      await invalidateTransportOrderState(queryClient, transportOrderId);
     },
     onError: (error) => {
       showSnackbar({
@@ -330,9 +287,9 @@ export default function TransportOrderDetailsPage() {
   }, [itemForm, selectedItem]);
 
   const transportOrder = transportOrderQuery.data;
-  const nextStatuses = transportOrder ? getAllowedNextStatuses(transportOrder.status, auth.user?.role) : [];
-  const isEditableItems = canMutateItems && transportOrder?.status === 'CREATED';
-  const isEditableOrder = canManageOrder && transportOrder?.status === 'CREATED';
+  const nextStatuses = transportOrder ? getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status) : [];
+  const isEditableItems = canMutateTransportOrderItems(currentRole, transportOrder);
+  const isEditableOrder = canEditTransportOrder(currentRole, transportOrder);
 
   if (!isValidTransportOrderId) {
     return (
@@ -575,7 +532,7 @@ export default function TransportOrderDetailsPage() {
 
         <Grid size={{ xs: 12, lg: 4 }}>
           <SectionCard title="Status actions" description="Allowed transitions follow backend service rules.">
-            {!canChangeStatus ? (
+            {!canChangeTransportOrderStatus(currentRole, transportOrder) ? (
               <EmptyState
                 title="No status actions available"
                 description="Your role can review the order but cannot change its status."
@@ -592,12 +549,16 @@ export default function TransportOrderDetailsPage() {
                     key={status}
                     variant="contained"
                     disabled={updateStatusMutation.isPending}
-                    onClick={() =>
+                    onClick={() => {
+                      if (!canChangeTransportOrderStatus(currentRole, transportOrder)) {
+                        return;
+                      }
+
                       updateStatusMutation.mutate({
                         id: transportOrder.id,
                         status,
-                      })
-                    }
+                      });
+                    }}
                   >
                     {getStatusActionLabel(status)}
                   </Button>

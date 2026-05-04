@@ -21,4 +21,6 @@ export type NotificationPageResponse = ApiPageResponse<NotificationResponse> & {
 export type GetMyNotificationsParams = {
   page?: number;
   size?: number;
+  status?: NotificationStatus | '';
+  type?: NotificationType | '';
 };

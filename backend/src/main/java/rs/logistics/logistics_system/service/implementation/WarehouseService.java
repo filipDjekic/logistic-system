@@ -1,4 +1,5 @@
 package rs.logistics.logistics_system.service.implementation;
+import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -9,16 +10,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import rs.logistics.logistics_system.config.AppProperties;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseUpdate;
+import rs.logistics.logistics_system.entity.City;
 import rs.logistics.logistics_system.entity.Company;
+import rs.logistics.logistics_system.entity.Country;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
@@ -29,13 +34,17 @@ import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.mapper.WarehouseMapper;
 import rs.logistics.logistics_system.repository.CompanyRepository;
+import rs.logistics.logistics_system.repository.CountryRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
+import rs.logistics.logistics_system.service.definition.CityServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
 
 @Service
 @RequiredArgsConstructor
@@ -43,21 +52,31 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     private final WarehouseRepository _warehouseRepository;
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
+    private final StockMovementRepository stockMovementRepository;
     private final TransportOrderRepository _transportOrderRepository;
     private final EmployeeRepository _employeeRepository;
     private final CompanyRepository companyRepository;
+    private final CountryRepository countryRepository;
 
     private final AuditFacadeDefinition auditFacade;
+    private final AppProperties appProperties;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final TimezoneServiceDefinition timezoneService;
+    private final CityServiceDefinition cityService;
 
     @Override
+    @Transactional
     public WarehouseResponse create(WarehouseCreate dto) {
         Employee employee = getAccessibleEmployee(dto.getEmployeeId());
         validateWarehouseManager(employee);
 
-        Warehouse warehouse = WarehouseMapper.toEntity(dto, employee);
-        warehouse.setCompany(resolveTargetCompany(dto.getCompanyId()));
+        Company targetCompany = resolveTargetCompany(dto.getCompanyId());
+        Country country = resolveWarehouseCountry(dto.getCountryId(), targetCompany);
+        Timezone timezone = timezoneService.getRequiredForCountry(dto.getTimezoneId(), country.getId());
+        City city = cityService.getRequiredActiveForCountry(dto.getCityId(), country.getId());
+        Warehouse warehouse = WarehouseMapper.toEntity(dto, employee, country, city, timezone);
+        warehouse.setCompany(targetCompany);
 
         validateEmployeeCompanyForWarehouse(employee, warehouse);
         Warehouse saved = _warehouseRepository.save(warehouse);
@@ -75,19 +94,24 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     @Override
+    @Transactional
     public WarehouseResponse update(Long id, WarehouseUpdate dto) {
         Warehouse warehouse = getWarehouseOrThrow(id);
         validateWarehouseIsActive(warehouse);
 
         String oldName = warehouse.getName();
-        String oldLocation = warehouse.getCity() + "; " + warehouse.getAddress();
+        String oldLocation = (warehouse.getCity() != null ? warehouse.getCity().getName() : null) + "; " + warehouse.getAddress();
         BigDecimal oldCapacity = warehouse.getCapacity();
 
-        WarehouseMapper.updateEntity(warehouse, dto);
+        Country country = resolveWarehouseCountry(dto.getCountryId(), warehouse.getCompany());
+        Timezone timezone = timezoneService.getRequiredForCountry(dto.getTimezoneId(), country.getId());
+        City city = cityService.getRequiredActiveForCountry(dto.getCityId(), country.getId());
+        WarehouseMapper.updateEntity(warehouse, dto, country, city, timezone);
+        validateCapacityNotBelowCurrentInventory(warehouse);
         Warehouse saved = _warehouseRepository.save(warehouse);
 
         auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "name", oldName, saved.getName());
-        auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "location", oldLocation, saved.getCity() + "; " + saved.getAddress());
+        auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "location", oldLocation, (saved.getCity() != null ? saved.getCity().getName() : null) + "; " + saved.getAddress());
         auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "capacity", oldCapacity, saved.getCapacity());
 
         auditFacade.log(
@@ -107,6 +131,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     @Override
+    @Transactional
     public WarehouseResponse assignEmployee(Long warehouseId, Long employeeId) {
         Employee employee = getAccessibleEmployee(employeeId);
         Warehouse warehouse = getWarehouseOrThrow(warehouseId);
@@ -131,7 +156,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     @Override
     public PageResponse<WarehouseResponse> getAll(String search, WarehouseStatus status, Boolean active, Long managerId, Pageable pageable) {
-        String normalizedSearch = normalizeSearch(search);
+        String normalizedSearch = QueryParameterNormalizer.trimToNull(search);
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
@@ -159,6 +184,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     @Override
+    @Transactional
     public WarehouseResponse changeStatus(Long warehouseId, WarehouseStatus status) {
         Warehouse warehouse = getWarehouseOrThrow(warehouseId);
 
@@ -264,6 +290,41 @@ public class WarehouseService implements WarehouseServiceDefinition {
         return warehouses.stream().map(WarehouseMapper::toResponse).collect(Collectors.toList());
     }
 
+    private Country resolveWarehouseCountry(Long countryId, Company company) {
+        Country country = null;
+        if (countryId != null) {
+            country = countryRepository.findById(countryId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Country not found"));
+            if (!Boolean.TRUE.equals(country.getActive())) {
+                throw new BadRequestException("Country is not active");
+            }
+        } else if (company != null && company.getCountry() != null) {
+            country = company.getCountry();
+        }
+        if (country == null) {
+            throw new BadRequestException("Country is required");
+        }
+        return country;
+    }
+
+    private void validateCapacityNotBelowCurrentInventory(Warehouse warehouse) {
+        if (!appProperties.isWarehouseCapacityValidationEnabled()) {
+            return;
+        }
+
+        BigDecimal currentQuantity = _warehouseInventoryRepository.sumQuantityByWarehouseId(warehouse.getId());
+        if (currentQuantity == null) {
+            currentQuantity = BigDecimal.ZERO;
+        }
+
+        if (warehouse.getCapacity() != null && warehouse.getCapacity().compareTo(currentQuantity) < 0) {
+            throw new BadRequestException("Warehouse capacity cannot be lower than current inventory quantity. Current quantity: "
+                    + currentQuantity
+                    + ", requested capacity: "
+                    + warehouse.getCapacity());
+        }
+    }
+
     private String normalizeSearch(String search) {
         if (search == null || search.trim().isEmpty()) {
             return null;
@@ -289,11 +350,11 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     private void validateForDeleting(Warehouse warehouse) {
-        if (!warehouse.getInventoryItems().isEmpty()) {
-            throw new BadRequestException("Warehouse cannot be deleted because it contains inventory records.");
+        if (_warehouseInventoryRepository.existsByWarehouse_Id(warehouse.getId())) {
+            throw new BadRequestException("Warehouse cannot be deleted because it contains inventory records. Delete empty inventory records first or deactivate warehouse instead.");
         }
 
-        if (!warehouse.getStockMovements().isEmpty()) {
+        if (stockMovementRepository.existsByWarehouse_Id(warehouse.getId())) {
             throw new BadRequestException("Warehouse cannot be deleted because it has stock movement history. Deactivate warehouse instead.");
         }
 
@@ -301,15 +362,14 @@ public class WarehouseService implements WarehouseServiceDefinition {
             throw new BadRequestException("Warehouse cannot be deleted while manager is assigned.");
         }
 
-        if (!_transportOrderRepository.findBySourceWarehouseId(warehouse.getId()).isEmpty() ||
-                !_transportOrderRepository.findByDestinationWarehouseId(warehouse.getId()).isEmpty()) {
+        if (_transportOrderRepository.existsBySourceWarehouseIdOrDestinationWarehouseId(warehouse.getId(), warehouse.getId())) {
             throw new BadRequestException("Warehouse cannot be deleted because it is linked to transport history. Deactivate warehouse instead.");
         }
     }
 
     private void validateForDeactivation(Warehouse warehouse) {
-        if (!warehouse.getInventoryItems().isEmpty()) {
-            throw new BadRequestException("Warehouse cannot be deactivated while it contains inventory.");
+        if (_warehouseInventoryRepository.existsNonEmptyByWarehouseId(warehouse.getId())) {
+            throw new BadRequestException("Warehouse cannot be deactivated while it contains quantity or reserved inventory.");
         }
 
         boolean hasActiveOutgoingTransport = _transportOrderRepository.findBySourceWarehouseId(warehouse.getId())
@@ -377,15 +437,24 @@ public class WarehouseService implements WarehouseServiceDefinition {
                 throw new BadRequestException("companyId is required for OVERLORD warehouse creation");
             }
 
-            return companyRepository.findById(companyId)
+            Company company = companyRepository.findById(companyId)
                     .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
+            validateTargetCompany(company);
+            return company;
         }
 
-        Company company = authenticatedUserProvider.getAuthenticatedCompany();
-        if (company == null) {
-            throw new ForbiddenException("Authenticated user is not assigned to a company");
-        }
-
+        Company company = authenticatedUserProvider.getAuthenticatedCompanyOrThrow();
+        validateTargetCompany(company);
         return company;
+    }
+
+    private void validateTargetCompany(Company company) {
+        if (company == null || company.getId() == null) {
+            throw new BadRequestException("Warehouse must belong to a company");
+        }
+
+        if (!Boolean.TRUE.equals(company.getActive())) {
+            throw new BadRequestException("Warehouse cannot be created for an inactive company");
+        }
     }
 }

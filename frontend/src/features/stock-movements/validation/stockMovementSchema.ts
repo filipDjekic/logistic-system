@@ -6,6 +6,9 @@ export const stockMovementTypeOptions = [
   'TRANSFER_IN',
   'TRANSFER_OUT',
   'ADJUSTMENT',
+  'WRITE_OFF',
+  'RETURN_IN',
+  'RETURN_OUT',
 ] as const;
 
 export const stockMovementReasonCodeOptions = [
@@ -29,6 +32,7 @@ export const stockMovementReferenceTypeOptions = [
   'PURCHASE_DOCUMENT',
   'RETURN_DOCUMENT',
   'SYSTEM',
+  'STOCK_MOVEMENT',
 ] as const;
 
 export const stockMovementSchema = z
@@ -129,6 +133,31 @@ export const stockMovementSchema = z
           message: 'Invalid reason code for transport movement',
         });
       }
+    }
+
+
+    if (values.movementType === 'WRITE_OFF' && values.reasonCode !== 'DAMAGE_WRITE_OFF') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['reasonCode'],
+        message: 'Write-off movement must use DAMAGE_WRITE_OFF reason code',
+      });
+    }
+
+    if (values.movementType === 'RETURN_IN' && values.reasonCode !== 'RETURN_IN') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['reasonCode'],
+        message: 'Return-in movement must use RETURN_IN reason code',
+      });
+    }
+
+    if (values.movementType === 'RETURN_OUT' && values.reasonCode !== 'RETURN_OUT') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['reasonCode'],
+        message: 'Return-out movement must use RETURN_OUT reason code',
+      });
     }
 
     if (values.referenceNumber !== undefined && values.referenceNumber.trim() === '') {

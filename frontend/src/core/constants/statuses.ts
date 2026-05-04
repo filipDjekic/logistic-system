@@ -25,9 +25,11 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   ASSIGNED: { label: 'Assigned', tone: 'warning' },
   IN_TRANSIT: { label: 'In Transit', tone: 'primary' },
   DELIVERED: { label: 'Delivered', tone: 'success' },
+  FAILED: { label: 'Failed', tone: 'error'},
 
   // VehicleStatus
   AVAILABLE: { label: 'Available', tone: 'success' },
+  RESERVED: { label: 'Reserved', tone: 'warning'},
   IN_USE: { label: 'In Use', tone: 'primary' },
   MAINTENANCE: { label: 'Maintenance', tone: 'warning' },
   OUT_OF_SERVICE: { label: 'Out Of Service', tone: 'error' },
@@ -73,6 +75,9 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   TRANSFER_IN: { label: 'Transfer In', tone: 'info' },
   TRANSFER_OUT: { label: 'Transfer Out', tone: 'primary' },
   ADJUSTMENT: { label: 'Adjustment', tone: 'neutral' },
+  WRITE_OFF: { label: 'Write-off', tone: 'error' },
+  RETURN_IN: { label: 'Return In', tone: 'success' },
+  RETURN_OUT: { label: 'Return Out', tone: 'warning' },
 
   // Derived inventory UI status
   LOW_STOCK: { label: 'Low Stock', tone: 'warning' },

@@ -4,7 +4,22 @@ export type WarehouseStatus =
   | 'FULL'
   | 'UNDER_MAINTENANCE';
 
-export type WarehouseResponse = {
+export type WarehouseLocationFields = {
+  postalCode: string | null;
+  cityId: number | null;
+  cityName: string | null;
+  countryId: number | null;
+  countryCode: string | null;
+  countryName: string | null;
+  timezoneId: number | null;
+  timezoneName: string | null;
+  timezoneDisplayName: string | null;
+  timezone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+export type WarehouseResponse = WarehouseLocationFields & {
   id: number;
   name: string;
   address: string;
@@ -29,7 +44,13 @@ export type WarehouseEmployeeOption = {
 export type WarehouseCreateRequest = {
   name: string;
   address: string;
-  city: string;
+  cityId: number;
+  city?: string | null;
+  postalCode?: string | null;
+  countryId?: number | null;
+  timezoneId: number;
+  latitude?: number | null;
+  longitude?: number | null;
   capacity: number;
   status: WarehouseStatus;
   employeeId: number;
@@ -40,7 +61,13 @@ export type WarehouseUpdateRequest = {
   id?: number;
   name: string;
   address: string;
-  city: string;
+  cityId: number;
+  city?: string | null;
+  postalCode?: string | null;
+  countryId?: number | null;
+  timezoneId: number;
+  latitude?: number | null;
+  longitude?: number | null;
   capacity: number;
 };
 
@@ -60,7 +87,13 @@ export type WarehouseFilterParams = {
 export type WarehouseFormValues = {
   name: string;
   address: string;
-  city: string;
+  cityId: number | '';
+  city?: string | null;
+  postalCode?: string | null;
+  countryId?: number | null;
+  timezoneId: number | '';
+  latitude?: number | null;
+  longitude?: number | null;
   capacity: number | '';
   status: WarehouseStatus;
   employeeId: number | '';

@@ -5,5 +5,6 @@ public enum TransportOrderStatus {
     ASSIGNED,
     IN_TRANSIT,
     DELIVERED,
+    FAILED,
     CANCELLED
 }

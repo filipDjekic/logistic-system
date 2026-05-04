@@ -2,17 +2,29 @@ import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import ReportProblemRoundedIcon from '@mui/icons-material/ReportProblemRounded';
 import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
-import { Box, Button, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { downloadFile } from '../../../core/utils/downloadFile';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
-import { reportsApi, type InventoryReportFilters } from '../api/reportsApi';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import type { DataTableColumn } from '../../../shared/types/common.types';
+import {
+  reportsApi,
+  type InventoryReportFilters,
+  type InventoryReportRowResponse,
+  type ProductInventorySummaryResponse,
+  type StockMovementReportRowResponse,
+  type WarehouseInventorySummaryResponse,
+} from '../api/reportsApi';
+import ReportDataTable from '../components/ReportDataTable';
 
-const movementTypeOptions = ['ALL', 'INBOUND', 'OUTBOUND', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT'] as const;
+const movementTypeOptions = ['ALL', 'INBOUND', 'OUTBOUND', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT', 'WRITE_OFF', 'RETURN_IN', 'RETURN_OUT'] as const;
 
 function toDateTimeStartParam(value: string) {
   return value ? `${value}T00:00:00` : undefined;
@@ -28,7 +40,7 @@ function formatNumber(value: number | string | null | undefined) {
 }
 
 function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : '-';
+  return value ? new Date(value).toLocaleString() : '—';
 }
 
 export default function InventoryReportPage() {
@@ -37,6 +49,7 @@ export default function InventoryReportPage() {
   const [warehouseId, setWarehouseId] = useState('');
   const [productId, setProductId] = useState('');
   const [movementType, setMovementType] = useState<(typeof movementTypeOptions)[number]>('ALL');
+  const [exportingInventoryReport, setExportingInventoryReport] = useState(false);
 
   const filters: InventoryReportFilters = {
     fromDate: toDateTimeStartParam(fromDate),
@@ -55,45 +68,93 @@ export default function InventoryReportPage() {
 
   const report = reportQuery.data;
 
+  const warehouseColumns = useMemo<DataTableColumn<WarehouseInventorySummaryResponse>[]>(() => [
+    { id: 'warehouseName', header: 'Warehouse', minWidth: 220, render: (row) => row.warehouseName },
+    { id: 'city', header: 'City', minWidth: 160, render: (row) => row.city ?? '—' },
+    { id: 'inventoryRows', header: 'Rows', align: 'right', minWidth: 110, render: (row) => formatNumber(row.inventoryRows) },
+    { id: 'lowStockRows', header: 'Low stock', align: 'right', minWidth: 130, render: (row) => formatNumber(row.lowStockRows) },
+    { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 130, render: (row) => formatNumber(row.quantity) },
+    { id: 'availableQuantity', header: 'Available', align: 'right', minWidth: 130, render: (row) => formatNumber(row.availableQuantity) },
+    { id: 'reservedQuantity', header: 'Reserved', align: 'right', minWidth: 130, render: (row) => formatNumber(row.reservedQuantity) },
+    { id: 'stockMovements', header: 'Movements', align: 'right', minWidth: 130, render: (row) => formatNumber(row.stockMovements) },
+  ], []);
+
+  const productColumns = useMemo<DataTableColumn<ProductInventorySummaryResponse>[]>(() => [
+    { id: 'productName', header: 'Product', minWidth: 220, render: (row) => row.productName },
+    { id: 'sku', header: 'SKU', minWidth: 150, render: (row) => row.sku ?? '—' },
+    { id: 'unit', header: 'Unit', minWidth: 120, render: (row) => row.unit ?? '—' },
+    { id: 'inventoryRows', header: 'Rows', align: 'right', minWidth: 110, render: (row) => formatNumber(row.inventoryRows) },
+    { id: 'lowStockRows', header: 'Low stock', align: 'right', minWidth: 130, render: (row) => formatNumber(row.lowStockRows) },
+    { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 130, render: (row) => formatNumber(row.quantity) },
+    { id: 'availableQuantity', header: 'Available', align: 'right', minWidth: 130, render: (row) => formatNumber(row.availableQuantity) },
+    { id: 'reservedQuantity', header: 'Reserved', align: 'right', minWidth: 130, render: (row) => formatNumber(row.reservedQuantity) },
+    { id: 'stockMovements', header: 'Movements', align: 'right', minWidth: 130, render: (row) => formatNumber(row.stockMovements) },
+  ], []);
+
+  const inventoryColumns = useMemo<DataTableColumn<InventoryReportRowResponse>[]>(() => [
+    { id: 'warehouseName', header: 'Warehouse', minWidth: 220, render: (row) => row.warehouseName ?? '—' },
+    { id: 'productName', header: 'Product', minWidth: 220, render: (row) => row.productName ?? '—' },
+    { id: 'sku', header: 'SKU', minWidth: 150, render: (row) => row.sku ?? '—' },
+    { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 130, render: (row) => formatNumber(row.quantity) },
+    { id: 'availableQuantity', header: 'Available', align: 'right', minWidth: 130, render: (row) => formatNumber(row.availableQuantity) },
+    { id: 'reservedQuantity', header: 'Reserved', align: 'right', minWidth: 130, render: (row) => formatNumber(row.reservedQuantity) },
+    { id: 'minStockLevel', header: 'Min stock', align: 'right', minWidth: 130, render: (row) => row.minStockLevel == null ? '—' : formatNumber(row.minStockLevel) },
+    { id: 'state', header: 'State', minWidth: 150, render: (row) => row.lowStock ? 'LOW_STOCK' : 'SUFFICIENT' },
+  ], []);
+
+  const movementColumns = useMemo<DataTableColumn<StockMovementReportRowResponse>[]>(() => [
+    { id: 'id', header: 'ID', minWidth: 100, nowrap: true, render: (row) => row.id },
+    { id: 'movementType', header: 'Type', minWidth: 160, render: (row) => row.movementType ?? '—' },
+    { id: 'warehouseName', header: 'Warehouse', minWidth: 220, render: (row) => row.warehouseName ?? '—' },
+    { id: 'productName', header: 'Product', minWidth: 240, render: (row) => `${row.productName ?? '—'}${row.sku ? ` · ${row.sku}` : ''}` },
+    { id: 'reference', header: 'Reference', minWidth: 180, render: (row) => row.referenceNumber ?? row.referenceId ?? '—' },
+    { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 130, render: (row) => formatNumber(row.quantity) },
+    { id: 'createdAt', header: 'Created', minWidth: 190, nowrap: true, render: (row) => formatDate(row.createdAt) },
+  ], []);
+
+  async function handleExportCsv() {
+    setExportingInventoryReport(true);
+    try {
+      const data = await reportsApi.exportInventoryReport(filters);
+      downloadFile({ data, fileName: 'inventory-report.csv', mimeType: 'text/csv;charset=utf-8' });
+    } finally {
+      setExportingInventoryReport(false);
+    }
+  }
+
+  function resetFilters() {
+    setFromDate('');
+    setToDate('');
+    setWarehouseId('');
+    setProductId('');
+    setMovementType('ALL');
+  }
+
   return (
     <Stack spacing={3}>
-      <PageHeader
-        overline="Reports"
-        title="Inventory Report"
-        description="Inventory and stock movement report with warehouse, product and movement breakdowns."
+      <PageHeader overline="Reports" title="Inventory Report" description="Inventory and stock movement report with warehouse, product and movement breakdowns." />
+
+      <TableLayout
+        title="Report filters"
+        description="Filters are applied on backend report data."
+        filters={
+          <FilterPanel>
+            <TextField type="date" size="small" label="From date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField type="date" size="small" label="To date" value={toDate} onChange={(event) => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField size="small" label="Warehouse ID" value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} sx={{ minWidth: 150 }} />
+            <TextField size="small" label="Product ID" value={productId} onChange={(event) => setProductId(event.target.value)} sx={{ minWidth: 150 }} />
+            <TextField select size="small" label="Movement type" value={movementType} onChange={(event) => setMovementType(event.target.value as (typeof movementTypeOptions)[number])} sx={{ minWidth: 180 }}>
+              {movementTypeOptions.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+            </TextField>
+            <Button variant="outlined" onClick={resetFilters}>Reset</Button>
+            <Button variant="contained" onClick={() => void handleExportCsv()} disabled={exportingInventoryReport}>{exportingInventoryReport ? 'Exporting...' : 'Export CSV'}</Button>
+          </FilterPanel>
+        }
+        table={null}
       />
 
-      <SectionCard title="Report filters" description="Filters are applied on backend report data.">
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-          <TextField type="date" size="small" label="From date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
-          <TextField type="date" size="small" label="To date" value={toDate} onChange={(event) => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
-          <TextField size="small" label="Warehouse ID" value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} sx={{ minWidth: 150 }} />
-          <TextField size="small" label="Product ID" value={productId} onChange={(event) => setProductId(event.target.value)} sx={{ minWidth: 150 }} />
-          <TextField select size="small" label="Movement type" value={movementType} onChange={(event) => setMovementType(event.target.value as (typeof movementTypeOptions)[number])} sx={{ minWidth: 180 }}>
-            {movementTypeOptions.map((option) => (
-              <MenuItem key={option} value={option}>{option}</MenuItem>
-            ))}
-          </TextField>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setFromDate('');
-              setToDate('');
-              setWarehouseId('');
-              setProductId('');
-              setMovementType('ALL');
-            }}
-          >
-            Reset
-          </Button>
-        </Stack>
-      </SectionCard>
-
       {reportQuery.isLoading ? <InlineLoader message="Loading inventory report..." size={22} /> : null}
-
-      {reportQuery.isError ? (
-        <ErrorState title="Inventory report could not be loaded" description="Backend report endpoint failed to return data." onRetry={() => void reportQuery.refetch()} />
-      ) : null}
+      {reportQuery.isError ? <ErrorState title="Inventory report could not be loaded" description="Backend report endpoint failed to return data." onRetry={() => void reportQuery.refetch()} /> : null}
 
       {report ? (
         <Stack spacing={2}>
@@ -105,147 +166,14 @@ export default function InventoryReportPage() {
           </Box>
 
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' } }}>
-            <SectionCard title="Movement quantities">
-              <Stack spacing={1}>
-                <Typography variant="body2">Inbound: {formatNumber(report.inboundQuantity)}</Typography>
-                <Typography variant="body2">Outbound: {formatNumber(report.outboundQuantity)}</Typography>
-                <Typography variant="body2">Transfer: {formatNumber(report.transferQuantity)}</Typography>
-                <Typography variant="body2">Adjustment: {formatNumber(report.adjustmentQuantity)}</Typography>
-              </Stack>
-            </SectionCard>
-
-            <SectionCard title="Movements by type">
-              <Stack spacing={1}>
-                {Object.entries(report.movementsByType).map(([key, value]) => (
-                  <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>
-                ))}
-              </Stack>
-            </SectionCard>
+            <SectionCard title="Movement quantities"><Stack spacing={1}><Typography variant="body2">Inbound: {formatNumber(report.inboundQuantity)}</Typography><Typography variant="body2">Outbound: {formatNumber(report.outboundQuantity)}</Typography><Typography variant="body2">Transfer: {formatNumber(report.transferQuantity)}</Typography><Typography variant="body2">Adjustment: {formatNumber(report.adjustmentQuantity)}</Typography></Stack></SectionCard>
+            <SectionCard title="Movements by type"><Stack spacing={1}>{Object.entries(report.movementsByType).map(([key, value]) => <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>)}</Stack></SectionCard>
           </Box>
 
-          <SectionCard title="Per warehouse" description="Inventory totals grouped by warehouse.">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Warehouse</TableCell>
-                  <TableCell>City</TableCell>
-                  <TableCell align="right">Rows</TableCell>
-                  <TableCell align="right">Low stock</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
-                  <TableCell align="right">Available</TableCell>
-                  <TableCell align="right">Reserved</TableCell>
-                  <TableCell align="right">Movements</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.perWarehouse.map((row) => (
-                  <TableRow key={row.warehouseId}>
-                    <TableCell>{row.warehouseName}</TableCell>
-                    <TableCell>{row.city ?? '-'}</TableCell>
-                    <TableCell align="right">{formatNumber(row.inventoryRows)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.lowStockRows)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.availableQuantity)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.reservedQuantity)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.stockMovements)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionCard>
-
-          <SectionCard title="Per product" description="Inventory totals grouped by product.">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Product</TableCell>
-                  <TableCell>SKU</TableCell>
-                  <TableCell>Unit</TableCell>
-                  <TableCell align="right">Rows</TableCell>
-                  <TableCell align="right">Low stock</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
-                  <TableCell align="right">Available</TableCell>
-                  <TableCell align="right">Reserved</TableCell>
-                  <TableCell align="right">Movements</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.perProduct.map((row) => (
-                  <TableRow key={row.productId}>
-                    <TableCell>{row.productName}</TableCell>
-                    <TableCell>{row.sku ?? '-'}</TableCell>
-                    <TableCell>{row.unit ?? '-'}</TableCell>
-                    <TableCell align="right">{formatNumber(row.inventoryRows)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.lowStockRows)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.availableQuantity)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.reservedQuantity)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.stockMovements)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionCard>
-
-          <SectionCard title="Inventory rows" description="Raw inventory rows included in this report.">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Warehouse</TableCell>
-                  <TableCell>Product</TableCell>
-                  <TableCell>SKU</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
-                  <TableCell align="right">Available</TableCell>
-                  <TableCell align="right">Reserved</TableCell>
-                  <TableCell align="right">Min stock</TableCell>
-                  <TableCell>State</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.inventoryRows.map((row) => (
-                  <TableRow key={`${row.warehouseId}-${row.productId}`}>
-                    <TableCell>{row.warehouseName ?? '-'}</TableCell>
-                    <TableCell>{row.productName ?? '-'}</TableCell>
-                    <TableCell>{row.sku ?? '-'}</TableCell>
-                    <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.availableQuantity)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.reservedQuantity)}</TableCell>
-                    <TableCell align="right">{row.minStockLevel == null ? '-' : formatNumber(row.minStockLevel)}</TableCell>
-                    <TableCell>{row.lowStock ? 'LOW_STOCK' : 'SUFFICIENT'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionCard>
-
-          <SectionCard title="Stock movement rows" description="Raw stock movements included in this report date range.">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Warehouse</TableCell>
-                  <TableCell>Product</TableCell>
-                  <TableCell>Reference</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
-                  <TableCell>Created</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.movementRows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.id}</TableCell>
-                    <TableCell>{row.movementType ?? '-'}</TableCell>
-                    <TableCell>{row.warehouseName ?? '-'}</TableCell>
-                    <TableCell>{row.productName ?? '-'}{row.sku ? ` · ${row.sku}` : ''}</TableCell>
-                    <TableCell>{row.referenceNumber ?? row.referenceId ?? '-'}</TableCell>
-                    <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
-                    <TableCell>{formatDate(row.createdAt)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionCard>
+          <TableLayout title="Per warehouse" description="Inventory totals grouped by warehouse." table={<ReportDataTable title="per warehouse rows" rows={report.perWarehouse} columns={warehouseColumns} getRowId={(row) => row.warehouseId} minWidth={1220} />} />
+          <TableLayout title="Per product" description="Inventory totals grouped by product." table={<ReportDataTable title="per product rows" rows={report.perProduct} columns={productColumns} getRowId={(row) => row.productId} minWidth={1300} />} />
+          <TableLayout title="Inventory rows" description="Raw inventory rows included in this report." table={<ReportDataTable title="inventory rows" rows={report.inventoryRows} columns={inventoryColumns} getRowId={(row, index) => `${row.warehouseId ?? 'warehouse'}-${row.productId ?? 'product'}-${index}`} minWidth={1240} />} />
+          <TableLayout title="Stock movement rows" description="Raw stock movements included in this report date range." table={<ReportDataTable title="stock movement rows" rows={report.movementRows} columns={movementColumns} getRowId={(row) => row.id} minWidth={1220} />} />
         </Stack>
       ) : null}
     </Stack>

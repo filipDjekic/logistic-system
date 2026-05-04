@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -17,38 +16,34 @@ import rs.logistics.logistics_system.enums.UserStatus;
 @NoArgsConstructor
 public class UserCreate {
 
-    @NotBlank
-    @Size(min = 1, max = 255)
+    @NotBlank(message = "Password is required")
+    @Size(max = 255, message = "Password must be at most 255 characters")
     private String password;
 
-    @NotBlank
-    @Size(min = 1, max = 60)
+    @NotBlank(message = "First name is required")
+    @Size(max = 60, message = "First name must be at most 60 characters")
     private String firstName;
 
-    @NotBlank
-    @Size(min = 1, max = 60)
+    @NotBlank(message = "Last name is required")
+    @Size(max = 60, message = "Last name must be at most 60 characters")
     private String lastName;
 
-    @NotBlank
-    @Email
-    @Pattern(
-        regexp = "^[a-zA-Z]+\\.[a-zA-Z]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}$",
-        message = "Email must be in format firstName.lastName@firm.sector.countryCode"
-    )
-    @Size(min = 1, max = 50)
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email is not valid")
+    @Size(max = 255, message = "Email must be at most 255 characters")
     private String email;
 
-    @NotNull
-    @Positive
+    @NotNull(message = "Role is required")
+    @Positive(message = "Selected role is not valid")
     private Long roleId;
 
-    @NotNull
+    @NotNull(message = "Status is required")
     private UserStatus status;
 
-    @Positive
+    @Positive(message = "Selected company is not valid")
     private Long companyId;
 
     @Valid
-    @NotNull
+    @NotNull(message = "Employee data is required")
     private UserEmployeeCreate employee;
 }

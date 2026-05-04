@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { vehiclesApi } from '../api/vehiclesApi';
+import { invalidateVehicleState } from '../../../core/utils/invalidateAppState';
 import type { VehicleUpdateRequest } from '../types/vehicle.types';
 
 type UpdateVehiclePayload = {
@@ -21,10 +22,7 @@ export function useUpdateVehicle() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({ queryKey: ['vehicles', 'details', variables.id] }),
-      ]);
+      await invalidateVehicleState(queryClient, variables.id);
     },
     onError: (error) => {
       showSnackbar({

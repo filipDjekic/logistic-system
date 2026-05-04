@@ -1,3 +1,5 @@
+import { appConfig } from '../config/appConfig';
+
 export type SortDirection = 'asc' | 'desc';
 
 export type PageResponse<T> = {
@@ -23,7 +25,7 @@ export type SortState = {
   direction: SortDirection;
 };
 
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = appConfig.pagination.defaultPageSize;
 
 export function buildSortParam(sort: SortState) {
   return `${sort.field},${sort.direction}`;

@@ -7,13 +7,19 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import rs.logistics.logistics_system.config.AppProperties;
 import rs.logistics.logistics_system.dto.create.ShiftCreate;
+import org.springframework.data.domain.Pageable;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Shift;
+import rs.logistics.logistics_system.entity.Country;
+import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.ShiftStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
@@ -26,29 +32,34 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ShiftServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
 
 @Service
 @RequiredArgsConstructor
 public class ShiftService implements ShiftServiceDefinition {
 
-    private static final long MAX_SHIFT_DURATION_HOURS = 8;
-
     private final ShiftRepository _shiftRepository;
     private final EmployeeRepository _employeeRepository;
     private final AuditFacadeDefinition auditFacade;
     private final NotificationServiceDefinition notificationService;
+    private final AppProperties appProperties;
+    private final TimezoneServiceDefinition timezoneService;
+    private final TimeServiceDefinition timeService;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
+    @Transactional
     public ShiftResponse create(ShiftCreate dto) {
         Employee employee = getAccessibleEmployee(dto.getEmployeeId());
 
         validateEmployeeCanBeAssignedToShift(employee);
+        Timezone timezone = resolveShiftTimezone(dto.getTimezoneId(), employee);
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
         validateShiftOverlap(employee.getId(), dto.getStartTime(), dto.getEndTime());
 
-        Shift shift = ShiftMapper.toEntity(dto, employee);
+        Shift shift = ShiftMapper.toEntity(dto, employee, timezone);
         shift.setStatus(ShiftStatus.PLANNED);
 
         Shift saved = _shiftRepository.save(shift);
@@ -72,10 +83,12 @@ public class ShiftService implements ShiftServiceDefinition {
     }
 
     @Override
+    @Transactional
     public ShiftResponse update(Long id, ShiftUpdate dto) {
         Shift shift = getShiftOrThrow(id);
 
         validateShiftCanBeModified(shift);
+        Timezone timezone = resolveShiftTimezone(dto.getTimezoneId(), shift.getEmployee());
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
         validateShiftOverlapForUpdate(
                 shift.getEmployee().getId(),
@@ -86,12 +99,14 @@ public class ShiftService implements ShiftServiceDefinition {
 
         LocalDateTime oldStartTime = shift.getStartTime();
         LocalDateTime oldEndTime = shift.getEndTime();
+        Long oldTimezoneId = shift.getTimezone() != null ? shift.getTimezone().getId() : null;
 
-        ShiftMapper.updateEntity(shift, dto);
+        ShiftMapper.updateEntity(shift, dto, timezone);
         Shift updated = _shiftRepository.save(shift);
 
         auditFacade.recordFieldChange("SHIFT", updated.getId(), "startTime", oldStartTime, updated.getStartTime());
         auditFacade.recordFieldChange("SHIFT", updated.getId(), "endTime", oldEndTime, updated.getEndTime());
+        auditFacade.recordFieldChange("SHIFT", updated.getId(), "timezone_id", oldTimezoneId, updated.getTimezone() != null ? updated.getTimezone().getId() : null);
 
         auditFacade.log(
                 "UPDATE",
@@ -117,17 +132,16 @@ public class ShiftService implements ShiftServiceDefinition {
     }
 
     @Override
-    public List<ShiftResponse> getAll() {
-        List<Shift> shifts = authenticatedUserProvider.isOverlord()
-                ? _shiftRepository.findAll()
-                : _shiftRepository.findAllByEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+    public PageResponse<ShiftResponse> getAll(Pageable pageable) {
+        var shifts = authenticatedUserProvider.isOverlord()
+                ? _shiftRepository.findAll(pageable)
+                : _shiftRepository.findAllByEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), pageable);
 
-        return shifts.stream()
-                .map(ShiftMapper::toResponse)
-                .collect(Collectors.toList());
+        return PageResponse.from(shifts.map(ShiftMapper::toResponse));
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         Shift shift = getShiftOrThrow(id);
 
@@ -180,6 +194,7 @@ public class ShiftService implements ShiftServiceDefinition {
     }
 
     @Override
+    @Transactional
     public void cancelShift(Long id) {
         Shift shift = getShiftOrThrow(id);
 
@@ -206,6 +221,7 @@ public class ShiftService implements ShiftServiceDefinition {
     }
 
     @Override
+    @Transactional
     public ShiftResponse assignShiftToEmployee(Long shiftId, Long employeeId) {
         Shift shift = getShiftOrThrow(shiftId);
         Employee employee = getAccessibleEmployee(employeeId);
@@ -235,6 +251,7 @@ public class ShiftService implements ShiftServiceDefinition {
         Long oldEmployeeId = oldEmployee != null ? oldEmployee.getId() : null;
 
         shift.setEmployee(employee);
+        shift.setTimezone(resolveShiftTimezone(null, employee));
         employee.getShifts().add(shift);
 
         Shift updatedShift = _shiftRepository.save(shift);
@@ -267,6 +284,63 @@ public class ShiftService implements ShiftServiceDefinition {
         return ShiftMapper.toResponse(updatedShift);
     }
 
+    
+    
+    @Override
+    @Transactional
+    public void synchronizeShiftStatuses() {
+        List<Shift> shiftsToActivate = _shiftRepository.findByStatus(ShiftStatus.PLANNED);
+        for (Shift shift : shiftsToActivate) {
+            if (shift.getStartTime().isAfter(nowForShift(shift))) {
+                continue;
+            }
+
+            ShiftStatus oldStatus = shift.getStatus();
+            shift.setStatus(ShiftStatus.ACTIVE);
+            Shift saved = _shiftRepository.save(shift);
+
+            auditFacade.recordStatusChange("SHIFT", saved.getId(), "status", oldStatus, saved.getStatus());
+            auditFacade.log(
+                    "SHIFT_AUTO_ACTIVATED",
+                    "SHIFT",
+                    saved.getId(),
+                    "SHIFT " + saved.getId() + " automatically changed from PLANNED to ACTIVE using timezone " + (saved.getTimezone() != null ? saved.getTimezone().getName() : null)
+            );
+
+            notifyEmployee(
+                    saved.getEmployee(),
+                    "Shift started",
+                    "Your shift from " + saved.getStartTime() + " to " + saved.getEndTime() + " is now active.",
+                    NotificationType.INFO
+            );
+        }
+
+        List<Shift> shiftsToFinish = _shiftRepository.findByStatus(ShiftStatus.ACTIVE);
+        for (Shift shift : shiftsToFinish) {
+            if (shift.getEndTime().isAfter(nowForShift(shift))) {
+                continue;
+            }
+
+            ShiftStatus oldStatus = shift.getStatus();
+            shift.setStatus(ShiftStatus.FINISHED);
+            Shift saved = _shiftRepository.save(shift);
+
+            auditFacade.recordStatusChange("SHIFT", saved.getId(), "status", oldStatus, saved.getStatus());
+            auditFacade.log(
+                    "SHIFT_AUTO_FINISHED",
+                    "SHIFT",
+                    saved.getId(),
+                    "SHIFT " + saved.getId() + " automatically changed from ACTIVE to FINISHED using timezone " + (saved.getTimezone() != null ? saved.getTimezone().getName() : null)
+            );
+
+            notifyEmployee(
+                    saved.getEmployee(),
+                    "Shift finished",
+                    "Your shift from " + saved.getStartTime() + " to " + saved.getEndTime() + " is now finished.",
+                    NotificationType.INFO
+            );
+        }
+    }
     private void notifyEmployee(Employee employee, String title, String message, NotificationType type) {
         if (employee == null || employee.getUser() == null) {
             return;
@@ -305,8 +379,10 @@ public class ShiftService implements ShiftServiceDefinition {
 
         Duration duration = Duration.between(startTime, endTime);
 
-        if (duration.toMinutes() > MAX_SHIFT_DURATION_HOURS * 60) {
-            throw new BadRequestException("Shift cannot be longer than 8 hours.");
+        long maxShiftDurationHours = appProperties.getMaxShiftDurationHours();
+
+        if (duration.toMinutes() > maxShiftDurationHours * 60) {
+            throw new BadRequestException("Shift cannot be longer than " + maxShiftDurationHours + " hours.");
         }
     }
 
@@ -315,7 +391,7 @@ public class ShiftService implements ShiftServiceDefinition {
             throw new BadRequestException("Only planned shifts can be modified.");
         }
 
-        if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
+        if (!shift.getStartTime().isAfter(nowForShift(shift))) {
             throw new BadRequestException("Shift that has started or already passed cannot be modified.");
         }
     }
@@ -341,7 +417,7 @@ public class ShiftService implements ShiftServiceDefinition {
             throw new BadRequestException("Only planned future shifts can be deleted. Started, finished or cancelled shifts must remain in history.");
         }
 
-        if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
+        if (!shift.getStartTime().isAfter(nowForShift(shift))) {
             throw new BadRequestException("Shift that has started or already passed cannot be deleted.");
         }
     }
@@ -351,7 +427,7 @@ public class ShiftService implements ShiftServiceDefinition {
             throw new BadRequestException("Only planned shifts can be cancelled.");
         }
 
-        if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
+        if (!shift.getStartTime().isAfter(nowForShift(shift))) {
             throw new BadRequestException("Shift that has started or already passed cannot be cancelled.");
         }
     }
@@ -361,10 +437,44 @@ public class ShiftService implements ShiftServiceDefinition {
             throw new BadRequestException("Only planned shifts can be reassigned.");
         }
 
-        if (!shift.getStartTime().isAfter(LocalDateTime.now())) {
+        if (!shift.getStartTime().isAfter(nowForShift(shift))) {
             throw new BadRequestException("Shift that has started or already passed cannot be reassigned.");
         }
     }
+
+    private LocalDateTime nowForShift(Shift shift) {
+        return timeService.nowForShift(shift);
+    }
+
+    private Timezone resolveShiftTimezone(Long requestedTimezoneId, Employee employee) {
+        Country country = employee != null && employee.getCountry() != null
+                ? employee.getCountry()
+                : employee != null && employee.getCompany() != null
+                ? employee.getCompany().getCountry()
+                : null;
+
+        if (requestedTimezoneId != null) {
+            if (country == null) {
+                throw new BadRequestException("Employee country is required before timezone can be selected");
+            }
+            return timezoneService.getRequiredForCountry(requestedTimezoneId, country.getId());
+        }
+
+        if (employee != null && employee.getTimezone() != null) {
+            return employee.getTimezone();
+        }
+        if (employee != null && employee.getPrimaryWarehouse() != null && employee.getPrimaryWarehouse().getTimezone() != null) {
+            return employee.getPrimaryWarehouse().getTimezone();
+        }
+        if (employee != null && employee.getCompany() != null && employee.getCompany().getTimezone() != null) {
+            return employee.getCompany().getTimezone();
+        }
+        if (country != null && country.getDefaultTimezone() != null) {
+            return country.getDefaultTimezone();
+        }
+        throw new BadRequestException("Timezone is required");
+    }
+
 
     private Shift getShiftOrThrow(Long id) {
         if (authenticatedUserProvider.isOverlord()) {

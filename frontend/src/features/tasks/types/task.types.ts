@@ -37,6 +37,10 @@ export type TaskUpdateRequest = {
   stockMovementId?: number | null;
 };
 
+export type TaskStatusUpdateRequest = {
+  status: TaskStatus;
+};
+
 export type TaskFiltersState = {
   search: string;
   status: TaskStatus | 'ALL';

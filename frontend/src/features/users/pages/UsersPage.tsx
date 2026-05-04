@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { useCompanies } from '../../companies/hooks/useCompanies';
@@ -12,6 +15,7 @@ import UsersTable from '../components/UsersTable';
 import { useCreateUser } from '../hooks/useCreateUser';
 import { useUpdateUser } from '../hooks/useUpdateUser';
 import { useUsers } from '../hooks/useUsers';
+import type { SortState } from '../../../shared/types/common.types';
 import type {
   CreateUserFormValues,
   UpdateUserFormValues,
@@ -25,7 +29,9 @@ export default function UsersPage() {
 
   const canCreate = auth.user?.role === ROLES.OVERLORD;
   const canEdit =
-    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.HR_MANAGER;
 
   const [filters, setFilters] = useState<UserFiltersState>({
     search: '',
@@ -33,11 +39,15 @@ export default function UsersPage() {
     enabled: 'ALL',
   });
 
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort] = useState<SortState>({ field: 'id', direction: 'desc' });
+
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const usersQuery = useUsers(true);
+  const usersQuery = useUsers({ page, size, sort: buildSortParam(sort) }, true);
   const rolesQuery = useRoles(canEdit);
   const companiesQuery = useCompanies(canCreate && dialogOpen && dialogMode === 'create');
   const createUserMutation = useCreateUser();
@@ -46,7 +56,7 @@ export default function UsersPage() {
   const filteredRows = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
 
-    return (usersQuery.data ?? []).filter((user) => {
+    return (usersQuery.data?.content ?? []).filter((user) => {
       const matchesStatus =
         filters.status === 'ALL' || user.status === filters.status;
 
@@ -101,100 +111,72 @@ export default function UsersPage() {
         }
       />
 
-      <SectionCard
+      <TableLayout
         title="User list"
         description="Each business user should be created together with the linked employee profile."
-      >
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-            <SearchToolbar
-              value={filters.search}
-              onChange={(value) =>
-                setFilters((prev) => ({ ...prev, search: value }))
-              }
-              placeholder="Search by name, email, role, company, employee position, JMBG or ID"
-              fullWidth
-            />
-
+        toolbar={
+          <TableToolbar
+            searchValue={filters.search}
+            onSearchChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+            searchPlaceholder="Search by name, email, role, company, employee position, JMBG or ID"
+            onRefresh={() => {
+              void usersQuery.refetch();
+              if (canEdit) void rolesQuery.refetch();
+              if (canCreate && dialogOpen && dialogMode === 'create') void companiesQuery.refetch();
+            }}
+            refreshDisabled={usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching}
+          />
+        }
+        filters={
+          <FilterPanel minColumnWidth={180}>
             <TextField
               select
               size="small"
               label="Status"
               value={filters.status}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  status: event.target.value as UserFiltersState['status'],
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 180 } }}
+              onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value as UserFiltersState['status'] }))}
             >
               <MenuItem value="ALL">All</MenuItem>
-              {userStatusOptions.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
-                </MenuItem>
-              ))}
+              {userStatusOptions.map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
             </TextField>
-
             <TextField
               select
               size="small"
               label="Enabled"
               value={filters.enabled}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  enabled: event.target.value as UserFiltersState['enabled'],
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 180 } }}
+              onChange={(event) => setFilters((prev) => ({ ...prev, enabled: event.target.value as UserFiltersState['enabled'] }))}
             >
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="ENABLED">Enabled</MenuItem>
               <MenuItem value="DISABLED">Disabled</MenuItem>
             </TextField>
-
-            <Button
-              variant="outlined"
-              onClick={() => {
-                void usersQuery.refetch();
-
-                if (canEdit) {
-                  void rolesQuery.refetch();
-                }
-
-                if (canCreate && dialogOpen && dialogMode === 'create') {
-                  void companiesQuery.refetch();
-                }
+          </FilterPanel>
+        }
+        table={
+          <>
+            <UsersTable
+              rows={filteredRows}
+              loading={usersQuery.isLoading}
+              error={usersQuery.isError}
+              onRetry={() => { void usersQuery.refetch(); }}
+              onEdit={(user) => {
+                if (!canEdit) return;
+                setDialogMode('edit');
+                setSelectedUser(user);
+                setDialogOpen(true);
               }}
-              disabled={usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching}
-            >
-              Refresh
-            </Button>
-          </Stack>
-
-          <UsersTable
-            rows={filteredRows}
-            loading={usersQuery.isLoading}
-            error={usersQuery.isError}
-            onRetry={() => {
-              void usersQuery.refetch();
-            }}
-            onEdit={(user) => {
-              if (!canEdit) {
-                return;
-              }
-
-              setDialogMode('edit');
-              setSelectedUser(user);
-              setDialogOpen(true);
-            }}
-            showDetails
-            showEdit={canEdit}
-          />
-        </Stack>
-      </SectionCard>
+              showDetails
+              showEdit={canEdit}
+            />
+            <ServerTablePagination
+              page={usersQuery.data}
+              disabled={usersQuery.isFetching}
+              onPageChange={setPage}
+              onSizeChange={(nextSize) => { setPage(0); setSize(nextSize); }}
+            />
+          </>
+        }
+      />
 
       {(canCreate || canEdit) && (
         <UserFormDialog

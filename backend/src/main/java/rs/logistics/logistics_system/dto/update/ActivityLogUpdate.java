@@ -27,7 +27,7 @@ public class ActivityLogUpdate {
     @Positive
     private Long entityId;
 
-    @Size(min = 1, max = 500)
+    @Size(max = 500)
     private String description;
 
 

@@ -1,13 +1,15 @@
 import { apiClient } from '../../../core/api/client';
-import type {
-  ProductCreateRequest,
-  ProductResponse,
-  ProductUpdateRequest,
-} from '../types/product.types';
+import type { PageParams, PageResponse } from '../../../core/api/pagination';
+import type { ProductCreateRequest, ProductResponse, ProductUpdateRequest } from '../types/product.types';
+
+export type ProductSearchParams = PageParams & {
+  search?: string;
+  active?: boolean;
+};
 
 export const productsApi = {
-  getAll: async () => {
-    const res = await apiClient.get<ProductResponse[]>('/api/products');
+  getAll: async (params: ProductSearchParams = {}) => {
+    const res = await apiClient.get<PageResponse<ProductResponse>>('/api/products', { params });
     return res.data;
   },
 
@@ -21,7 +23,7 @@ export const productsApi = {
     return res.data;
   },
 
-  update: async (id: number, data: ProductUpdateRequest) => {
+  update: async ({ id, data }: { id: number; data: ProductUpdateRequest }) => {
     const res = await apiClient.put<ProductResponse>(`/api/products/${id}`, data);
     return res.data;
   },

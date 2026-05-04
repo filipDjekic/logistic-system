@@ -12,6 +12,8 @@ import type {
   VehicleOption,
   WarehouseOption,
 } from '../types/transportOrder.types';
+import { canEditTransportOrder, getAllowedTransportOrderStatusTransitions } from '../../../core/permissions/operationGuards';
+import type { Role } from '../../../core/constants/roles';
 
 type TransportOrdersTableProps = {
   rows: TransportOrderResponse[];
@@ -21,6 +23,7 @@ type TransportOrdersTableProps = {
   loading?: boolean;
   error?: boolean;
   onRetry?: () => void;
+  role?: Role | null;
   canManage?: boolean;
   onEdit?: (row: TransportOrderResponse) => void;
   canChangeStatus?: boolean;
@@ -55,6 +58,7 @@ export default function TransportOrdersTable({
   loading = false,
   error = false,
   onRetry,
+  role = null,
   canManage = false,
   onEdit,
   canChangeStatus = false,
@@ -171,7 +175,11 @@ export default function TransportOrdersTable({
       render: (row) => {
         const isUpdating = updatingStatusId === row.id;
 
-        if (!canChangeStatus || !onStatusChange || row.status === 'DELIVERED' || row.status === 'CANCELLED') {
+        const allowedStatuses = canChangeStatus && onStatusChange
+          ? getAllowedTransportOrderStatusTransitions(role, row.status)
+          : [];
+
+        if (allowedStatuses.length === 0 || !onStatusChange) {
           return <TransportOrderStatusChip status={row.status} />;
         }
 
@@ -183,11 +191,10 @@ export default function TransportOrdersTable({
             onChange={(event) => onStatusChange(row, event.target.value as TransportOrderStatus)}
             sx={{ minWidth: 150 }}
           >
-            <MenuItem value="CREATED">CREATED</MenuItem>
-            <MenuItem value="ASSIGNED">ASSIGNED</MenuItem>
-            <MenuItem value="IN_TRANSIT">IN_TRANSIT</MenuItem>
-            <MenuItem value="DELIVERED">DELIVERED</MenuItem>
-            <MenuItem value="CANCELLED">CANCELLED</MenuItem>
+            <MenuItem value={row.status}>{row.status}</MenuItem>
+            {allowedStatuses.map((status) => (
+              <MenuItem key={status} value={status}>{status}</MenuItem>
+            ))}
           </Select>
         );
       },
@@ -209,10 +216,11 @@ export default function TransportOrdersTable({
     {
       id: 'actions',
       header: 'Actions',
+      sticky: 'right',
       minWidth: 170,
       align: 'right',
       render: (row) => {
-        const canEditRow = canManage && (row.status === 'CREATED' || row.status === 'ASSIGNED');
+        const canEditRow = canManage && canEditTransportOrder(role, row);
 
         return (
           <Stack direction="row" spacing={1} justifyContent="flex-end">

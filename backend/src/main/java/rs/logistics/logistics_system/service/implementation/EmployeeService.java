@@ -1,4 +1,5 @@
 package rs.logistics.logistics_system.service.implementation;
+import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 
 import java.text.Normalizer;
 import java.util.List;
@@ -18,7 +19,11 @@ import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
+import rs.logistics.logistics_system.entity.City;
 import rs.logistics.logistics_system.entity.Company;
+import rs.logistics.logistics_system.entity.Country;
+import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
@@ -30,6 +35,8 @@ import rs.logistics.logistics_system.mapper.EmployeeMapper;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.CompanyRepository;
+import rs.logistics.logistics_system.repository.CountryRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
@@ -37,9 +44,12 @@ import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.security.RoleCatalog;
+import rs.logistics.logistics_system.security.RolePositionPolicy;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
+import rs.logistics.logistics_system.service.definition.CityServiceDefinition;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
 
 @Service
 @RequiredArgsConstructor
@@ -51,46 +61,37 @@ public class EmployeeService implements EmployeeServiceDefinition {
     private final UserRepository _userRepository;
     private final RoleRepository _roleRepository;
     private final CompanyRepository _companyRepository;
+    private final CountryRepository countryRepository;
+    private final WarehouseRepository warehouseRepository;
 
     private final UserServiceDefinition userService;
+    private final TimezoneServiceDefinition timezoneService;
+    private final CityServiceDefinition cityService;
     private final AuditFacadeDefinition auditFacade;
     private final PasswordEncoder passwordEncoder;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final RolePositionPolicy rolePositionPolicy;
 
     @Override
     @Transactional
     public EmployeeResponse create(EmployeeCreate dto) {
+        Company targetCompany = resolveTargetCompany(dto.getCompanyId());
         User user = resolveOptionalUser(dto.getUserId());
-
-        validateUniqueJmbg(dto.getJmbg());
-        validateUniqueEmployeeEmail(dto.getEmail());
 
         if (user != null) {
             validateUserNotAlreadyAssigned(user.getId());
+            validateUserBelongsToCompany(user, targetCompany.getId());
+            rolePositionPolicy.validatePositionMatchesRole(dto.getPosition(), user.getRole());
         }
 
-        Employee employee = EmployeeMapper.toEntity(dto, user);
+        validateUniqueJmbg(dto.getJmbg(), targetCompany.getId());
+        validateUniqueEmployeeEmail(dto.getEmail(), targetCompany.getId());
 
-        if (user != null) {
-            employee.setCompany(user.getCompany());
-        }
-
-        if (!authenticatedUserProvider.isOverlord()) {
-            Company company = authenticatedUserProvider.getAuthenticatedCompany();
-
-            if (company == null) {
-                throw new ForbiddenException("Authenticated user is not assigned to a company");
-            }
-
-            employee.setCompany(company);
-
-            if (user != null) {
-                authenticatedUserProvider.ensureCompanyAccess(
-                        user.getCompany() != null ? user.getCompany().getId() : null
-                );
-            }
-        }
+        Employee employee = EmployeeMapper.toEntity(dto, user, null);
+        employee.setCompany(targetCompany);
+        applyEmployeeLocationDefaults(employee, dto.getCountryId(), dto.getCityId(), dto.getPrimaryWarehouseId(), targetCompany);
+        applyRequestedEmployeeTimezone(employee, dto.getTimezoneId());
 
         Employee saved = _employeeRepository.save(employee);
 
@@ -111,18 +112,19 @@ public class EmployeeService implements EmployeeServiceDefinition {
     @Override
     @Transactional
     public EmployeeResponse createWithUser(EmployeeWithUserCreate dto) {
-        validateUniqueJmbg(dto.getJmbg());
+        Company company = resolveTargetCompany(dto.getCompanyId());
+        validateUniqueJmbg(dto.getJmbg(), company.getId());
 
         Role role = _roleRepository.findById(dto.getRoleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
         validateAssignableRole(role);
-        validatePositionMatchesRole(dto.getPosition(), role);
+        rolePositionPolicy.validatePositionMatchesRole(dto.getPosition(), role);
 
-        Company company = resolveTargetCompany(dto.getCompanyId());
-
-        String generatedEmail = generateUniqueEmail(dto.getFirstName(), dto.getLastName(), company, dto.getPosition().name());
-        validateUniqueEmployeeEmail(generatedEmail);
+        Country country = countryRepository.findById(dto.getCountryId()).orElseThrow(() -> new ResourceNotFoundException("Country Not Found"));
+        String code = country.getIso2Code();
+        String generatedEmail = generateUniqueEmail(dto.getFirstName(), dto.getLastName(), company, dto.getPosition().name(), code);
+        validateUniqueEmployeeEmail(generatedEmail, company.getId());
         validateUniqueUserEmail(generatedEmail);
 
         User user = new User(
@@ -150,6 +152,10 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 savedUser
         );
         employee.setCompany(company != null ? company : savedUser.getCompany());
+        employee.setAddress(dto.getAddress());
+        employee.setPostalCode(dto.getPostalCode());
+        applyEmployeeLocationDefaults(employee, dto.getCountryId(), dto.getCityId(), dto.getPrimaryWarehouseId(), company);
+        applyRequestedEmployeeTimezone(employee, dto.getTimezoneId());
 
         Employee savedEmployee = _employeeRepository.save(employee);
 
@@ -184,17 +190,14 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
         User user = resolveOptionalUser(dto.getUserId());
 
-        validateUniqueJmbgForUpdate(employee.getId(), dto.getJmbg());
-        validateUniqueEmailForUpdate(employee.getId(), dto.getEmail());
+        Long employeeCompanyId = requireEmployeeCompanyId(employee);
+        validateUniqueJmbgForUpdate(employee.getId(), dto.getJmbg(), employeeCompanyId);
+        validateUniqueEmailForUpdate(employee.getId(), dto.getEmail(), employeeCompanyId);
 
         if (user != null) {
             validateUserAssignmentForUpdate(employee, user.getId());
-
-            if (!authenticatedUserProvider.isOverlord()) {
-                authenticatedUserProvider.ensureCompanyAccess(
-                        user.getCompany() != null ? user.getCompany().getId() : null
-                );
-            }
+            validateUserBelongsToCompany(user, employeeCompanyId);
+            rolePositionPolicy.validatePositionMatchesRole(dto.getPosition(), user.getRole());
         }
 
         Long oldUserId = employee.getUser() != null ? employee.getUser().getId() : null;
@@ -207,15 +210,13 @@ public class EmployeeService implements EmployeeServiceDefinition {
         Boolean oldActive = employee.getActive();
         Long oldCompanyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
 
-        EmployeeMapper.updateEntity(dto, employee, user);
-
-        if (user != null) {
-            employee.setCompany(user.getCompany());
+        if (user == null && employee.getUser() != null) {
+            rolePositionPolicy.validatePositionMatchesRole(dto.getPosition(), employee.getUser().getRole());
         }
 
-        if (!authenticatedUserProvider.isOverlord()) {
-            employee.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
-        }
+        EmployeeMapper.updateEntity(dto, employee, user, null);
+        applyEmployeeLocationDefaults(employee, dto.getCountryId(), dto.getCityId(), dto.getPrimaryWarehouseId(), employee.getCompany());
+        applyRequestedEmployeeTimezone(employee, dto.getTimezoneId());
 
         Employee updated = _employeeRepository.save(employee);
 
@@ -255,7 +256,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     @Override
     public PageResponse<EmployeeResponse> getAll(String search, EmployeePosition position, Boolean active, String linkedUser, Pageable pageable) {
-        String normalizedSearch = normalizeSearch(search);
+        String normalizedSearch = QueryParameterNormalizer.trimToNull(search);
         String normalizedLinkedUser = normalizeLinkedUser(linkedUser);
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
@@ -432,6 +433,28 @@ public class EmployeeService implements EmployeeServiceDefinition {
         throw new ResourceNotFoundException("User not found");
     }
 
+    private void validateUserBelongsToCompany(User user, Long companyId) {
+        if (user == null) {
+            return;
+        }
+
+        Long userCompanyId = user.getCompany() != null ? user.getCompany().getId() : null;
+
+        if (companyId == null || userCompanyId == null || !companyId.equals(userCompanyId)) {
+            throw new BadRequestException("Selected user does not belong to the employee company");
+        }
+    }
+
+    private Long requireEmployeeCompanyId(Employee employee) {
+        Long companyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
+
+        if (companyId == null) {
+            throw new BadRequestException("Employee company is required");
+        }
+
+        return companyId;
+    }
+
     private void validateUserNotAlreadyAssigned(Long userId) {
         if (_employeeRepository.existsByUser_Id(userId)) {
             throw new BadRequestException("Selected user is already assigned to another employee");
@@ -448,35 +471,35 @@ public class EmployeeService implements EmployeeServiceDefinition {
         }
     }
 
-    private void validateUniqueJmbg(String jmbg) {
+    private void validateUniqueJmbg(String jmbg, Long companyId) {
         String normalizedJmbg = normalizeJmbg(jmbg);
 
-        if (_employeeRepository.existsByJmbg(normalizedJmbg)) {
-            throw new BadRequestException("Employee with this JMBG already exists");
+        if (_employeeRepository.existsByJmbgAndCompany_Id(normalizedJmbg, companyId)) {
+            throw new BadRequestException("Employee with this JMBG already exists in this company");
         }
     }
 
-    private void validateUniqueJmbgForUpdate(Long employeeId, String jmbg) {
+    private void validateUniqueJmbgForUpdate(Long employeeId, String jmbg, Long companyId) {
         String normalizedJmbg = normalizeJmbg(jmbg);
 
-        if (_employeeRepository.existsByJmbgAndIdNot(normalizedJmbg, employeeId)) {
-            throw new BadRequestException("Employee with this JMBG already exists");
+        if (_employeeRepository.existsByJmbgAndCompany_IdAndIdNot(normalizedJmbg, companyId, employeeId)) {
+            throw new BadRequestException("Employee with this JMBG already exists in this company");
         }
     }
 
-    private void validateUniqueEmployeeEmail(String email) {
+    private void validateUniqueEmployeeEmail(String email, Long companyId) {
         String normalizedEmail = normalizeEmail(email);
 
-        if (_employeeRepository.existsByEmailIgnoreCase(normalizedEmail)) {
-            throw new BadRequestException("Employee with this email already exists");
+        if (_employeeRepository.existsByEmailIgnoreCaseAndCompany_Id(normalizedEmail, companyId)) {
+            throw new BadRequestException("Employee with this email already exists in this company");
         }
     }
 
-    private void validateUniqueEmailForUpdate(Long employeeId, String email) {
+    private void validateUniqueEmailForUpdate(Long employeeId, String email, Long companyId) {
         String normalizedEmail = normalizeEmail(email);
 
-        if (_employeeRepository.existsByEmailIgnoreCaseAndIdNot(normalizedEmail, employeeId)) {
-            throw new BadRequestException("Employee with this email already exists");
+        if (_employeeRepository.existsByEmailIgnoreCaseAndCompany_IdAndIdNot(normalizedEmail, companyId, employeeId)) {
+            throw new BadRequestException("Employee with this email already exists in this company");
         }
     }
 
@@ -502,6 +525,70 @@ public class EmployeeService implements EmployeeServiceDefinition {
         }
 
         return email.trim().toLowerCase();
+    }
+
+    private void applyEmployeeLocationDefaults(Employee employee, Long countryId, Long cityId, Long primaryWarehouseId, Company company) {
+        Warehouse primaryWarehouse = null;
+        if (primaryWarehouseId != null) {
+            primaryWarehouse = warehouseRepository.findById(primaryWarehouseId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Primary warehouse not found"));
+            if (company != null && primaryWarehouse.getCompany() != null && !primaryWarehouse.getCompany().getId().equals(company.getId())) {
+                throw new ForbiddenException("Primary warehouse does not belong to employee company");
+            }
+        }
+        employee.setPrimaryWarehouse(primaryWarehouse);
+
+        Country country = null;
+        if (countryId != null) {
+            country = countryRepository.findById(countryId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Country not found"));
+            if (!Boolean.TRUE.equals(country.getActive())) {
+                throw new BadRequestException("Country is not active");
+            }
+        } else if (primaryWarehouse != null && primaryWarehouse.getCountry() != null) {
+            country = primaryWarehouse.getCountry();
+        } else if (company != null && company.getCountry() != null) {
+            country = company.getCountry();
+        }
+        employee.setCountry(country);
+
+        City city = null;
+        if (cityId != null && country != null) {
+            city = cityService.getRequiredActiveForCountry(cityId, country.getId());
+        } else if (primaryWarehouse != null && primaryWarehouse.getCity() != null) {
+            city = primaryWarehouse.getCity();
+        }
+        employee.setCity(city);
+        if ((employee.getPostalCode() == null || employee.getPostalCode().trim().isBlank()) && city != null) {
+            employee.setPostalCode(city.getPostalCode());
+        }
+
+        if (employee.getTimezone() == null) {
+            Timezone timezone = primaryWarehouse != null ? primaryWarehouse.getTimezone() : null;
+            if (timezone == null && company != null) {
+                timezone = company.getTimezone();
+            }
+            if (timezone == null && country != null) {
+                timezone = country.getDefaultTimezone();
+            }
+            employee.setTimezone(timezone);
+        }
+
+        if ((employee.getPhoneCode() == null || employee.getPhoneCode().trim().isBlank())) {
+            String phoneCode = country != null ? country.getPhoneCode() : null;
+            employee.setPhoneCode(phoneCode);
+        }
+    }
+
+    private void applyRequestedEmployeeTimezone(Employee employee, Long timezoneId) {
+        if (timezoneId == null) {
+            return;
+        }
+        Country country = employee.getCountry() != null ? employee.getCountry() : employee.getCompany() != null ? employee.getCompany().getCountry() : null;
+        if (country == null) {
+            throw new BadRequestException("Country is required before timezone can be selected");
+        }
+        employee.setTimezone(timezoneService.getRequiredForCountry(timezoneId, country.getId()));
     }
 
     private Employee getEmployeeOrThrow(Long id) {
@@ -536,23 +623,12 @@ public class EmployeeService implements EmployeeServiceDefinition {
         throw new ForbiddenException("You cannot assign roles.");
     }
 
-    private void validatePositionMatchesRole(rs.logistics.logistics_system.enums.EmployeePosition position, Role role) {
-        if (position == null) {
-            throw new BadRequestException("Employee position is required");
-        }
-
-        String normalizedRole = RoleCatalog.normalize(role.getName());
-        if (!position.name().equals(normalizedRole)) {
-            throw new BadRequestException("Employee position must match selected role");
-        }
-    }
-
-    private String generateUniqueEmail(String firstName, String lastName, Company company, String position) {
+    private String generateUniqueEmail(String firstName, String lastName, Company company, String position, String countryCode) {
         String username = buildUniqueUsername(firstName, lastName);
         String companyName = company != null ? company.getName() : authenticatedUserProvider.getAuthenticatedUser().getCompany() != null
                 ? authenticatedUserProvider.getAuthenticatedUser().getCompany().getName()
                 : "system";
-        String domain = buildCompanyDomain(companyName, position);
+        String domain = buildCompanyDomain(companyName, position, countryCode);
         String candidate = username + "@" + domain;
         int suffix = 1;
 
@@ -600,7 +676,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         return joined.length() > 40 ? joined.substring(0, 40) : joined;
     }
 
-    private String buildCompanyDomain(String companyName, String position) {
+    private String buildCompanyDomain(String companyName, String position, String countryCode) {
         String companySlug = normalizeForUsername(companyName, true);
         if (companySlug.isBlank()) {
             throw new BadRequestException("Unable to generate employee email domain");
@@ -611,7 +687,12 @@ public class EmployeeService implements EmployeeServiceDefinition {
             throw new BadRequestException("Unable to generate employee email domain");
         }
 
-        return companySlug + "." + positionSlug + ".rs";
+        String countrySlug = normalizeForUsername(countryCode, true);
+        if (countrySlug.isBlank()) {
+            throw new BadRequestException("Unable to generate employee email domain");
+        }
+
+        return companySlug + "." + positionSlug + "." + countrySlug;
     }
 
     private String normalizeForUsername(String value, boolean allowHyphen) {
@@ -641,11 +722,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
         }
 
-        Company company = authenticatedUserProvider.getAuthenticatedCompany();
-
-        if (company == null) {
-            throw new ForbiddenException("Authenticated user is not assigned to a company");
-        }
+        Company company = authenticatedUserProvider.getAuthenticatedCompanyOrThrow();
 
         return company;
     }

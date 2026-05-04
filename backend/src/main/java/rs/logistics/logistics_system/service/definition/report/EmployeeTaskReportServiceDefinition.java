@@ -17,4 +17,13 @@ public interface EmployeeTaskReportServiceDefinition {
             TaskStatus taskStatus,
             TaskPriority taskPriority
     );
+
+    byte[] exportEmployeeTaskReportCsv(
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            Long employeeId,
+            EmployeePosition position,
+            TaskStatus taskStatus,
+            TaskPriority taskPriority
+    );
 }

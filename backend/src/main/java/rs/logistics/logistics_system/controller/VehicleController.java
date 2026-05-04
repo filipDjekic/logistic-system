@@ -1,7 +1,6 @@
 package rs.logistics.logistics_system.controller;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;

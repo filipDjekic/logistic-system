@@ -100,6 +100,36 @@ export const routeMeta = {
     title: 'Stock Movements',
     breadcrumb: 'Stock Movements',
   },
+  stockInbound: {
+    path: '/stock/inbound',
+    title: 'Inbound Stock',
+    breadcrumb: 'Inbound Stock',
+  },
+  stockOutbound: {
+    path: '/stock/outbound',
+    title: 'Outbound Stock',
+    breadcrumb: 'Outbound Stock',
+  },
+  stockTransfer: {
+    path: '/stock/transfer',
+    title: 'Transfer Stock',
+    breadcrumb: 'Transfer Stock',
+  },
+  stockAdjustment: {
+    path: '/stock/adjustment',
+    title: 'Adjust Stock',
+    breadcrumb: 'Adjust Stock',
+  },
+  stockWriteOff: {
+    path: '/stock/write-off',
+    title: 'Write Off Stock',
+    breadcrumb: 'Write Off Stock',
+  },
+  stockReturn: {
+    path: '/stock/return',
+    title: 'Return Stock',
+    breadcrumb: 'Return Stock',
+  },
   tasks: {
     path: '/tasks',
     title: 'Tasks',

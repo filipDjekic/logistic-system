@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateShiftState } from '../../../core/utils/invalidateAppState';
 import { shiftsApi } from '../api/shiftsApi';
 import type { ShiftCreateRequest, ShiftUpdateRequest } from '../types/shift.types';
 
@@ -36,9 +37,7 @@ export function useCreateShift() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['shifts'] }),
-      ]);
+      await invalidateShiftState(queryClient, variables.mode === 'edit' ? variables.id : undefined);
     },
     onError: (error) => {
       showSnackbar({

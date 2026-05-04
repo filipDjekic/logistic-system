@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import rs.logistics.logistics_system.enums.VehicleType;
+
 public record DispatcherDashboardResponse(
         long transportOrdersTotal,
         long activeTransportOrders,
@@ -49,7 +51,7 @@ public record DispatcherDashboardResponse(
             String registrationNumber,
             String brand,
             String model,
-            String type,
+            VehicleType type,
             BigDecimal capacity
     ) {
     }

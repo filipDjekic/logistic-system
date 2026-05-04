@@ -14,10 +14,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class WarehouseInventoryId implements Serializable {
-    @Column(name = "warehouse_id")
+    @Column(name = "warehouse_id", nullable = false)
     private Long warehouseId;
 
-    @Column(name = "product_id")
+    @Column(name = "product_id", nullable = false)
     private Long productId;
 
     public WarehouseInventoryId(Long warehouseId, Long productId) {

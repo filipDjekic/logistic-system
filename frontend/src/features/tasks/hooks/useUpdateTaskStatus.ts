@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { tasksApi } from '../api/tasksApi';
+import { invalidateTaskState } from '../../../core/utils/invalidateAppState';
 import type { TaskStatus } from '../types/task.types';
 
 type UpdateTaskStatusPayload = {
@@ -22,10 +23,7 @@ export function useUpdateTaskStatus() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['tasks'] }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard', 'my-tasks'] }),
-      ]);
+      await invalidateTaskState(queryClient, variables.id);
     },
     onError: (error) => {
       showSnackbar({

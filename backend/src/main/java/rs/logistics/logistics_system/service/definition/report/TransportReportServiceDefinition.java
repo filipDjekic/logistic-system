@@ -18,4 +18,15 @@ public interface TransportReportServiceDefinition {
             Long vehicleId,
             Long assignedEmployeeId
     );
+
+    byte[] exportTransportReportCsv(
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            TransportOrderStatus status,
+            PriorityLevel priority,
+            Long sourceWarehouseId,
+            Long destinationWarehouseId,
+            Long vehicleId,
+            Long assignedEmployeeId
+    );
 }

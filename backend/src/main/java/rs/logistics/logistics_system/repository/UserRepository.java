@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -45,6 +47,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByIdAndCompany_Id(Long id, Long companyId);
 
     List<User> findAllByCompany_Id(Long companyId);
+
+    Page<User> findAllByCompany_Id(Long companyId, Pageable pageable);
 
     List<User> findByStatusAndCompany_Id(UserStatus status, Long companyId);
 

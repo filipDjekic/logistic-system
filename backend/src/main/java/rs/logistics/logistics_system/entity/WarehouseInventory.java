@@ -9,17 +9,29 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "WAREHOUSE_INVENTORY")
+@Table(
+        name = "WAREHOUSE_INVENTORY",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_warehouse_inventory_warehouse_product", columnNames = {"warehouse_id", "product_id"})
+        },
+        indexes = {
+                @Index(name = "idx_warehouse_inventory_warehouse_id", columnList = "warehouse_id"),
+                @Index(name = "idx_warehouse_inventory_product_id", columnList = "product_id"),
+                @Index(name = "idx_warehouse_inventory_product_warehouse", columnList = "product_id, warehouse_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -58,97 +70,104 @@ public class WarehouseInventory {
                               Product product,
                               BigDecimal quantity,
                               BigDecimal minStockLevel) {
+        if (warehouse == null || warehouse.getId() == null) {
+            throw new IllegalArgumentException("Warehouse is required");
+        }
+        if (product == null || product.getId() == null) {
+            throw new IllegalArgumentException("Product is required");
+        }
+
         this.id = new WarehouseInventoryId(warehouse.getId(), product.getId());
         this.warehouse = warehouse;
         this.product = product;
-        this.quantity = quantity;
-        this.minStockLevel = minStockLevel;
+        this.quantity = nonNegative(quantity, "Quantity cannot be negative");
+        this.reservedQuantity = BigDecimal.ZERO;
+        updateMinStockLevel(minStockLevel);
     }
 
-    // methods
-
     public void increase(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than 0");
-        }
-
-        this.quantity = this.quantity.add(amount);
+        BigDecimal requested = positive(amount);
+        this.quantity = getSafeQuantity().add(requested);
     }
 
     public void decrease(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than 0");
-        }
+        BigDecimal requested = positive(amount);
 
-        BigDecimal available = getAvailableQuantity();
-
-        if (available.compareTo(amount) < 0) {
+        if (getAvailableQuantity().compareTo(requested) < 0) {
             throw new IllegalStateException("Not enough available stock");
         }
 
-        this.quantity = this.quantity.subtract(amount);
+        this.quantity = getSafeQuantity().subtract(requested);
     }
 
     public void reserve(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than 0");
-        }
+        BigDecimal requested = positive(amount);
 
-        BigDecimal available = getAvailableQuantity();
-
-        if (available.compareTo(amount) < 0) {
+        if (getAvailableQuantity().compareTo(requested) < 0) {
             throw new IllegalStateException("Not enough stock to reserve");
         }
 
-        this.reservedQuantity = this.reservedQuantity.add(amount);
+        this.reservedQuantity = getSafeReservedQuantity().add(requested);
     }
 
     public void release(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than 0");
-        }
+        BigDecimal requested = positive(amount);
 
-        if (this.reservedQuantity.compareTo(amount) < 0) {
+        if (getSafeReservedQuantity().compareTo(requested) < 0) {
             throw new IllegalStateException("Cannot release more than reserved");
         }
 
-        this.reservedQuantity = this.reservedQuantity.subtract(amount);
+        this.reservedQuantity = getSafeReservedQuantity().subtract(requested);
     }
 
     public void adjustTo(BigDecimal newQuantity) {
-        if (newQuantity == null || newQuantity.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Quantity cannot be negative");
-        }
+        BigDecimal targetQuantity = nonNegative(newQuantity, "Quantity cannot be negative");
 
-        if (newQuantity.compareTo(this.reservedQuantity) < 0) {
+        if (targetQuantity.compareTo(getSafeReservedQuantity()) < 0) {
             throw new IllegalStateException("Quantity cannot be lower than reserved");
         }
 
-        this.quantity = newQuantity;
-    }
-
-    public BigDecimal getAvailableQuantity() {
-        BigDecimal reserved = this.reservedQuantity == null ? BigDecimal.ZERO : this.reservedQuantity;
-        BigDecimal quantity_function = this.quantity == null ? BigDecimal.ZERO : this.quantity;
-
-        return quantity_function.subtract(reserved);
+        this.quantity = targetQuantity;
     }
 
     public void moveOutReserved(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than 0");
-        }
+        BigDecimal requested = positive(amount);
 
-        if (this.reservedQuantity == null || this.reservedQuantity.compareTo(amount) < 0) {
+        if (getSafeReservedQuantity().compareTo(requested) < 0) {
             throw new IllegalStateException("Not enough reserved stock");
         }
 
-        if (this.quantity == null || this.quantity.compareTo(amount) < 0) {
+        if (getSafeQuantity().compareTo(requested) < 0) {
             throw new IllegalStateException("Not enough stock");
         }
 
-        this.reservedQuantity = this.reservedQuantity.subtract(amount);
-        this.quantity = this.quantity.subtract(amount);
+        this.reservedQuantity = getSafeReservedQuantity().subtract(requested);
+        this.quantity = getSafeQuantity().subtract(requested);
+    }
+
+    public void updateMinStockLevel(BigDecimal minStockLevel) {
+        this.minStockLevel = minStockLevel == null
+                ? null
+                : nonNegative(minStockLevel, "Minimum stock level cannot be negative");
+    }
+
+    public void assertDeletable() {
+        if (getSafeReservedQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Warehouse inventory cannot be deleted while it has reserved quantity");
+        }
+
+        if (getSafeQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Warehouse inventory cannot be deleted while quantity is greater than zero");
+        }
+    }
+
+    public boolean hasStockOrReservation() {
+        return getSafeQuantity().compareTo(BigDecimal.ZERO) > 0
+                || getSafeReservedQuantity().compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    public BigDecimal getAvailableQuantity() {
+        return getSafeQuantity().subtract(getSafeReservedQuantity());
     }
 
     public boolean hasMinStockLevel() {
@@ -159,11 +178,25 @@ public class WarehouseInventory {
         return this.quantity == null ? BigDecimal.ZERO : this.quantity;
     }
 
-    public boolean isLowStock() {
-        if(!hasMinStockLevel()){
-            return false;
-        }
+    public BigDecimal getSafeReservedQuantity() {
+        return this.reservedQuantity == null ? BigDecimal.ZERO : this.reservedQuantity;
+    }
 
-        return getSafeQuantity().compareTo(this.minStockLevel) <= 0;
+    public boolean isLowStock() {
+        return hasMinStockLevel() && getAvailableQuantity().compareTo(this.minStockLevel) <= 0;
+    }
+
+    private BigDecimal positive(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than 0");
+        }
+        return amount;
+    }
+
+    private BigDecimal nonNegative(BigDecimal value, String message) {
+        if (value == null || value.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException(message);
+        }
+        return value;
     }
 }

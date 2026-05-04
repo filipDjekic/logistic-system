@@ -32,7 +32,10 @@ public class TransportOrderItemMapper {
     public static TransportOrderItemResponse toResponse(TransportOrderItem transportOrderItem){
         return new TransportOrderItemResponse(
                 transportOrderItem.getId(),
-                transportOrderItem.getQuantity(),
+                transportOrderItem.getSafeQuantity(),
+                transportOrderItem.getSafeReservedQuantity(),
+                transportOrderItem.getSafeDispatchedQuantity(),
+                transportOrderItem.getSafeDeliveredQuantity(),
                 transportOrderItem.getWeight(),
                 transportOrderItem.getNote(),
                 transportOrderItem.getTransportOrder().getId(),

@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { shiftsApi } from '../api/shiftsApi';
 import ShiftFormDialog from '../components/ShiftFormDialog';
 import ShiftsTable from '../components/ShiftsTable';
 import { useCreateShift } from '../hooks/useCreateShift';
 import { useShifts } from '../hooks/useShifts';
+import type { SortState } from '../../../shared/types/common.types';
 import type {
   ShiftFiltersState,
   ShiftResponse,
@@ -21,11 +25,15 @@ export default function ShiftsPage() {
     status: 'ALL',
   });
 
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [sort] = useState<SortState>({ field: 'startTime', direction: 'desc' });
+
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedShift, setSelectedShift] = useState<ShiftResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const shiftsQuery = useShifts(true);
+  const shiftsQuery = useShifts({ page, size, sort: buildSortParam(sort) }, true);
   const employeesQuery = useQuery({
     queryKey: ['employees', 'all'],
     queryFn: shiftsApi.getEmployees,
@@ -44,7 +52,7 @@ export default function ShiftsPage() {
   const filteredRows = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
 
-    return (shiftsQuery.data ?? []).filter((shift) => {
+    return (shiftsQuery.data?.content ?? []).filter((shift) => {
       const employee = employeesById[shift.employeeId];
       const employeeLabel = employee
         ? `${employee.firstName} ${employee.lastName} ${employee.email}`.toLowerCase()
@@ -82,77 +90,59 @@ export default function ShiftsPage() {
         }
       />
 
-      <SectionCard
+      <TableLayout
         title="Shift list"
         description="Only confirmed backend operations are exposed here."
-      >
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-            <SearchToolbar
-              value={filters.search}
-              onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by employee, status, notes or shift ID"
-              fullWidth
-            />
-
+        toolbar={
+          <TableToolbar
+            searchValue={filters.search}
+            onSearchChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+            searchPlaceholder="Search by employee, status, notes or shift ID"
+            onRefresh={() => { void Promise.all([shiftsQuery.refetch(), employeesQuery.refetch()]); }}
+            refreshDisabled={shiftsQuery.isFetching || employeesQuery.isFetching}
+          />
+        }
+        filters={
+          <FilterPanel minColumnWidth={180}>
             <TextField
               select
               size="small"
               label="Status"
               value={filters.status}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  status: event.target.value as ShiftFiltersState['status'],
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 180 } }}
+              onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value as ShiftFiltersState['status'] }))}
             >
               <MenuItem value="ALL">All</MenuItem>
-              {shiftStatusOptions.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
-                </MenuItem>
-              ))}
+              {shiftStatusOptions.map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
             </TextField>
-
-            <Button
-              variant="outlined"
-              onClick={() => {
-                void Promise.all([
-                  shiftsQuery.refetch(),
-                  employeesQuery.refetch(),
-                ]);
+          </FilterPanel>
+        }
+        table={
+          <>
+            <ShiftsTable
+              rows={filteredRows}
+              employeesById={employeesById}
+              loading={shiftsQuery.isLoading || employeesQuery.isLoading}
+              error={shiftsQuery.isError || employeesQuery.isError}
+              onRetry={() => { void Promise.all([shiftsQuery.refetch(), employeesQuery.refetch()]); }}
+              onEdit={(shift) => {
+                setDialogMode('edit');
+                setSelectedShift(shift);
+                setDialogOpen(true);
               }}
-              disabled={shiftsQuery.isFetching || employeesQuery.isFetching}
-            >
-              Refresh
-            </Button>
-          </Stack>
-
-          <ShiftsTable
-            rows={filteredRows}
-            employeesById={employeesById}
-            loading={shiftsQuery.isLoading || employeesQuery.isLoading}
-            error={shiftsQuery.isError || employeesQuery.isError}
-            onRetry={() => {
-              void Promise.all([
-                shiftsQuery.refetch(),
-                employeesQuery.refetch(),
-              ]);
-            }}
-            onEdit={(shift) => {
-              setDialogMode('edit');
-              setSelectedShift(shift);
-              setDialogOpen(true);
-            }}
-            showEmployeeColumn
-            showActions
-            emptyTitle="No shifts found"
-            emptyDescription="There are no shifts for the current filter combination."
-          />
-        </Stack>
-      </SectionCard>
+              showEmployeeColumn
+              showActions
+              emptyTitle="No shifts found"
+              emptyDescription="There are no shifts for the current filter combination."
+            />
+            <ServerTablePagination
+              page={shiftsQuery.data}
+              disabled={shiftsQuery.isFetching}
+              onPageChange={setPage}
+              onSizeChange={(nextSize) => { setPage(0); setSize(nextSize); }}
+            />
+          </>
+        }
+      />
 
       <ShiftFormDialog
         open={dialogOpen}

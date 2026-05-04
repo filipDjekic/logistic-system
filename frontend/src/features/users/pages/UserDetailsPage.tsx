@@ -10,7 +10,9 @@ import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateUserState } from '../../../core/utils/invalidateAppState';
 import { useRoles } from '../../roles/hooks/useRoles';
+import { useCompanies } from '../../companies/hooks/useCompanies';
 import UserFormDialog from '../components/UserFormDialog';
 import UserStatusChip from '../components/UserStatusChip';
 import { usersApi } from '../api/usersApi';
@@ -65,13 +67,14 @@ export default function UserDetailsPage() {
   const userId = Number(params.id);
 
   const userQuery = useUser(Number.isFinite(userId) ? userId : null);
-  const rolesQuery = useRoles(
-    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER,
-  );
-  const updateUserMutation = useUpdateUser();
-
   const canEdit =
-    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.HR_MANAGER;
+
+  const rolesQuery = useRoles(canEdit);
+  const companiesQuery = useCompanies(false);
+  const updateUserMutation = useUpdateUser();
 
   const canToggle = auth.user?.role === ROLES.OVERLORD;
 
@@ -91,10 +94,7 @@ export default function UserDetailsPage() {
         severity: 'success',
       });
 
-      await queryClient.invalidateQueries({ queryKey: ['users'] });
-      await queryClient.invalidateQueries({
-        queryKey: ['users', 'details', userId],
-      });
+      await invalidateUserState(queryClient, userId);
     },
     onError: (error) => {
       showSnackbar({
@@ -291,6 +291,7 @@ export default function UserDetailsPage() {
           mode="edit"
           initialData={user}
           roles={rolesQuery.data ?? []}
+          companies={companiesQuery.data ?? []}
           loading={updateUserMutation.isPending}
           onClose={() => setEditOpen(false)}
           onSubmitCreate={() => undefined}
@@ -318,10 +319,7 @@ export default function UserDetailsPage() {
               {
                 onSuccess: async () => {
                   setEditOpen(false);
-                  await queryClient.invalidateQueries({ queryKey: ['users'] });
-                  await queryClient.invalidateQueries({
-                    queryKey: ['users', 'details', user.id],
-                  });
+                  await invalidateUserState(queryClient, userId);
                 },
               },
             );

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { appConfig } from '../../core/config/appConfig';
 
 type UsePaginationOptions = {
   initialPage?: number;
@@ -8,10 +9,10 @@ type UsePaginationOptions = {
 
 export function usePagination(options?: UsePaginationOptions) {
   const [page, setPage] = useState(options?.initialPage ?? 0);
-  const [size, setSize] = useState(options?.initialSize ?? 10);
+  const [size, setSize] = useState(options?.initialSize ?? appConfig.pagination.defaultPageSize);
 
   const pageSizeOptions = useMemo(
-    () => options?.pageSizeOptions ?? [5, 10, 20, 50],
+    () => options?.pageSizeOptions ?? [...appConfig.pagination.pageSizeOptions],
     [options?.pageSizeOptions],
   );
 

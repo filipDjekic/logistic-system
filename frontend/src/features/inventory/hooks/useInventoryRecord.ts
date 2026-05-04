@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { inventoryApi } from '../api/inventoryApi';
 import type { InventoryRecordDetails } from '../types/inventory.types';
 
@@ -13,7 +14,9 @@ export function useInventoryRecord(
     (productId as number) > 0;
 
   return useQuery({
-    queryKey: ['inventory', 'details', warehouseId, productId],
+    queryKey: isValidIds
+      ? queryKeys.inventory.detail(warehouseId as number, productId as number)
+      : queryKeys.inventory.detail(0, 0),
     queryFn: async (): Promise<InventoryRecordDetails> => {
       const record = await inventoryApi.getInventoryRecord(
         warehouseId as number,
@@ -59,6 +62,8 @@ export function useInventoryRecord(
     },
     enabled: isValidIds,
     staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    refetchInterval: 45_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 }

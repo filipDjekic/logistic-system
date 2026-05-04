@@ -10,7 +10,16 @@ import rs.logistics.logistics_system.enums.ShiftStatus;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "SHIFTS")
+@Table(
+        name = "SHIFTS",
+        indexes = {
+                @Index(name = "idx_shifts_employee_id", columnList = "employee_id"),
+                @Index(name = "idx_shifts_employee_start_time", columnList = "employee_id, start_time"),
+                @Index(name = "idx_shifts_employee_time", columnList = "employee_id, start_time, end_time"),
+                @Index(name = "idx_shifts_status", columnList = "status"),
+                @Index(name = "idx_shifts_status_time", columnList = "status, start_time, end_time")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,6 +35,10 @@ public class Shift {
 
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "timezone_id", nullable = false)
+    private Timezone timezone;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

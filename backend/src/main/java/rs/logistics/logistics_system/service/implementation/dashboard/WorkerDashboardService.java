@@ -20,6 +20,7 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.dashboard.WorkerDashboardServiceDefinition;
 
 import java.time.LocalDate;
@@ -44,6 +45,7 @@ public class WorkerDashboardService implements WorkerDashboardServiceDefinition 
     private final EmployeeRepository employeeRepository;
     private final TaskRepository taskRepository;
     private final ShiftRepository shiftRepository;
+    private final TimeServiceDefinition timeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -57,8 +59,8 @@ public class WorkerDashboardService implements WorkerDashboardServiceDefinition 
             throw new ForbiddenException("Only workers can access worker dashboard");
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate today = now.toLocalDate();
+        LocalDateTime now = timeService.nowForEmployee(worker);
+        LocalDate today = timeService.todayForEmployee(worker);
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
 
@@ -167,10 +169,10 @@ public class WorkerDashboardService implements WorkerDashboardServiceDefinition 
         StockMovement stockMovement = task.getStockMovement();
         if (stockMovement != null) {
             StockMovementType movementType = stockMovement.getMovementType();
-            if (movementType == StockMovementType.TRANSFER_OUT || movementType == StockMovementType.OUTBOUND) {
+            if (movementType == StockMovementType.TRANSFER_OUT || movementType == StockMovementType.OUTBOUND || movementType == StockMovementType.WRITE_OFF || movementType == StockMovementType.RETURN_OUT) {
                 return "LOADING";
             }
-            if (movementType == StockMovementType.TRANSFER_IN || movementType == StockMovementType.INBOUND) {
+            if (movementType == StockMovementType.TRANSFER_IN || movementType == StockMovementType.INBOUND || movementType == StockMovementType.RETURN_IN) {
                 return "UNLOADING";
             }
             return "WAREHOUSE";

@@ -9,19 +9,37 @@ export type EmployeePosition =
 
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
 
-export type EmployeeResponse = {
+export type EmployeeLocationFields = {
+  phoneCode: string | null;
+  phoneNumber: string;
+  address: string | null;
+  cityId: number | null;
+  cityName: string | null;
+  city: string | null;
+  postalCode: string | null;
+  timezoneId?: number | null;
+  timezoneName?: string | null;
+  timezoneDisplayName?: string | null;
+  timezone?: string | null;
+  countryId: number | null;
+  countryCode: string | null;
+  countryName: string | null;
+  primaryWarehouseId: number | null;
+  primaryWarehouseName: string | null;
+};
+
+export type EmployeeResponse = EmployeeLocationFields & {
   id: number;
   firstName: string;
   lastName: string;
   jmbg: string;
-  phoneNumber: string;
   email: string;
   position: EmployeePosition;
   employmentDate: string;
   salary: number;
   active: boolean;
   userId: number | null;
-  companyId: number | null;
+  companyId: number;
   companyName: string | null;
 };
 
@@ -29,8 +47,19 @@ export type EmployeeCreateWithUserRequest = {
   firstName: string;
   lastName: string;
   jmbg: string;
+  phoneCode?: string | null;
   phoneNumber: string;
   email: string;
+  address?: string | null;
+  cityId?: number | null;
+  city?: string | null;
+  postalCode?: string | null;
+  timezoneId?: number | null;
+  timezoneName?: string | null;
+  timezoneDisplayName?: string | null;
+  timezone?: string | null;
+  countryId?: number | null;
+  primaryWarehouseId?: number | null;
   position: EmployeePosition;
   employmentDate: string;
   salary: number;
@@ -44,8 +73,19 @@ export type EmployeeUpdateRequest = {
   firstName: string;
   lastName: string;
   jmbg: string;
+  phoneCode?: string | null;
   phoneNumber: string;
   email: string;
+  address?: string | null;
+  cityId?: number | null;
+  city?: string | null;
+  postalCode?: string | null;
+  timezoneId?: number | null;
+  timezoneName?: string | null;
+  timezoneDisplayName?: string | null;
+  timezone?: string | null;
+  countryId?: number | null;
+  primaryWarehouseId?: number | null;
   position: EmployeePosition;
   employmentDate: string;
   salary: number;
@@ -108,8 +148,16 @@ export type EmployeeFormValues = {
   firstName: string;
   lastName: string;
   jmbg: string;
+  phoneCode?: string | null;
   phoneNumber: string;
   email: string;
+  address?: string | null;
+  cityId?: number | null;
+  city?: string | null;
+  postalCode?: string | null;
+  timezoneId?: number | null;
+  countryId?: number | null;
+  primaryWarehouseId?: number | null;
   position: EmployeePosition;
   employmentDate: string;
   salary: string;

@@ -1,7 +1,7 @@
 import CloudDownloadRoundedIcon from '@mui/icons-material/CloudDownloadRounded';
 import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
-import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
@@ -27,17 +27,22 @@ const importTypeOptions: Array<{ value: ImportType; label: string; description: 
   {
     value: 'vehicles',
     label: 'Vehicles',
-    description: 'CSV columns: registrationNumber, brand, model, type, capacity, fuelType, yearOfProduction, status, companyId',
+    description: 'CSV columns: registrationNumber, brand, model, type, capacity, maxWeight, maxVolume, maxItems, fuelType, yearOfProduction, status, companyId',
   },
   {
     value: 'warehouses',
     label: 'Warehouses',
-    description: 'CSV columns: name, address, city, capacity, status, employeeId, companyId',
+    description: 'CSV columns: name, address, city, postalCode, countryId, timezoneId, latitude, longitude, capacity, status, employeeId, companyId',
   },
   {
     value: 'warehouse-inventory',
     label: 'Warehouse inventory',
     description: 'CSV columns: warehouseId, productId, quantity, minStockLevel',
+  },
+  {
+    value: 'employees',
+    label: 'Employees',
+    description: 'CSV columns: firstName, lastName, jmbg, phoneNumber, email, address, city, postalCode, countryId, timezoneId, primaryWarehouseId, position, employmentDate, salary, userId, companyId',
   },
 ];
 
@@ -107,7 +112,7 @@ export default function DataExchangePage() {
       <PageHeader
         overline="Data exchange"
         title="Import / Export"
-        description="Import operational master data from CSV files and export report data as CSV."
+        description="Import CSV is all-or-nothing: one invalid row blocks the whole file and returns row-level errors. Export generates report CSV files."
       />
 
       <Box
@@ -117,7 +122,7 @@ export default function DataExchangePage() {
           gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) minmax(0, 1fr)' },
         }}
       >
-        <SectionCard title="Import CSV" description="CSV import uses the same backend validation and company scoping as manual creation.">
+        <SectionCard title="Import CSV" description="CSV import calls the same backend create services as manual entry. OVERLORD imports for company-owned entities must include companyId.">
           <Stack spacing={2}>
             <TextField
               select
@@ -197,13 +202,32 @@ export default function DataExchangePage() {
               <Alert severity={importResult.failedRows > 0 ? 'warning' : 'success'}>
                 <Stack spacing={1}>
                   <Typography variant="body2">
-                    Imported {importResult.importedRows} of {importResult.totalRows} rows. Failed rows: {importResult.failedRows}.
+                    Mode: {importResult.transactionMode}. Imported {importResult.importedRows} of {importResult.totalRows} rows. Failed rows: {importResult.failedRows}.
                   </Typography>
-                  {importResult.errors.slice(0, 10).map((error) => (
-                    <Typography key={error} variant="caption" display="block">
-                      {error}
-                    </Typography>
-                  ))}
+                  {importResult.errors.length > 0 ? (
+                    <Box sx={{ maxHeight: 280, overflow: 'auto' }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Line</TableCell>
+                            <TableCell>Field</TableCell>
+                            <TableCell>Value</TableCell>
+                            <TableCell>Error</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {importResult.errors.map((error) => (
+                            <TableRow key={`${error.line}-${error.field}-${error.message}-${error.value ?? ''}`}>
+                              <TableCell>{error.line}</TableCell>
+                              <TableCell>{error.field}</TableCell>
+                              <TableCell>{error.value ?? '-'}</TableCell>
+                              <TableCell>{error.message}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Box>
+                  ) : null}
                 </Stack>
               </Alert>
             ) : null}

@@ -17,18 +17,14 @@ public class EmployeeSecurity {
             return true;
         }
 
-        return employeeRepository.findById(employeeId)
-                .map(employee ->
-                        employee.getUser() != null
-                                && employee.getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())
-                                && (
-                                authenticatedUserProvider.isOverlord()
-                                        || (
-                                        employee.getCompany() != null
-                                                && employee.getCompany().getId().equals(authenticatedUserProvider.getAuthenticatedCompanyId())
-                                )
-                        )
-                )
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyId();
+        if (companyId == null) {
+            return false;
+        }
+
+        return employeeRepository.findByIdAndCompany_Id(employeeId, companyId)
+                .map(employee -> employee.getUser() != null
+                        && employee.getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId()))
                 .orElse(false);
     }
 }

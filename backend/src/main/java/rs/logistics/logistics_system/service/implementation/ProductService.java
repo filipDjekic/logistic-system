@@ -1,19 +1,22 @@
 package rs.logistics.logistics_system.service.implementation;
+import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.ProductCreate;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ProductResponse;
 import rs.logistics.logistics_system.dto.update.ProductUpdate;
 import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.exception.BadRequestException;
-import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ProductMapper;
 import rs.logistics.logistics_system.repository.CompanyRepository;
@@ -32,11 +35,13 @@ public class ProductService implements ProductServiceDefinition {
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
+    @Transactional
     public ProductResponse create(ProductCreate dto) {
-        validateSkuForCreate(dto.getSku());
+        Company targetCompany = resolveTargetCompany(dto.getCompanyId());
+        validateSkuForCreate(dto.getSku(), targetCompany.getId());
 
         Product product = ProductMapper.toEntity(dto);
-        product.setCompany(resolveTargetCompany(dto.getCompanyId()));
+        product.setCompany(targetCompany);
 
         Product saved = _productRepository.save(product);
 
@@ -53,10 +58,11 @@ public class ProductService implements ProductServiceDefinition {
     }
 
     @Override
+    @Transactional
     public ProductResponse update(Long id, ProductUpdate dto) {
         Product product = getProductOrThrow(id);
 
-        validateSkuForUpdate(dto.getSku(), id);
+        validateSkuForUpdate(dto.getSku(), id, product.getCompany() != null ? product.getCompany().getId() : null);
 
         String oldName = product.getName();
         String oldDescription = product.getDescription();
@@ -82,6 +88,21 @@ public class ProductService implements ProductServiceDefinition {
     @Override
     public ProductResponse getById(Long id) {
         return ProductMapper.toResponse(getProductOrThrow(id));
+    }
+
+    @Override
+    public PageResponse<ProductResponse> getAll(String search, Boolean active, Pageable pageable) {
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        Page<Product> page = _productRepository.searchProducts(companyId, QueryParameterNormalizer.trimToNull(search), active, pageable);
+        List<ProductResponse> content = page.getContent()
+                .stream()
+                .map(ProductMapper::toResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.fromContent(content, page);
     }
 
     @Override
@@ -112,6 +133,7 @@ public class ProductService implements ProductServiceDefinition {
     }
 
     @Override
+    @Transactional
     public ProductResponse activateProduct(Long id) {
         Product product = getProductOrThrow(id);
 
@@ -134,6 +156,7 @@ public class ProductService implements ProductServiceDefinition {
     }
 
     @Override
+    @Transactional
     public ProductResponse deactivateProduct(Long id) {
         Product product = getProductOrThrow(id);
 
@@ -155,6 +178,13 @@ public class ProductService implements ProductServiceDefinition {
         return ProductMapper.toResponse(saved);
     }
 
+    private String normalizeSearch(String search) {
+        if (search == null || search.trim().isEmpty()) {
+            return null;
+        }
+        return search.trim();
+    }
+
     private Product getProductOrThrow(Long id) {
         if (authenticatedUserProvider.isOverlord()) {
             return _productRepository.findById(id)
@@ -171,45 +201,36 @@ public class ProductService implements ProductServiceDefinition {
                 throw new BadRequestException("companyId is required for OVERLORD product creation");
             }
 
-            return companyRepository.findById(companyId)
+            Company company = companyRepository.findById(companyId)
                     .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
+            validateTargetCompany(company);
+            return company;
         }
 
-        Company company = authenticatedUserProvider.getAuthenticatedCompany();
-        if (company == null) {
-            throw new ForbiddenException("Authenticated user is not assigned to a company");
-        }
-
+        Company company = authenticatedUserProvider.getAuthenticatedCompanyOrThrow();
+        validateTargetCompany(company);
         return company;
     }
 
-    private void validateSkuForCreate(String sku) {
-        if (authenticatedUserProvider.isOverlord()) {
-            if (_productRepository.existsBySku(sku)) {
-                throw new BadRequestException("Product SKU already exists");
-            }
-            return;
+    private void validateTargetCompany(Company company) {
+        if (company == null || company.getId() == null) {
+            throw new BadRequestException("Product must belong to a company");
         }
 
-        if (_productRepository.existsBySkuAndCompany_Id(sku, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())) {
-            throw new BadRequestException("Product SKU already exists");
+        if (!Boolean.TRUE.equals(company.getActive())) {
+            throw new BadRequestException("Product cannot be created for an inactive company");
         }
     }
 
-    private void validateSkuForUpdate(String sku, Long id) {
-        if (authenticatedUserProvider.isOverlord()) {
-            if (_productRepository.existsBySkuAndIdNot(sku, id)) {
-                throw new BadRequestException("Product SKU already exists");
-            }
-            return;
+    private void validateSkuForCreate(String sku, Long companyId) {
+        if (_productRepository.existsBySkuAndCompany_Id(sku, companyId)) {
+            throw new BadRequestException("Product SKU already exists in this company");
         }
+    }
 
-        if (_productRepository.existsBySkuAndCompany_IdAndIdNot(
-                sku,
-                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
-                id
-        )) {
-            throw new BadRequestException("Product SKU already exists");
+    private void validateSkuForUpdate(String sku, Long id, Long companyId) {
+        if (_productRepository.existsBySkuAndCompany_IdAndIdNot(sku, companyId, id)) {
+            throw new BadRequestException("Product SKU already exists in this company");
         }
     }
 

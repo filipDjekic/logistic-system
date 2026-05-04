@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -16,23 +17,26 @@ public class UserUpdate {
 
     private Long id;
 
-    @NotBlank
+    @NotBlank(message = "First name is required")
+    @Size(max = 60, message = "First name must be at most 60 characters")
     private String firstName;
 
-    @NotBlank
+    @NotBlank(message = "Last name is required")
+    @Size(max = 60, message = "Last name must be at most 60 characters")
     private String lastName;
 
-    @NotBlank
-    @Email
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email is not valid")
+    @Size(max = 255, message = "Email must be at most 255 characters")
     private String email;
 
-    @NotNull
+    @NotNull(message = "Role is required")
     private Long roleId;
 
-    @NotNull
+    @NotNull(message = "Enabled flag is required")
     private Boolean enabled;
 
-    @NotNull
+    @NotNull(message = "Status is required")
     private UserStatus status;
 
     @Valid

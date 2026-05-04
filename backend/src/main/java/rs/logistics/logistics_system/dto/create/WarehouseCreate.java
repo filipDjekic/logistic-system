@@ -24,9 +24,26 @@ public class WarehouseCreate {
     @Size(min = 1, max = 200)
     private String address;
 
-    @NotBlank
+    @NotNull
+    @Positive
+    private Long cityId;
+
     @Size(min = 1, max = 200)
     private String city;
+    
+    @Size(max = 20)
+    private String postalCode;
+
+    @Positive
+    private Long countryId;
+
+    @NotNull
+    @Positive
+    private Long timezoneId;
+
+    private BigDecimal latitude;
+
+    private BigDecimal longitude;
 
     @NotNull
     @Positive
@@ -43,15 +60,27 @@ public class WarehouseCreate {
     private Long companyId;
 
     public WarehouseCreate(String name,
-                           String address,
-                           String city,
-                           BigDecimal capacity,
-                           WarehouseStatus status,
-                           Long employeeId,
-                           Long companyId) {
+                        String address,
+                        Long cityId,
+                        String city,
+                        String postalCode,
+                        Long countryId,
+                        Long timezoneId,
+                        BigDecimal latitude,
+                        BigDecimal longitude,
+                        BigDecimal capacity,
+                        WarehouseStatus status,
+                        Long employeeId,
+                        Long companyId) {
         this.name = name;
         this.address = address;
+        this.cityId = cityId;
         this.city = city;
+        this.postalCode = postalCode;
+        this.countryId = countryId;
+        this.timezoneId = timezoneId;
+        this.latitude = latitude;
+        this.longitude = longitude;
         this.capacity = capacity;
         this.status = status;
         this.employeeId = employeeId;

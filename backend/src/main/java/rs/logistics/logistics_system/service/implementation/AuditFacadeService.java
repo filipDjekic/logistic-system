@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.entity.ActivityLog;
 import rs.logistics.logistics_system.entity.ChangeHistory;
 import rs.logistics.logistics_system.entity.User;
@@ -15,6 +16,7 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuditFacadeService implements AuditFacadeDefinition {
 
     private final ActivityLogRepository activityLogRepository;
@@ -22,6 +24,7 @@ public class AuditFacadeService implements AuditFacadeDefinition {
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
+    @Transactional
     public void log(String action, String entityName, Long entityId, String description) {
         log(action, entityName, entityId, null, description);
     }
@@ -62,6 +65,7 @@ public class AuditFacadeService implements AuditFacadeDefinition {
     }
 
     @Override
+    @Transactional
     public void recordCreate(String entityName, Long entityId) {
         recordCreate(entityName, entityId, null);
     }
@@ -85,6 +89,7 @@ public class AuditFacadeService implements AuditFacadeDefinition {
     }
 
     @Override
+    @Transactional
     public void recordDelete(String entityName, Long entityId) {
         recordDelete(entityName, entityId, null);
     }
@@ -108,6 +113,7 @@ public class AuditFacadeService implements AuditFacadeDefinition {
     }
 
     @Override
+    @Transactional
     public void recordFieldChange(String entityName, Long entityId, String fieldName, Object oldValue, Object newValue) {
         recordFieldChange(entityName, entityId, null, fieldName, oldValue, newValue);
     }
@@ -135,6 +141,7 @@ public class AuditFacadeService implements AuditFacadeDefinition {
     }
 
     @Override
+    @Transactional
     public void recordStatusChange(String entityName, Long entityId, String fieldName, Object oldValue, Object newValue) {
         recordStatusChange(entityName, entityId, null, fieldName, oldValue, newValue);
     }

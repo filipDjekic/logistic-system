@@ -4,14 +4,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.report.InventoryReportResponse;
+import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
 import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.report.InventoryReportServiceDefinition;
 
@@ -21,6 +27,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -32,6 +39,8 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
 
     private final WarehouseInventoryRepository warehouseInventoryRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final EmployeeRepository employeeRepository;
+    private final WarehouseRepository warehouseRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
@@ -49,6 +58,11 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
+        validateReportFilters(companyId, warehouseId, productId);
+
+        Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
+        validateWarehouseFilterAllowedForWarehouseManager(warehouseId, managedWarehouseIds);
+
         List<WarehouseInventory> inventoryRows = warehouseInventoryRepository.searchInventory(
                 companyId,
                 null,
@@ -56,7 +70,9 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 productId,
                 null,
                 Pageable.unpaged()
-        ).getContent();
+        ).getContent().stream()
+                .filter(row -> isAllowedWarehouseForWarehouseManager(row.getWarehouse(), managedWarehouseIds))
+                .toList();
 
         List<StockMovement> movementRows = stockMovementRepository.searchMovements(
                 companyId,
@@ -69,7 +85,9 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 fromDate,
                 toDate,
                 Pageable.unpaged()
-        ).getContent();
+        ).getContent().stream()
+                .filter(row -> isAllowedWarehouseForWarehouseManager(row.getWarehouse(), managedWarehouseIds))
+                .toList();
 
         BigDecimal totalQuantity = sumInventory(inventoryRows, WarehouseInventory::getQuantity);
         BigDecimal totalAvailable = sumInventory(inventoryRows, WarehouseInventory::getAvailableQuantity);
@@ -84,8 +102,8 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 totalAvailable,
                 totalReserved,
                 movementRows.size(),
-                sumMovementQuantity(movementRows, StockMovementType.INBOUND),
-                sumMovementQuantity(movementRows, StockMovementType.OUTBOUND),
+                sumMovementQuantity(movementRows, StockMovementType.INBOUND, StockMovementType.RETURN_IN),
+                sumMovementQuantity(movementRows, StockMovementType.OUTBOUND, StockMovementType.WRITE_OFF, StockMovementType.RETURN_OUT),
                 sumTransferQuantity(movementRows),
                 sumMovementQuantity(movementRows, StockMovementType.ADJUSTMENT),
                 countMovementsByType(movementRows),
@@ -94,6 +112,124 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 buildInventoryRows(inventoryRows),
                 buildMovementRows(movementRows)
         );
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportInventoryReportCsv(
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            Long warehouseId,
+            Long productId,
+            StockMovementType movementType
+    ) {
+        InventoryReportResponse report = getInventoryReport(fromDate, toDate, warehouseId, productId, movementType);
+
+        List<List<?>> rows = new java.util.ArrayList<>();
+        rows.add(java.util.Arrays.asList("Inventory report"));
+        rows.add(java.util.Arrays.asList("fromDate", report.fromDate(), "toDate", report.toDate()));
+        rows.add(java.util.Arrays.asList("inventoryRowsTotal", report.inventoryRowsTotal(), "lowStockRowsTotal", report.lowStockRowsTotal(), "stockMovementsTotal", report.stockMovementsTotal()));
+        rows.add(java.util.Arrays.asList("totalInventoryQuantity", report.totalInventoryQuantity(), "totalAvailableQuantity", report.totalAvailableQuantity(), "totalReservedQuantity", report.totalReservedQuantity()));
+        rows.add(java.util.Arrays.asList("inboundQuantity", report.inboundQuantity(), "outboundQuantity", report.outboundQuantity(), "transferQuantity", report.transferQuantity(), "adjustmentQuantity", report.adjustmentQuantity()));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Inventory rows");
+        rows.add(java.util.Arrays.asList("warehouseId", "warehouseName", "productId", "productName", "sku", "unit", "quantity", "reservedQuantity", "availableQuantity", "minStockLevel", "lowStock", "lastUpdated"));
+        report.inventoryRows().forEach(row -> rows.add(java.util.Arrays.asList(
+                row.warehouseId(),
+                row.warehouseName(),
+                row.productId(),
+                row.productName(),
+                row.sku(),
+                row.unit(),
+                row.quantity(),
+                row.reservedQuantity(),
+                row.availableQuantity(),
+                row.minStockLevel(),
+                row.lowStock(),
+                row.lastUpdated()
+        )));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Stock movement rows");
+        rows.add(java.util.Arrays.asList("id", "movementType", "quantity", "reasonCode", "referenceType", "referenceId", "referenceNumber", "warehouseId", "warehouseName", "productId", "productName", "sku", "createdAt"));
+        report.movementRows().forEach(row -> rows.add(java.util.Arrays.asList(
+                row.id(),
+                row.movementType(),
+                row.quantity(),
+                row.reasonCode(),
+                row.referenceType(),
+                row.referenceId(),
+                row.referenceNumber(),
+                row.warehouseId(),
+                row.warehouseName(),
+                row.productId(),
+                row.productName(),
+                row.sku(),
+                row.createdAt()
+        )));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Warehouse summary");
+        rows.add(java.util.Arrays.asList("warehouseId", "warehouseName", "city", "inventoryRows", "lowStockRows", "quantity", "availableQuantity", "reservedQuantity", "stockMovements"));
+        report.perWarehouse().forEach(row -> rows.add(java.util.Arrays.asList(row.warehouseId(), row.warehouseName(), row.city(), row.inventoryRows(), row.lowStockRows(), row.quantity(), row.availableQuantity(), row.reservedQuantity(), row.stockMovements())));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Product summary");
+        rows.add(java.util.Arrays.asList("productId", "productName", "sku", "unit", "inventoryRows", "lowStockRows", "quantity", "availableQuantity", "reservedQuantity", "stockMovements"));
+        report.perProduct().forEach(row -> rows.add(java.util.Arrays.asList(row.productId(), row.productName(), row.sku(), row.unit(), row.inventoryRows(), row.lowStockRows(), row.quantity(), row.availableQuantity(), row.reservedQuantity(), row.stockMovements())));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Movement type breakdown");
+        ReportCsvExportHelper.addMapRows(rows, report.movementsByType(), "movementType", "count");
+
+        return ReportCsvExportHelper.toCsvBytes(rows);
+    }
+
+    private void validateReportFilters(Long companyId, Long warehouseId, Long productId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        if (warehouseId != null && warehouseRepository.findByIdAndCompany_Id(warehouseId, companyId).isEmpty()) {
+            throw new ForbiddenException("Warehouse is outside authenticated company scope");
+        }
+
+        if (productId != null && !warehouseInventoryRepository.existsProductInCompany(productId, companyId)) {
+            throw new ForbiddenException("Product is outside authenticated company scope");
+        }
+    }
+
+    private Set<Long> resolveManagedWarehouseIdsForWarehouseManager() {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return Set.of();
+        }
+
+        User user = authenticatedUserProvider.getAuthenticatedUser();
+        Employee employee = employeeRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user is not linked to an employee"));
+
+        return warehouseRepository.findByManagerIdAndCompany_Id(
+                        employee.getId(),
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .stream()
+                .map(Warehouse::getId)
+                .collect(Collectors.toSet());
+    }
+
+    private void validateWarehouseFilterAllowedForWarehouseManager(Long warehouseId, Set<Long> managedWarehouseIds) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || warehouseId == null) {
+            return;
+        }
+
+        if (!managedWarehouseIds.contains(warehouseId)) {
+            throw new ForbiddenException("WAREHOUSE_MANAGER can report only managed warehouses");
+        }
+    }
+
+    private boolean isAllowedWarehouseForWarehouseManager(Warehouse warehouse, Set<Long> managedWarehouseIds) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return true;
+        }
+
+        return warehouse != null && managedWarehouseIds.contains(warehouse.getId());
     }
 
     private void validateDateRange(LocalDateTime fromDate, LocalDateTime toDate) {
@@ -113,9 +249,10 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal sumMovementQuantity(List<StockMovement> rows, StockMovementType type) {
+    private BigDecimal sumMovementQuantity(List<StockMovement> rows, StockMovementType... types) {
+        java.util.Set<StockMovementType> allowedTypes = java.util.Set.of(types);
         return rows.stream()
-                .filter(row -> row.getMovementType() == type)
+                .filter(row -> allowedTypes.contains(row.getMovementType()))
                 .map(StockMovement::getQuantity)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -161,7 +298,7 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                     return new InventoryReportResponse.WarehouseInventorySummaryResponse(
                             warehouse.getId(),
                             warehouse.getName(),
-                            warehouse.getCity(),
+                            warehouse.getCity() != null ? warehouse.getCity().getName() : null,
                             group.size(),
                             group.stream().filter(WarehouseInventory::isLowStock).count(),
                             sumInventory(group, WarehouseInventory::getQuantity),

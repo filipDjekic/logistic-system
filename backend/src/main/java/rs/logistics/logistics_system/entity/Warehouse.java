@@ -14,7 +14,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "WAREHOUSES")
+@Table(
+        name = "WAREHOUSES",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_warehouses_company_name", columnNames = {"company_id", "name"})
+        },
+        indexes = {
+                @Index(name = "idx_warehouses_company_id", columnList = "company_id"),
+                @Index(name = "idx_warehouses_company_status", columnList = "company_id, status"),
+                @Index(name = "idx_warehouses_company_status_active", columnList = "company_id, status, active"),
+                @Index(name = "idx_warehouses_manager_company", columnList = "manager_id, company_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,14 +36,28 @@ public class Warehouse {
     @Setter(AccessLevel.NONE)
     private Long id;
 
-    @Column(name = "name", length = 40, nullable = false)
+    @Column(name = "name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "address", length = 30, nullable = false)
+    @Column(name = "address", length = 200, nullable = false)
     private String address;
 
-    @Column(name = "city", length = 30, nullable = false)
-    private String city;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "city_id", nullable = false)
+    private City city;
+
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "timezone_id", nullable = false)
+    private Timezone timezone;
+
+    @Column(name = "latitude", precision = 10, scale = 7)
+    private BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 10, scale = 7)
+    private BigDecimal longitude;
 
     @Column(name = "capacity", nullable = false)
     private BigDecimal capacity;
@@ -48,9 +73,13 @@ public class Warehouse {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "company_id", nullable = false)
     private Company company;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "country_id", nullable = false)
+    private Country country;
 
     @ManyToOne
     @JoinColumn(name = "manager_id")
@@ -64,7 +93,7 @@ public class Warehouse {
 
     public Warehouse(String name,
                      String address,
-                     String city,
+                     City city,
                      BigDecimal capacity,
                      WarehouseStatus status,
                      Employee manager) {

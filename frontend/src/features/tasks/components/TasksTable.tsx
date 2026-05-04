@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
-import { MenuItem, Select, Stack, Typography } from '@mui/material';
+import { Button, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { TaskResponse, TaskStatus } from '../types/task.types';
+import { canMutateManagedTask, getAllowedTaskStatusTransitions } from '../../../core/permissions/operationGuards';
+import type { Role } from '../../../core/constants/roles';
 import TaskStatusChip from './TaskStatusChip';
 
 type Props = {
@@ -11,6 +13,7 @@ type Props = {
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  role?: Role | null;
   canMutate: boolean;
   onEdit: (row: TaskResponse) => void;
   onDelete: (row: TaskResponse) => void;
@@ -28,6 +31,7 @@ export default function TasksTable({
   loading,
   error,
   onRetry,
+  role = null,
   canMutate,
   onEdit,
   onDelete,
@@ -58,7 +62,7 @@ export default function TasksTable({
           row.title
         ),
     },
-    { id: 'priority', header: 'Priority', accessor: 'priority', minWidth: 120 },
+    { id: 'priority', header: 'Priority', accessor: 'priority', sortField: 'priority', minWidth: 120 },
     {
       id: 'status',
       sortField: 'status',
@@ -67,7 +71,11 @@ export default function TasksTable({
       render: (row) => {
         const isUpdating = updatingStatusId === row.id;
 
-        if (!canChangeStatus || !onStatusChange || row.status === 'COMPLETED' || row.status === 'CANCELLED') {
+        const allowedStatuses = canChangeStatus && onStatusChange
+          ? getAllowedTaskStatusTransitions(role, row)
+          : [];
+
+        if (allowedStatuses.length === 0 || !onStatusChange) {
           return <TaskStatusChip status={row.status} />;
         }
 
@@ -79,10 +87,10 @@ export default function TasksTable({
             onChange={(event) => onStatusChange(row, event.target.value as TaskStatus)}
             sx={{ minWidth: 145 }}
           >
-            <MenuItem value="NEW">NEW</MenuItem>
-            <MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem>
-            <MenuItem value="COMPLETED">COMPLETED</MenuItem>
-            <MenuItem value="CANCELLED">CANCELLED</MenuItem>
+            <MenuItem value={row.status}>{row.status}</MenuItem>
+            {allowedStatuses.map((status) => (
+              <MenuItem key={status} value={status}>{status}</MenuItem>
+            ))}
           </Select>
         );
       },
@@ -96,20 +104,20 @@ export default function TasksTable({
     },
     {
       id: 'assignedEmployeeId',
-      header: 'Employee ID',
+      header: 'Employee',
       accessor: 'assignedEmployeeId',
       sortField: 'assignedEmployeeId',
       minWidth: 120,
     },
     {
       id: 'transportOrderId',
-      header: 'Transport',
+      header: 'Transport order',
       minWidth: 110,
       render: (row) => row.transportOrderId ?? '—',
     },
     {
       id: 'stockMovementId',
-      header: 'Movement',
+      header: 'Stock movement',
       minWidth: 110,
       render: (row) => row.stockMovementId ?? '—',
     },
@@ -118,37 +126,27 @@ export default function TasksTable({
           {
             id: 'actions',
             header: 'Actions',
-            minWidth: 160,
-            render: (row: TaskResponse) => (
-              <Stack direction="row" spacing={1.5}>
-                <Typography
-                  component="button"
-                  sx={{
-                    border: 0,
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    color: 'primary.main',
-                    p: 0,
-                  }}
-                  onClick={() => onEdit(row)}
-                >
-                  Edit
-                </Typography>
-                <Typography
-                  component="button"
-                  sx={{
-                    border: 0,
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    color: 'error.main',
-                    p: 0,
-                  }}
-                  onClick={() => onDelete(row)}
-                >
-                  Delete
-                </Typography>
-              </Stack>
-            ),
+            minWidth: 170,
+            sticky: 'right' as const,
+            align: 'right' as const,
+            render: (row: TaskResponse) => {
+              const canMutateRow = canMutateManagedTask(role, row);
+
+              if (!canMutateRow) {
+                return <Typography variant="body2" color="text.secondary">Locked</Typography>;
+              }
+
+              return (
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Button variant="text" size="small" onClick={() => onEdit(row)}>
+                    Edit
+                  </Button>
+                  <Button variant="text" size="small" color="error" onClick={() => onDelete(row)}>
+                    Delete
+                  </Button>
+                </Stack>
+              );
+            },
           },
         ]
       : []),
@@ -166,6 +164,9 @@ export default function TasksTable({
       sort={sort}
       onSortChange={onSortChange}
       getRowStatus={(row) => row.status}
+      emptyTitle="No tasks found"
+      emptyDescription="There are no tasks that match the current filters."
+      minWidth={1120}
     />
   );
 }

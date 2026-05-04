@@ -11,7 +11,13 @@ import rs.logistics.logistics_system.enums.ChangeType;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "CHANGE_HISTORY")
+@Table(
+        name = "CHANGE_HISTORY",
+        indexes = {
+                @Index(name = "idx_change_history_changed_by_date", columnList = "changed_by_user_id, changed_at"),
+                @Index(name = "idx_change_history_entity", columnList = "entity_name, entity_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor

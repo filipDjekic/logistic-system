@@ -20,6 +20,8 @@ public interface NotificationServiceDefinition {
 
     NotificationPageResponse getByUser(Long userId, int page, int size);
 
+    NotificationPageResponse getByUser(Long userId, NotificationStatus status, NotificationType type, int page, int size);
+
     NotificationPageResponse getByUserAndStatus(Long userId, NotificationStatus status, int page, int size);
 
     long getUnreadCount(Long userId);

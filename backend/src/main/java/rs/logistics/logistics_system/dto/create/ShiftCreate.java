@@ -2,7 +2,6 @@ package rs.logistics.logistics_system.dto.create;
 
 import java.time.LocalDateTime;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -25,9 +24,12 @@ public class ShiftCreate {
     @NotNull
     private ShiftStatus status;
 
-    @NotBlank
-    @Size(min = 1, max = 255)
+    @Size(max = 255)
     private String notes;
+
+    @NotNull
+    @Positive
+    private Long timezoneId;
 
     @NotNull
     @Positive

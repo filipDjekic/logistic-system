@@ -12,8 +12,6 @@ export const employeePositionOptions = [
   'WORKER',
 ] as const;
 
-const emailPattern = /^[a-zA-Z]+\.[a-zA-Z]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/;
-
 const roleIdSchema = z
   .string()
   .trim()
@@ -38,6 +36,36 @@ const salarySchema = z
     message: 'Salary must be greater than 0',
   });
 
+const emailSchema = z
+  .string()
+  .trim()
+  .min(1, 'Email is required')
+  .max(255, 'Email must be at most 255 characters')
+  .email('Email is not valid');
+
+const employeePhoneNumberSchema = z
+  .string()
+  .trim()
+  .min(1, 'Phone number is required')
+  .max(30, 'Phone number must be at most 30 characters');
+
+const employeeBaseSchema = {
+  employeeJmbg: z
+    .string()
+    .trim()
+    .min(1, 'JMBG is required')
+    .max(13, 'JMBG must be at most 13 characters'),
+  employeePhoneNumber: employeePhoneNumberSchema,
+  employeePosition: z.enum(employeePositionOptions, {
+    message: 'Employee position is required',
+  }),
+  employeeEmploymentDate: z
+    .string()
+    .trim()
+    .min(1, 'Employment date is required'),
+  employeeSalary: salarySchema,
+};
+
 export const createUserSchema = z.object({
   password: z
     .string()
@@ -54,39 +82,13 @@ export const createUserSchema = z.object({
     .trim()
     .min(1, 'Last name is required')
     .max(60, 'Last name must be at most 60 characters'),
-  email: z
-    .string()
-    .trim()
-    .min(1, 'Email is required')
-    .max(255, 'Email must be at most 255 characters')
-    .email('Email is not valid')
-    .regex(
-      emailPattern,
-      'Email must be in format firstName.lastName@firm.sector.countryCode',
-    ),
+  email: emailSchema,
   roleId: roleIdSchema,
   status: z.enum(userStatusOptions, {
     message: 'Status is required',
   }),
   companyId: companyIdSchema,
-  employeeJmbg: z
-    .string()
-    .trim()
-    .min(1, 'JMBG is required')
-    .max(13, 'JMBG must be at most 13 characters'),
-  employeePhoneNumber: z
-    .string()
-    .trim()
-    .min(1, 'Phone number is required')
-    .max(20, 'Phone number must be at most 20 characters'),
-  employeePosition: z.enum(employeePositionOptions, {
-    message: 'Employee position is required',
-  }),
-  employeeEmploymentDate: z
-    .string()
-    .trim()
-    .min(1, 'Employment date is required'),
-  employeeSalary: salarySchema,
+  ...employeeBaseSchema,
 });
 
 export const updateUserSchema = z.object({
@@ -100,39 +102,13 @@ export const updateUserSchema = z.object({
     .trim()
     .min(1, 'Last name is required')
     .max(60, 'Last name must be at most 60 characters'),
-  email: z
-    .string()
-    .trim()
-    .min(1, 'Email is required')
-    .max(50, 'Email must be at most 50 characters')
-    .email('Email is not valid')
-    .regex(
-      emailPattern,
-      'Email must be in format firstName.lastName@firm.sector.countryCode',
-    ),
+  email: emailSchema,
   roleId: roleIdSchema,
   enabled: z.boolean(),
   status: z.enum(userStatusOptions, {
     message: 'Status is required',
   }),
-  employeeJmbg: z
-    .string()
-    .trim()
-    .min(1, 'JMBG is required')
-    .max(13, 'JMBG must be at most 13 characters'),
-  employeePhoneNumber: z
-    .string()
-    .trim()
-    .min(1, 'Phone number is required')
-    .max(20, 'Phone number must be at most 20 characters'),
-  employeePosition: z.enum(employeePositionOptions, {
-    message: 'Employee position is required',
-  }),
-  employeeEmploymentDate: z
-    .string()
-    .trim()
-    .min(1, 'Employment date is required'),
-  employeeSalary: salarySchema,
+  ...employeeBaseSchema,
   employeeActive: z.boolean(),
 });
 

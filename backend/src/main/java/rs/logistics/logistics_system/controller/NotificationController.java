@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.dto.create.NotificationCreate;
 import rs.logistics.logistics_system.dto.response.NotificationPageResponse;
 import rs.logistics.logistics_system.dto.response.NotificationResponse;
 import rs.logistics.logistics_system.enums.NotificationStatus;
+import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 
@@ -48,19 +49,23 @@ public class NotificationController {
     @GetMapping("/user/{id}")
     public ResponseEntity<NotificationPageResponse> getNotificationsForUser(
             @PathVariable Long id,
+            @RequestParam(required = false) NotificationStatus status,
+            @RequestParam(required = false) NotificationType type,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        NotificationPageResponse response = notificationService.getByUser(id, page, size);
+        NotificationPageResponse response = notificationService.getByUser(id, status, type, page, size);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @GetMapping("/my")
     public ResponseEntity<NotificationPageResponse> getMyNotifications(
+            @RequestParam(required = false) NotificationStatus status,
+            @RequestParam(required = false) NotificationType type,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Long userId = authenticatedUserProvider.getAuthenticatedUserId();
-        NotificationPageResponse response = notificationService.getByUser(userId, page, size);
+        NotificationPageResponse response = notificationService.getByUser(userId, status, type, page, size);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

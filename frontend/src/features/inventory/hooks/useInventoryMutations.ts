@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateInventoryState } from '../../../core/utils/invalidateAppState';
 import { inventoryApi } from '../api/inventoryApi';
 import type {
   WarehouseInventoryCreateRequest,
@@ -20,10 +21,7 @@ export function useCreateInventoryRecord() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
-      ]);
+      await invalidateInventoryState(queryClient);
     },
     onError: (error) => {
       showSnackbar({
@@ -54,13 +52,7 @@ export function useUpdateInventoryRecord() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-        queryClient.invalidateQueries({
-          queryKey: ['inventory', 'details', variables.warehouseId, variables.productId],
-        }),
-        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
-      ]);
+      await invalidateInventoryState(queryClient, variables.warehouseId, variables.productId);
     },
     onError: (error) => {
       showSnackbar({
@@ -84,10 +76,7 @@ export function useDeleteInventoryRecord() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
-      ]);
+      await invalidateInventoryState(queryClient);
     },
     onError: (error) => {
       showSnackbar({

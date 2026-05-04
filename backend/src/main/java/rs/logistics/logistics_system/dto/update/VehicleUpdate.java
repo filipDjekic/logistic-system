@@ -1,12 +1,17 @@
 package rs.logistics.logistics_system.dto.update;
 
-import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import rs.logistics.logistics_system.enums.FuelType;
 import rs.logistics.logistics_system.enums.VehicleStatus;
-
-import java.math.BigDecimal;
+import rs.logistics.logistics_system.enums.VehicleType;
 
 @Getter
 @Setter
@@ -15,55 +20,38 @@ public class VehicleUpdate {
 
     private Long id;
 
-    @NotBlank
-    @Size(min = 1, max = 20)
+    @Size(max = 20, message = "Registration number must be at most 20 characters")
+    @NotNull(message = "Registration number is required")
     private String registrationNumber;
 
-    @NotBlank
-    @Size(min = 1, max = 20)
-    private String brand;
+    @NotNull(message = "Vehicle model is required")
+    @Positive(message = "Selected vehicle model is not valid")
+    private Long vehicleModelId;
 
-    @NotBlank
-    @Size(min = 1, max = 20)
-    private String model;
+    @NotNull(message = "Type is required")
+    private VehicleType type;
 
-    @NotBlank
-    @Size(min = 1, max = 20)
-    private String type;
-
-    @NotNull
-    @Positive
+    @NotNull(message = "Capacity is required")
+    @Positive(message = "Capacity must be greater than 0")
     private BigDecimal capacity;
 
-    @NotBlank
-    @Size(min = 1, max = 20)
-    private String fuelType;
+    @NotNull(message = "Max weight is required")
+    @Positive(message = "Max weight must be greater than 0")
+    private BigDecimal maxWeight;
 
-    @NotNull
-    @Min(1990)
+    @Positive(message = "Max volume must be greater than 0")
+    private BigDecimal maxVolume;
+
+    @Positive(message = "Max items must be greater than 0")
+    private Integer maxItems;
+
+    @NotNull(message = "Fuel type is required")
+    private FuelType fuelType;
+
+    @NotNull(message = "Year of production is required")
+    @Min(value = 1990, message = "Year of production must be 1990 or later")
     private Integer yearOfProduction;
 
-    @NotNull
+    @NotNull(message = "Status is required")
     private VehicleStatus status;
-
-    public VehicleUpdate(
-            Long id,
-            String registrationNumber,
-            String brand,
-            String model,
-            BigDecimal capacity,
-            String type,
-            String fuelType,
-            Integer yearOfProduction,
-            VehicleStatus status) {
-        this.id = id;
-        this.registrationNumber = registrationNumber;
-        this.brand = brand;
-        this.model = model;
-        this.type = type;
-        this.capacity = capacity;
-        this.fuelType = fuelType;
-        this.yearOfProduction = yearOfProduction;
-        this.status = status;
-    }
 }

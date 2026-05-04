@@ -9,7 +9,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import rs.logistics.logistics_system.dto.create.StockMovementCreate;
+import rs.logistics.logistics_system.dto.create.StockAdjustmentCreate;
+import rs.logistics.logistics_system.dto.create.StockInboundCreate;
+import rs.logistics.logistics_system.dto.create.StockOutboundCreate;
+import rs.logistics.logistics_system.dto.create.StockReturnCreate;
+import rs.logistics.logistics_system.dto.create.StockTransferCreate;
+import rs.logistics.logistics_system.dto.create.StockWriteOffCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.enums.StockMovementType;
@@ -26,9 +31,39 @@ public class StockMovementController {
     private final StockMovementServiceDefinition stockMovementService;
 
     @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
-    @PostMapping
-    public ResponseEntity<StockMovementResponse> create(@Valid @RequestBody StockMovementCreate dto) {
-        return new ResponseEntity<>(stockMovementService.create(dto), HttpStatus.CREATED);
+    @PostMapping("/inbound")
+    public ResponseEntity<StockMovementResponse> inbound(@Valid @RequestBody StockInboundCreate dto) {
+        return new ResponseEntity<>(stockMovementService.inbound(dto), HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PostMapping("/outbound")
+    public ResponseEntity<StockMovementResponse> outbound(@Valid @RequestBody StockOutboundCreate dto) {
+        return new ResponseEntity<>(stockMovementService.outbound(dto), HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PostMapping("/transfer")
+    public ResponseEntity<List<StockMovementResponse>> transfer(@Valid @RequestBody StockTransferCreate dto) {
+        return new ResponseEntity<>(stockMovementService.transfer(dto), HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PostMapping("/adjustment")
+    public ResponseEntity<StockMovementResponse> adjustment(@Valid @RequestBody StockAdjustmentCreate dto) {
+        return new ResponseEntity<>(stockMovementService.adjustment(dto), HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PostMapping("/write-off")
+    public ResponseEntity<StockMovementResponse> writeOff(@Valid @RequestBody StockWriteOffCreate dto) {
+        return new ResponseEntity<>(stockMovementService.writeOff(dto), HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PostMapping("/return")
+    public ResponseEntity<StockMovementResponse> returnStock(@Valid @RequestBody StockReturnCreate dto) {
+        return new ResponseEntity<>(stockMovementService.returnStock(dto), HttpStatus.CREATED);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")

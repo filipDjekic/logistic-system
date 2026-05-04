@@ -1,10 +1,10 @@
 package rs.logistics.logistics_system.service.definition;
 
 import rs.logistics.logistics_system.dto.create.TransportOrderItemCreate;
+import org.springframework.data.domain.Pageable;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TransportOrderItemResponse;
 import rs.logistics.logistics_system.dto.update.TransportOrderItemUpdate;
-
-import java.util.List;
 
 public interface TransportOrderItemServiceDefinition {
 
@@ -14,7 +14,9 @@ public interface TransportOrderItemServiceDefinition {
 
     TransportOrderItemResponse getById(Long id);
 
-    List<TransportOrderItemResponse> getAll();
+    PageResponse<TransportOrderItemResponse> getAll(Pageable pageable);
+
+    PageResponse<TransportOrderItemResponse> getByTransportOrderId(Long transportOrderId, Pageable pageable);
 
     void delete(Long id);
 }

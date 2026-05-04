@@ -9,6 +9,8 @@ import {
   Typography,
 } from '@mui/material';
 import { normalizeApiError } from '../../../core/api/apiError';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
@@ -38,6 +40,8 @@ function InfoRow({
 export default function InventoryDetailsPage() {
   const navigate = useNavigate();
   const params = useParams();
+  const auth = useAuthStore();
+  const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const warehouseId = useMemo(() => Number(params.warehouseId), [params.warehouseId]);
   const productId = useMemo(() => Number(params.productId), [params.productId]);
@@ -116,6 +120,14 @@ export default function InventoryDetailsPage() {
             >
               Warehouse history
             </Button>
+            {canManage ? (
+              <Button
+                variant="contained"
+                onClick={() => navigate(`/inventory/${record.warehouseId}/${record.productId}/edit`)}
+              >
+                Edit
+              </Button>
+            ) : null}
             <Button variant="outlined" onClick={() => navigate('/inventory')}>
               Back to list
             </Button>

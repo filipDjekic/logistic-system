@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import rs.logistics.logistics_system.enums.StockAdjustmentDirection;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
@@ -26,6 +27,8 @@ public class StockMovementResponse {
     private Long referenceId;
     private String referenceNumber;
     private String referenceNote;
+    private String transferGroupId;
+    private StockAdjustmentDirection adjustmentDirection;
 
     private BigDecimal quantityBefore;
     private BigDecimal quantityAfter;
@@ -57,6 +60,8 @@ public class StockMovementResponse {
             Long referenceId,
             String referenceNumber,
             String referenceNote,
+            String transferGroupId,
+            StockAdjustmentDirection adjustmentDirection,
             BigDecimal quantityBefore,
             BigDecimal quantityAfter,
             BigDecimal reservedBefore,
@@ -82,6 +87,8 @@ public class StockMovementResponse {
         this.referenceId = referenceId;
         this.referenceNumber = referenceNumber;
         this.referenceNote = referenceNote;
+        this.transferGroupId = transferGroupId;
+        this.adjustmentDirection = adjustmentDirection;
         this.quantityBefore = quantityBefore;
         this.quantityAfter = quantityAfter;
         this.reservedBefore = reservedBefore;

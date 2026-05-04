@@ -1,8 +1,5 @@
 package rs.logistics.logistics_system.controller;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -25,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
+import rs.logistics.logistics_system.dto.statusUpdate.TaskStatusUpdate;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.TaskPriority;
@@ -115,8 +113,8 @@ public class TaskController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
     @PatchMapping("/{id}/status")
-    public ResponseEntity<TaskResponse> updateStatus(@PathVariable Long id, @RequestBody TaskStatus dto) {
-        TaskResponse response = taskService.changeStatus(id, dto);
+    public ResponseEntity<TaskResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TaskStatusUpdate dto) {
+        TaskResponse response = taskService.changeStatus(id, dto.getStatus());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.CountryResponse;
 import rs.logistics.logistics_system.entity.Country;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -13,6 +14,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CountryService implements CountryServiceDefinition {
 
     private final CountryRepository countryRepository;
@@ -43,7 +45,7 @@ public class CountryService implements CountryServiceDefinition {
 
     @Override
     public CountryResponse getByCode(String code) {
-        Country country = countryRepository.findByCodeIgnoreCase(code)
+        Country country = countryRepository.findByIso2CodeIgnoreCase(code)
                 .orElseThrow(() -> new ResourceNotFoundException("Country with code not found"));
 
         return CountryMapper.toResponse(country);

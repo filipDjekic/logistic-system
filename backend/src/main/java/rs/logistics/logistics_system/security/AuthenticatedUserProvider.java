@@ -39,6 +39,16 @@ public class AuthenticatedUserProvider {
         return getAuthenticatedUser().getCompany();
     }
 
+    public Company getAuthenticatedCompanyOrThrow() {
+        Company company = getAuthenticatedCompany();
+
+        if (company == null || company.getId() == null) {
+            throw new ForbiddenException("Authenticated user is not assigned to a company");
+        }
+
+        return company;
+    }
+
     public Long getAuthenticatedCompanyId() {
         Company company = getAuthenticatedCompany();
         return company != null ? company.getId() : null;

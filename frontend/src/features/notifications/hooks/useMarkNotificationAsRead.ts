@@ -9,6 +9,7 @@ export function useMarkNotificationAsRead() {
     mutationFn: notificationsApi.markAsRead,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.root() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root() });
     },
   });
 }

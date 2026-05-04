@@ -8,6 +8,9 @@ export function useVehicle(id: number | null) {
     queryKey: queryKeys.vehicles.detail(id as number),
     queryFn: () => vehiclesApi.getById(id as number),
     enabled: Number.isFinite(id),
-    staleTime: cacheTimes.standard,
+    staleTime: cacheTimes.volatile,
+    refetchInterval: 45_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 }

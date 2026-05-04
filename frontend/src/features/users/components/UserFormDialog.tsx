@@ -37,7 +37,7 @@ type UserFormDialogProps = {
   mode: 'create' | 'edit';
   initialData?: UserResponse | null;
   roles: RoleResponse[];
-  companies: CompanyResponse[];
+  companies?: CompanyResponse[];
   loading?: boolean;
   onClose: () => void;
   onSubmitCreate: (values: CreateUserFormValues) => void;
@@ -89,7 +89,7 @@ export default function UserFormDialog({
   mode,
   initialData,
   roles,
-  companies,
+  companies = [],
   loading = false,
   onClose,
   onSubmitCreate,

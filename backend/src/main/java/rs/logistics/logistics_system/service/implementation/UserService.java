@@ -1,8 +1,5 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.auth.ChangePasswordRequest;
 import rs.logistics.logistics_system.dto.create.UserCreate;
 import rs.logistics.logistics_system.dto.create.UserEmployeeCreate;
+import org.springframework.data.domain.Pageable;
+import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.UserResponse;
 import rs.logistics.logistics_system.dto.update.UserEmployeeUpdate;
 import rs.logistics.logistics_system.dto.update.UserUpdate;
@@ -28,6 +27,7 @@ import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.security.RoleCatalog;
+import rs.logistics.logistics_system.security.RolePositionPolicy;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 
@@ -42,6 +42,7 @@ public class UserService implements UserServiceDefinition {
     private final PasswordEncoder passwordEncoder;
     private final AuditFacadeDefinition auditFacade;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final RolePositionPolicy rolePositionPolicy;
 
     @Override
     @Transactional
@@ -51,10 +52,11 @@ public class UserService implements UserServiceDefinition {
 
         validateSupportedRole(role);
         validateAssignableRole(role);
+        rolePositionPolicy.validatePositionMatchesRole(dto.getEmployee().getPosition(), role);
         validateUniqueEmail(dto.getEmail());
-        validateUniqueEmployeeData(dto.getEmail(), dto.getEmployee().getJmbg(), null);
 
         Company company = resolveTargetCompany(dto.getCompanyId());
+        validateUniqueEmployeeData(dto.getEmail(), dto.getEmployee().getJmbg(), null, company != null ? company.getId() : null);
 
         User user = UserMapper.toEntity(dto, role);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -94,6 +96,12 @@ public class UserService implements UserServiceDefinition {
 
         User user = getUserOrThrow(id);
 
+        if (dto.getEmployee() != null) {
+            rolePositionPolicy.validatePositionMatchesRole(dto.getEmployee().getPosition(), role);
+        } else if (user.getEmployee() != null) {
+            rolePositionPolicy.validatePositionMatchesRole(user.getEmployee().getPosition(), role);
+        }
+
         validateEmailForUpdate(user, dto.getEmail());
 
         if (user.getRole() != null
@@ -112,7 +120,7 @@ public class UserService implements UserServiceDefinition {
         UserMapper.updateEntity(user, dto, role);
 
         if (!authenticatedUserProvider.isOverlord()) {
-            user.setCompany(authenticatedUserProvider.getAuthenticatedCompany());
+            user.setCompany(authenticatedUserProvider.getAuthenticatedCompanyOrThrow());
         }
 
         User updatedUser = userRepository.save(user);
@@ -144,14 +152,12 @@ public class UserService implements UserServiceDefinition {
     }
 
     @Override
-    public List<UserResponse> getAll() {
-        List<User> users = authenticatedUserProvider.isOverlord()
-                ? userRepository.findAll()
-                : userRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
+    public PageResponse<UserResponse> getAll(Pageable pageable) {
+        var users = authenticatedUserProvider.isOverlord()
+                ? userRepository.findAll(pageable)
+                : userRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), pageable);
 
-        return users.stream()
-                .map(UserMapper::toResponse)
-                .collect(Collectors.toList());
+        return PageResponse.from(users.map(UserMapper::toResponse));
     }
 
     @Override
@@ -284,6 +290,10 @@ public class UserService implements UserServiceDefinition {
             throw new BadRequestException("OVERLORD can't change role through this flow.");
         }
 
+        if (user.getEmployee() != null) {
+            rolePositionPolicy.validatePositionMatchesRole(user.getEmployee().getPosition(), newRole);
+        }
+
         user.setRole(newRole);
         User updatedUser = userRepository.save(user);
 
@@ -327,6 +337,8 @@ public class UserService implements UserServiceDefinition {
     }
 
     private Employee toEmployee(User user, Company company, UserEmployeeCreate employeeData) {
+        rolePositionPolicy.validatePositionMatchesRole(employeeData.getPosition(), user.getRole());
+
         Employee employee = new Employee(
                 user.getFirstName(),
                 user.getLastName(),
@@ -353,7 +365,15 @@ public class UserService implements UserServiceDefinition {
             throw new BadRequestException("Linked employee does not exist for this user");
         }
 
-        validateUniqueEmployeeData(user.getEmail(), employeeDto.getJmbg(), employee.getId());
+        Long userCompanyId = user.getCompany() != null ? user.getCompany().getId() : null;
+        Long employeeCompanyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
+
+        if (userCompanyId == null || employeeCompanyId == null || !userCompanyId.equals(employeeCompanyId)) {
+            throw new BadRequestException("User and linked employee must belong to the same company");
+        }
+
+        validateUniqueEmployeeData(user.getEmail(), employeeDto.getJmbg(), employee.getId(), employeeCompanyId);
+        rolePositionPolicy.validatePositionMatchesRole(employeeDto.getPosition(), user.getRole());
 
         String oldFirstName = employee.getFirstName();
         String oldLastName = employee.getLastName();
@@ -411,11 +431,7 @@ public class UserService implements UserServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
         }
 
-        Company company = authenticatedUserProvider.getAuthenticatedCompany();
-
-        if (company == null) {
-            throw new ForbiddenException("Authenticated user is not assigned to a company");
-        }
+        Company company = authenticatedUserProvider.getAuthenticatedCompanyOrThrow();
 
         return company;
     }
@@ -469,28 +485,28 @@ public class UserService implements UserServiceDefinition {
         }
     }
 
-    private void validateUniqueEmployeeData(String email, String jmbg, Long employeeId) {
+    private void validateUniqueEmployeeData(String email, String jmbg, Long employeeId, Long companyId) {
         String normalizedEmail = normalizeEmail(email);
         String normalizedJmbg = normalizeJmbg(jmbg);
 
         if (employeeId == null) {
-            if (employeeRepository.existsByEmailIgnoreCase(normalizedEmail)) {
-                throw new BadRequestException("Employee with this email already exists");
+            if (employeeRepository.existsByEmailIgnoreCaseAndCompany_Id(normalizedEmail, companyId)) {
+                throw new BadRequestException("Employee with this email already exists in this company");
             }
 
-            if (employeeRepository.existsByJmbg(normalizedJmbg)) {
-                throw new BadRequestException("Employee with this JMBG already exists");
+            if (employeeRepository.existsByJmbgAndCompany_Id(normalizedJmbg, companyId)) {
+                throw new BadRequestException("Employee with this JMBG already exists in this company");
             }
 
             return;
         }
 
-        if (employeeRepository.existsByEmailIgnoreCaseAndIdNot(normalizedEmail, employeeId)) {
-            throw new BadRequestException("Employee with this email already exists");
+        if (employeeRepository.existsByEmailIgnoreCaseAndCompany_IdAndIdNot(normalizedEmail, companyId, employeeId)) {
+            throw new BadRequestException("Employee with this email already exists in this company");
         }
 
-        if (employeeRepository.existsByJmbgAndIdNot(normalizedJmbg, employeeId)) {
-            throw new BadRequestException("Employee with this JMBG already exists");
+        if (employeeRepository.existsByJmbgAndCompany_IdAndIdNot(normalizedJmbg, companyId, employeeId)) {
+            throw new BadRequestException("Employee with this JMBG already exists in this company");
         }
     }
 

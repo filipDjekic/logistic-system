@@ -15,10 +15,13 @@ import rs.logistics.logistics_system.dto.create.CompanyAdminCreate;
 import rs.logistics.logistics_system.dto.create.CompanyCreate;
 import rs.logistics.logistics_system.dto.response.CompanyResponse;
 import rs.logistics.logistics_system.dto.update.CompanyUpdate;
+import rs.logistics.logistics_system.entity.City;
 import rs.logistics.logistics_system.entity.Company;
+import rs.logistics.logistics_system.entity.Country;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Role;
 import rs.logistics.logistics_system.entity.User;
+import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.UserStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
@@ -26,11 +29,14 @@ import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.CompanyMapper;
 import rs.logistics.logistics_system.repository.CompanyRepository;
+import rs.logistics.logistics_system.repository.CountryRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
+import rs.logistics.logistics_system.service.definition.CityServiceDefinition;
 import rs.logistics.logistics_system.service.definition.CompanyServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
 
 @Service
 @RequiredArgsConstructor
@@ -42,11 +48,14 @@ public class CompanyService implements CompanyServiceDefinition {
     private static final String ROLE_COMPANY_ADMIN = "COMPANY_ADMIN";
 
     private final CompanyRepository companyRepository;
+    private final CountryRepository countryRepository;
     private final UserRepository userRepository;
     private final EmployeeRepository employeeRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditFacadeDefinition auditFacade;
+    private final TimezoneServiceDefinition timezoneService;
+    private final CityServiceDefinition cityService;
 
     @Override
     @Transactional
@@ -54,14 +63,18 @@ public class CompanyService implements CompanyServiceDefinition {
         validateUniqueName(dto.getName(), null);
         validateAdminUniqueness(dto.getAdmin());
 
-        Company company = CompanyMapper.toEntity(dto);
+        Country country = resolveActiveCountry(dto.getCountryId());
+        Timezone timezone = timezoneService.getRequiredForCountry(dto.getTimezoneId(), country.getId());
+        City city = cityService.getRequiredActiveForCountry(dto.getCityId(), country.getId());
+        Company company = CompanyMapper.toEntity(dto, country, city, timezone);
         Company savedCompany = companyRepository.save(company);
 
         Role companyAdminRole = roleRepository.findByName(ROLE_COMPANY_ADMIN)
                 .orElseThrow(() -> new ResourceNotFoundException("COMPANY_ADMIN role not found"));
 
+        String code = country.getIso2Code();
         String generatedUsername = generateUniqueUsername(dto.getAdmin().getFirstName(), dto.getAdmin().getLastName());
-        String generatedEmail = generateUniqueEmail(generatedUsername, dto.getName());
+        String generatedEmail = generateUniqueEmail(generatedUsername, dto.getName(), code);
 
         User adminUser = new User(
                 passwordEncoder.encode(dto.getAdmin().getPassword()),
@@ -115,6 +128,9 @@ public class CompanyService implements CompanyServiceDefinition {
                 "Bootstrap employee created automatically for company admin"
         );
 
+        savedCompany.getUsers().add(savedAdminUser);
+        savedCompany.getEmployees().add(savedAdminEmployee);
+
         return CompanyMapper.toResponse(savedCompany);
     }
 
@@ -125,15 +141,34 @@ public class CompanyService implements CompanyServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
 
         validateUniqueName(dto.getName(), id);
+        Country country = resolveActiveCountry(dto.getCountryId());
+        Timezone timezone = timezoneService.getRequiredForCountry(dto.getTimezoneId(), country.getId());
+        City city = cityService.getRequiredActiveForCountry(dto.getCityId(), country.getId());
 
         String oldName = company.getName();
         Boolean oldActive = company.getActive();
+        Long oldCountryId = company.getCountry() != null ? company.getCountry().getId() : null;
+        Long oldTimezoneId = company.getTimezone() != null ? company.getTimezone().getId() : null;
+        String oldAddress = company.getAddress();
+        String oldCity = company.getCity() != null ? company.getCity().getName() : null;
+        String oldPhoneNumber = company.getPhoneNumber();
+        String oldEmail = company.getEmail();
+        String oldTaxNumber = company.getTaxNumber();
+        String oldRegistrationNumber = company.getRegistrationNumber();
 
-        CompanyMapper.updateEntity(company, dto);
+        CompanyMapper.updateEntity(company, dto, country, city, timezone);
         Company saved = companyRepository.save(company);
 
         auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "name", oldName, saved.getName());
         auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "active", oldActive, saved.getActive());
+        auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "country_id", oldCountryId, saved.getCountry() != null ? saved.getCountry().getId() : null);
+        auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "timezone_id", oldTimezoneId, saved.getTimezone() != null ? saved.getTimezone().getId() : null);
+        auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "address", oldAddress, saved.getAddress());
+        auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "city", oldCity, saved.getCity() != null ? saved.getCity().getName() : null);
+        auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "phoneNumber", oldPhoneNumber, saved.getPhoneNumber());
+        auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "email", oldEmail, saved.getEmail());
+        auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "taxNumber", oldTaxNumber, saved.getTaxNumber());
+        auditFacade.recordFieldChange("COMPANY", saved.getId(), saved.getName(), "registrationNumber", oldRegistrationNumber, saved.getRegistrationNumber());
         auditFacade.log(
                 "UPDATE",
                 "COMPANY",
@@ -183,6 +218,18 @@ public class CompanyService implements CompanyServiceDefinition {
         );
     }
 
+    private Country resolveActiveCountry(Long countryId) {
+        Country country = countryRepository.findById(countryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Country not found"));
+
+        if (!Boolean.TRUE.equals(country.getActive())) {
+            throw new BadRequestException("Country is not active");
+        }
+
+        return country;
+    }
+
+
     private Employee toEmployee(Company company, User user, CompanyAdminCreate admin, String generatedEmail) {
         Employee employee = new Employee(
                 admin.getFirstName(),
@@ -213,9 +260,8 @@ public class CompanyService implements CompanyServiceDefinition {
     }
 
     private void validateAdminUniqueness(CompanyAdminCreate admin) {
-        if (employeeRepository.existsByJmbg(admin.getJmbg().trim())) {
-            throw new ConflictException("Employee with this JMBG already exists");
-        }
+        // Employee JMBG uniqueness is company-scoped. A bootstrap admin belongs to a new company,
+        // so there is no existing employee in that company during company creation.
     }
 
     private void validateDelete(Company company) {
@@ -253,8 +299,8 @@ public class CompanyService implements CompanyServiceDefinition {
         return candidate;
     }
 
-    private String generateUniqueEmail(String username, String companyName) {
-        String domain = buildCompanyDomain(companyName, BOOTSTRAP_ADMIN_POSITION.name());
+    private String generateUniqueEmail(String username, String companyName, String countryCode) {
+        String domain = buildCompanyDomain(companyName, BOOTSTRAP_ADMIN_POSITION.name(), countryCode);
         String candidate = username + "@" + domain;
         int suffix = 1;
 
@@ -289,20 +335,23 @@ public class CompanyService implements CompanyServiceDefinition {
         return joined.length() > 40 ? joined.substring(0, 40) : joined;
     }
 
-    private String buildCompanyDomain(String companyName, String position) {
+    private String buildCompanyDomain(String companyName, String position, String countryCode) {
         String companySlug = normalizeForUsername(companyName, true);
-
         if (companySlug.isBlank()) {
             throw new BadRequestException("Unable to generate company admin email domain");
         }
 
         String positionSlug = normalizeForUsername(position, true);
-
         if (positionSlug.isBlank()) {
             throw new BadRequestException("Unable to generate company admin email domain");
         }
 
-        return companySlug + "." + positionSlug + ".rs";
+        String codeSlug = normalizeForUsername(countryCode, true);
+        if (codeSlug.isBlank()) {
+            throw new BadRequestException("Unable to generate company admin email domain");
+        }
+
+        return companySlug + "." + positionSlug + "." + codeSlug;
     }
 
     private String normalizeForUsername(String value, boolean allowHyphen) {

@@ -1,57 +1,52 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useSearchParams } from 'react-router-dom';
+import { Button, MenuItem, TextField } from '@mui/material';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { queryKeys } from '../../../core/constants/queryKeys';
+import { canCreateTasks, canListManagedTasks, canMutateManagedTask, canChangeTaskStatus } from '../../../core/permissions/operationGuards';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
-import SearchToolbar from '../../../shared/components/SearchToolbar/SearchToolbar';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
 import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
 import { transportOrdersApi } from '../../transport-orders/api/transportOrdersApi';
-import TaskFormDialog from '../components/TaskFormDialog';
 import TasksTable from '../components/TasksTable';
-import { useCreateTask } from '../hooks/useCreateTask';
 import { useDeleteTask } from '../hooks/useDeleteTask';
 import { useMyTasks } from '../hooks/useMyTasks';
 import { useTasks } from '../hooks/useTasks';
-import { useUpdateTask } from '../hooks/useUpdateTask';
 import { useUpdateTaskStatus } from '../hooks/useUpdateTaskStatus';
 import type { SortState } from '../../../shared/types/common.types';
-import type { TaskFiltersState, TaskFormValues, TaskQueryParams, TaskResponse } from '../types/task.types';
+import type { TaskFiltersState, TaskQueryParams, TaskResponse } from '../types/task.types';
 
 export default function TasksPage() {
   const auth = useAuthStore();
   const { showSnackbar } = useAppSnackbar();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const canListManaged =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
-
-  const canMutateManaged =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
-
-  const canCreateOrAssign =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
-
-  const isWarehouseManager = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const currentRole = auth.user?.role;
+  const canListManaged = canListManagedTasks(currentRole);
+  const canCreateOrAssign = canCreateTasks(currentRole);
+  const isWarehouseManager = currentRole === ROLES.WAREHOUSE_MANAGER;
   const canExecuteTaskStatus =
-    canMutateManaged || auth.user?.role === ROLES.DRIVER || auth.user?.role === ROLES.WORKER;
+    currentRole === ROLES.OVERLORD ||
+    currentRole === ROLES.DISPATCHER ||
+    currentRole === ROLES.WAREHOUSE_MANAGER ||
+    currentRole === ROLES.DRIVER ||
+    currentRole === ROLES.WORKER;
+  const canShowTaskActions =
+    currentRole === ROLES.OVERLORD ||
+    currentRole === ROLES.DISPATCHER ||
+    currentRole === ROLES.WAREHOUSE_MANAGER;
 
   const [filters, setFilters] = useState<TaskFiltersState>({
     search: '',
@@ -112,7 +107,7 @@ export default function TasksPage() {
   const tasksQuery = canListManaged ? managedTasksQuery : myTasksQuery;
 
   const employeesQuery = useQuery({
-    queryKey: ['tasks', 'employees'],
+    queryKey: queryKeys.tasks.employees(),
     queryFn: transportOrdersApi.getEmployees,
     enabled: canCreateOrAssign,
     staleTime: 30_000,
@@ -120,28 +115,22 @@ export default function TasksPage() {
   });
 
   const transportOrdersQuery = useQuery({
-    queryKey: ['tasks', 'transport-orders'],
-    queryFn: () => transportOrdersApi.getAll({ size: 1000, sort: 'createdAt,desc' }),
+    queryKey: queryKeys.tasks.transportOrders(),
+    queryFn: () => transportOrdersApi.getAll({ size: 25, sort: 'createdAt,desc' }),
     enabled: canCreateOrAssign && !isWarehouseManager,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 
   const stockMovementsQuery = useQuery({
-    queryKey: ['tasks', 'stock-movements'],
-    queryFn: () => stockMovementsApi.getAll({ size: 1000, sort: 'createdAt,desc' }),
+    queryKey: queryKeys.tasks.stockMovements(),
+    queryFn: () => stockMovementsApi.getAll({ size: 25, sort: 'createdAt,desc' }),
     enabled: canCreateOrAssign,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
-
-  const createTask = useCreateTask();
-  const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const updateTaskStatus = useUpdateTaskStatus();
-
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<TaskResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TaskResponse | null>(null);
 
   const assignableEmployees = useMemo(
@@ -198,17 +187,15 @@ export default function TasksPage() {
   const hasRequiredTaskSetupBlockers = setupItems.some((item) => !item.done && item.title === 'Create at least one assignable employee');
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1' || !canCreateOrAssign || taskSetupLoading || hasRequiredTaskSetupBlockers || open) {
+    if (searchParams.get('create') !== '1' || !canCreateOrAssign || taskSetupLoading || hasRequiredTaskSetupBlockers) {
       return;
     }
-
-    setSelected(null);
-    setOpen(true);
+    navigate('/tasks/create');
 
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete('create');
     setSearchParams(nextSearchParams, { replace: true });
-  }, [canCreateOrAssign, hasRequiredTaskSetupBlockers, open, searchParams, setSearchParams, taskSetupLoading]);
+  }, [canCreateOrAssign, hasRequiredTaskSetupBlockers, navigate, searchParams, setSearchParams, taskSetupLoading]);
 
   useEffect(() => {
     setPage(0);
@@ -222,8 +209,45 @@ export default function TasksPage() {
     [rows],
   );
 
+  const refreshAll = () => {
+    void Promise.all([
+      tasksQuery.refetch(),
+      ...(canCreateOrAssign
+        ? [
+            employeesQuery.refetch(),
+            transportOrdersQuery.refetch(),
+            stockMovementsQuery.refetch(),
+          ]
+        : []),
+    ]);
+  };
+
+  const filtersDisabled =
+    tasksQuery.isFetching ||
+    employeesQuery.isFetching ||
+    transportOrdersQuery.isFetching ||
+    stockMovementsQuery.isFetching;
+
+  const hasActiveFilters =
+    filters.search.trim().length > 0 ||
+    filters.status !== 'ALL' ||
+    filters.priority !== 'ALL' ||
+    filters.assignedEmployeeId !== 'ALL' ||
+    filters.linkedProcessType !== 'ALL';
+
+  const clearFilters = () => {
+    setPage(0);
+    setFilters({
+      search: '',
+      status: 'ALL',
+      priority: 'ALL',
+      assignedEmployeeId: 'ALL',
+      linkedProcessType: 'ALL',
+    });
+  };
+
   return (
-    <Stack spacing={3}>
+    <>
       <PageHeader
         overline="Operations"
         title="Tasks"
@@ -237,10 +261,7 @@ export default function TasksPage() {
             <Button
               variant="contained"
               disabled={hasRequiredTaskSetupBlockers}
-              onClick={() => {
-                setSelected(null);
-                setOpen(true);
-              }}
+              onClick={() => navigate('/tasks/create')}
             >
               Create task
             </Button>
@@ -248,138 +269,119 @@ export default function TasksPage() {
         }
       />
 
-      <SectionCard
+      <TableLayout
         title="Task list"
         description="Tasks are loaded from the real backend task endpoints and remain scoped by backend company access."
-      >
-        <Stack spacing={2}>
-          {canCreateOrAssign && !taskSetupLoading ? (
-            <SetupGuide
-              title="Task setup has missing context"
-              description="Create the required assignment data first. Process links are optional, but they make execution clearer."
-              items={setupItems}
-            />
-          ) : null}
+        toolbar={
+          <TableToolbar
+            searchValue={filters.search}
+            onSearchChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+            searchPlaceholder="Search by title, description, employee or linked process"
+            onRefresh={refreshAll}
+            refreshDisabled={filtersDisabled}
+            onClearFilters={clearFilters}
+            clearDisabled={filtersDisabled || !hasActiveFilters}
+          />
+        }
+        filters={
+          <>
+            {canCreateOrAssign && !taskSetupLoading ? (
+              <SetupGuide
+                title="Task setup has missing context"
+                description="Create the required assignment data first. Process links are optional, but they make execution clearer."
+                items={setupItems}
+              />
+            ) : null}
 
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} flexWrap="wrap">
-            <SearchToolbar
-              value={filters.search}
-              onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
-              placeholder="Search by title, description, employee or linked process"
-              fullWidth
-            />
-
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={filters.status}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  status: event.target.value as TaskFiltersState['status'],
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 180 } }}
-            >
-              <MenuItem value="ALL">All</MenuItem>
-              <MenuItem value="NEW">NEW</MenuItem>
-              <MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem>
-              <MenuItem value="COMPLETED">COMPLETED</MenuItem>
-              <MenuItem value="CANCELLED">CANCELLED</MenuItem>
-            </TextField>
-
-            <TextField
-              select
-              size="small"
-              label="Priority"
-              value={filters.priority}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  priority: event.target.value as TaskFiltersState['priority'],
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 180 } }}
-            >
-              <MenuItem value="ALL">All</MenuItem>
-              <MenuItem value="LOW">LOW</MenuItem>
-              <MenuItem value="MEDIUM">MEDIUM</MenuItem>
-              <MenuItem value="HIGH">HIGH</MenuItem>
-              <MenuItem value="URGENT">URGENT</MenuItem>
-            </TextField>
-
-            {canCreateOrAssign ? (
+            <FilterPanel>
               <TextField
                 select
                 size="small"
-                label="Assigned employee"
-                value={filters.assignedEmployeeId}
+                label="Status"
+                value={filters.status}
                 onChange={(event) =>
                   setFilters((prev) => ({
                     ...prev,
-                    assignedEmployeeId:
-                      event.target.value === 'ALL' ? 'ALL' : Number(event.target.value),
+                    status: event.target.value as TaskFiltersState['status'],
+                  }))
+                }
+                sx={{ minWidth: { xs: '100%', md: 180 } }}
+              >
+                <MenuItem value="ALL">All</MenuItem>
+                <MenuItem value="NEW">NEW</MenuItem>
+                <MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem>
+                <MenuItem value="COMPLETED">COMPLETED</MenuItem>
+                <MenuItem value="CANCELLED">CANCELLED</MenuItem>
+              </TextField>
+
+              <TextField
+                select
+                size="small"
+                label="Priority"
+                value={filters.priority}
+                onChange={(event) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    priority: event.target.value as TaskFiltersState['priority'],
+                  }))
+                }
+                sx={{ minWidth: { xs: '100%', md: 180 } }}
+              >
+                <MenuItem value="ALL">All</MenuItem>
+                <MenuItem value="LOW">LOW</MenuItem>
+                <MenuItem value="MEDIUM">MEDIUM</MenuItem>
+                <MenuItem value="HIGH">HIGH</MenuItem>
+                <MenuItem value="URGENT">URGENT</MenuItem>
+              </TextField>
+
+              {canCreateOrAssign ? (
+                <TextField
+                  select
+                  size="small"
+                  label="Assigned employee"
+                  value={filters.assignedEmployeeId}
+                  onChange={(event) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      assignedEmployeeId:
+                        event.target.value === 'ALL' ? 'ALL' : Number(event.target.value),
+                    }))
+                  }
+                  sx={{ minWidth: { xs: '100%', md: 220 } }}
+                >
+                  <MenuItem value="ALL">All</MenuItem>
+                  {assignableEmployees.map((employee) => (
+                    <MenuItem key={employee.id} value={employee.id}>
+                      {employee.firstName} {employee.lastName}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              ) : null}
+
+              <TextField
+                select
+                size="small"
+                label="Linked process"
+                value={filters.linkedProcessType}
+                onChange={(event) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    linkedProcessType:
+                      event.target.value as TaskFiltersState['linkedProcessType'],
                   }))
                 }
                 sx={{ minWidth: { xs: '100%', md: 220 } }}
               >
                 <MenuItem value="ALL">All</MenuItem>
-                {assignableEmployees.map((employee) => (
-                  <MenuItem key={employee.id} value={employee.id}>
-                    {employee.firstName} {employee.lastName}
-                  </MenuItem>
-                ))}
+                <MenuItem value="UNLINKED">UNLINKED</MenuItem>
+                <MenuItem value="TRANSPORT_ORDER">TRANSPORT_ORDER</MenuItem>
+                <MenuItem value="STOCK_MOVEMENT">STOCK_MOVEMENT</MenuItem>
               </TextField>
-            ) : null}
-
-            <TextField
-              select
-              size="small"
-              label="Linked process"
-              value={filters.linkedProcessType}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  linkedProcessType:
-                    event.target.value as TaskFiltersState['linkedProcessType'],
-                }))
-              }
-              sx={{ minWidth: { xs: '100%', md: 220 } }}
-            >
-              <MenuItem value="ALL">All</MenuItem>
-              <MenuItem value="UNLINKED">UNLINKED</MenuItem>
-              <MenuItem value="TRANSPORT_ORDER">TRANSPORT_ORDER</MenuItem>
-              <MenuItem value="STOCK_MOVEMENT">STOCK_MOVEMENT</MenuItem>
-            </TextField>
-
-            <Button
-              variant="outlined"
-              onClick={() => {
-                void Promise.all([
-                  tasksQuery.refetch(),
-                  ...(canCreateOrAssign
-                    ? [
-                        employeesQuery.refetch(),
-                        transportOrdersQuery.refetch(),
-                        stockMovementsQuery.refetch(),
-                      ]
-                    : []),
-                ]);
-              }}
-              disabled={
-                tasksQuery.isFetching ||
-                employeesQuery.isFetching ||
-                transportOrdersQuery.isFetching ||
-                stockMovementsQuery.isFetching
-              }
-            >
-              Refresh
-            </Button>
-          </Stack>
-
-          <StatusOverview items={statusOverviewItems} />
-
+            </FilterPanel>
+          </>
+        }
+        summary={<StatusOverview items={statusOverviewItems} />}
+        table={
           <TasksTable
             rows={rows}
             loading={
@@ -396,28 +398,17 @@ export default function TasksPage() {
                   transportOrdersQuery.isError ||
                   stockMovementsQuery.isError))
             }
-            onRetry={() => {
-              void Promise.all([
-                tasksQuery.refetch(),
-                ...(canCreateOrAssign
-                  ? [
-                      employeesQuery.refetch(),
-                      transportOrdersQuery.refetch(),
-                      stockMovementsQuery.refetch(),
-                    ]
-                  : []),
-              ]);
-            }}
-            canMutate={canMutateManaged}
+            onRetry={refreshAll}
+            role={currentRole}
+            canMutate={canShowTaskActions}
             onEdit={(row) => {
-              if (!canMutateManaged || (isWarehouseManager && row.transportOrderId != null)) {
+              if (!canMutateManagedTask(currentRole, row)) {
                 return;
               }
-              setSelected(row);
-              setOpen(true);
+              navigate(`/tasks/${row.id}/edit`);
             }}
             onDelete={(row) => {
-              if (!canMutateManaged || (isWarehouseManager && row.transportOrderId != null)) {
+              if (!canMutateManagedTask(currentRole, row)) {
                 return;
               }
               setDeleteTarget(row);
@@ -425,13 +416,13 @@ export default function TasksPage() {
             canChangeStatus={canExecuteTaskStatus}
             updatingStatusId={updateTaskStatus.isPending ? updateTaskStatus.variables?.id ?? null : null}
             onStatusChange={(row, status) => {
-              if (row.status === status) {
+              if (row.status === status || !canChangeTaskStatus(currentRole, row)) {
                 return;
               }
 
               updateTaskStatus.mutate({ id: row.id, status });
             }}
-          pagination={
+            pagination={
               <ServerTablePagination
                 page={tasksQuery.data}
                 disabled={tasksQuery.isFetching}
@@ -442,55 +433,8 @@ export default function TasksPage() {
             sort={sort}
             onSortChange={handleSortChange}
           />
-        </Stack>
-      </SectionCard>
-
-      {canCreateOrAssign ? (
-        <TaskFormDialog
-          open={open}
-          initialData={canMutateManaged ? selected : null}
-          employees={assignableEmployees}
-          transportOrders={isWarehouseManager ? [] : transportOrdersQuery.data?.content ?? []}
-          stockMovements={stockMovementsQuery.data?.content ?? []}
-          loading={createTask.isPending || updateTask.isPending}
-          allowTransportOrderLink={!isWarehouseManager}
-          onClose={() => {
-            setOpen(false);
-            setSelected(null);
-          }}
-          onSubmit={(values: TaskFormValues) => {
-            const payload = {
-              title: values.title,
-              description: values.description.trim() || undefined,
-              dueDate: values.dueDate,
-              priority: values.priority,
-              assignedEmployeeId: Number(values.assignedEmployeeId),
-              transportOrderId: isWarehouseManager
-                ? null
-                : values.transportOrderId === ''
-                  ? null
-                  : Number(values.transportOrderId),
-              stockMovementId:
-                values.stockMovementId === '' ? null : Number(values.stockMovementId),
-            };
-
-            if (selected && canMutateManaged) {
-              updateTask.mutate(
-                { id: selected.id, data: payload },
-                {
-                  onSuccess: () => {
-                    setOpen(false);
-                    setSelected(null);
-                  },
-                },
-              );
-              return;
-            }
-
-            createTask.mutate(payload, { onSuccess: () => setOpen(false) });
-          }}
-        />
-      ) : null}
+        }
+      />
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
@@ -516,6 +460,6 @@ export default function TasksPage() {
           });
         }}
       />
-    </Stack>
+    </>
   );
 }

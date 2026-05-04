@@ -2,15 +2,27 @@ import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
 import EventNoteRoundedIcon from '@mui/icons-material/EventNoteRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import ReportProblemRoundedIcon from '@mui/icons-material/ReportProblemRounded';
-import { Box, Button, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { downloadFile } from '../../../core/utils/downloadFile';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
+import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
-import { employeeTaskReportsApi, type EmployeeTaskReportFilters } from '../api/reportsApi';
+import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import type { DataTableColumn } from '../../../shared/types/common.types';
+import {
+  employeeTaskReportsApi,
+  type EmployeeTaskReportFilters,
+  type EmployeeTaskReportRowResponse,
+  type ShiftReportRowResponse,
+  type TaskAssigneeSummaryResponse,
+  type TaskReportRowResponse,
+} from '../api/reportsApi';
+import ReportDataTable from '../components/ReportDataTable';
 
 const positionOptions = ['ALL', 'OVERLORD', 'COMPANY_ADMIN', 'HR_MANAGER', 'DISPATCHER', 'DRIVER', 'WAREHOUSE_MANAGER', 'WORKER'] as const;
 const taskStatusOptions = ['ALL', 'NEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
@@ -30,7 +42,7 @@ function formatNumber(value: number | string | null | undefined) {
 }
 
 function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : '-';
+  return value ? new Date(value).toLocaleString() : '—';
 }
 
 export default function EmployeeTaskReportPage() {
@@ -40,6 +52,7 @@ export default function EmployeeTaskReportPage() {
   const [position, setPosition] = useState<(typeof positionOptions)[number]>('ALL');
   const [taskStatus, setTaskStatus] = useState<(typeof taskStatusOptions)[number]>('ALL');
   const [taskPriority, setTaskPriority] = useState<(typeof taskPriorityOptions)[number]>('ALL');
+  const [exportingEmployeeTaskReport, setExportingEmployeeTaskReport] = useState(false);
 
   const filters: EmployeeTaskReportFilters = {
     fromDate: toDateTimeStartParam(fromDate),
@@ -59,55 +72,95 @@ export default function EmployeeTaskReportPage() {
 
   const report = reportQuery.data;
 
+  const assigneeColumns = useMemo<DataTableColumn<TaskAssigneeSummaryResponse>[]>(() => [
+    { id: 'employeeName', header: 'Employee', minWidth: 220, render: (row) => row.employeeName },
+    { id: 'position', header: 'Position', minWidth: 160, render: (row) => row.position ?? '—' },
+    { id: 'tasksTotal', header: 'Tasks', align: 'right', minWidth: 120, render: (row) => formatNumber(row.tasksTotal) },
+    { id: 'completedTasks', header: 'Completed', align: 'right', minWidth: 130, render: (row) => formatNumber(row.completedTasks) },
+    { id: 'openTasks', header: 'Open', align: 'right', minWidth: 120, render: (row) => formatNumber(row.openTasks) },
+    { id: 'overdueOpenTasks', header: 'Overdue', align: 'right', minWidth: 120, render: (row) => formatNumber(row.overdueOpenTasks) },
+  ], []);
+
+  const employeeColumns = useMemo<DataTableColumn<EmployeeTaskReportRowResponse>[]>(() => [
+    { id: 'employeeName', header: 'Employee', minWidth: 220, render: (row) => row.employeeName },
+    { id: 'email', header: 'Email', minWidth: 240, render: (row) => row.email },
+    { id: 'position', header: 'Position', minWidth: 160, render: (row) => row.position ?? '—' },
+    { id: 'active', header: 'Active', minWidth: 110, render: (row) => (row.active ? 'Yes' : 'No') },
+    { id: 'tasksTotal', header: 'Tasks', align: 'right', minWidth: 120, render: (row) => formatNumber(row.tasksTotal) },
+    { id: 'completedTasks', header: 'Completed', align: 'right', minWidth: 130, render: (row) => formatNumber(row.completedTasks) },
+    { id: 'openTasks', header: 'Open', align: 'right', minWidth: 120, render: (row) => formatNumber(row.openTasks) },
+    { id: 'shiftsTotal', header: 'Shifts', align: 'right', minWidth: 120, render: (row) => formatNumber(row.shiftsTotal) },
+  ], []);
+
+  const taskColumns = useMemo<DataTableColumn<TaskReportRowResponse>[]>(() => [
+    { id: 'taskId', header: 'ID', minWidth: 100, nowrap: true, render: (row) => row.taskId },
+    { id: 'title', header: 'Title', minWidth: 260, render: (row) => row.title },
+    { id: 'assignedEmployeeName', header: 'Assignee', minWidth: 220, render: (row) => row.assignedEmployeeName ?? '—' },
+    { id: 'status', header: 'Status', minWidth: 150, render: (row) => row.status ?? '—' },
+    { id: 'priority', header: 'Priority', minWidth: 140, render: (row) => row.priority ?? '—' },
+    { id: 'dueDate', header: 'Due date', minWidth: 190, nowrap: true, render: (row) => formatDate(row.dueDate) },
+    { id: 'transportOrderId', header: 'Transport', minWidth: 130, render: (row) => row.transportOrderId ?? '—' },
+    { id: 'stockMovementId', header: 'Stock movement', minWidth: 160, render: (row) => row.stockMovementId ?? '—' },
+  ], []);
+
+  const shiftColumns = useMemo<DataTableColumn<ShiftReportRowResponse>[]>(() => [
+    { id: 'shiftId', header: 'ID', minWidth: 100, nowrap: true, render: (row) => row.shiftId },
+    { id: 'employeeName', header: 'Employee', minWidth: 220, render: (row) => row.employeeName ?? '—' },
+    { id: 'employeePosition', header: 'Position', minWidth: 170, render: (row) => row.employeePosition ?? '—' },
+    { id: 'status', header: 'Status', minWidth: 150, render: (row) => row.status ?? '—' },
+    { id: 'startTime', header: 'Start', minWidth: 190, nowrap: true, render: (row) => formatDate(row.startTime) },
+    { id: 'endTime', header: 'End', minWidth: 190, nowrap: true, render: (row) => formatDate(row.endTime) },
+  ], []);
+
+  async function handleExportCsv() {
+    setExportingEmployeeTaskReport(true);
+    try {
+      const data = await employeeTaskReportsApi.exportEmployeeTaskReport(filters);
+      downloadFile({ data, fileName: 'employee-task-report.csv', mimeType: 'text/csv;charset=utf-8' });
+    } finally {
+      setExportingEmployeeTaskReport(false);
+    }
+  }
+
+  function resetFilters() {
+    setFromDate('');
+    setToDate('');
+    setEmployeeId('');
+    setPosition('ALL');
+    setTaskStatus('ALL');
+    setTaskPriority('ALL');
+  }
+
   return (
     <Stack spacing={3}>
-      <PageHeader
-        overline="Reports"
-        title="Employee / Task Report"
-        description="Employee, task and shift report with assignment, workload and overdue task breakdowns."
+      <PageHeader overline="Reports" title="Employee / Task Report" description="Employee, task and shift report with assignment, workload and overdue task breakdowns." />
+
+      <TableLayout
+        title="Report filters"
+        description="Filters are applied on backend report data."
+        filters={
+          <FilterPanel>
+            <TextField type="date" size="small" label="From date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField type="date" size="small" label="To date" value={toDate} onChange={(event) => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField size="small" label="Employee ID" value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} sx={{ minWidth: 150 }} />
+            <TextField select size="small" label="Position" value={position} onChange={(event) => setPosition(event.target.value as (typeof positionOptions)[number])} sx={{ minWidth: 190 }}>
+              {positionOptions.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+            </TextField>
+            <TextField select size="small" label="Task status" value={taskStatus} onChange={(event) => setTaskStatus(event.target.value as (typeof taskStatusOptions)[number])} sx={{ minWidth: 170 }}>
+              {taskStatusOptions.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+            </TextField>
+            <TextField select size="small" label="Task priority" value={taskPriority} onChange={(event) => setTaskPriority(event.target.value as (typeof taskPriorityOptions)[number])} sx={{ minWidth: 170 }}>
+              {taskPriorityOptions.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+            </TextField>
+            <Button variant="outlined" onClick={resetFilters}>Reset</Button>
+            <Button variant="contained" onClick={() => void handleExportCsv()} disabled={exportingEmployeeTaskReport}>{exportingEmployeeTaskReport ? 'Exporting...' : 'Export CSV'}</Button>
+          </FilterPanel>
+        }
+        table={null}
       />
 
-      <SectionCard title="Report filters" description="Filters are applied on backend report data.">
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} flexWrap="wrap">
-          <TextField type="date" size="small" label="From date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
-          <TextField type="date" size="small" label="To date" value={toDate} onChange={(event) => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
-          <TextField size="small" label="Employee ID" value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} sx={{ minWidth: 150 }} />
-          <TextField select size="small" label="Position" value={position} onChange={(event) => setPosition(event.target.value as (typeof positionOptions)[number])} sx={{ minWidth: 190 }}>
-            {positionOptions.map((option) => (
-              <MenuItem key={option} value={option}>{option}</MenuItem>
-            ))}
-          </TextField>
-          <TextField select size="small" label="Task status" value={taskStatus} onChange={(event) => setTaskStatus(event.target.value as (typeof taskStatusOptions)[number])} sx={{ minWidth: 170 }}>
-            {taskStatusOptions.map((option) => (
-              <MenuItem key={option} value={option}>{option}</MenuItem>
-            ))}
-          </TextField>
-          <TextField select size="small" label="Task priority" value={taskPriority} onChange={(event) => setTaskPriority(event.target.value as (typeof taskPriorityOptions)[number])} sx={{ minWidth: 170 }}>
-            {taskPriorityOptions.map((option) => (
-              <MenuItem key={option} value={option}>{option}</MenuItem>
-            ))}
-          </TextField>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setFromDate('');
-              setToDate('');
-              setEmployeeId('');
-              setPosition('ALL');
-              setTaskStatus('ALL');
-              setTaskPriority('ALL');
-            }}
-          >
-            Reset
-          </Button>
-        </Stack>
-      </SectionCard>
-
       {reportQuery.isLoading ? <InlineLoader message="Loading employee/task report..." size={22} /> : null}
-
-      {reportQuery.isError ? (
-        <ErrorState title="Employee/task report could not be loaded" description="Backend report endpoint failed to return data." onRetry={() => void reportQuery.refetch()} />
-      ) : null}
+      {reportQuery.isError ? <ErrorState title="Employee/task report could not be loaded" description="Backend report endpoint failed to return data." onRetry={() => void reportQuery.refetch()} /> : null}
 
       {report ? (
         <Stack spacing={2}>
@@ -119,146 +172,15 @@ export default function EmployeeTaskReportPage() {
           </Box>
 
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', xl: 'repeat(3, minmax(0, 1fr))' } }}>
-            <SectionCard title="Employees by position">
-              <Stack spacing={1}>
-                {Object.entries(report.employeesByPosition).map(([key, value]) => (
-                  <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>
-                ))}
-              </Stack>
-            </SectionCard>
-
-            <SectionCard title="Tasks by status">
-              <Stack spacing={1}>
-                {Object.entries(report.tasksByStatus).map(([key, value]) => (
-                  <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>
-                ))}
-              </Stack>
-            </SectionCard>
-
-            <SectionCard title="Tasks by priority">
-              <Stack spacing={1}>
-                {Object.entries(report.tasksByPriority).map(([key, value]) => (
-                  <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>
-                ))}
-              </Stack>
-            </SectionCard>
+            <SectionCard title="Employees by position"><Stack spacing={1}>{Object.entries(report.employeesByPosition).map(([key, value]) => <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>)}</Stack></SectionCard>
+            <SectionCard title="Tasks by status"><Stack spacing={1}>{Object.entries(report.tasksByStatus).map(([key, value]) => <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>)}</Stack></SectionCard>
+            <SectionCard title="Tasks by priority"><Stack spacing={1}>{Object.entries(report.tasksByPriority).map(([key, value]) => <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>)}</Stack></SectionCard>
           </Box>
 
-          <SectionCard title="Tasks by assignee" description="Task workload grouped by employee.">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Employee</TableCell>
-                  <TableCell>Position</TableCell>
-                  <TableCell align="right">Tasks</TableCell>
-                  <TableCell align="right">Completed</TableCell>
-                  <TableCell align="right">Open</TableCell>
-                  <TableCell align="right">Overdue</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.tasksByAssignee.map((row) => (
-                  <TableRow key={row.employeeId}>
-                    <TableCell>{row.employeeName}</TableCell>
-                    <TableCell>{row.position ?? '-'}</TableCell>
-                    <TableCell align="right">{formatNumber(row.tasksTotal)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.completedTasks)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.openTasks)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.overdueOpenTasks)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionCard>
-
-          <SectionCard title="Employee rows" description="Employee activity summary for the selected scope.">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Employee</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Position</TableCell>
-                  <TableCell>Active</TableCell>
-                  <TableCell align="right">Tasks</TableCell>
-                  <TableCell align="right">Completed</TableCell>
-                  <TableCell align="right">Open</TableCell>
-                  <TableCell align="right">Shifts</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.employeeRows.map((row) => (
-                  <TableRow key={row.employeeId}>
-                    <TableCell>{row.employeeName}</TableCell>
-                    <TableCell>{row.email}</TableCell>
-                    <TableCell>{row.position ?? '-'}</TableCell>
-                    <TableCell>{row.active ? 'Yes' : 'No'}</TableCell>
-                    <TableCell align="right">{formatNumber(row.tasksTotal)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.completedTasks)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.openTasks)}</TableCell>
-                    <TableCell align="right">{formatNumber(row.shiftsTotal)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionCard>
-
-          <SectionCard title="Task rows" description="Raw task rows included in the report.">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Title</TableCell>
-                  <TableCell>Assignee</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Priority</TableCell>
-                  <TableCell>Due date</TableCell>
-                  <TableCell>Transport</TableCell>
-                  <TableCell>Stock movement</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.taskRows.map((row) => (
-                  <TableRow key={row.taskId}>
-                    <TableCell>{row.taskId}</TableCell>
-                    <TableCell>{row.title}</TableCell>
-                    <TableCell>{row.assignedEmployeeName ?? '-'}</TableCell>
-                    <TableCell>{row.status ?? '-'}</TableCell>
-                    <TableCell>{row.priority ?? '-'}</TableCell>
-                    <TableCell>{formatDate(row.dueDate)}</TableCell>
-                    <TableCell>{row.transportOrderId ?? '-'}</TableCell>
-                    <TableCell>{row.stockMovementId ?? '-'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionCard>
-
-          <SectionCard title="Shift rows" description="Raw shift rows included in the report.">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Employee</TableCell>
-                  <TableCell>Position</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Start</TableCell>
-                  <TableCell>End</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.shiftRows.map((row) => (
-                  <TableRow key={row.shiftId}>
-                    <TableCell>{row.shiftId}</TableCell>
-                    <TableCell>{row.employeeName ?? '-'}</TableCell>
-                    <TableCell>{row.employeePosition ?? '-'}</TableCell>
-                    <TableCell>{row.status ?? '-'}</TableCell>
-                    <TableCell>{formatDate(row.startTime)}</TableCell>
-                    <TableCell>{formatDate(row.endTime)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </SectionCard>
+          <TableLayout title="Tasks by assignee" description="Task workload grouped by employee." table={<ReportDataTable title="tasks by assignee" rows={report.tasksByAssignee} columns={assigneeColumns} getRowId={(row) => row.employeeId} minWidth={880} />} />
+          <TableLayout title="Employee rows" description="Employee activity summary for the selected scope." table={<ReportDataTable title="employee rows" rows={report.employeeRows} columns={employeeColumns} getRowId={(row) => row.employeeId} minWidth={1240} />} />
+          <TableLayout title="Task rows" description="Raw task rows included in the report." table={<ReportDataTable title="task rows" rows={report.taskRows} columns={taskColumns} getRowId={(row) => row.taskId} minWidth={1390} />} />
+          <TableLayout title="Shift rows" description="Raw shift rows included in the report." table={<ReportDataTable title="shift rows" rows={report.shiftRows} columns={shiftColumns} getRowId={(row) => row.shiftId} minWidth={1060} />} />
         </Stack>
       ) : null}
     </Stack>

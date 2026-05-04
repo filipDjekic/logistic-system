@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { tasksApi } from '../api/tasksApi';
+import { invalidateTaskState } from '../../../core/utils/invalidateAppState';
 
 export function useDeleteTask() {
   const queryClient = useQueryClient();
@@ -15,10 +16,7 @@ export function useDeleteTask() {
         severity: 'success',
       });
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['tasks'] }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard', 'my-tasks'] }),
-      ]);
+      await invalidateTaskState(queryClient);
     },
     onError: (error) => {
       showSnackbar({

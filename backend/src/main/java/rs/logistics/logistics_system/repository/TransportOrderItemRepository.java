@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import rs.logistics.logistics_system.entity.TransportOrderItem;
 
@@ -10,11 +12,17 @@ public interface TransportOrderItemRepository extends JpaRepository<TransportOrd
 
     List<TransportOrderItem> findByTransportOrderId(Long transportOrderId);
 
+    Page<TransportOrderItem> findByTransportOrderId(Long transportOrderId, Pageable pageable);
+
     List<TransportOrderItem> findByTransportOrderIdAndTransportOrder_CreatedBy_Company_Id(Long transportOrderId, Long companyId);
+
+    Page<TransportOrderItem> findByTransportOrderIdAndTransportOrder_CreatedBy_Company_Id(Long transportOrderId, Long companyId, Pageable pageable);
 
     List<TransportOrderItem> findByProductId(Long productId);
 
     List<TransportOrderItem> findAllByTransportOrder_CreatedBy_Company_Id(Long companyId);
+
+    Page<TransportOrderItem> findAllByTransportOrder_CreatedBy_Company_Id(Long companyId, Pageable pageable);
 
     Optional<TransportOrderItem> findByIdAndTransportOrder_CreatedBy_Company_Id(Long id, Long companyId);
 
