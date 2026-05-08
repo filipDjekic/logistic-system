@@ -10,6 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
+import { Link as RouterLink } from 'react-router-dom';
 import logoMini from '../../../assets/images/logo.png';
 import { appEnv } from '../../../core/config/env';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
@@ -126,6 +127,10 @@ export default function LoginPage() {
               disabled={isSubmitting || loginMutation.isPending}
             >
               {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
+            </Button>
+
+            <Button component={RouterLink} to="/register-company" variant="text">
+              Register a company
             </Button>
           </Stack>
         </Stack>

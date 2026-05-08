@@ -43,6 +43,10 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**",
+                                "/api/company-registration-requests",
+                                "/api/countries/**",
+                                "/api/cities/**",
+                                "/api/timezones/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html").permitAll()

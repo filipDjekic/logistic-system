@@ -1,0 +1,56 @@
+export type CompanyRegistrationStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export type CompanyRegistrationCreateRequest = {
+  companyName: string;
+  registrationNumber?: string | null;
+  taxNumber?: string | null;
+  companyEmail?: string | null;
+  companyPhoneNumber?: string | null;
+  countryId: number;
+  cityId: number;
+  timezoneId: number;
+  address?: string | null;
+  postalCode?: string | null;
+  adminFirstName: string;
+  adminLastName: string;
+  adminEmail: string;
+  adminPhoneNumber: string;
+  adminJmbg: string;
+  adminPassword: string;
+  adminEmploymentDate: string;
+  notes?: string | null;
+};
+
+export type CompanyRegistrationResponse = {
+  id: number;
+  companyName: string;
+  registrationNumber: string | null;
+  taxNumber: string | null;
+  companyEmail: string | null;
+  companyPhoneNumber: string | null;
+  countryId: number | null;
+  countryName: string | null;
+  countryCode: string | null;
+  cityId: number | null;
+  cityName: string | null;
+  timezoneId: number | null;
+  timezoneName: string | null;
+  timezoneDisplayName: string | null;
+  address: string | null;
+  postalCode: string | null;
+  adminFirstName: string;
+  adminLastName: string;
+  adminEmail: string;
+  adminPhoneNumber: string;
+  adminJmbg: string;
+  adminEmploymentDate: string;
+  status: CompanyRegistrationStatus;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedById: number | null;
+  reviewedByEmail: string | null;
+  rejectionReason: string | null;
+  notes: string | null;
+  createdCompanyId: number | null;
+  updatedAt: string | null;
+};

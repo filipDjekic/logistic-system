@@ -25,6 +25,16 @@ export const routeMeta = {
     title: 'Notifications',
     breadcrumb: 'Notifications',
   },
+  companyRegistration: {
+    path: '/register-company',
+    title: 'Register Company',
+    breadcrumb: 'Register Company',
+  },
+  companyRegistrationRequests: {
+    path: '/company-registration-requests',
+    title: 'Company Registration Requests',
+    breadcrumb: 'Company Registration Requests',
+  },
   companies: {
     path: '/companies',
     title: 'Companies',

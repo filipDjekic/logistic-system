@@ -14,6 +14,10 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
 
     boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 
+    boolean existsByTaxNumberIgnoreCase(String taxNumber);
+
+    boolean existsByRegistrationNumberIgnoreCase(String registrationNumber);
+
     List<Company> findByActive(Boolean active);
 
     long countByActiveTrue();

@@ -8,8 +8,10 @@ import { ROLES } from '../../core/constants/roles';
 
 const StarterPage = lazy(() => import('./StarterPage'));
 const LoginPage = lazy(() => import('../../features/auth/pages/LoginPage'));
+const CompanyRegistrationPage = lazy(() => import('../../features/company-registration/pages/CompanyRegistrationPage'));
 const DashboardPage = lazy(() => import('../../features/dashboard/pages/DashboardPage'));
 const CompaniesPage = lazy(() => import('../../features/companies/pages/CompaniesPage'));
+const CompanyRegistrationRequestsPage = lazy(() => import('../../features/company-registration/pages/CompanyRegistrationRequestsPage'));
 const CompanyDetailsPage = lazy(() => import('../../features/companies/pages/CompanyDetailsPage'));
 const NotificationsPage = lazy(() => import('../../features/notifications/pages/NotificationsPage'));
 const ActivityLogsPage = lazy(() => import('../../features/activity-logs/pages/ActivityLogsPage'));
@@ -62,6 +64,7 @@ export const routes = [
         children: [
           { path: '/', element: lazyPage(<StarterPage />) },
           { path: '/login', element: lazyPage(<LoginPage />) },
+          { path: '/register-company', element: lazyPage(<CompanyRegistrationPage />) },
         ],
       },
     ],
@@ -87,6 +90,7 @@ export const routes = [
         element: <AppLayout />,
         children: [
           { path: '/companies', element: lazyPage(<CompaniesPage />) },
+          { path: '/company-registration-requests', element: lazyPage(<CompanyRegistrationRequestsPage />) },
           { path: '/companies/:id', element: lazyPage(<CompanyDetailsPage />) },
           { path: '/activity-logs', element: lazyPage(<ActivityLogsPage />) },
           { path: '/change-history', element: lazyPage(<ChangeHistoryPage />) },

@@ -46,6 +46,7 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
   'my-shifts': { key: 'my-shifts', label: 'My Shifts', to: '/my-shifts', roles: ALL_ROLES, icon: EventNoteRoundedIcon },
 
   companies: { key: 'companies', label: 'Companies', to: '/companies', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
+  'company-registration-requests': { key: 'company-registration-requests', label: 'Registration Requests', to: '/company-registration-requests', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
   employees: { key: 'employees', label: 'Employees', to: '/employees', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: GroupsRoundedIcon },
   shifts: { key: 'shifts', label: 'Shifts', to: '/shifts', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER], icon: ScheduleRoundedIcon },
   users: { key: 'users', label: 'Users', to: '/users', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER], icon: ManageAccountsRoundedIcon },
@@ -71,7 +72,7 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
 
 const defaultNavigationTemplate: NavigationSectionTemplate[] = [
   { key: 'overview', label: 'Overview', itemKeys: ['dashboard', 'notifications'] },
-  { key: 'people', label: 'People', itemKeys: ['companies', 'employees', 'shifts', 'users', 'roles'] },
+  { key: 'people', label: 'People', itemKeys: ['companies', 'company-registration-requests', 'employees', 'shifts', 'users', 'roles'] },
   { key: 'operations', label: 'Operations', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
   { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements'] },
   { key: 'reports', label: 'Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },

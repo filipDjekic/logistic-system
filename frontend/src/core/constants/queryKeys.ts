@@ -147,4 +147,16 @@ export const queryKeys = {
     active: () => ['countries', 'active'] as const,
     detail: (id: number) => ['countries', 'details', id] as const,
   },
+
+  companyRegistrationRequests: {
+    root: () => ['company-registration-requests'] as const,
+    list: (status: unknown) => ['company-registration-requests', 'list', status] as const,
+  },
+
+  timezones: {
+    root: () => ['timezones'] as const,
+    active: () => ['timezones', 'active'] as const,
+    byCountry: (countryId: number | null) => ['timezones', 'country', countryId] as const,
+    detail: (id: number) => ['timezones', 'details', id] as const,
+  },
 } as const;
