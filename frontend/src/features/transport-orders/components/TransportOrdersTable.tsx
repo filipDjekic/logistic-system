@@ -14,6 +14,7 @@ import type {
 } from '../types/transportOrder.types';
 import { canEditTransportOrder, getAllowedTransportOrderStatusTransitions } from '../../../core/permissions/operationGuards';
 import type { Role } from '../../../core/constants/roles';
+import { formatTemporalView, formatTemporalZone } from '../../../core/utils/timezoneFormat';
 
 type TransportOrdersTableProps = {
   rows: TransportOrderResponse[];
@@ -33,14 +34,6 @@ type TransportOrdersTableProps = {
   sort?: SortState;
   onSortChange?: (sort: SortState) => void;
 };
-
-function formatDateTime(value: string | null) {
-  if (!value) {
-    return '—';
-  }
-
-  return new Date(value).toLocaleString();
-}
 
 function formatWeight(value: number | null) {
   if (value == null) {
@@ -114,9 +107,9 @@ export default function TransportOrdersTable({
       minWidth: 220,
       render: (row) => (
         <Stack spacing={0.25}>
-          <Typography variant="body2">{formatDateTime(row.departureTime)}</Typography>
+          <Typography variant="body2">{formatTemporalView(row.departureTimeView, row.departureTime)} · {formatTemporalZone(row.departureTimeView, row.sourceTimezone)}</Typography>
           <Typography variant="caption" color="text.secondary">
-            Planned: {formatDateTime(row.plannedArrivalTime)}
+            Planned: {formatTemporalView(row.plannedArrivalTimeView, row.plannedArrivalTime)} · {formatTemporalZone(row.plannedArrivalTimeView, row.destinationTimezone)}
           </Typography>
         </Stack>
       ),

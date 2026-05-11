@@ -1,4 +1,4 @@
-import { Box, ButtonBase, Stack, Typography } from '@mui/material';
+import { Box, ButtonBase, Chip, Stack, Typography } from '@mui/material';
 import type { NotificationResponse } from '../types/notification.types';
 
 type NotificationItemProps = {
@@ -72,11 +72,14 @@ export default function NotificationItem({
               {notification.title}
             </Typography>
 
-            <Box sx={{ ml: 'auto' }}>
-              <Typography variant="caption" color="text.secondary">
-                {notification.type}
-              </Typography>
-            </Box>
+            <Stack direction="row" spacing={0.75} sx={{ ml: 'auto' }}>
+              <Chip size="small" label={notification.category ?? 'GENERAL'} variant="outlined" />
+              <Chip
+                size="small"
+                label={notification.severity ?? notification.type}
+                color={notification.severity === 'CRITICAL' ? 'error' : notification.severity === 'WARNING' ? 'warning' : notification.severity === 'SUCCESS' ? 'success' : 'info'}
+              />
+            </Stack>
           </Stack>
 
           <Typography variant="body2" color="text.secondary">
@@ -89,7 +92,7 @@ export default function NotificationItem({
             </Typography>
 
             <Typography variant="caption" color={isUnread ? 'primary.main' : 'text.secondary'}>
-              {notification.status}
+              {notification.status}{notification.sourceType ? ` · ${notification.sourceType}${notification.sourceId ? ` #${notification.sourceId}` : ''}` : ''}
             </Typography>
           </Stack>
         </Stack>

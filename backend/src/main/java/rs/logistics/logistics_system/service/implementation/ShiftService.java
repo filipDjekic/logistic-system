@@ -20,20 +20,25 @@ import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Shift;
 import rs.logistics.logistics_system.entity.Country;
 import rs.logistics.logistics_system.entity.Timezone;
+import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.ShiftStatus;
+import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ShiftServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
+import rs.logistics.logistics_system.service.support.DomainScopeValidator;
 
 @Service
 @RequiredArgsConstructor
@@ -41,11 +46,13 @@ public class ShiftService implements ShiftServiceDefinition {
 
     private final ShiftRepository _shiftRepository;
     private final EmployeeRepository _employeeRepository;
+    private final WarehouseRepository warehouseRepository;
     private final AuditFacadeDefinition auditFacade;
     private final NotificationServiceDefinition notificationService;
     private final AppProperties appProperties;
     private final TimezoneServiceDefinition timezoneService;
     private final TimeServiceDefinition timeService;
+    private final DomainScopeValidator domainScopeValidator;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
@@ -55,11 +62,13 @@ public class ShiftService implements ShiftServiceDefinition {
         Employee employee = getAccessibleEmployee(dto.getEmployeeId());
 
         validateEmployeeCanBeAssignedToShift(employee);
-        Timezone timezone = resolveShiftTimezone(dto.getTimezoneId(), employee);
+        Warehouse warehouse = resolveShiftWarehouse(dto.getWarehouseId(), employee);
+        Timezone timezone = resolveShiftTimezone(dto.getTimezoneId(), employee, warehouse);
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
         validateShiftOverlap(employee.getId(), dto.getStartTime(), dto.getEndTime());
+        validateEmployeeWarehouseCompatibility(employee, warehouse);
 
-        Shift shift = ShiftMapper.toEntity(dto, employee, timezone);
+        Shift shift = ShiftMapper.toEntity(dto, employee, timezone, warehouse);
         shift.setStatus(ShiftStatus.PLANNED);
 
         Shift saved = _shiftRepository.save(shift);
@@ -79,7 +88,7 @@ public class ShiftService implements ShiftServiceDefinition {
                 NotificationType.INFO
         );
 
-        return ShiftMapper.toResponse(saved);
+        return ShiftMapper.toResponse(saved, timeService);
     }
 
     @Override
@@ -88,7 +97,8 @@ public class ShiftService implements ShiftServiceDefinition {
         Shift shift = getShiftOrThrow(id);
 
         validateShiftCanBeModified(shift);
-        Timezone timezone = resolveShiftTimezone(dto.getTimezoneId(), shift.getEmployee());
+        Warehouse warehouse = resolveShiftWarehouse(dto.getWarehouseId(), shift.getEmployee());
+        Timezone timezone = resolveShiftTimezone(dto.getTimezoneId(), shift.getEmployee(), warehouse);
         validateShiftTime(dto.getStartTime(), dto.getEndTime());
         validateShiftOverlapForUpdate(
                 shift.getEmployee().getId(),
@@ -100,13 +110,16 @@ public class ShiftService implements ShiftServiceDefinition {
         LocalDateTime oldStartTime = shift.getStartTime();
         LocalDateTime oldEndTime = shift.getEndTime();
         Long oldTimezoneId = shift.getTimezone() != null ? shift.getTimezone().getId() : null;
+        Long oldWarehouseId = shift.getWarehouse() != null ? shift.getWarehouse().getId() : null;
+        validateEmployeeWarehouseCompatibility(shift.getEmployee(), warehouse);
 
-        ShiftMapper.updateEntity(shift, dto, timezone);
+        ShiftMapper.updateEntity(shift, dto, timezone, warehouse);
         Shift updated = _shiftRepository.save(shift);
 
         auditFacade.recordFieldChange("SHIFT", updated.getId(), "startTime", oldStartTime, updated.getStartTime());
         auditFacade.recordFieldChange("SHIFT", updated.getId(), "endTime", oldEndTime, updated.getEndTime());
         auditFacade.recordFieldChange("SHIFT", updated.getId(), "timezone_id", oldTimezoneId, updated.getTimezone() != null ? updated.getTimezone().getId() : null);
+        auditFacade.recordFieldChange("SHIFT", updated.getId(), "warehouse_id", oldWarehouseId, updated.getWarehouse() != null ? updated.getWarehouse().getId() : null);
 
         auditFacade.log(
                 "UPDATE",
@@ -122,13 +135,13 @@ public class ShiftService implements ShiftServiceDefinition {
                 NotificationType.INFO
         );
 
-        return ShiftMapper.toResponse(updated);
+        return ShiftMapper.toResponse(updated, timeService);
     }
 
     @Override
     public ShiftResponse getById(Long id) {
         Shift shift = getShiftOrThrow(id);
-        return ShiftMapper.toResponse(shift);
+        return ShiftMapper.toResponse(shift, timeService);
     }
 
     @Override
@@ -137,7 +150,7 @@ public class ShiftService implements ShiftServiceDefinition {
                 ? _shiftRepository.findAll(pageable)
                 : _shiftRepository.findAllByEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), pageable);
 
-        return PageResponse.from(shifts.map(ShiftMapper::toResponse));
+        return PageResponse.from(shifts.map(shift -> ShiftMapper.toResponse(shift, timeService)));
     }
 
     @Override
@@ -172,7 +185,7 @@ public class ShiftService implements ShiftServiceDefinition {
         );
 
         return shifts.stream()
-                .map(ShiftMapper::toResponse)
+                .map(shift -> ShiftMapper.toResponse(shift, timeService))
                 .collect(Collectors.toList());
     }
 
@@ -189,7 +202,7 @@ public class ShiftService implements ShiftServiceDefinition {
         );
 
         return shifts.stream()
-                .map(ShiftMapper::toResponse)
+                .map(shift -> ShiftMapper.toResponse(shift, timeService))
                 .collect(Collectors.toList());
     }
 
@@ -251,7 +264,9 @@ public class ShiftService implements ShiftServiceDefinition {
         Long oldEmployeeId = oldEmployee != null ? oldEmployee.getId() : null;
 
         shift.setEmployee(employee);
-        shift.setTimezone(resolveShiftTimezone(null, employee));
+        shift.setWarehouse(resolveShiftWarehouse(shift.getWarehouse() != null ? shift.getWarehouse().getId() : null, employee));
+        validateEmployeeWarehouseCompatibility(employee, shift.getWarehouse());
+        shift.setTimezone(resolveShiftTimezone(null, employee, shift.getWarehouse()));
         employee.getShifts().add(shift);
 
         Shift updatedShift = _shiftRepository.save(shift);
@@ -281,7 +296,7 @@ public class ShiftService implements ShiftServiceDefinition {
                 NotificationType.INFO
         );
 
-        return ShiftMapper.toResponse(updatedShift);
+        return ShiftMapper.toResponse(updatedShift, timeService);
     }
 
     
@@ -446,7 +461,45 @@ public class ShiftService implements ShiftServiceDefinition {
         return timeService.nowForShift(shift);
     }
 
+    private Warehouse resolveShiftWarehouse(Long requestedWarehouseId, Employee employee) {
+        if (requestedWarehouseId != null) {
+            Warehouse warehouse = authenticatedUserProvider.isOverlord()
+                    ? warehouseRepository.findById(requestedWarehouseId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"))
+                    : warehouseRepository.findByIdAndCompany_Id(requestedWarehouseId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+            return warehouse;
+        }
+        return employee != null ? employee.getPrimaryWarehouse() : null;
+    }
+
+    private void validateEmployeeWarehouseCompatibility(Employee employee, Warehouse warehouse) {
+        if (warehouse == null) {
+            if (employee != null && (employee.getPosition() == rs.logistics.logistics_system.enums.EmployeePosition.WORKER
+                    || employee.getPosition() == rs.logistics.logistics_system.enums.EmployeePosition.WAREHOUSE_MANAGER)) {
+                throw new BadRequestException("Warehouse is required for operational warehouse shifts");
+            }
+            return;
+        }
+        if (employee != null && employee.getCompany() != null && warehouse.getCompany() != null
+                && !employee.getCompany().getId().equals(warehouse.getCompany().getId())) {
+            throw new ForbiddenException("Shift warehouse must belong to employee company");
+        }
+        if (employee != null && employee.getPosition() == rs.logistics.logistics_system.enums.EmployeePosition.WORKER
+                && !domainScopeValidator.hasWarehouseAccess(employee, warehouse, EmployeeWarehouseAccessType.WORKER, EmployeeWarehouseAccessType.PRIMARY)) {
+            throw new ForbiddenException("WORKER shifts can only be planned in primary or assigned warehouse");
+        }
+        if (employee != null && employee.getPosition() == rs.logistics.logistics_system.enums.EmployeePosition.WAREHOUSE_MANAGER
+                && !domainScopeValidator.hasWarehouseAccess(employee, warehouse, EmployeeWarehouseAccessType.MANAGER, EmployeeWarehouseAccessType.PRIMARY)) {
+            throw new ForbiddenException("WAREHOUSE_MANAGER shifts can only be planned in managed or assigned warehouse");
+        }
+    }
+
     private Timezone resolveShiftTimezone(Long requestedTimezoneId, Employee employee) {
+        return resolveShiftTimezone(requestedTimezoneId, employee, employee != null ? employee.getPrimaryWarehouse() : null);
+    }
+
+    private Timezone resolveShiftTimezone(Long requestedTimezoneId, Employee employee, Warehouse warehouse) {
         Country country = employee != null && employee.getCountry() != null
                 ? employee.getCountry()
                 : employee != null && employee.getCompany() != null
@@ -462,6 +515,9 @@ public class ShiftService implements ShiftServiceDefinition {
 
         if (employee != null && employee.getTimezone() != null) {
             return employee.getTimezone();
+        }
+        if (warehouse != null && warehouse.getTimezone() != null) {
+            return warehouse.getTimezone();
         }
         if (employee != null && employee.getPrimaryWarehouse() != null && employee.getPrimaryWarehouse().getTimezone() != null) {
             return employee.getPrimaryWarehouse().getTimezone();

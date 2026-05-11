@@ -48,6 +48,7 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
   companies: { key: 'companies', label: 'Companies', to: '/companies', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
   'company-registration-requests': { key: 'company-registration-requests', label: 'Registration Requests', to: '/company-registration-requests', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
   employees: { key: 'employees', label: 'Employees', to: '/employees', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: GroupsRoundedIcon },
+  'employee-warehouse-assignments': { key: 'employee-warehouse-assignments', label: 'Warehouse Access', to: '/employee-warehouse-assignments', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER], icon: WarehouseRoundedIcon },
   shifts: { key: 'shifts', label: 'Shifts', to: '/shifts', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER], icon: ScheduleRoundedIcon },
   users: { key: 'users', label: 'Users', to: '/users', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER], icon: ManageAccountsRoundedIcon },
   roles: { key: 'roles', label: 'Roles', to: '/roles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AdminPanelSettingsRoundedIcon },
@@ -55,8 +56,10 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
   'transport-orders': { key: 'transport-orders', label: 'Transport Orders', to: '/transport-orders', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER], icon: LocalShippingRoundedIcon },
   tasks: { key: 'tasks', label: 'Tasks', to: '/tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: AssignmentRoundedIcon },
   vehicles: { key: 'vehicles', label: 'Vehicles', to: '/vehicles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER], icon: DirectionsCarFilledRoundedIcon },
+  'vehicle-maintenance': { key: 'vehicle-maintenance', label: 'Vehicle Maintenance', to: '/vehicle-maintenance', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER], icon: DirectionsCarFilledRoundedIcon },
 
   warehouses: { key: 'warehouses', label: 'Warehouses', to: '/warehouses', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: WarehouseRoundedIcon },
+  'warehouse-locations': { key: 'warehouse-locations', label: 'Zones & Bins', to: '/warehouse-locations', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: WarehouseRoundedIcon },
   products: { key: 'products', label: 'Products', to: '/products', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: CategoryRoundedIcon },
   inventory: { key: 'inventory', label: 'Inventory', to: '/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: Inventory2RoundedIcon },
   'stock-movements': { key: 'stock-movements', label: 'Stock Movements', to: '/stock-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER], icon: SyncAltRoundedIcon },
@@ -67,16 +70,17 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
 
   'data-exchange': { key: 'data-exchange', label: 'Import / Export', to: '/data-exchange', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: ImportExportRoundedIcon },
   'activity-logs': { key: 'activity-logs', label: 'Activity Logs', to: '/activity-logs', roles: [ROLES.OVERLORD], icon: HistoryRoundedIcon },
+  'activity-timeline': { key: 'activity-timeline', label: 'Activity Timeline', to: '/activity-timeline', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: HistoryRoundedIcon },
   'change-history': { key: 'change-history', label: 'Change History', to: '/change-history', roles: [ROLES.OVERLORD], icon: FactCheckRoundedIcon },
 };
 
 const defaultNavigationTemplate: NavigationSectionTemplate[] = [
   { key: 'overview', label: 'Overview', itemKeys: ['dashboard', 'notifications'] },
-  { key: 'people', label: 'People', itemKeys: ['companies', 'company-registration-requests', 'employees', 'shifts', 'users', 'roles'] },
-  { key: 'operations', label: 'Operations', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
-  { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements'] },
+  { key: 'people', label: 'People', itemKeys: ['companies', 'company-registration-requests', 'employees', 'employee-warehouse-assignments', 'shifts', 'users', 'roles'] },
+  { key: 'operations', label: 'Operations', itemKeys: ['transport-orders', 'tasks', 'vehicles', 'vehicle-maintenance'] },
+  { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'warehouse-locations', 'products', 'inventory', 'stock-movements'] },
   { key: 'reports', label: 'Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
-  { key: 'tools', label: 'Tools', itemKeys: ['data-exchange', 'activity-logs', 'change-history'] },
+  { key: 'tools', label: 'Tools', itemKeys: ['data-exchange', 'activity-timeline', 'activity-logs', 'change-history'] },
   { key: 'personal', label: 'Personal', itemKeys: ['my-shifts'] },
 ];
 
@@ -84,29 +88,29 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   [ROLES.OVERLORD]: defaultNavigationTemplate,
   [ROLES.COMPANY_ADMIN]: [
     { key: 'overview', label: 'Overview', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'operations', label: 'Operations', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
-    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'inventory'] },
-    { key: 'people', label: 'People', itemKeys: ['employees'] },
+    { key: 'operations', label: 'Operations', itemKeys: ['transport-orders', 'tasks', 'vehicles', 'vehicle-maintenance'] },
+    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'warehouse-locations', 'inventory'] },
+    { key: 'people', label: 'People', itemKeys: ['employees', 'employee-warehouse-assignments'] },
     { key: 'reports', label: 'Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
-    { key: 'tools', label: 'Tools', itemKeys: ['data-exchange'] },
+    { key: 'tools', label: 'Tools', itemKeys: ['data-exchange', 'activity-timeline'] },
   ],
   [ROLES.HR_MANAGER]: [
     { key: 'overview', label: 'Overview', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'people', label: 'People', itemKeys: ['employees', 'shifts'] },
+    { key: 'people', label: 'People', itemKeys: ['employees', 'employee-warehouse-assignments', 'shifts'] },
     { key: 'reports', label: 'Reports', itemKeys: ['employee-task-report'] },
   ],
   [ROLES.WAREHOUSE_MANAGER]: [
     { key: 'overview', label: 'Overview', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'inventory', 'products', 'stock-movements'] },
+    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'warehouse-locations', 'employee-warehouse-assignments', 'inventory', 'products', 'stock-movements'] },
     { key: 'operations', label: 'Operations', itemKeys: ['tasks'] },
     { key: 'reports', label: 'Reports', itemKeys: ['inventory-report', 'transport-report'] },
-    { key: 'tools', label: 'Tools', itemKeys: ['data-exchange'] },
+    { key: 'tools', label: 'Tools', itemKeys: ['data-exchange', 'activity-timeline'] },
   ],
   [ROLES.DISPATCHER]: [
     { key: 'overview', label: 'Overview', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'operations', label: 'Operations', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
+    { key: 'operations', label: 'Operations', itemKeys: ['transport-orders', 'tasks', 'vehicles', 'vehicle-maintenance'] },
     { key: 'reports', label: 'Reports', itemKeys: ['transport-report'] },
-    { key: 'tools', label: 'Tools', itemKeys: ['data-exchange'] },
+    { key: 'tools', label: 'Tools', itemKeys: ['data-exchange', 'activity-timeline'] },
   ],
   [ROLES.DRIVER]: [
     { key: 'overview', label: 'Overview', itemKeys: ['dashboard', 'notifications'] },
@@ -114,7 +118,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   ],
   [ROLES.WORKER]: [
     { key: 'overview', label: 'Overview', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'my-work', label: 'My Work', itemKeys: ['tasks', 'my-shifts'] },
+    { key: 'my-work', label: 'My Work', itemKeys: ['tasks', 'warehouse-locations', 'my-shifts'] },
   ],
 };
 

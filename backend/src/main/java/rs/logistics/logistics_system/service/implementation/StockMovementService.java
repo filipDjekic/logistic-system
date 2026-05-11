@@ -447,7 +447,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
         return switch (referencedMovement.getMovementType()) {
             case INBOUND, TRANSFER_IN, RETURN_IN -> StockMovementType.RETURN_OUT;
             case OUTBOUND, TRANSFER_OUT, WRITE_OFF, RETURN_OUT -> StockMovementType.RETURN_IN;
-            case ADJUSTMENT -> throw new BadRequestException("Return cannot be based on adjustment movement");
+            case ADJUSTMENT, RESERVATION, RESERVATION_RELEASE -> throw new BadRequestException("Return cannot be based on adjustment or reservation movement");
         };
     }
 
@@ -552,6 +552,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
         return switch (movementType) {
             case INBOUND, TRANSFER_IN, RETURN_IN -> quantityBefore.add(movementQuantity);
             case OUTBOUND, TRANSFER_OUT, WRITE_OFF, RETURN_OUT -> quantityBefore.subtract(movementQuantity);
+            case RESERVATION, RESERVATION_RELEASE -> quantityBefore;
             case ADJUSTMENT -> decreaseForAdjustmentOrReservedTransfer
                     ? quantityBefore.subtract(movementQuantity)
                     : quantityBefore.add(movementQuantity);
@@ -569,6 +570,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
             switch (movementType) {
                 case INBOUND, TRANSFER_IN, RETURN_IN -> inventory.increase(movementQuantity);
                 case OUTBOUND, WRITE_OFF, RETURN_OUT -> inventory.decrease(movementQuantity);
+                case RESERVATION -> inventory.reserve(movementQuantity);
+                case RESERVATION_RELEASE -> inventory.release(movementQuantity);
                 case TRANSFER_OUT -> {
                     if (transportOrder != null && decreaseForAdjustmentOrReservedTransfer) {
                         inventory.moveOutReserved(movementQuantity);
@@ -625,6 +628,13 @@ public class StockMovementService implements StockMovementServiceDefinition {
     ) {
         if (movementType == null || reasonCode == null || referenceType == null) {
             throw new BadRequestException("Movement type, reason code and reference type are required");
+        }
+
+        if ((movementType == StockMovementType.RESERVATION || movementType == StockMovementType.RESERVATION_RELEASE)
+                && referenceType != StockMovementReferenceType.TRANSPORT_ORDER
+                && referenceType != StockMovementReferenceType.SYSTEM
+                && referenceType != StockMovementReferenceType.MANUAL) {
+            throw new BadRequestException("Reservation movements must use manual, system or transport reference");
         }
 
         if (movementType == StockMovementType.ADJUSTMENT && adjustmentDirection == null) {
@@ -685,6 +695,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
                     || reasonCode == StockMovementReasonCode.TRANSPORT_DISPATCH;
             case TRANSFER_IN -> reasonCode == StockMovementReasonCode.MANUAL_INBOUND
                     || reasonCode == StockMovementReasonCode.TRANSPORT_RECEIPT;
+            case RESERVATION -> reasonCode == StockMovementReasonCode.STOCK_RESERVED;
+            case RESERVATION_RELEASE -> reasonCode == StockMovementReasonCode.RESERVATION_RELEASED;
             case ADJUSTMENT -> reasonCode == StockMovementReasonCode.INVENTORY_ADJUSTMENT
                     || reasonCode == StockMovementReasonCode.CORRECTION;
         };

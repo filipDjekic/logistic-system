@@ -22,6 +22,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.report.InventoryReportServiceDefinition;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -93,15 +94,28 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
         BigDecimal totalAvailable = sumInventory(inventoryRows, WarehouseInventory::getAvailableQuantity);
         BigDecimal totalReserved = sumInventory(inventoryRows, WarehouseInventory::getReservedQuantity);
 
+        long lowStockRows = inventoryRows.stream().filter(WarehouseInventory::isLowStock).count();
+        long criticalLowStockRows = inventoryRows.stream()
+                .filter(row -> safe(row.getAvailableQuantity()).compareTo(BigDecimal.ZERO) <= 0)
+                .count();
+        long reservationMovements = movementRows.stream().filter(row -> row.getMovementType() == StockMovementType.RESERVATION).count();
+        long reservationReleaseMovements = movementRows.stream().filter(row -> row.getMovementType() == StockMovementType.RESERVATION_RELEASE).count();
+
         return new InventoryReportResponse(
                 fromDate,
                 toDate,
                 inventoryRows.size(),
-                inventoryRows.stream().filter(WarehouseInventory::isLowStock).count(),
+                lowStockRows,
                 totalQuantity,
                 totalAvailable,
                 totalReserved,
+                percentage(totalAvailable, totalQuantity),
+                percentage(totalReserved, totalQuantity),
+                inventoryHealthScore(inventoryRows.size(), lowStockRows, criticalLowStockRows),
+                criticalLowStockRows,
                 movementRows.size(),
+                reservationMovements,
+                reservationReleaseMovements,
                 sumMovementQuantity(movementRows, StockMovementType.INBOUND, StockMovementType.RETURN_IN),
                 sumMovementQuantity(movementRows, StockMovementType.OUTBOUND, StockMovementType.WRITE_OFF, StockMovementType.RETURN_OUT),
                 sumTransferQuantity(movementRows),
@@ -236,6 +250,29 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
             throw new BadRequestException("fromDate cannot be after toDate");
         }
+    }
+
+    private BigDecimal percentage(BigDecimal part, BigDecimal total) {
+        if (total == null || total.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return safe(part)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(total, 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal inventoryHealthScore(long totalRows, long lowStockRows, long criticalLowStockRows) {
+        if (totalRows <= 0) {
+            return BigDecimal.valueOf(100);
+        }
+        BigDecimal lowStockPenalty = BigDecimal.valueOf(lowStockRows)
+                .multiply(BigDecimal.valueOf(35))
+                .divide(BigDecimal.valueOf(totalRows), 2, RoundingMode.HALF_UP);
+        BigDecimal criticalPenalty = BigDecimal.valueOf(criticalLowStockRows)
+                .multiply(BigDecimal.valueOf(50))
+                .divide(BigDecimal.valueOf(totalRows), 2, RoundingMode.HALF_UP);
+        BigDecimal score = BigDecimal.valueOf(100).subtract(lowStockPenalty).subtract(criticalPenalty);
+        return score.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : score;
     }
 
     private BigDecimal safe(BigDecimal value) {

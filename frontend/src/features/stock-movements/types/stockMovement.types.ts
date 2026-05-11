@@ -6,7 +6,9 @@ export type StockMovementType =
   | 'ADJUSTMENT'
   | 'WRITE_OFF'
   | 'RETURN_IN'
-  | 'RETURN_OUT';
+  | 'RETURN_OUT'
+  | 'RESERVATION'
+  | 'RESERVATION_RELEASE';
 
 export type StockAdjustmentDirection = 'INCREASE' | 'DECREASE';
 

@@ -12,6 +12,8 @@ type Props = {
   onRetry: () => void;
   onEdit: (row: InventoryListRow) => void;
   onDelete: (row: InventoryListRow) => void;
+  onReserve: (row: InventoryListRow) => void;
+  onReleaseReservation: (row: InventoryListRow) => void;
   canManage: boolean;
   pagination?: ReactNode;
   sort?: SortState;
@@ -25,6 +27,8 @@ export default function InventoryTable({
   onRetry,
   onEdit,
   onDelete,
+  onReserve,
+  onReleaseReservation,
   canManage,
   pagination,
   sort,
@@ -91,13 +95,21 @@ export default function InventoryTable({
           {
             id: 'actions',
             header: 'Actions',
-            minWidth: 160,
+            minWidth: 320,
             sticky: 'right' as const,
             align: 'right' as const,
             render: (row: InventoryListRow) => (
               <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Button size="small" variant="contained" onClick={() => onEdit(row)}>
                   Edit
+                </Button>
+
+                <Button size="small" variant="outlined" disabled={row.availableQuantity <= 0} onClick={() => onReserve(row)}>
+                  Reserve
+                </Button>
+
+                <Button size="small" variant="outlined" disabled={row.reservedQuantity <= 0} onClick={() => onReleaseReservation(row)}>
+                  Release
                 </Button>
 
                 <Button size="small" color="error" variant="text" onClick={() => onDelete(row)}>

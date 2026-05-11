@@ -22,7 +22,7 @@ import type { SortState } from '../../../shared/types/common.types';
 import type { EmployeeOption, TransportOrderFiltersState, VehicleOption, WarehouseOption } from '../types/transportOrder.types';
 import { transportOrderPriorityOptions } from '../validation/transportOrderSchema';
 
-const statusOptions = ['ALL', 'CREATED', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'CANCELLED'] as const;
+const statusOptions = ['ALL', 'DRAFT', 'CREATED', 'ASSIGNED', 'PICKING', 'PACKING', 'READY_FOR_LOADING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'RETURNING', 'RESCHEDULED', 'CANCELLED'] as const;
 
 export default function TransportOrdersPage() {
   const auth = useAuthStore();

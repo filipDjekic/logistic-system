@@ -34,6 +34,7 @@ public class VehicleResponse {
     private Boolean active;
     private Long companyId;
     private String companyName;
+    private Boolean hasActiveMaintenance;
 
     public VehicleResponse(Long id,
                            String registrationNumber,
@@ -51,7 +52,8 @@ public class VehicleResponse {
                            VehicleStatus status,
                            Boolean active,
                            Long companyId,
-                           String companyName) {
+                           String companyName,
+                           Boolean hasActiveMaintenance) {
         this.id = id;
         this.registrationNumber = registrationNumber;
         this.vehicleBrandId = vehicleBrandId;
@@ -69,5 +71,6 @@ public class VehicleResponse {
         this.active = active;
         this.companyId = companyId;
         this.companyName = companyName;
+        this.hasActiveMaintenance = hasActiveMaintenance;
     }
 }

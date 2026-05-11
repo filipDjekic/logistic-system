@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.service.implementation;
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
+import rs.logistics.logistics_system.service.support.DomainScopeValidator;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -64,6 +65,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final TimezoneServiceDefinition timezoneService;
     private final CityServiceDefinition cityService;
+    private final DomainScopeValidator domainScopeValidator;
 
     @Override
     @Transactional
@@ -79,7 +81,10 @@ public class WarehouseService implements WarehouseServiceDefinition {
         warehouse.setCompany(targetCompany);
 
         validateEmployeeCompanyForWarehouse(employee, warehouse);
+        domainScopeValidator.ensureWarehouseLocationConsistency(warehouse);
+        domainScopeValidator.ensureWarehouseManager(employee, warehouse);
         Warehouse saved = _warehouseRepository.save(warehouse);
+        syncManagerPrimaryWarehouse(saved, employee);
 
         auditFacade.recordCreate("WAREHOUSE", saved.getId());
         auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "company_id", null, saved.getCompany() != null ? saved.getCompany().getId() : null);
@@ -107,6 +112,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
         Timezone timezone = timezoneService.getRequiredForCountry(dto.getTimezoneId(), country.getId());
         City city = cityService.getRequiredActiveForCountry(dto.getCityId(), country.getId());
         WarehouseMapper.updateEntity(warehouse, dto, country, city, timezone);
+        domainScopeValidator.ensureWarehouseLocationConsistency(warehouse);
         validateCapacityNotBelowCurrentInventory(warehouse);
         Warehouse saved = _warehouseRepository.save(warehouse);
 
@@ -138,10 +144,12 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
         validateWarehouseManager(employee);
         validateSameCompany(warehouse, employee);
+        domainScopeValidator.ensureWarehouseManager(employee, warehouse);
 
         Long oldManagerId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
         warehouse.setManager(employee);
         Warehouse saved = _warehouseRepository.save(warehouse);
+        syncManagerPrimaryWarehouse(saved, employee);
 
         auditFacade.recordFieldChange("WAREHOUSE", warehouseId, "manager", oldManagerId, employeeId);
         auditFacade.log(
@@ -331,6 +339,13 @@ public class WarehouseService implements WarehouseServiceDefinition {
         }
 
         return search.trim();
+    }
+
+    private void syncManagerPrimaryWarehouse(Warehouse warehouse, Employee employee) {
+        if (employee != null && employee.getPrimaryWarehouse() == null) {
+            employee.setPrimaryWarehouse(warehouse);
+            _employeeRepository.save(employee);
+        }
     }
 
     private void validateWarehouseManager(Employee employee) {

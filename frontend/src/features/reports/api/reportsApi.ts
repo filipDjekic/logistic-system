@@ -66,6 +66,12 @@ export type TransportReportResponse = {
   activeTransports: number;
   completedTransports: number;
   cancelledTransports: number;
+  failedTransports: number;
+  delayedTransports: number;
+  deliverySuccessRate: number;
+  cancellationRate: number;
+  averageDelayMinutes: number;
+  averageTransportDurationMinutes: number;
   totalPlannedWeight: number;
   completedTransportWeight: number;
   transportsByStatus: Record<string, number>;
@@ -148,7 +154,13 @@ export type InventoryReportResponse = {
   totalInventoryQuantity: number;
   totalAvailableQuantity: number;
   totalReservedQuantity: number;
+  stockAvailabilityRate: number;
+  reservationRate: number;
+  inventoryHealthScore: number;
+  criticalLowStockRows: number;
   stockMovementsTotal: number;
+  reservationMovements: number;
+  reservationReleaseMovements: number;
   inboundQuantity: number;
   outboundQuantity: number;
   transferQuantity: number;
@@ -290,6 +302,10 @@ export type EmployeeTaskReportResponse = {
   completedTasks: number;
   openTasks: number;
   overdueOpenTasks: number;
+  taskCompletionRate: number;
+  overdueOpenTaskRate: number;
+  averageTasksPerActiveEmployee: number;
+  shiftCoverageRate: number;
   shiftsTotal: number;
   employeesWithoutTasks: number;
   employeesByPosition: Record<string, number>;

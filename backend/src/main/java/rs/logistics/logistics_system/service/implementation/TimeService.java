@@ -5,13 +5,17 @@ import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Country;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Shift;
+import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.Timezone;
+import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.zone.ZoneRulesException;
 
@@ -144,4 +148,56 @@ public class TimeService implements TimeServiceDefinition {
     public LocalDate todayForEmployee(Employee employee) {
         return LocalDate.now(zoneIdForEmployee(employee));
     }
+
+    @Override
+    public Instant toUtcInstant(LocalDateTime localDateTime, ZoneId zoneId) {
+        if (localDateTime == null) {
+            return null;
+        }
+        ZoneId effectiveZoneId = zoneId != null ? zoneId : systemZoneId();
+        return localDateTime.atZone(effectiveZoneId).toInstant();
+    }
+
+    @Override
+    public OffsetDateTime toOffsetDateTime(LocalDateTime localDateTime, ZoneId zoneId) {
+        if (localDateTime == null) {
+            return null;
+        }
+        ZoneId effectiveZoneId = zoneId != null ? zoneId : systemZoneId();
+        return localDateTime.atZone(effectiveZoneId).toOffsetDateTime();
+    }
+
+    @Override
+    public LocalDateTime fromUtcInstant(Instant instant, ZoneId zoneId) {
+        if (instant == null) {
+            return null;
+        }
+        ZoneId effectiveZoneId = zoneId != null ? zoneId : systemZoneId();
+        return LocalDateTime.ofInstant(instant, effectiveZoneId);
+    }
+
+    @Override
+    public ZoneId zoneIdForTransportSource(TransportOrder transportOrder) {
+        return zoneIdForWarehouse(transportOrder != null ? transportOrder.getSourceWarehouse() : null);
+    }
+
+    @Override
+    public ZoneId zoneIdForTransportDestination(TransportOrder transportOrder) {
+        return zoneIdForWarehouse(transportOrder != null ? transportOrder.getDestinationWarehouse() : null);
+    }
+
+    @Override
+    public ZoneId zoneIdForTask(Task task) {
+        if (task != null && task.getAssignedEmployee() != null) {
+            return zoneIdForEmployee(task.getAssignedEmployee());
+        }
+        if (task != null && task.getTransportOrder() != null) {
+            return zoneIdForTransportSource(task.getTransportOrder());
+        }
+        if (task != null && task.getStockMovement() != null) {
+            return zoneIdForWarehouse(task.getStockMovement().getWarehouse());
+        }
+        return systemZoneId();
+    }
 }
+

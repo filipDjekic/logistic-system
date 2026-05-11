@@ -17,7 +17,8 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_shifts_employee_start_time", columnList = "employee_id, start_time"),
                 @Index(name = "idx_shifts_employee_time", columnList = "employee_id, start_time, end_time"),
                 @Index(name = "idx_shifts_status", columnList = "status"),
-                @Index(name = "idx_shifts_status_time", columnList = "status, start_time, end_time")
+                @Index(name = "idx_shifts_status_time", columnList = "status, start_time, end_time"),
+                @Index(name = "idx_shifts_warehouse_status_time", columnList = "warehouse_id, status, start_time, end_time")
         }
 )
 @Getter
@@ -46,6 +47,10 @@ public class Shift {
 
     @Column(name = "notes", length = 255)
     private String notes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
 
     //relations
     @ManyToOne(fetch = FetchType.EAGER)

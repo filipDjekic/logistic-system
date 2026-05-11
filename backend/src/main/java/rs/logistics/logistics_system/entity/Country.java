@@ -13,12 +13,12 @@ import lombok.NoArgsConstructor;
         name = "countries",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_countries_code", columnNames = "code"),
-                @UniqueConstraint(name = "uk_countries_code_three", columnNames = "codeThree"),
+                @UniqueConstraint(name = "uk_countries_code_three", columnNames = "code_three"),
                 @UniqueConstraint(name = "uk_countries_numeric_code", columnNames = "numeric_code")
         },
         indexes = {
                 @Index(name = "idx_countries_active", columnList = "active"),
-                @Index(name = "idx_countries_currency_code", columnList = "currencyCode"),
+                @Index(name = "idx_countries_currency_code", columnList = "currency_code"),
                 @Index(name = "idx_countries_default_timezone_id", columnList = "default_timezone_id")
         }
 )
@@ -33,7 +33,7 @@ public class Country {
     @Column(name = "code", nullable = false, unique = true, length = 2)
     private String iso2Code;
 
-    @Column(name = "codeThree", nullable = false, unique = true, length = 3)
+    @Column(name = "code_three", nullable = false, unique = true, length = 3)
     private String iso3Code;
 
     @Column(name = "numeric_code", unique = true, length = 3)
@@ -42,10 +42,10 @@ public class Country {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "phoneCode", length = 10)
+    @Column(name = "phone_code", length = 10)
     private String phoneCode;
 
-    @Column(name = "currencyCode", length = 3)
+    @Column(name = "currency_code", length = 3)
     private String currencyCode;
 
     @Column(name = "currency_name", length = 80)
@@ -61,7 +61,7 @@ public class Country {
     @OneToMany(mappedBy = "country")
     private List<City> cities = new ArrayList<>();
 
-    @Column(name = "euMember", nullable = false)
+    @Column(name = "eu_member", nullable = false)
     private Boolean euMember;
 
     @Column(name = "active", nullable = false)

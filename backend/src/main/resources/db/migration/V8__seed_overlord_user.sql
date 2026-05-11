@@ -1,10 +1,11 @@
+-- Overlord seed. Demo company users are seeded separately in V9__seed_demo_company.sql.
 DECLARE @Email NVARCHAR(255) = 'filip.djekic@slu.admin.rs';
 DECLARE @RoleName NVARCHAR(100) = 'OVERLORD';
 
 DECLARE @RoleId BIGINT;
 
 SELECT @RoleId = id
-FROM ROLES
+FROM roles
 WHERE name = @RoleName;
 
 IF @RoleId IS NULL
@@ -14,11 +15,11 @@ END;
 
 IF NOT EXISTS (
     SELECT 1
-    FROM USERS
+    FROM users
     WHERE email = @Email
 )
 BEGIN
-    INSERT INTO USERS (
+    INSERT INTO users (
         password,
         first_name,
         last_name,

@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.domain.Pageable;
 
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
+import rs.logistics.logistics_system.dto.create.StockReservationCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
@@ -26,6 +27,10 @@ public interface WarehouseInventoryServiceDefinition {
     PageResponse<WarehouseInventoryResponse> search(String search, Long warehouseId, Long productId, String status, Pageable pageable);
 
     void delete(Long warehouseId, Long productId);
+
+    WarehouseInventoryResponse reserveStock(StockReservationCreate dto);
+
+    WarehouseInventoryResponse releaseReservedStock(StockReservationCreate dto);
 
     void reserveStock(Long warehouseId, Long productId, BigDecimal quantity);
 

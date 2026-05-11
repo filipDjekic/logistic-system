@@ -8,12 +8,31 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useMarkNotificationAsRead } from '../hooks/useMarkNotificationAsRead';
 import { useMarkAllNotificationsAsRead } from '../hooks/useMarkAllNotificationsAsRead';
 import NotificationsList from '../components/NotificationsList';
-import type { NotificationStatus, NotificationType } from '../types/notification.types';
+import type { NotificationCategory, NotificationSeverity, NotificationStatus, NotificationType } from '../types/notification.types';
 
 const statusOptions: Array<{ label: string; value: NotificationStatus | '' }> = [
   { label: 'All statuses', value: '' },
   { label: 'Unread', value: 'UNREAD' },
   { label: 'Read', value: 'READ' },
+];
+
+const severityOptions: Array<{ label: string; value: NotificationSeverity | '' }> = [
+  { label: 'All severities', value: '' },
+  { label: 'Info', value: 'INFO' },
+  { label: 'Warning', value: 'WARNING' },
+  { label: 'Critical', value: 'CRITICAL' },
+  { label: 'Success', value: 'SUCCESS' },
+];
+
+const categoryOptions: Array<{ label: string; value: NotificationCategory | '' }> = [
+  { label: 'All categories', value: '' },
+  { label: 'General', value: 'GENERAL' },
+  { label: 'Transport', value: 'TRANSPORT' },
+  { label: 'Inventory', value: 'INVENTORY' },
+  { label: 'Task', value: 'TASK' },
+  { label: 'Shift', value: 'SHIFT' },
+  { label: 'Warehouse', value: 'WAREHOUSE' },
+  { label: 'Security', value: 'SECURITY' },
 ];
 
 const typeOptions: Array<{ label: string; value: NotificationType | '' }> = [
@@ -29,17 +48,21 @@ export default function NotificationsPage() {
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [status, setStatus] = useState<NotificationStatus | ''>('');
   const [type, setType] = useState<NotificationType | ''>('');
+  const [severity, setSeverity] = useState<NotificationSeverity | ''>('');
+  const [category, setCategory] = useState<NotificationCategory | ''>('');
 
   useEffect(() => {
     setPage(0);
-  }, [status, type]);
+  }, [status, type, severity, category]);
 
-  const notificationsQuery = useNotifications({ page, size, status, type });
+  const notificationsQuery = useNotifications({ page, size, status, type, severity, category });
   const markAsReadMutation = useMarkNotificationAsRead();
   const markAllAsReadMutation = useMarkAllNotificationsAsRead();
 
   const notifications = notificationsQuery.data?.items ?? [];
   const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
+  const criticalUnreadCount = notificationsQuery.data?.criticalUnreadCount ?? 0;
+  const warningUnreadCount = notificationsQuery.data?.warningUnreadCount ?? 0;
   const paginationPage = notificationsQuery.data
     ? {
         content: notificationsQuery.data.items,
@@ -67,7 +90,7 @@ export default function NotificationsPage() {
         description="View your latest system notifications and mark unread items as read."
         actions={
           <Typography variant="body2" color="text.secondary">
-            Unread: {unreadCount}
+            Unread: {unreadCount} · Critical: {criticalUnreadCount} · Warning: {warningUnreadCount}
           </Typography>
         }
       />
@@ -125,6 +148,36 @@ export default function NotificationsPage() {
               sx={{ minWidth: { xs: '100%', sm: 180 } }}
             >
               {typeOptions.map((option) => (
+                <MenuItem key={option.label} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Severity"
+              value={severity}
+              onChange={(event) => setSeverity(event.target.value as NotificationSeverity | '')}
+              sx={{ minWidth: { xs: '100%', sm: 180 } }}
+            >
+              {severityOptions.map((option) => (
+                <MenuItem key={option.label} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label="Category"
+              value={category}
+              onChange={(event) => setCategory(event.target.value as NotificationCategory | '')}
+              sx={{ minWidth: { xs: '100%', sm: 180 } }}
+            >
+              {categoryOptions.map((option) => (
                 <MenuItem key={option.label} value={option.value}>
                   {option.label}
                 </MenuItem>

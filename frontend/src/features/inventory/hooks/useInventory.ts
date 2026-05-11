@@ -14,12 +14,21 @@ import type {
 function getDerivedInventoryStatus(
   availableQuantity: number,
   minStockLevel: number | null,
+  reservedQuantity: number,
 ): DerivedInventoryStatus {
+  if (availableQuantity <= 0) {
+    return 'OUT_OF_STOCK';
+  }
+
+  if (reservedQuantity > 0) {
+    return 'RESERVED';
+  }
+
   if (minStockLevel !== null && availableQuantity <= minStockLevel) {
     return 'LOW_STOCK';
   }
 
-  return 'SUFFICIENT';
+  return 'AVAILABLE';
 }
 
 type UseInventoryLookups = {
@@ -50,7 +59,7 @@ export function useInventory(filters: InventoryFiltersState & PageParams, lookup
           productSku: product?.sku ?? null,
           productUnit: product?.unit ?? null,
           availableQuantity,
-          derivedStatus: getDerivedInventoryStatus(availableQuantity, item.minStockLevel ?? null),
+          derivedStatus: getDerivedInventoryStatus(availableQuantity, item.minStockLevel ?? null, item.reservedQuantity ?? 0),
         };
       });
 

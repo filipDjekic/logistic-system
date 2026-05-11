@@ -35,6 +35,16 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByDueDateBeforeAndAssignedEmployee_Company_Id(LocalDateTime date, Long companyId);
 
+    @Query("""
+            select t
+            from Task t
+            join fetch t.assignedEmployee employee
+            left join fetch employee.user user
+            where t.dueDate < :now
+            and t.status in :openStatuses
+            """)
+    List<Task> findOverdueOpenTasks(@Param("now") LocalDateTime now, @Param("openStatuses") java.util.Collection<TaskStatus> openStatuses);
+
     List<Task> findByDueDateAfter(LocalDateTime date);
 
     List<Task> findByDueDateAfterAndAssignedEmployee_Company_Id(LocalDateTime date, Long companyId);

@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.service.implementation;
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
+import rs.logistics.logistics_system.service.support.DomainScopeValidator;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,6 +21,7 @@ import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
+import rs.logistics.logistics_system.enums.TaskType;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
@@ -27,8 +29,10 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
+import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
@@ -48,6 +52,7 @@ import java.util.stream.Collectors;
 public class TaskService implements TaskServiceDefinition {
 
     private final TaskRepository _taskRepository;
+    private final ShiftRepository _shiftRepository;
     private final EmployeeRepository _employeeRepository;
     private final TransportOrderRepository _transportOrderRepository;
     private final StockMovementRepository stockMovementRepository;
@@ -59,11 +64,13 @@ public class TaskService implements TaskServiceDefinition {
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final TimeServiceDefinition timeService;
+    private final DomainScopeValidator domainScopeValidator;
 
     @Override
     @Transactional
     public TaskResponse create(TaskCreate dto) {
         validateDueDate(dto.getDueDate());
+        normalizeTaskType(dto);
 
         Employee employee = getActiveEmployee(dto.getAssignedEmployeeId());
         TransportOrder transportOrder = getOptionalTransportOrder(dto.getTransportOrderId());
@@ -71,7 +78,9 @@ public class TaskService implements TaskServiceDefinition {
 
         validateTaskCompanyContext(employee, transportOrder, stockMovement);
         validateLinkedProcessContext(transportOrder, stockMovement);
-        validateAssigneeRole(employee, transportOrder, stockMovement);
+        validateAssigneeRole(employee, transportOrder, stockMovement, dto.getTaskType());
+        validateAssigneeOperationalScope(employee, stockMovement);
+        validateEmployeeAvailabilityForTask(employee, dto.getDueDate());
         validateWarehouseManagerMutationScope(transportOrder);
 
         Task task = TaskMapper.toEntity(dto, employee, transportOrder, stockMovement);
@@ -95,7 +104,7 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK is created (ID: " + saved.getId() + ")"
         );
 
-        return TaskMapper.toResponse(saved);
+        return TaskMapper.toResponse(saved, timeService);
     }
 
     @Override
@@ -105,6 +114,7 @@ public class TaskService implements TaskServiceDefinition {
 
         validateTaskUpdatable(task);
         validateDueDate(dto.getDueDate());
+        normalizeTaskType(dto);
 
         Employee employee = getActiveEmployee(dto.getAssignedEmployeeId());
         Employee oldEmployee = task.getAssignedEmployee();
@@ -113,7 +123,9 @@ public class TaskService implements TaskServiceDefinition {
 
         validateTaskCompanyContext(employee, transportOrder, stockMovement);
         validateLinkedProcessContext(transportOrder, stockMovement);
-        validateAssigneeRole(employee, transportOrder, stockMovement);
+        validateAssigneeRole(employee, transportOrder, stockMovement, dto.getTaskType());
+        validateAssigneeOperationalScope(employee, stockMovement);
+        validateEmployeeAvailabilityForTask(employee, dto.getDueDate());
         validateWarehouseManagerMutationScope(transportOrder);
 
         if (!task.getAssignedEmployee().getId().equals(employee.getId())) {
@@ -182,7 +194,7 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK is updated (ID: " + saved.getId() + ")"
         );
 
-        return TaskMapper.toResponse(saved);
+        return TaskMapper.toResponse(saved, timeService);
     }
 
 
@@ -204,7 +216,7 @@ public class TaskService implements TaskServiceDefinition {
 
         for (Task task : tasks) {
             TaskStatus oldStatus = task.getStatus();
-            task.setStatus(status);
+            applyTaskStatusTransitionTimestamps(task, status);
             Task saved = _taskRepository.save(task);
 
             auditFacade.recordStatusChange("TASK", saved.getId(), "status", oldStatus, saved.getStatus());
@@ -229,21 +241,92 @@ public class TaskService implements TaskServiceDefinition {
         return tasks.size();
     }
 
+    private void normalizeTaskType(TaskCreate dto) {
+        if (dto.getTaskType() == null) {
+            dto.setTaskType(resolveTaskType(dto.getTransportOrderId(), dto.getStockMovementId()));
+        }
+    }
+
+    private void normalizeTaskType(TaskUpdate dto) {
+        if (dto.getTaskType() == null) {
+            dto.setTaskType(resolveTaskType(dto.getTransportOrderId(), dto.getStockMovementId()));
+        }
+    }
+
+    private TaskType resolveTaskType(Long transportOrderId, Long stockMovementId) {
+        if (transportOrderId != null) {
+            return TaskType.DRIVING;
+        }
+        if (stockMovementId != null) {
+            return TaskType.STOCK_MOVEMENT;
+        }
+        return TaskType.ADMIN;
+    }
+
+    private void applyTaskStatusTransitionTimestamps(Task task, TaskStatus nextStatus) {
+        LocalDateTime now = timeService.zoneIdForTask(task) != null ? timeService.nowSystem() : LocalDateTime.now();
+        task.setStatus(nextStatus);
+        if (nextStatus == TaskStatus.IN_PROGRESS && task.getStartedAt() == null) {
+            task.setStartedAt(now);
+        }
+        if (nextStatus == TaskStatus.COMPLETED) {
+            task.setCompletedAt(now);
+        }
+        if (nextStatus == TaskStatus.CANCELLED) {
+            task.setCancelledAt(now);
+            if (task.getCancelReason() == null || task.getCancelReason().isBlank()) {
+                task.setCancelReason("Cancelled by lifecycle transition");
+            }
+        }
+    }
+
+    private void validateEmployeeAvailabilityForTask(Employee employee, LocalDateTime dueDate) {
+        if (employee == null || dueDate == null) {
+            return;
+        }
+        if (employee.getPosition() != EmployeePosition.DRIVER && employee.getPosition() != EmployeePosition.WORKER) {
+            return;
+        }
+        boolean available = _shiftRepository.existsCoveringActiveOrPlannedShift(
+                employee.getId(),
+                dueDate,
+                List.of(rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE)
+        );
+        if (!available) {
+            throw new BadRequestException("Employee has no planned or active shift covering task due date");
+        }
+    }
+
     private void validateStatusTransition(TaskStatus current, TaskStatus next) {
         if (!appProperties.isTaskStatusTransitionAllowed(current, next)) {
             throw new BadRequestException("Task status cannot be changed from " + current + " to " + next);
         }
     }
 
-    private void validateAssigneeRole(Employee employee, TransportOrder transportOrder, StockMovement stockMovement) {
+    private void validateAssigneeRole(Employee employee, TransportOrder transportOrder, StockMovement stockMovement, TaskType taskType) {
         if (employee == null || employee.getPosition() == null) {
             throw new BadRequestException("Assigned employee is invalid");
         }
 
         EmployeePosition position = employee.getPosition();
+        TaskType effectiveType = taskType != null ? taskType : resolveTaskType(
+                transportOrder != null ? transportOrder.getId() : null,
+                stockMovement != null ? stockMovement.getId() : null
+        );
 
-        if (transportOrder != null && position != EmployeePosition.DRIVER) {
-            throw new BadRequestException("Transport tasks can only be assigned to DRIVER");
+        if (transportOrder != null) {
+            boolean driverTask = effectiveType == TaskType.DRIVING;
+            boolean warehouseTransportTask = effectiveType == TaskType.PICKING
+                    || effectiveType == TaskType.PACKING
+                    || effectiveType == TaskType.LOADING
+                    || effectiveType == TaskType.UNLOADING;
+
+            if (driverTask && position != EmployeePosition.DRIVER) {
+                throw new BadRequestException("DRIVING transport tasks can only be assigned to DRIVER");
+            }
+            if (warehouseTransportTask && position != EmployeePosition.WORKER && position != EmployeePosition.WAREHOUSE_MANAGER) {
+                throw new BadRequestException("Warehouse transport tasks can only be assigned to WORKER or WAREHOUSE_MANAGER");
+            }
         }
 
         if (stockMovement != null
@@ -253,8 +336,43 @@ public class TaskService implements TaskServiceDefinition {
         }
 
         if (transportOrder == null && stockMovement == null
+                && effectiveType != TaskType.ADMIN
+                && (position == EmployeePosition.COMPANY_ADMIN || position == EmployeePosition.HR_MANAGER)) {
+            throw new BadRequestException("Administrative users can only receive ADMIN generic tasks");
+        }
+
+        if (transportOrder == null && stockMovement == null
                 && (position == EmployeePosition.DRIVER || position == EmployeePosition.WORKER)) {
             throw new BadRequestException("Generic tasks cannot be assigned to DRIVER or WORKER without linked process");
+        }
+    }
+
+    private void validateAssigneeOperationalScope(Employee employee, StockMovement stockMovement) {
+        if (stockMovement == null || stockMovement.getWarehouse() == null || employee == null) {
+            return;
+        }
+
+        if (employee.getPosition() == EmployeePosition.WORKER) {
+            if (employee.getPrimaryWarehouse() == null) {
+                throw new BadRequestException("WORKER must have primary warehouse before warehouse task assignment");
+            }
+            if (!domainScopeValidator.hasWarehouseAccess(employee, stockMovement.getWarehouse(), EmployeeWarehouseAccessType.WORKER, EmployeeWarehouseAccessType.PRIMARY)) {
+                throw new ForbiddenException("WORKER can be assigned only to tasks in primary or assigned warehouse");
+            }
+        }
+
+        if (employee.getPosition() == EmployeePosition.WAREHOUSE_MANAGER) {
+            boolean managesWarehouse = warehouseRepository.findByManagerIdAndCompany_Id(
+                            employee.getId(),
+                            employee.getCompany() != null ? employee.getCompany().getId() : null
+                    )
+                    .stream()
+                    .anyMatch(warehouse -> warehouse.getId().equals(stockMovement.getWarehouse().getId()))
+                    || domainScopeValidator.hasWarehouseAccess(employee, stockMovement.getWarehouse(), EmployeeWarehouseAccessType.MANAGER, EmployeeWarehouseAccessType.PRIMARY);
+
+            if (!managesWarehouse) {
+                throw new ForbiddenException("WAREHOUSE_MANAGER can be assigned only to managed or assigned warehouses");
+            }
         }
     }
 
@@ -263,7 +381,7 @@ public class TaskService implements TaskServiceDefinition {
         Task task = getTaskOrThrow(id);
         validateWarehouseManagerTaskAccess(task);
         validateDriverTaskAccess(task);
-        return TaskMapper.toResponse(task);
+        return TaskMapper.toResponse(task, timeService);
     }
 
     @Override
@@ -298,7 +416,7 @@ public class TaskService implements TaskServiceDefinition {
         );
 
         var content = tasks.getContent().stream()
-                .map(TaskMapper::toResponse)
+                .map(task -> TaskMapper.toResponse(task, timeService))
                 .collect(Collectors.toList());
 
         return PageResponse.fromContent(content, tasks);
@@ -338,7 +456,7 @@ public class TaskService implements TaskServiceDefinition {
         );
 
         var content = tasks.getContent().stream()
-                .map(TaskMapper::toResponse)
+                .map(task -> TaskMapper.toResponse(task, timeService))
                 .collect(Collectors.toList());
 
         return PageResponse.fromContent(content, tasks);
@@ -406,7 +524,7 @@ public class TaskService implements TaskServiceDefinition {
 
         validateStatusTransition(current, status);
 
-        task.setStatus(status);
+        applyTaskStatusTransitionTimestamps(task, status);
         Task saved = _taskRepository.save(task);
 
         auditFacade.recordStatusChange("TASK", task.getId(), "status", current, saved.getStatus());
@@ -430,7 +548,7 @@ public class TaskService implements TaskServiceDefinition {
             );
         }
 
-        return TaskMapper.toResponse(saved);
+        return TaskMapper.toResponse(saved, timeService);
     }
 
     @Override
@@ -441,7 +559,9 @@ public class TaskService implements TaskServiceDefinition {
 
         Employee oldEmployee = task.getAssignedEmployee();
         Employee employee = getActiveEmployee(employeeId);
-        validateAssigneeRole(employee, task.getTransportOrder(), task.getStockMovement());
+        validateAssigneeRole(employee, task.getTransportOrder(), task.getStockMovement(), task.getTaskType());
+        validateAssigneeOperationalScope(employee, task.getStockMovement());
+        validateEmployeeAvailabilityForTask(employee, task.getDueDate());
         validateReassign(task, employee);
 
         if (!authenticatedUserProvider.isOverlord()) {
@@ -485,7 +605,7 @@ public class TaskService implements TaskServiceDefinition {
                 "TASK is reassigned (ID: " + saved.getId() + ") to employee " + employee.getId()
         );
 
-        return TaskMapper.toResponse(saved);
+        return TaskMapper.toResponse(saved, timeService);
     }
 
     private Page<Task> searchTasks(

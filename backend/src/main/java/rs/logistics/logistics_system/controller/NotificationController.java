@@ -20,6 +20,8 @@ import rs.logistics.logistics_system.dto.response.NotificationPageResponse;
 import rs.logistics.logistics_system.dto.response.NotificationResponse;
 import rs.logistics.logistics_system.enums.NotificationStatus;
 import rs.logistics.logistics_system.enums.NotificationType;
+import rs.logistics.logistics_system.enums.NotificationSeverity;
+import rs.logistics.logistics_system.enums.NotificationCategory;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 
@@ -51,9 +53,11 @@ public class NotificationController {
             @PathVariable Long id,
             @RequestParam(required = false) NotificationStatus status,
             @RequestParam(required = false) NotificationType type,
+            @RequestParam(required = false) NotificationSeverity severity,
+            @RequestParam(required = false) NotificationCategory category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        NotificationPageResponse response = notificationService.getByUser(id, status, type, page, size);
+        NotificationPageResponse response = notificationService.getByUser(id, status, type, severity, category, page, size);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -62,10 +66,12 @@ public class NotificationController {
     public ResponseEntity<NotificationPageResponse> getMyNotifications(
             @RequestParam(required = false) NotificationStatus status,
             @RequestParam(required = false) NotificationType type,
+            @RequestParam(required = false) NotificationSeverity severity,
+            @RequestParam(required = false) NotificationCategory category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Long userId = authenticatedUserProvider.getAuthenticatedUserId();
-        NotificationPageResponse response = notificationService.getByUser(userId, status, type, page, size);
+        NotificationPageResponse response = notificationService.getByUser(userId, status, type, severity, category, page, size);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

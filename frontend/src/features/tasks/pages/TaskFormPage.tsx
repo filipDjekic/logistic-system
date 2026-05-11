@@ -22,6 +22,7 @@ const defaultValues: TaskFormValues = {
   description: '',
   dueDate: '',
   priority: 'MEDIUM',
+  taskType: 'ADMIN',
   assignedEmployeeId: '',
   transportOrderId: '',
   stockMovementId: '',
@@ -65,6 +66,7 @@ export default function TaskFormPage({ mode }: Props) {
       description: taskQuery.data.description ?? '',
       dueDate: taskQuery.data.dueDate.slice(0, 16),
       priority: taskQuery.data.priority,
+      taskType: taskQuery.data.taskType ?? 'ADMIN',
       assignedEmployeeId: taskQuery.data.assignedEmployeeId,
       transportOrderId: taskQuery.data.transportOrderId ?? '',
       stockMovementId: taskQuery.data.stockMovementId ?? '',
@@ -163,6 +165,27 @@ export default function TaskFormPage({ mode }: Props) {
             <Grid size={{ xs: 12 }}>
               <FormTextField name="description" control={control} label="Description" multiline minRows={3} />
             </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="taskType"
+                control={control}
+                label="Task type"
+                required
+                rules={{ required: 'Task type is required' }}
+                options={[
+                  { value: 'ADMIN', label: 'Admin' },
+                  { value: 'PICKING', label: 'Picking' },
+                  { value: 'PACKING', label: 'Packing' },
+                  { value: 'LOADING', label: 'Loading' },
+                  { value: 'DRIVING', label: 'Driving' },
+                  { value: 'UNLOADING', label: 'Unloading' },
+                  { value: 'COUNTING', label: 'Counting' },
+                  { value: 'MAINTENANCE', label: 'Maintenance' },
+                  { value: 'STOCK_MOVEMENT', label: 'Stock movement' },
+                ]}
+              />
+            </Grid>
+
 
             <Grid size={{ xs: 12, md: 6 }}>
               <FormDatePicker name="dueDate" control={control} label="Due date" required rules={{ required: 'Due date is required' }} />
@@ -193,6 +216,7 @@ export default function TaskFormPage({ mode }: Props) {
                   description: values.description || undefined,
                   dueDate: values.dueDate,
                   priority: values.priority,
+                  taskType: values.taskType,
                   assignedEmployeeId: Number(values.assignedEmployeeId),
                   transportOrderId: values.transportOrderId === '' ? null : Number(values.transportOrderId),
                   stockMovementId: values.stockMovementId === '' ? null : Number(values.stockMovementId),

@@ -340,8 +340,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     }
 
     private void validateTransportOrderEditable(TransportOrder transportOrder) {
-        if (transportOrder.getStatus() != TransportOrderStatus.CREATED) {
-            throw new BadRequestException("Items can only be modified while transport order is in CREATED status");
+        if (transportOrder.getStatus() != TransportOrderStatus.CREATED && transportOrder.getStatus() != TransportOrderStatus.DRAFT) {
+            throw new BadRequestException("Items can only be modified while transport order is in DRAFT/CREATED status");
         }
     }
 

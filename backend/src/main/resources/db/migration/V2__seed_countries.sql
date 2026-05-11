@@ -27,20 +27,20 @@ USING (VALUES
     ('JP', 'JPN', '392', 'Japan', '+81', 'JPY', 'Yen', CAST(0 AS bit), CAST(1 AS bit)),
     ('AE', 'ARE', '784', 'United Arab Emirates', '+971', 'AED', 'Dirham', CAST(0 AS bit), CAST(1 AS bit)),
     ('ZA', 'ZAF', '710', 'South Africa', '+27', 'ZAR', 'Rand', CAST(0 AS bit), CAST(1 AS bit))
-) AS source (code, codeThree, numeric_code, name, phoneCode, currencyCode, currency_name, euMember, active)
+) AS source (code, code_three, numeric_code, name, phone_code, currency_code, currency_name, eu_member, active)
 ON target.code = source.code
 WHEN MATCHED THEN UPDATE SET
-    target.code_three = source.codeThree,
+    target.code_three = source.code_three,
     target.numeric_code = source.numeric_code,
     target.name = source.name,
-    target.phone_code = source.phoneCode,
-    target.currency_code = source.currencyCode,
+    target.phone_code = source.phone_code,
+    target.currency_code = source.currency_code,
     target.currency_name = source.currency_name,
-    target.eu_member = source.euMember,
+    target.eu_member = source.eu_member,
     target.active = source.active
 WHEN NOT MATCHED THEN INSERT
     (code, code_three, numeric_code, name, phone_code, currency_code, currency_name, eu_member, active)
 VALUES
-    (source.code, source.codeThree, source.numeric_code, source.name, source.phoneCode, source.currencyCode, source.currency_name, source.euMember, source.active);
+    (source.code, source.code_three, source.numeric_code, source.name, source.phone_code, source.currency_code, source.currency_name, source.eu_member, source.active);
 
 COMMIT TRANSACTION;

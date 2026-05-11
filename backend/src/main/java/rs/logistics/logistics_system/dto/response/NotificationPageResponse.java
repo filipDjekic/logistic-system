@@ -20,4 +20,6 @@ public class NotificationPageResponse {
     private int totalPages;
     private boolean last;
     private long unreadCount;
+    private long criticalUnreadCount;
+    private long warningUnreadCount;
 }

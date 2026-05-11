@@ -33,6 +33,9 @@ public class ShiftUpdate {
     @Positive
     private Long timezoneId;
 
+    @Positive
+    private Long warehouseId;
+
     public ShiftUpdate(Long id, LocalDateTime startTime, LocalDateTime endTime, ShiftStatus status, String notes) {
         this.id = id;
         this.startTime = startTime;

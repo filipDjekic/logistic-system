@@ -16,6 +16,8 @@ public class ShiftResponse {
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private TemporalView startTimeView;
+    private TemporalView endTimeView;
     private ShiftStatus status;
     private String notes;
     private Long timezoneId;
@@ -24,4 +26,6 @@ public class ShiftResponse {
     private String timezone;
 
     private Long employeeId;
+    private Long warehouseId;
+    private String warehouseName;
 }

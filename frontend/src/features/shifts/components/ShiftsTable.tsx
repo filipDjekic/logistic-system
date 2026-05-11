@@ -3,6 +3,7 @@ import type { DataTableColumn } from '../../../shared/types/common.types';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { ShiftEmployeeOption, ShiftResponse } from '../types/shift.types';
 import ShiftStatusChip from './ShiftStatusChip';
+import { formatTemporalView } from '../../../core/utils/timezoneFormat';
 
 type ShiftsTableProps = {
   rows: ShiftResponse[];
@@ -17,9 +18,6 @@ type ShiftsTableProps = {
   showActions?: boolean;
 };
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString();
-}
 
 export default function ShiftsTable({
   rows,
@@ -66,14 +64,14 @@ export default function ShiftsTable({
       header: 'Start',
       minWidth: 180,
       nowrap: true,
-      render: (row) => formatDateTime(row.startTime),
+      render: (row) => formatTemporalView(row.startTimeView, row.startTime),
     },
     {
       id: 'endTime',
       header: 'End',
       minWidth: 180,
       nowrap: true,
-      render: (row) => formatDateTime(row.endTime),
+      render: (row) => formatTemporalView(row.endTimeView, row.endTime),
     },
     {
       id: 'status',

@@ -183,9 +183,16 @@ public class AppProperties {
 
         private static Map<String, List<String>> defaultTransportOrderTransitions() {
             Map<String, List<String>> transitions = new LinkedHashMap<>();
+            transitions.put("DRAFT", List.of("ASSIGNED", "CANCELLED"));
             transitions.put("CREATED", List.of("ASSIGNED", "CANCELLED"));
-            transitions.put("ASSIGNED", List.of("IN_TRANSIT", "CANCELLED"));
-            transitions.put("IN_TRANSIT", List.of("DELIVERED", "FAILED"));
+            transitions.put("ASSIGNED", List.of("PICKING", "CANCELLED"));
+            transitions.put("PICKING", List.of("PACKING", "CANCELLED"));
+            transitions.put("PACKING", List.of("READY_FOR_LOADING", "CANCELLED"));
+            transitions.put("READY_FOR_LOADING", List.of("LOADING", "CANCELLED"));
+            transitions.put("LOADING", List.of("IN_TRANSIT", "CANCELLED"));
+            transitions.put("IN_TRANSIT", List.of("DELIVERED", "RETURNING", "FAILED"));
+            transitions.put("RETURNING", List.of("FAILED"));
+            transitions.put("RESCHEDULED", List.of("ASSIGNED", "CANCELLED"));
             transitions.put("DELIVERED", List.of());
             transitions.put("FAILED", List.of());
             transitions.put("CANCELLED", List.of());

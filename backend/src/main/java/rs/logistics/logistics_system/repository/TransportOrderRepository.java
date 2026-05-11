@@ -29,6 +29,17 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     List<TransportOrder> findByStatus(TransportOrderStatus status);
 
+    @Query("""
+            select t
+            from TransportOrder t
+            join fetch t.createdBy createdBy
+            left join fetch createdBy.company company
+            left join fetch t.assignedEmployee assignedEmployee
+            left join fetch assignedEmployee.user assignedUser
+            where t.status in :statuses
+            """)
+    List<TransportOrder> findByStatusInWithNotificationContext(@Param("statuses") Collection<TransportOrderStatus> statuses);
+
     List<TransportOrder> findByStatusAndCreatedBy_Company_Id(TransportOrderStatus status, Long companyId);
 
     List<TransportOrder> findByVehicleId(Long vehicleId);
@@ -50,6 +61,14 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
     boolean existsByVehicleIdAndStatusInAndIdNot(Long vehicleId, List<TransportOrderStatus> status, Long id);
 
     boolean existsByAssignedEmployeeIdAndStatusInAndIdNot(Long employeeId, List<TransportOrderStatus> statuses, Long id);
+
+    List<TransportOrder> findByAssignedEmployeeIdAndDepartureTimeBetweenAndStatusIn(
+            Long assignedEmployeeId,
+            LocalDateTime start,
+            LocalDateTime end,
+            Collection<TransportOrderStatus> statuses
+    );
+
 
     List<TransportOrder> findBySourceWarehouseId(Long warehouseId);
 

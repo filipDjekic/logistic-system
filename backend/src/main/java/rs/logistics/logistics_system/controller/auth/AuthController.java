@@ -42,7 +42,7 @@ public class AuthController {
             throw new ResourceNotFoundException("Authenticated user not found");
         }
 
-        User user = userRepository.findByEmail(authentication.getName())
+        User user = userRepository.findByEmailWithRoleAndCompany(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Company company = user.getCompany();

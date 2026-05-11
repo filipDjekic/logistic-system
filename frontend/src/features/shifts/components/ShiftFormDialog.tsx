@@ -18,6 +18,7 @@ import type {
   ShiftResponse,
 } from '../types/shift.types';
 import { timezonesApi } from '../../timezones/api/timezonesApi';
+import { useWarehouses } from '../../warehouses/hooks/useWarehouses';
 import { shiftSchema, shiftStatusOptions, type ShiftSchemaValues } from '../validation/shiftSchema';
 
 type ShiftFormDialogProps = {
@@ -53,6 +54,7 @@ export default function ShiftFormDialog({
       notes: '',
       timezoneId: '',
       employeeId: '',
+      warehouseId: '',
     },
   });
 
@@ -69,6 +71,7 @@ export default function ShiftFormDialog({
         notes: initialData.notes ?? '',
         timezoneId: initialData.timezoneId ?? '',
         employeeId: initialData.employeeId,
+        warehouseId: initialData.warehouseId ?? '',
       });
 
       return;
@@ -81,10 +84,12 @@ export default function ShiftFormDialog({
       notes: '',
       timezoneId: '',
       employeeId: '',
+      warehouseId: '',
     });
   }, [form, initialData, mode, open]);
 
   const [timezones, setTimezones] = useState([] as { id: number; name: string; displayName: string }[]);
+  const warehousesQuery = useWarehouses({ active: true, status: 'ACTIVE', size: 200 }, open);
 
   useEffect(() => {
     if (!open) {
@@ -100,6 +105,11 @@ export default function ShiftFormDialog({
     })),
     [timezones],
   );
+
+  const warehouseOptions = (warehousesQuery.data?.content ?? []).map((warehouse) => ({
+    value: warehouse.id,
+    label: warehouse.companyName ? `${warehouse.name} (${warehouse.companyName})` : warehouse.name,
+  }));
 
   const employeeOptions = employees.map((employee) => ({
     value: employee.id,
@@ -153,6 +163,14 @@ export default function ShiftFormDialog({
             label="Timezone"
             options={timezoneOptions}
             required
+          />
+
+          <FormSelect
+            name="warehouseId"
+            control={form.control}
+            label="Warehouse"
+            options={[{ value: '', label: 'Use employee primary warehouse / no warehouse' }, ...warehouseOptions]}
+            helperText="Required for WORKER and WAREHOUSE_MANAGER shifts. Optional for driver/admin shifts."
           />
 
           <FormTextField

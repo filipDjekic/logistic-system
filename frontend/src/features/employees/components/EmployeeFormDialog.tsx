@@ -19,6 +19,7 @@ import FormTextField from '../../../shared/components/Form/Form';
 import type { CompanyResponse } from '../../companies/types/company.types';
 import { useCitiesByCountry } from '../../cities/hooks/useCities';
 import { useActiveCountries } from '../../countries/hooks/useCountries';
+import { useWarehouses } from '../../warehouses/hooks/useWarehouses';
 import type {
   EmployeeResponse,
   EmployeeRoleOption,
@@ -149,6 +150,7 @@ export default function EmployeeFormDialog({
   const selectedCountryId = useWatch({ control: form.control, name: 'countryId' });
   const selectedCityId = useWatch({ control: form.control, name: 'cityId' });
   const citiesQuery = useCitiesByCountry(Number(selectedCountryId) || null, open && Boolean(selectedCountryId));
+  const warehousesQuery = useWarehouses({ active: true, status: 'ACTIVE', size: 200 }, open);
 
   const positionOptions = useMemo(
     () =>
@@ -201,6 +203,16 @@ export default function EmployeeFormDialog({
       })),
     [companies],
   );
+
+  const warehouseOptions = useMemo(() => {
+    const selectedCompany = Number(selectedCompanyId) || initialData?.companyId || null;
+    return (warehousesQuery.data?.content ?? [])
+      .filter((warehouse) => !selectedCompany || warehouse.companyId === selectedCompany)
+      .map((warehouse) => ({
+        value: warehouse.id,
+        label: warehouse.companyName ? `${warehouse.name} (${warehouse.companyName})` : warehouse.name,
+      }));
+  }, [initialData?.companyId, selectedCompanyId, warehousesQuery.data?.content]);
 
   const selectedCompanyName = useMemo(() => {
     if (mode !== 'create') {
@@ -453,6 +465,18 @@ export default function EmployeeFormDialog({
                     step: '0.01',
                   },
                 }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="primaryWarehouseId"
+                control={form.control}
+                label="Primary warehouse"
+                options={warehouseOptions}
+                required={selectedPosition === 'WORKER'}
+                disabled={warehousesQuery.isLoading || warehouseOptions.length === 0 || (mode === 'edit' && !canEdit)}
+                helperText={selectedPosition === 'WORKER' ? 'Required for WORKER operational scope' : 'Optional base/operational warehouse'}
               />
             </Grid>
 

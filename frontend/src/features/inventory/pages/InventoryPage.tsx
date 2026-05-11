@@ -12,12 +12,18 @@ import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
+import OperationalMetrics from '../../../shared/components/OperationalMetrics/OperationalMetrics';
 import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { inventoryApi } from '../api/inventoryApi';
 import InventoryFilters from '../components/InventoryFilters';
 import InventoryTable from '../components/InventoryTable';
+import InventoryReservationDialog from '../components/InventoryReservationDialog';
 import { useInventory } from '../hooks/useInventory';
-import { useDeleteInventoryRecord } from '../hooks/useInventoryMutations';
+import {
+  useDeleteInventoryRecord,
+  useReleaseInventoryReservation,
+  useReserveInventoryStock,
+} from '../hooks/useInventoryMutations';
 import type { SortState } from '../../../shared/types/common.types';
 import type { InventoryFiltersState, InventoryListRow } from '../types/inventory.types';
 
@@ -40,6 +46,8 @@ export default function InventoryPage() {
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [sort, setSort] = useState<SortState>({ field: 'quantity', direction: 'desc' });
   const [deleteTarget, setDeleteTarget] = useState<InventoryListRow | null>(null);
+  const [reservationTarget, setReservationTarget] = useState<InventoryListRow | null>(null);
+  const [reservationMode, setReservationMode] = useState<'reserve' | 'release'>('reserve');
 
   const warehousesQuery = useQuery({
     queryKey: queryKeys.inventory.warehouses(),
@@ -64,17 +72,53 @@ export default function InventoryPage() {
   );
   const rows = inventoryQuery.data?.content ?? [];
   const deleteInventoryMutation = useDeleteInventoryRecord();
+  const reserveInventoryMutation = useReserveInventoryStock();
+  const releaseReservationMutation = useReleaseInventoryReservation();
 
   const isLoadingLookups = warehousesQuery.isLoading || productsQuery.isLoading;
   const hasLookupError = warehousesQuery.isError || productsQuery.isError;
 
   const statusOverviewItems = useMemo(
-    () => ['LOW_STOCK', 'SUFFICIENT'].map((status) => ({
+    () => ['LOW_STOCK', 'RESERVED', 'OUT_OF_STOCK', 'AVAILABLE', 'SUFFICIENT'].map((status) => ({
       value: status,
       count: rows.filter((row) => row.derivedStatus === status).length,
     })),
     [rows],
   );
+
+  const inventoryMetrics = useMemo(() => {
+    const totalQuantity = rows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0);
+    const reservedQuantity = rows.reduce((sum, row) => sum + Number(row.reservedQuantity ?? 0), 0);
+    const availableQuantity = rows.reduce((sum, row) => sum + Number(row.availableQuantity ?? 0), 0);
+    const reservedRows = rows.filter((row) => Number(row.reservedQuantity ?? 0) > 0).length;
+    const lowStockRows = rows.filter((row) => row.derivedStatus === 'LOW_STOCK').length;
+    const outOfStockRows = rows.filter((row) => row.derivedStatus === 'OUT_OF_STOCK').length;
+    const reservationRate = totalQuantity > 0 ? Math.round((reservedQuantity / totalQuantity) * 100) : 0;
+
+    return [
+      {
+        label: 'Available stock',
+        value: availableQuantity.toLocaleString(),
+        helper: `${reservedQuantity.toLocaleString()} reserved from ${totalQuantity.toLocaleString()} total`,
+        tone: availableQuantity > 0 ? 'success' as const : 'error' as const,
+        status: availableQuantity > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
+      },
+      {
+        label: 'Reservation rate',
+        value: `${reservationRate}%`,
+        helper: `${reservedRows} rows currently have reserved stock`,
+        tone: reservedQuantity > 0 ? 'info' as const : 'neutral' as const,
+        status: reservedQuantity > 0 ? 'RESERVED' : null,
+      },
+      {
+        label: 'Low stock rows',
+        value: lowStockRows,
+        helper: `${outOfStockRows} rows are out of stock on current page`,
+        tone: lowStockRows > 0 ? 'warning' as const : 'success' as const,
+        status: lowStockRows > 0 ? 'LOW_STOCK' : 'SUFFICIENT',
+      },
+    ];
+  }, [rows]);
 
   const setupItems = [
     {
@@ -153,6 +197,8 @@ export default function InventoryPage() {
         }
       />
 
+      <OperationalMetrics items={inventoryMetrics} />
+
       <TableLayout
         title="Inventory overview"
         description="Inventory search and filters are applied on the backend."
@@ -200,6 +246,14 @@ export default function InventoryPage() {
             }}
             onEdit={(row) => navigate(`/inventory/${row.warehouseId}/${row.productId}/edit`)}
             onDelete={(row) => setDeleteTarget(row)}
+            onReserve={(row) => {
+              setReservationMode('reserve');
+              setReservationTarget(row);
+            }}
+            onReleaseReservation={(row) => {
+              setReservationMode('release');
+              setReservationTarget(row);
+            }}
             canManage={canManage}
             pagination={
               <ServerTablePagination
@@ -213,6 +267,35 @@ export default function InventoryPage() {
             onSortChange={handleSortChange}
           />
         }
+      />
+
+
+      <InventoryReservationDialog
+        open={reservationTarget !== null}
+        mode={reservationMode}
+        row={reservationTarget}
+        loading={reserveInventoryMutation.isPending || releaseReservationMutation.isPending}
+        onClose={() => setReservationTarget(null)}
+        onSubmit={({ quantity, note }) => {
+          if (!reservationTarget) {
+            return;
+          }
+
+          const payload = {
+            warehouseId: reservationTarget.warehouseId,
+            productId: reservationTarget.productId,
+            quantity,
+            note,
+          };
+
+          const mutation = reservationMode === 'reserve'
+            ? reserveInventoryMutation
+            : releaseReservationMutation;
+
+          mutation.mutate(payload, {
+            onSuccess: () => setReservationTarget(null),
+          });
+        }}
       />
 
       <ConfirmDialog

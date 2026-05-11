@@ -22,9 +22,9 @@ import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.CityServiceDefinition;
 import rs.logistics.logistics_system.service.definition.CompanyRegistrationRequestServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -44,6 +44,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     private final AuditFacadeDefinition auditFacade;
     private final CityServiceDefinition cityService;
     private final TimezoneServiceDefinition timezoneService;
+    private final TimeServiceDefinition timeService;
 
     @Override
     @Transactional
@@ -139,7 +140,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         Employee savedAdminEmployee = employeeRepository.save(adminEmployee);
 
         request.setStatus(CompanyRegistrationRequestStatus.APPROVED);
-        request.setReviewedAt(LocalDateTime.now());
+        request.setReviewedAt(timeService.nowSystem());
         request.setReviewedBy(resolveCurrentUser());
         request.setCreatedCompany(savedCompany);
         CompanyRegistrationRequest savedRequest = requestRepository.save(request);
@@ -162,7 +163,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         CompanyRegistrationRequest request = getRequired(id);
         ensureSubmitted(request);
         request.setStatus(CompanyRegistrationRequestStatus.REJECTED);
-        request.setReviewedAt(LocalDateTime.now());
+        request.setReviewedAt(timeService.nowSystem());
         request.setReviewedBy(resolveCurrentUser());
         request.setRejectionReason(dto.getRejectionReason());
         CompanyRegistrationRequest saved = requestRepository.save(request);
@@ -181,7 +182,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         CompanyRegistrationRequest request = getRequired(id);
         ensureSubmitted(request);
         request.setStatus(CompanyRegistrationRequestStatus.CANCELLED);
-        request.setReviewedAt(LocalDateTime.now());
+        request.setReviewedAt(timeService.nowSystem());
         CompanyRegistrationRequest saved = requestRepository.save(request);
         auditFacade.recordStatusChange("COMPANY_REGISTRATION_REQUEST", saved.getId(), saved.getCompanyName(),
                 "status", CompanyRegistrationRequestStatus.SUBMITTED, CompanyRegistrationRequestStatus.CANCELLED);

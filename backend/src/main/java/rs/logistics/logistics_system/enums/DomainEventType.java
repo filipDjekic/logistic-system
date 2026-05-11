@@ -1,0 +1,14 @@
+package rs.logistics.logistics_system.enums;
+
+public enum DomainEventType {
+    COMMENT_CREATED,
+    COMMENT_DELETED,
+    ATTACHMENT_ADDED,
+    ATTACHMENT_REMOVED,
+    TRANSPORT_LIFECYCLE,
+    INVENTORY_LIFECYCLE,
+    TASK_LIFECYCLE,
+    SHIFT_LIFECYCLE,
+    VEHICLE_MAINTENANCE,
+    SYSTEM_EVENT
+}

@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.service.implementation;
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
+import rs.logistics.logistics_system.service.support.DomainScopeValidator;
 
 import java.text.Normalizer;
 import java.util.List;
@@ -72,6 +73,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final RolePositionPolicy rolePositionPolicy;
+    private final DomainScopeValidator domainScopeValidator;
 
     @Override
     @Transactional
@@ -92,6 +94,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
         employee.setCompany(targetCompany);
         applyEmployeeLocationDefaults(employee, dto.getCountryId(), dto.getCityId(), dto.getPrimaryWarehouseId(), targetCompany);
         applyRequestedEmployeeTimezone(employee, dto.getTimezoneId());
+        domainScopeValidator.ensureEmployeeLocationConsistency(employee);
+        domainScopeValidator.ensureEmployeeCanBelongToPrimaryWarehouse(employee);
 
         Employee saved = _employeeRepository.save(employee);
 
@@ -156,6 +160,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
         employee.setPostalCode(dto.getPostalCode());
         applyEmployeeLocationDefaults(employee, dto.getCountryId(), dto.getCityId(), dto.getPrimaryWarehouseId(), company);
         applyRequestedEmployeeTimezone(employee, dto.getTimezoneId());
+        domainScopeValidator.ensureEmployeeLocationConsistency(employee);
+        domainScopeValidator.ensureEmployeeCanBelongToPrimaryWarehouse(employee);
 
         Employee savedEmployee = _employeeRepository.save(employee);
 
@@ -217,6 +223,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
         EmployeeMapper.updateEntity(dto, employee, user, null);
         applyEmployeeLocationDefaults(employee, dto.getCountryId(), dto.getCityId(), dto.getPrimaryWarehouseId(), employee.getCompany());
         applyRequestedEmployeeTimezone(employee, dto.getTimezoneId());
+        domainScopeValidator.ensureEmployeeLocationConsistency(employee);
+        domainScopeValidator.ensureEmployeeCanBelongToPrimaryWarehouse(employee);
 
         Employee updated = _employeeRepository.save(employee);
 

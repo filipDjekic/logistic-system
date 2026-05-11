@@ -11,6 +11,7 @@ import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
+import OperationalMetrics from '../../../shared/components/OperationalMetrics/OperationalMetrics';
 import { useUpdateUser } from '../../users/hooks/useUpdateUser';
 import EmployeeFormDialog from '../components/EmployeeFormDialog';
 import EmployeesTable from '../components/EmployeesTable';
@@ -128,6 +129,40 @@ export default function EmployeesPage() {
     createEmployeeMutation.isPending ||
     updateEmployeeMutation.isPending ||
     updateUserMutation.isPending;
+
+  const rows = employeesQuery.data?.content ?? [];
+
+  const employeeMetrics = useMemo(() => {
+    const activeEmployees = rows.filter((employee) => employee.active).length;
+    const drivers = rows.filter((employee) => employee.position === 'DRIVER').length;
+    const workers = rows.filter((employee) => employee.position === 'WORKER').length;
+    const warehouseManagers = rows.filter((employee) => employee.position === 'WAREHOUSE_MANAGER').length;
+    const employeesWithoutWarehouse = rows.filter((employee) =>
+      (employee.position === 'WORKER' || employee.position === 'WAREHOUSE_MANAGER') && !employee.primaryWarehouseId,
+    ).length;
+
+    return [
+      {
+        label: 'Active workforce',
+        value: activeEmployees,
+        helper: `${rows.length - activeEmployees} inactive employees on current page`,
+        tone: activeEmployees > 0 ? 'success' as const : 'warning' as const,
+        status: activeEmployees > 0 ? 'ACTIVE' : 'INACTIVE',
+      },
+      {
+        label: 'Operations roles',
+        value: drivers + workers + warehouseManagers,
+        helper: `${drivers} drivers · ${workers} workers · ${warehouseManagers} managers`,
+        tone: 'info' as const,
+      },
+      {
+        label: 'Warehouse scope gaps',
+        value: employeesWithoutWarehouse,
+        helper: 'Workers/managers without primary warehouse on current page',
+        tone: employeesWithoutWarehouse > 0 ? 'warning' as const : 'success' as const,
+      },
+    ];
+  }, [rows]);
 
   useEffect(() => {
     if (searchParams.get('create') !== '1' || !canCreateEmployees || rolesQuery.isLoading || rolesQuery.isError || dialogOpen) {
@@ -268,6 +303,8 @@ export default function EmployeesPage() {
         }
       />
 
+      <OperationalMetrics items={employeeMetrics} />
+
       <TableLayout
         title="Employee list"
         toolbar={
@@ -341,7 +378,7 @@ export default function EmployeesPage() {
         }
         table={
           <EmployeesTable
-            rows={employeesQuery.data?.content ?? []}
+            rows={rows}
             usersById={usersById}
             loading={employeesQuery.isLoading || usersQuery.isLoading || rolesQuery.isLoading}
             error={employeesQuery.isError || usersQuery.isError || rolesQuery.isError}

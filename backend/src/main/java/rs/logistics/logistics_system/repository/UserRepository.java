@@ -48,6 +48,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findAllByCompany_Id(Long companyId);
 
+    List<User> findByCompany_IdAndRole_NameIgnoreCaseAndEnabledTrue(Long companyId, String roleName);
+
     Page<User> findAllByCompany_Id(Long companyId, Pageable pageable);
 
     List<User> findByStatusAndCompany_Id(UserStatus status, Long companyId);
@@ -56,4 +58,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("select u.status, count(u) from User u group by u.status")
     List<Object[]> countGroupedByStatus();
+
+    @Query("""
+        select u
+        from User u
+        left join fetch u.role
+        left join fetch u.company
+        where lower(u.email) = lower(:email)
+        """)
+        Optional<User> findByEmailWithRoleAndCompany(@Param("email") String email);
 }

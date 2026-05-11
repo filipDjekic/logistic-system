@@ -29,6 +29,13 @@ export type WarehouseInventoryUpdateRequest = {
   minStockLevel: number;
 };
 
+export type StockReservationRequest = {
+  warehouseId: number;
+  productId: number;
+  quantity: number;
+  note?: string;
+};
+
 export type InventoryWarehouseOption = {
   id: number;
   name: string;
@@ -52,7 +59,7 @@ export type InventoryProductOption = {
   weight: number;
 };
 
-export type DerivedInventoryStatus = 'LOW_STOCK' | 'SUFFICIENT';
+export type DerivedInventoryStatus = 'LOW_STOCK' | 'SUFFICIENT' | 'RESERVED' | 'OUT_OF_STOCK' | 'AVAILABLE';
 
 export type InventoryListRow = WarehouseInventoryResponse & {
   warehouseName: string;

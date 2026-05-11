@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
+import rs.logistics.logistics_system.enums.TaskType;
 
 import java.time.LocalDateTime;
 
@@ -22,7 +23,8 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_tasks_transport_order_id", columnList = "transport_order_id"),
                 @Index(name = "idx_tasks_stock_movement_id", columnList = "stock_movement_id"),
                 @Index(name = "idx_tasks_assignee_status_priority", columnList = "assigned_employee_id, status, priority"),
-                @Index(name = "idx_tasks_due_date_status", columnList = "due_date, status")
+                @Index(name = "idx_tasks_due_date_status", columnList = "due_date, status"),
+                @Index(name = "idx_tasks_type_status", columnList = "task_type, status")
         }
 )
 @Getter
@@ -52,6 +54,22 @@ public class Task {
     @Column(name = "status", nullable = false, length = 20)
     private TaskStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_type", nullable = false, length = 30)
+    private TaskType taskType = TaskType.ADMIN;
+
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "cancel_reason", length = 255)
+    private String cancelReason;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -73,10 +91,15 @@ public class Task {
     private StockMovement stockMovement;
 
     public Task(String title, String description, LocalDateTime dueDate, TaskPriority priority, Employee assignedEmployee, TransportOrder transportOrder, StockMovement stockMovement) {
+        this(title, description, dueDate, priority, TaskType.ADMIN, assignedEmployee, transportOrder, stockMovement);
+    }
+
+    public Task(String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskType taskType, Employee assignedEmployee, TransportOrder transportOrder, StockMovement stockMovement) {
         this.title = title;
         this.description = description;
         this.dueDate = dueDate;
         this.priority = priority;
+        this.taskType = taskType != null ? taskType : TaskType.ADMIN;
         this.assignedEmployee = assignedEmployee;
         this.transportOrder = transportOrder;
         this.stockMovement = stockMovement;

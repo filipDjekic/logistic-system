@@ -14,7 +14,12 @@ public class NotificationMapper {
                 dto.getMessage(),
                 dto.getType(),
                 NotificationStatus.UNREAD,
-                user
+                user,
+                dto.getSeverity(),
+                dto.getCategory(),
+                dto.getSourceType(),
+                dto.getSourceId(),
+                dto.getDedupKey()
         );
         return notification;
     }
@@ -26,6 +31,12 @@ public class NotificationMapper {
                 notification.getMessage(),
                 notification.getType(),
                 notification.getStatus(),
+                notification.getSeverity(),
+                notification.getCategory(),
+                notification.getSourceType(),
+                notification.getSourceId(),
+                notification.getDedupKey(),
+                notification.getEscalatedAt(),
                 notification.getUser().getId(),
                 notification.getCreatedAt()
         );

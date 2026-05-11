@@ -10,6 +10,7 @@ import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
+import OperationalMetrics from '../../../shared/components/OperationalMetrics/OperationalMetrics';
 import WarehousesTable from '../components/WarehousesTable';
 import {
   useDeleteWarehouse,
@@ -69,6 +70,37 @@ export default function WarehousesPage() {
 
   const rows = warehousesQuery.data?.content ?? [];
 
+  const warehouseMetrics = useMemo(() => {
+    const activeCount = rows.filter((warehouse) => warehouse.active && warehouse.status === 'ACTIVE').length;
+    const inactiveCount = rows.filter((warehouse) => !warehouse.active || warehouse.status === 'INACTIVE').length;
+    const maintenanceCount = rows.filter((warehouse) => warehouse.status === 'UNDER_MAINTENANCE').length;
+    const fullCount = rows.filter((warehouse) => warehouse.status === 'FULL').length;
+    const totalCapacity = rows.reduce((sum, warehouse) => sum + Number(warehouse.capacity ?? 0), 0);
+
+    return [
+      {
+        label: 'Operational warehouses',
+        value: activeCount,
+        helper: `${inactiveCount} inactive on current page`,
+        tone: activeCount > 0 ? 'success' as const : 'warning' as const,
+        status: activeCount > 0 ? 'ACTIVE' : 'INACTIVE',
+      },
+      {
+        label: 'Capacity view',
+        value: totalCapacity.toLocaleString(),
+        helper: `${rows.length} warehouse records loaded`,
+        tone: 'info' as const,
+      },
+      {
+        label: 'Attention needed',
+        value: maintenanceCount + fullCount,
+        helper: `${maintenanceCount} maintenance · ${fullCount} full`,
+        tone: maintenanceCount + fullCount > 0 ? 'warning' as const : 'success' as const,
+        status: maintenanceCount > 0 ? 'UNDER_MAINTENANCE' : fullCount > 0 ? 'FULL' : 'ACTIVE',
+      },
+    ];
+  }, [rows]);
+
   return (
     <Stack spacing={3}>
       <PageHeader
@@ -86,6 +118,8 @@ export default function WarehousesPage() {
           ) : null
         }
       />
+
+      <OperationalMetrics items={warehouseMetrics} />
 
       <TableLayout
         title="Warehouse list"

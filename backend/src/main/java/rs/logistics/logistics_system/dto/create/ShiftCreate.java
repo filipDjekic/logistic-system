@@ -35,6 +35,9 @@ public class ShiftCreate {
     @Positive
     private Long employeeId;
 
+    @Positive
+    private Long warehouseId;
+
     public ShiftCreate(LocalDateTime startTime,
                        LocalDateTime endTime,
                        ShiftStatus status,

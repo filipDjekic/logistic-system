@@ -26,6 +26,12 @@ export const shiftSchema = z
         z.number().positive('Employee is required'),
         z.literal(''),
       ]),
+    warehouseId: z
+      .union([
+        z.number().positive('Warehouse must be a positive number'),
+        z.literal(''),
+      ])
+      .optional(),
   })
   .superRefine((values, context) => {
     if (!values.startTime || !values.endTime) {

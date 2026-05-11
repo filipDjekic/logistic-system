@@ -29,7 +29,7 @@ function formatCapacity(value: number) {
 function getAllowedNextStatuses(status: VehicleStatus): VehicleStatus[] {
   switch (status) {
     case 'AVAILABLE':
-      return ['IN_USE', 'MAINTENANCE', 'OUT_OF_SERVICE'];
+      return ['MAINTENANCE', 'OUT_OF_SERVICE'];
     case 'IN_USE':
       return ['AVAILABLE'];
     case 'MAINTENANCE':
@@ -116,9 +116,14 @@ export default function VehicleDetailsPage() {
           overline="Fleet"
           title="Vehicle details"
           actions={
-            <Button variant="outlined" onClick={() => navigate('/vehicles')}>
-              Back to list
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" onClick={() => navigate('/vehicle-maintenance')}>
+                Maintenance
+              </Button>
+              <Button variant="outlined" onClick={() => navigate('/vehicles')}>
+                Back to list
+              </Button>
+            </Stack>
           }
         />
         <SectionCard>
@@ -154,9 +159,14 @@ export default function VehicleDetailsPage() {
             >
               View history
             </Button>
-            <Button variant="outlined" onClick={() => navigate('/vehicles')}>
-              Back to list
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" onClick={() => navigate('/vehicle-maintenance')}>
+                Maintenance
+              </Button>
+              <Button variant="outlined" onClick={() => navigate('/vehicles')}>
+                Back to list
+              </Button>
+            </Stack>
           </Stack>
         }
       />

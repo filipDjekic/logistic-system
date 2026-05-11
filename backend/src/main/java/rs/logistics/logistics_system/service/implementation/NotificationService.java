@@ -16,6 +16,9 @@ import rs.logistics.logistics_system.entity.Notification;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.NotificationStatus;
 import rs.logistics.logistics_system.enums.NotificationType;
+import rs.logistics.logistics_system.enums.NotificationSeverity;
+import rs.logistics.logistics_system.enums.NotificationCategory;
+import rs.logistics.logistics_system.enums.NotificationSourceType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -86,6 +89,12 @@ public class NotificationService implements NotificationServiceDefinition {
     @Override
     @Transactional(readOnly = true)
     public NotificationPageResponse getByUser(Long userId, NotificationStatus status, NotificationType type, int page, int size) {
+        return getByUser(userId, status, type, null, null, page, size);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public NotificationPageResponse getByUser(Long userId, NotificationStatus status, NotificationType type, NotificationSeverity severity, NotificationCategory category, int page, int size) {
         validateUserAccess(userId);
 
         Long companyId = authenticatedUserProvider.isOverlord()
@@ -98,12 +107,22 @@ public class NotificationService implements NotificationServiceDefinition {
                 companyId,
                 status,
                 type,
+                severity,
+                category,
                 pageable
         );
 
         long unreadCount = companyId == null
                 ? _notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD)
                 : _notificationRepository.countByUserIdAndStatusAndUser_Company_Id(userId, NotificationStatus.UNREAD, companyId);
+
+        long criticalUnreadCount = companyId == null
+                ? _notificationRepository.countByUserIdAndStatusAndSeverity(userId, NotificationStatus.UNREAD, NotificationSeverity.CRITICAL)
+                : _notificationRepository.countByUserIdAndStatusAndSeverityAndUser_Company_Id(userId, NotificationStatus.UNREAD, NotificationSeverity.CRITICAL, companyId);
+
+        long warningUnreadCount = companyId == null
+                ? _notificationRepository.countByUserIdAndStatusAndSeverity(userId, NotificationStatus.UNREAD, NotificationSeverity.WARNING)
+                : _notificationRepository.countByUserIdAndStatusAndSeverityAndUser_Company_Id(userId, NotificationStatus.UNREAD, NotificationSeverity.WARNING, companyId);
 
         List<NotificationResponse> items = notificationPage.getContent()
                 .stream()
@@ -117,7 +136,9 @@ public class NotificationService implements NotificationServiceDefinition {
                 notificationPage.getTotalElements(),
                 notificationPage.getTotalPages(),
                 notificationPage.isLast(),
-                unreadCount
+                unreadCount,
+                criticalUnreadCount,
+                warningUnreadCount
         );
     }
 
@@ -138,6 +159,40 @@ public class NotificationService implements NotificationServiceDefinition {
     @Transactional
     public NotificationResponse createSystemNotification(Long userId, String title, String message, NotificationType type) {
         User user = getAccessibleUserForNotificationTarget(userId);
+
+        return createOperationalNotification(
+                userId,
+                title,
+                message,
+                type,
+                null,
+                NotificationCategory.GENERAL,
+                NotificationSourceType.SYSTEM,
+                null,
+                "SYSTEM:" + userId + ":" + title + ":" + message
+        );
+    }
+
+    @Override
+    @Transactional
+    public NotificationResponse createOperationalNotification(Long userId,
+                                                             String title,
+                                                             String message,
+                                                             NotificationType type,
+                                                             NotificationSeverity severity,
+                                                             NotificationCategory category,
+                                                             NotificationSourceType sourceType,
+                                                             Long sourceId,
+                                                             String dedupKey) {
+        User user = _userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        String normalizedDedupKey = hasText(dedupKey) ? dedupKey.trim() : null;
+        if (normalizedDedupKey != null) {
+            return _notificationRepository.findFirstByUserIdAndDedupKeyAndStatus(userId, normalizedDedupKey, NotificationStatus.UNREAD)
+                    .map(NotificationMapper::toResponse)
+                    .orElseGet(() -> saveOperationalNotification(user, title, message, type, severity, category, sourceType, sourceId, normalizedDedupKey));
+        }
 
         boolean duplicateUnreadExists = _notificationRepository.existsByUserIdAndTitleAndMessageAndTypeAndStatus(
                 userId,
@@ -160,16 +215,39 @@ public class NotificationService implements NotificationServiceDefinition {
             return NotificationMapper.toResponse(existing);
         }
 
+        return saveOperationalNotification(user, title, message, type, severity, category, sourceType, sourceId, null);
+    }
+
+    private NotificationResponse saveOperationalNotification(User user,
+                                                            String title,
+                                                            String message,
+                                                            NotificationType type,
+                                                            NotificationSeverity severity,
+                                                            NotificationCategory category,
+                                                            NotificationSourceType sourceType,
+                                                            Long sourceId,
+                                                            String dedupKey) {
         Notification notification = new Notification(
                 title,
                 message,
                 type,
                 NotificationStatus.UNREAD,
-                user
+                user,
+                severity,
+                category,
+                sourceType,
+                sourceId,
+                dedupKey
         );
-
+        if (notification.getSeverity() == NotificationSeverity.CRITICAL || notification.getSeverity() == NotificationSeverity.WARNING) {
+            notification.markEscalated();
+        }
         Notification saved = _notificationRepository.save(notification);
         return NotificationMapper.toResponse(saved);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private User getAccessibleUserForNotificationTarget(Long userId) {

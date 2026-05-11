@@ -37,7 +37,7 @@ export function useNotificationLiveUpdates(unreadCount: number | undefined) {
         lastToastedNotificationIdRef.current = latestNotification.id;
         showSnackbar({
           message: latestNotification.title || 'New notification',
-          severity: latestNotification.type === 'ERROR' ? 'error' : latestNotification.type === 'WARNING' ? 'warning' : 'info',
+          severity: latestNotification.severity === 'CRITICAL' || latestNotification.type === 'ERROR' ? 'error' : latestNotification.severity === 'WARNING' || latestNotification.type === 'WARNING' ? 'warning' : 'info',
         });
       })
       .catch(() => {

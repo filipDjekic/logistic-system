@@ -24,7 +24,7 @@ import {
 } from '../api/reportsApi';
 import ReportDataTable from '../components/ReportDataTable';
 
-const movementTypeOptions = ['ALL', 'INBOUND', 'OUTBOUND', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT', 'WRITE_OFF', 'RETURN_IN', 'RETURN_OUT'] as const;
+const movementTypeOptions = ['ALL', 'INBOUND', 'OUTBOUND', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT', 'WRITE_OFF', 'RETURN_IN', 'RETURN_OUT', 'RESERVATION', 'RESERVATION_RELEASE'] as const;
 
 function toDateTimeStartParam(value: string) {
   return value ? `${value}T00:00:00` : undefined;

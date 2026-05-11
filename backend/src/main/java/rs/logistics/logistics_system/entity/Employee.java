@@ -135,6 +135,9 @@ public class Employee {
     @OneToMany(mappedBy = "manager")
     private List<Warehouse> managedWarehouses = new ArrayList<>();
 
+    @OneToMany(mappedBy = "employee")
+    private List<EmployeeWarehouseAssignment> warehouseAssignments = new ArrayList<>();
+
     public Employee(String firstName,
                     String lastName,
                     String jmbg,

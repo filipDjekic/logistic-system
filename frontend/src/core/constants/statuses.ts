@@ -56,6 +56,14 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   WARNING: { label: 'Warning', tone: 'warning' },
   ERROR: { label: 'Error', tone: 'error' },
   SUCCESS: { label: 'Success', tone: 'success' },
+  CRITICAL: { label: 'Critical', tone: 'error' },
+  GENERAL: { label: 'General', tone: 'neutral' },
+  TRANSPORT: { label: 'Transport', tone: 'primary' },
+  INVENTORY: { label: 'Inventory', tone: 'warning' },
+  TASK: { label: 'Task', tone: 'info' },
+  SHIFT: { label: 'Shift', tone: 'info' },
+  WAREHOUSE: { label: 'Warehouse', tone: 'primary' },
+  SECURITY: { label: 'Security', tone: 'error' },
 
   // PriorityLevel / TaskPriority
   LOW: { label: 'Low', tone: 'neutral' },
@@ -78,10 +86,15 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   WRITE_OFF: { label: 'Write-off', tone: 'error' },
   RETURN_IN: { label: 'Return In', tone: 'success' },
   RETURN_OUT: { label: 'Return Out', tone: 'warning' },
+  RESERVATION: { label: 'Reservation', tone: 'info' },
+  RESERVATION_RELEASE: { label: 'Reservation Release', tone: 'neutral' },
 
   // Derived inventory UI status
   LOW_STOCK: { label: 'Low Stock', tone: 'warning' },
   SUFFICIENT: { label: 'Sufficient', tone: 'success' },
+  RESERVED: { label: 'Reserved', tone: 'info' },
+  OUT_OF_STOCK: { label: 'Out of Stock', tone: 'error' },
+  AVAILABLE: { label: 'Available', tone: 'success' },
 };
 
 export function getStatusConfig(value: string): StatusConfig {

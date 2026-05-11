@@ -7,6 +7,7 @@ import type { TaskResponse, TaskStatus } from '../types/task.types';
 import { canMutateManagedTask, getAllowedTaskStatusTransitions } from '../../../core/permissions/operationGuards';
 import type { Role } from '../../../core/constants/roles';
 import TaskStatusChip from './TaskStatusChip';
+import { formatTemporalView, formatTemporalZone } from '../../../core/utils/timezoneFormat';
 
 type Props = {
   rows: TaskResponse[];
@@ -63,6 +64,7 @@ export default function TasksTable({
         ),
     },
     { id: 'priority', header: 'Priority', accessor: 'priority', sortField: 'priority', minWidth: 120 },
+    { id: 'taskType', header: 'Type', accessor: 'taskType', sortField: 'taskType', minWidth: 140 },
     {
       id: 'status',
       sortField: 'status',
@@ -100,7 +102,7 @@ export default function TasksTable({
       sortField: 'dueDate',
       header: 'Due date',
       minWidth: 180,
-      render: (row) => new Date(row.dueDate).toLocaleString(),
+      render: (row) => `${formatTemporalView(row.dueDateView, row.dueDate)} (${formatTemporalZone(row.dueDateView, row.dueDateTimezone)})`,
     },
     {
       id: 'assignedEmployeeId',

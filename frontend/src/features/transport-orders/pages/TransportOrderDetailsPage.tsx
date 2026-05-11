@@ -17,6 +17,7 @@ import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import EmptyState from '../../../shared/components/EmptyState/EmptyState';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
+import OperationalTimeline from '../../../shared/components/OperationalTimeline/OperationalTimeline';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
@@ -31,6 +32,7 @@ import { useUpdateTransportOrder } from '../hooks/useUpdateTransportOrder';
 import { useTransportOrder } from '../hooks/useTransportOrder';
 import { useUpdateTransportOrderStatus } from '../hooks/useUpdateTransportOrderStatus';
 import { normalizeApiError } from '../../../core/api/apiError';
+import { formatTemporalView, formatTemporalZone } from '../../../core/utils/timezoneFormat';
 import type {
   EmployeeOption,
   ProductOption,
@@ -44,14 +46,6 @@ import {
   type TransportOrderItemSchemaValues,
 } from '../validation/transportOrderSchema';
 
-function formatDateTime(value: string | null) {
-  if (!value) {
-    return '—';
-  }
-
-  return new Date(value).toLocaleString();
-}
-
 function formatWeight(value: number | null) {
   if (value == null) {
     return '—';
@@ -62,12 +56,26 @@ function formatWeight(value: number | null) {
 
 function getStatusActionLabel(status: TransportOrderStatus) {
   switch (status) {
+    case 'ASSIGNED':
+      return 'Assign resources';
+    case 'PICKING':
+      return 'Start picking';
+    case 'PACKING':
+      return 'Start packing';
+    case 'READY_FOR_LOADING':
+      return 'Mark ready for loading';
+    case 'LOADING':
+      return 'Start loading';
     case 'IN_TRANSIT':
       return 'Start transport';
+    case 'RETURNING':
+      return 'Start return flow';
     case 'DELIVERED':
       return 'Complete transport';
     case 'FAILED':
       return 'Mark as failed';
+    case 'CANCELLED':
+      return 'Cancel transport';
     default:
       return `Set status to ${status}`;
   }
@@ -287,7 +295,7 @@ export default function TransportOrderDetailsPage() {
   }, [itemForm, selectedItem]);
 
   const transportOrder = transportOrderQuery.data;
-  const nextStatuses = transportOrder ? getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status) : [];
+  const nextStatuses = transportOrder?.allowedNextStatuses?.length ? transportOrder.allowedNextStatuses.filter((status) => getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status).includes(status)) : transportOrder ? getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status) : [];
   const isEditableItems = canMutateTransportOrderItems(currentRole, transportOrder);
   const isEditableOrder = canEditTransportOrder(currentRole, transportOrder);
 
@@ -478,14 +486,14 @@ export default function TransportOrderDetailsPage() {
                 <Typography variant="caption" color="text.secondary">
                   Order date
                 </Typography>
-                <Typography variant="body1">{formatDateTime(transportOrder.orderDate)}</Typography>
+                <Typography variant="body1">{formatTemporalView(transportOrder.orderDateView, transportOrder.orderDate)}</Typography>
               </Grid>
 
               <Grid size={{ xs: 12, md: 4 }}>
                 <Typography variant="caption" color="text.secondary">
                   Departure time
                 </Typography>
-                <Typography variant="body1">{formatDateTime(transportOrder.departureTime)}</Typography>
+                <Typography variant="body1">{formatTemporalView(transportOrder.departureTimeView, transportOrder.departureTime)} · {formatTemporalZone(transportOrder.departureTimeView, transportOrder.sourceTimezone)}</Typography>
               </Grid>
 
               <Grid size={{ xs: 12, md: 4 }}>
@@ -493,7 +501,7 @@ export default function TransportOrderDetailsPage() {
                   Planned arrival
                 </Typography>
                 <Typography variant="body1">
-                  {formatDateTime(transportOrder.plannedArrivalTime)}
+                  {formatTemporalView(transportOrder.plannedArrivalTimeView, transportOrder.plannedArrivalTime)} · {formatTemporalZone(transportOrder.plannedArrivalTimeView, transportOrder.destinationTimezone)}
                 </Typography>
               </Grid>
 
@@ -502,7 +510,7 @@ export default function TransportOrderDetailsPage() {
                   Actual arrival
                 </Typography>
                 <Typography variant="body1">
-                  {formatDateTime(transportOrder.actualArrivalTime)}
+                  {formatTemporalView(transportOrder.actualArrivalTimeView, transportOrder.actualArrivalTime)} · {formatTemporalZone(transportOrder.actualArrivalTimeView, transportOrder.destinationTimezone)}
                 </Typography>
               </Grid>
 
@@ -567,9 +575,24 @@ export default function TransportOrderDetailsPage() {
             )}
           </SectionCard>
 
+
+          <SectionCard title="Transport lifecycle" description="Operational status path from draft to delivery/failure.">
+            <OperationalTimeline
+              items={(transportOrder.timeline ?? []).map((entry) => ({
+                id: `${entry.status}-${entry.label}`,
+                status: entry.status,
+                title: entry.label,
+                description: entry.description,
+                timestamp: formatTemporalView(entry.timestampView, entry.timestamp),
+                completed: entry.completed,
+                current: entry.current,
+              }))}
+            />
+          </SectionCard>
+
           <SectionCard
             title="Item rules"
-            description="Item create, edit and remove is allowed only while status is CREATED."
+            description="Item create, edit and remove is allowed only while status is DRAFT/CREATED."
           >
             <Typography variant="body2" color="text.secondary">
               Current status: {transportOrder.status}

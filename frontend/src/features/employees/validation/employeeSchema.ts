@@ -106,6 +106,14 @@ export function getEmployeeFormSchema(
       }
     }
 
+    if (values.position === 'WORKER' && !values.primaryWarehouseId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['primaryWarehouseId'],
+        message: 'Primary warehouse is required for WORKER',
+      });
+    }
+
     if (!hasLinkedUser && mode === 'edit' && values.password.length > 0 && values.password.length < 8) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

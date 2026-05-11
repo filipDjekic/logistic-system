@@ -19,6 +19,8 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.report.EmployeeTaskReportServiceDefinition;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -87,16 +89,31 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
                 .map(task -> task.getAssignedEmployee().getId())
                 .collect(Collectors.toSet());
 
+        long activeEmployees = employees.stream().filter(employee -> Boolean.TRUE.equals(employee.getActive())).count();
+        long completedTasks = tasks.stream().filter(task -> task.getStatus() == TaskStatus.COMPLETED).count();
+        long openTasks = tasks.stream().filter(task -> isOpenTask(task)).count();
+        long overdueOpenTasks = tasks.stream().filter(task -> isOverdueOpenTask(task, now)).count();
+        long activeOrPlannedShifts = shifts.stream()
+                .filter(shift -> shift.getStatus() == ShiftStatus.ACTIVE || shift.getStatus() == ShiftStatus.PLANNED)
+                .map(shift -> shift.getEmployee() != null ? shift.getEmployee().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
         return new EmployeeTaskReportResponse(
                 fromDate,
                 toDate,
                 employees.size(),
-                employees.stream().filter(employee -> Boolean.TRUE.equals(employee.getActive())).count(),
+                activeEmployees,
                 employees.stream().filter(employee -> !Boolean.TRUE.equals(employee.getActive())).count(),
                 tasks.size(),
-                tasks.stream().filter(task -> task.getStatus() == TaskStatus.COMPLETED).count(),
-                tasks.stream().filter(task -> isOpenTask(task)).count(),
-                tasks.stream().filter(task -> isOverdueOpenTask(task, now)).count(),
+                completedTasks,
+                openTasks,
+                overdueOpenTasks,
+                percentage(completedTasks, tasks.size()),
+                percentage(overdueOpenTasks, openTasks),
+                average(tasks.size(), activeEmployees),
+                percentage(activeOrPlannedShifts, activeEmployees),
                 shifts.size(),
                 employees.stream().filter(employee -> Boolean.TRUE.equals(employee.getActive()) && !employeesWithTasks.contains(employee.getId())).count(),
                 countByEnum(employees, Employee::getPosition, EmployeePosition.values()),
@@ -134,6 +151,7 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
         rows.add(java.util.Arrays.asList("fromDate", report.fromDate(), "toDate", report.toDate()));
         rows.add(java.util.Arrays.asList("employeesTotal", report.employeesTotal(), "activeEmployees", report.activeEmployees(), "inactiveEmployees", report.inactiveEmployees()));
         rows.add(java.util.Arrays.asList("tasksTotal", report.tasksTotal(), "completedTasks", report.completedTasks(), "openTasks", report.openTasks(), "overdueOpenTasks", report.overdueOpenTasks()));
+        rows.add(java.util.Arrays.asList("taskCompletionRate", report.taskCompletionRate(), "overdueOpenTaskRate", report.overdueOpenTaskRate(), "averageTasksPerActiveEmployee", report.averageTasksPerActiveEmployee(), "shiftCoverageRate", report.shiftCoverageRate()));
         rows.add(java.util.Arrays.asList("shiftsTotal", report.shiftsTotal(), "employeesWithoutTasks", report.employeesWithoutTasks()));
 
         ReportCsvExportHelper.addSectionTitle(rows, "Employee rows");
@@ -197,6 +215,22 @@ public class EmployeeTaskReportService implements EmployeeTaskReportServiceDefin
         ReportCsvExportHelper.addMapRows(rows, report.shiftsByStatus(), "status", "count");
 
         return ReportCsvExportHelper.toCsvBytes(rows);
+    }
+
+    private BigDecimal percentage(long part, long total) {
+        if (total <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(part)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal average(long total, long denominator) {
+        if (denominator <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(denominator), 2, RoundingMode.HALF_UP);
     }
 
     private void validateReportFilters(Long companyId, Long employeeId) {

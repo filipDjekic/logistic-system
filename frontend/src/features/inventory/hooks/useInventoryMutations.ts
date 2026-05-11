@@ -86,3 +86,48 @@ export function useDeleteInventoryRecord() {
     },
   });
 }
+export function useReserveInventoryStock() {
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
+
+  return useMutation({
+    mutationFn: inventoryApi.reserveStock,
+    onSuccess: async (record) => {
+      showSnackbar({
+        message: 'Stock reserved successfully.',
+        severity: 'success',
+      });
+
+      await invalidateInventoryState(queryClient, record.warehouseId, record.productId);
+    },
+    onError: (error) => {
+      showSnackbar({
+        message: getErrorMessage(error),
+        severity: 'error',
+      });
+    },
+  });
+}
+
+export function useReleaseInventoryReservation() {
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
+
+  return useMutation({
+    mutationFn: inventoryApi.releaseReservation,
+    onSuccess: async (record) => {
+      showSnackbar({
+        message: 'Reservation released successfully.',
+        severity: 'success',
+      });
+
+      await invalidateInventoryState(queryClient, record.warehouseId, record.productId);
+    },
+    onError: (error) => {
+      showSnackbar({
+        message: getErrorMessage(error),
+        severity: 'error',
+      });
+    },
+  });
+}

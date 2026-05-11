@@ -51,6 +51,16 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
     @Query("select count(wi) from WarehouseInventory wi where wi.minStockLevel is not null and (wi.quantity - wi.reservedQuantity) <= wi.minStockLevel")
     long countLowStockRows();
 
+    @Query("""
+            select wi
+            from WarehouseInventory wi
+            join fetch wi.warehouse warehouse
+            join fetch wi.product product
+            where wi.minStockLevel is not null
+            and (wi.quantity - wi.reservedQuantity) <= wi.minStockLevel
+            """)
+    List<WarehouseInventory> findLowStockRows();
+
     @Query("select coalesce(sum(wi.quantity), 0) from WarehouseInventory wi")
     BigDecimal sumQuantity();
 
@@ -87,6 +97,9 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
             :status is null
             or (:status = 'LOW_STOCK' and wi.minStockLevel is not null and (wi.quantity - wi.reservedQuantity) <= wi.minStockLevel)
             or (:status = 'SUFFICIENT' and (wi.minStockLevel is null or (wi.quantity - wi.reservedQuantity) > wi.minStockLevel))
+            or (:status = 'RESERVED' and wi.reservedQuantity > 0)
+            or (:status = 'OUT_OF_STOCK' and (wi.quantity - wi.reservedQuantity) = 0)
+            or (:status = 'AVAILABLE' and (wi.quantity - wi.reservedQuantity) > 0)
         )
     """)
     Page<WarehouseInventory> searchInventory(

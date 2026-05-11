@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.config.AppProperties;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
+import rs.logistics.logistics_system.dto.create.StockReservationCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
@@ -230,7 +231,33 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
     @Override
     @Transactional
+    public WarehouseInventoryResponse reserveStock(StockReservationCreate dto) {
+        WarehouseInventory saved = reserveStockInternal(dto.getWarehouseId(), dto.getProductId(), dto.getQuantity(),
+                dto.getNote() == null || dto.getNote().isBlank() ? "Manual stock reservation" : dto.getNote().trim());
+        return WarehouseInventoryMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public WarehouseInventoryResponse releaseReservedStock(StockReservationCreate dto) {
+        WarehouseInventory saved = releaseReservedStockInternal(dto.getWarehouseId(), dto.getProductId(), dto.getQuantity(),
+                dto.getNote() == null || dto.getNote().isBlank() ? "Manual stock reservation released" : dto.getNote().trim());
+        return WarehouseInventoryMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public void reserveStock(Long warehouseId, Long productId, BigDecimal quantity) {
+        reserveStockInternal(warehouseId, productId, quantity, "Reserved quantity increased");
+    }
+
+    @Override
+    @Transactional
+    public void releaseReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
+        releaseReservedStockInternal(warehouseId, productId, quantity, "Reserved quantity released");
+    }
+
+    private WarehouseInventory reserveStockInternal(Long warehouseId, Long productId, BigDecimal quantity, String note) {
         WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
         BigDecimal requested = positiveQuantity(quantity, "Reserve quantity must be greater than zero");
@@ -242,9 +269,9 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         recordInventoryMovement(
                 saved,
-                StockMovementType.ADJUSTMENT,
-                StockMovementReasonCode.CORRECTION,
-                "Reserved quantity increased",
+                StockMovementType.RESERVATION,
+                StockMovementReasonCode.STOCK_RESERVED,
+                note,
                 quantityBefore,
                 quantityBefore,
                 reservedBefore,
@@ -252,11 +279,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         );
 
         checkLowStockAndNotify(saved);
+        return saved;
     }
 
-    @Override
-    @Transactional
-    public void releaseReservedStock(Long warehouseId, Long productId, BigDecimal quantity) {
+    private WarehouseInventory releaseReservedStockInternal(Long warehouseId, Long productId, BigDecimal quantity, String note) {
         WarehouseInventory inventory = getInventoryForUpdate(warehouseId, productId);
 
         BigDecimal requested = positiveQuantity(quantity, "Release quantity must be greater than zero");
@@ -268,14 +294,17 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         recordInventoryMovement(
                 saved,
-                StockMovementType.ADJUSTMENT,
-                StockMovementReasonCode.CORRECTION,
-                "Reserved quantity released",
+                StockMovementType.RESERVATION_RELEASE,
+                StockMovementReasonCode.RESERVATION_RELEASED,
+                note,
                 quantityBefore,
                 quantityBefore,
                 reservedBefore,
                 saved.getReservedQuantity()
         );
+
+        checkLowStockAndNotify(saved);
+        return saved;
     }
 
     @Override
@@ -465,7 +494,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         StockMovement movement = new StockMovement();
         movement.setMovementType(movementType);
-        movement.setQuantity(quantityAfter.subtract(quantityBefore).abs());
+        movement.setQuantity(resolveMovementQuantity(quantityBefore, quantityAfter, reservedBefore, reservedAfter));
         movement.setReasonCode(reasonCode);
         movement.setReasonDescription(note);
         movement.setReferenceType(StockMovementReferenceType.SYSTEM);
@@ -494,6 +523,12 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "quantityAfter", null, savedMovement.getQuantityAfter());
         auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "reservedBefore", null, savedMovement.getReservedBefore());
         auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "reservedAfter", null, savedMovement.getReservedAfter());
+    }
+
+    private BigDecimal resolveMovementQuantity(BigDecimal quantityBefore, BigDecimal quantityAfter, BigDecimal reservedBefore, BigDecimal reservedAfter) {
+        BigDecimal quantityDelta = quantityAfter.subtract(quantityBefore).abs();
+        BigDecimal reservedDelta = reservedAfter.subtract(reservedBefore).abs();
+        return quantityDelta.compareTo(BigDecimal.ZERO) > 0 ? quantityDelta : reservedDelta;
     }
 
     private String inventoryIdentifier(WarehouseInventory inventory) {
@@ -542,7 +577,11 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
 
         String normalized = status.trim().toUpperCase();
-        if (!"LOW_STOCK".equals(normalized) && !"SUFFICIENT".equals(normalized)) {
+        if (!"LOW_STOCK".equals(normalized)
+                && !"SUFFICIENT".equals(normalized)
+                && !"RESERVED".equals(normalized)
+                && !"OUT_OF_STOCK".equals(normalized)
+                && !"AVAILABLE".equals(normalized)) {
             throw new BadRequestException("Unsupported inventory status filter");
         }
 

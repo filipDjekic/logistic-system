@@ -13,6 +13,12 @@ export const queryKeys = {
     byUser: (userId: number) => ['activity-logs', 'user', userId] as const,
   },
 
+  activityTimeline: {
+    root: () => ['activity-timeline'] as const,
+    entity: (entityType: unknown, entityId: unknown) => ['activity-timeline', 'entity', entityType, entityId] as const,
+    recent: () => ['activity-timeline', 'recent'] as const,
+  },
+
   changeHistory: {
     root: () => ['change-history'] as const,
     list: (params: unknown) => ['change-history', 'list', params] as const,
@@ -127,6 +133,11 @@ export const queryKeys = {
     detail: (id: number) => ['vehicles', 'details', id] as const,
   },
 
+  vehicleMaintenance: {
+    root: () => ['vehicle-maintenance'] as const,
+    list: (params?: unknown) => ['vehicle-maintenance', 'list', params ?? {}] as const,
+  },
+
   warehouses: {
     root: () => ['warehouses'] as const,
     all: (params?: unknown) => ['warehouses', 'all', params ?? {}] as const,
@@ -151,6 +162,12 @@ export const queryKeys = {
   companyRegistrationRequests: {
     root: () => ['company-registration-requests'] as const,
     list: (status: unknown) => ['company-registration-requests', 'list', status] as const,
+  },
+
+  employeeWarehouseAssignments: {
+    root: () => ['employee-warehouse-assignments'] as const,
+    byEmployee: (employeeId: number | null) => ['employee-warehouse-assignments', 'employee', employeeId] as const,
+    byWarehouse: (warehouseId: number | null) => ['employee-warehouse-assignments', 'warehouse', warehouseId] as const,
   },
 
   timezones: {

@@ -56,7 +56,8 @@ public class VehicleMapper {
                 vehicle.getStatus(),
                 vehicle.getActive(),
                 vehicle.getCompany() != null ? vehicle.getCompany().getId() : null,
-                vehicle.getCompany() != null ? vehicle.getCompany().getName() : null
+                vehicle.getCompany() != null ? vehicle.getCompany().getName() : null,
+                vehicle.getStatus() == rs.logistics.logistics_system.enums.VehicleStatus.MAINTENANCE
         );
     }
 }

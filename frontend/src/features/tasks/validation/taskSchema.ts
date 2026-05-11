@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const taskPriorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
+export const taskTypeOptions = ['PICKING', 'PACKING', 'LOADING', 'DRIVING', 'UNLOADING', 'COUNTING', 'MAINTENANCE', 'ADMIN', 'STOCK_MOVEMENT'] as const;
 
 export const taskSchema = z
   .object({
@@ -8,6 +9,7 @@ export const taskSchema = z
     description: z.string().max(500, 'Description must be at most 500 characters').optional().or(z.literal('')),
     dueDate: z.string().min(1, 'Due date is required'),
     priority: z.enum(taskPriorityOptions, { error: 'Priority is required' }),
+    taskType: z.enum(taskTypeOptions, { error: 'Task type is required' }),
     assignedEmployeeId: z.number({ error: 'Assigned employee is required' }).positive('Assigned employee is required'),
     transportOrderId: z.number().positive('Transport order must be a positive number').nullable().optional(),
     stockMovementId: z.number().positive('Stock movement must be a positive number').nullable().optional(),

@@ -166,9 +166,9 @@ export default function EmployeeTaskReportPage() {
         <Stack spacing={2}>
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' } }}>
             <StatCard title="Employees" value={formatNumber(report.employeesTotal)} subtitle={`${formatNumber(report.activeEmployees)} active`} icon={<GroupsRoundedIcon fontSize="small" />} accent="primary" />
-            <StatCard title="Tasks" value={formatNumber(report.tasksTotal)} subtitle={`${formatNumber(report.openTasks)} open`} icon={<AssignmentRoundedIcon fontSize="small" />} accent="info" />
-            <StatCard title="Overdue open tasks" value={formatNumber(report.overdueOpenTasks)} subtitle={`${formatNumber(report.completedTasks)} completed`} icon={<ReportProblemRoundedIcon fontSize="small" />} accent="warning" />
-            <StatCard title="Shifts" value={formatNumber(report.shiftsTotal)} subtitle={`${formatNumber(report.employeesWithoutTasks)} employees without tasks`} icon={<EventNoteRoundedIcon fontSize="small" />} accent="success" />
+            <StatCard title="Tasks" value={formatNumber(report.tasksTotal)} subtitle={`${formatNumber(report.taskCompletionRate)}% completed`} icon={<AssignmentRoundedIcon fontSize="small" />} accent="info" />
+            <StatCard title="Overdue open tasks" value={formatNumber(report.overdueOpenTasks)} subtitle={`${formatNumber(report.overdueOpenTaskRate)}% of open tasks`} icon={<ReportProblemRoundedIcon fontSize="small" />} accent="warning" />
+            <StatCard title="Shift coverage" value={`${formatNumber(report.shiftCoverageRate)}%`} subtitle={`${formatNumber(report.averageTasksPerActiveEmployee)} tasks / active employee`} icon={<EventNoteRoundedIcon fontSize="small" />} accent="success" />
           </Box>
 
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', xl: 'repeat(3, minmax(0, 1fr))' } }}>
@@ -176,6 +176,15 @@ export default function EmployeeTaskReportPage() {
             <SectionCard title="Tasks by status"><Stack spacing={1}>{Object.entries(report.tasksByStatus).map(([key, value]) => <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>)}</Stack></SectionCard>
             <SectionCard title="Tasks by priority"><Stack spacing={1}>{Object.entries(report.tasksByPriority).map(([key, value]) => <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>)}</Stack></SectionCard>
           </Box>
+
+          <SectionCard title="Operational workload" description="Derived indicators for completion, overdue pressure and shift coverage.">
+            <Stack spacing={1}>
+              <Typography variant="body2">Task completion rate: {formatNumber(report.taskCompletionRate)}%</Typography>
+              <Typography variant="body2">Overdue open task rate: {formatNumber(report.overdueOpenTaskRate)}%</Typography>
+              <Typography variant="body2">Average tasks per active employee: {formatNumber(report.averageTasksPerActiveEmployee)}</Typography>
+              <Typography variant="body2">Shift coverage rate: {formatNumber(report.shiftCoverageRate)}%</Typography>
+            </Stack>
+          </SectionCard>
 
           <TableLayout title="Tasks by assignee" description="Task workload grouped by employee." table={<ReportDataTable title="tasks by assignee" rows={report.tasksByAssignee} columns={assigneeColumns} getRowId={(row) => row.employeeId} minWidth={880} />} />
           <TableLayout title="Employee rows" description="Employee activity summary for the selected scope." table={<ReportDataTable title="employee rows" rows={report.employeeRows} columns={employeeColumns} getRowId={(row) => row.employeeId} minWidth={1240} />} />

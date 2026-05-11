@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.entity.Notification;
 import rs.logistics.logistics_system.enums.NotificationStatus;
 import rs.logistics.logistics_system.enums.NotificationType;
+import rs.logistics.logistics_system.enums.NotificationSeverity;
+import rs.logistics.logistics_system.enums.NotificationCategory;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +45,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
               and (:companyId is null or n.user.company.id = :companyId)
               and (:status is null or n.status = :status)
               and (:type is null or n.type = :type)
+              and (:severity is null or n.severity = :severity)
+              and (:category is null or n.category = :category)
             order by n.createdAt desc
             """)
     Page<Notification> searchForUser(
@@ -50,6 +54,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             @Param("companyId") Long companyId,
             @Param("status") NotificationStatus status,
             @Param("type") NotificationType type,
+            @Param("severity") NotificationSeverity severity,
+            @Param("category") NotificationCategory category,
             Pageable pageable
     );
 
@@ -57,7 +63,15 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     long countByUserIdAndStatusAndUser_Company_Id(Long userId, NotificationStatus status, Long companyId);
 
+    long countByUserIdAndStatusAndSeverity(Long userId, NotificationStatus status, NotificationSeverity severity);
+
+    long countByUserIdAndStatusAndSeverityAndUser_Company_Id(Long userId, NotificationStatus status, NotificationSeverity severity, Long companyId);
+
     boolean existsByUserIdAndTitleAndMessageAndTypeAndStatus(Long userId, String title, String message, NotificationType type, NotificationStatus status);
+
+    boolean existsByUserIdAndDedupKeyAndStatus(Long userId, String dedupKey, NotificationStatus status);
+
+    Optional<Notification> findFirstByUserIdAndDedupKeyAndStatus(Long userId, String dedupKey, NotificationStatus status);
 
     @Transactional
     @Modifying

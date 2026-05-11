@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const inventoryDerivedStatusOptions = ['LOW_STOCK', 'SUFFICIENT'] as const;
+export const inventoryDerivedStatusOptions = ['LOW_STOCK', 'RESERVED', 'OUT_OF_STOCK', 'AVAILABLE', 'SUFFICIENT'] as const;
 
 export const inventoryFiltersSchema = z.object({
   search: z.string(),

@@ -35,6 +35,7 @@ const defaultValues: TaskFormValues = {
   description: '',
   dueDate: '',
   priority: 'MEDIUM',
+  taskType: 'ADMIN',
   assignedEmployeeId: '',
   transportOrderId: '',
   stockMovementId: '',
@@ -67,6 +68,7 @@ export default function TaskFormDialog({
         description: initialData.description ?? '',
         dueDate: initialData.dueDate.slice(0, 16),
         priority: initialData.priority,
+        taskType: initialData.taskType ?? 'ADMIN',
         assignedEmployeeId: initialData.assignedEmployeeId,
         transportOrderId: initialData.transportOrderId ?? '',
         stockMovementId: initialData.stockMovementId ?? '',
@@ -146,6 +148,27 @@ export default function TaskFormDialog({
                 label="Due date"
                 required
                 rules={{ required: 'Due date is required' }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect
+                name="taskType"
+                control={control}
+                label="Task type"
+                required
+                rules={{ required: 'Task type is required' }}
+                options={[
+                  { value: 'ADMIN', label: 'Admin' },
+                  { value: 'PICKING', label: 'Picking' },
+                  { value: 'PACKING', label: 'Packing' },
+                  { value: 'LOADING', label: 'Loading' },
+                  { value: 'DRIVING', label: 'Driving' },
+                  { value: 'UNLOADING', label: 'Unloading' },
+                  { value: 'COUNTING', label: 'Counting' },
+                  { value: 'MAINTENANCE', label: 'Maintenance' },
+                  { value: 'STOCK_MOVEMENT', label: 'Stock movement' },
+                ]}
               />
             </Grid>
 

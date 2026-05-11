@@ -8,6 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.NotificationType;
+import rs.logistics.logistics_system.enums.NotificationSeverity;
+import rs.logistics.logistics_system.enums.NotificationCategory;
+import rs.logistics.logistics_system.enums.NotificationSourceType;
 
 @Getter
 @Setter
@@ -28,6 +31,17 @@ public class NotificationCreate {
     @NotNull
     @Positive
     private Long userId;
+
+    private NotificationSeverity severity;
+
+    private NotificationCategory category;
+
+    private NotificationSourceType sourceType;
+
+    private Long sourceId;
+
+    @Size(max = 180)
+    private String dedupKey;
 
     public NotificationCreate(String title,
                               String message,

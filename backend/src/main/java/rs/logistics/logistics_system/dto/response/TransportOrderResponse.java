@@ -8,6 +8,7 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -22,6 +23,14 @@ public class TransportOrderResponse {
     private LocalDateTime departureTime;
     private LocalDateTime plannedArrivalTime;
     private LocalDateTime actualArrivalTime;
+    private TemporalView orderDateView;
+    private TemporalView departureTimeView;
+    private TemporalView plannedArrivalTimeView;
+    private TemporalView actualArrivalTimeView;
+    private String sourceTimezone;
+    private String destinationTimezone;
+    private List<TransportOrderStatus> allowedNextStatuses;
+    private List<TransportTimelineEntry> timeline;
     private TransportOrderStatus status;
     private PriorityLevel priority;
     private BigDecimal totalWeight;

@@ -8,6 +8,7 @@ import type {
   WarehouseInventoryCreateRequest,
   WarehouseInventoryResponse,
   WarehouseInventoryUpdateRequest,
+  StockReservationRequest,
 } from '../types/inventory.types';
 
 function buildInventoryParams(filters: InventoryFiltersState & PageParams) {
@@ -64,6 +65,18 @@ export const inventoryApi = {
 
   deleteInventoryRecord(warehouseId: number, productId: number) {
     return apiClient.delete(`/api/warehouse-inventory/${warehouseId}/${productId}`);
+  },
+
+  reserveStock(data: StockReservationRequest) {
+    return apiClient
+      .post<WarehouseInventoryResponse>('/api/warehouse-inventory/reserve', data)
+      .then((response) => response.data);
+  },
+
+  releaseReservation(data: StockReservationRequest) {
+    return apiClient
+      .post<WarehouseInventoryResponse>('/api/warehouse-inventory/release-reservation', data)
+      .then((response) => response.data);
   },
 
   getWarehouses() {

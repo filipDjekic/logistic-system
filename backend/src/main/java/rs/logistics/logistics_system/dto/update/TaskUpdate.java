@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.TaskPriority;
+import rs.logistics.logistics_system.enums.TaskType;
 
 import java.time.LocalDateTime;
 
@@ -30,6 +31,9 @@ public class TaskUpdate {
 
     @NotNull
     private TaskPriority priority;
+
+    @NotNull
+    private TaskType taskType;
 
     @NotNull
     @Positive

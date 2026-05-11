@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
+import rs.logistics.logistics_system.enums.TaskType;
 
 import java.time.LocalDateTime;
 
@@ -18,8 +19,16 @@ public class TaskResponse {
     private String title;
     private String description;
     private LocalDateTime dueDate;
+    private TemporalView dueDateView;
+    private String dueDateTimezone;
     private TaskPriority priority;
     private TaskStatus status;
+    private TaskType taskType;
+    private LocalDateTime startedAt;
+    private LocalDateTime completedAt;
+    private LocalDateTime cancelledAt;
+    private String cancelReason;
+    private boolean overdue;
 
     private Long assignedEmployeeId;
     private Long transportOrderId;

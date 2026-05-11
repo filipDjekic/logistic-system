@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.dto.response.report;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,6 +16,10 @@ public record EmployeeTaskReportResponse(
         long completedTasks,
         long openTasks,
         long overdueOpenTasks,
+        BigDecimal taskCompletionRate,
+        BigDecimal overdueOpenTaskRate,
+        BigDecimal averageTasksPerActiveEmployee,
+        BigDecimal shiftCoverageRate,
         long shiftsTotal,
         long employeesWithoutTasks,
         Map<String, Long> employeesByPosition,

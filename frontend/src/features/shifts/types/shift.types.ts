@@ -1,9 +1,13 @@
+import type { TemporalView } from '../../../core/utils/timezoneFormat';
+
 export type ShiftStatus = 'PLANNED' | 'ACTIVE' | 'FINISHED' | 'CANCELLED';
 
 export type ShiftResponse = {
   id: number;
   startTime: string;
   endTime: string;
+  startTimeView?: TemporalView | null;
+  endTimeView?: TemporalView | null;
   status: ShiftStatus;
   notes: string;
   timezoneId: number;
@@ -11,11 +15,15 @@ export type ShiftResponse = {
   timezoneDisplayName?: string | null;
   timezone?: string | null;
   employeeId: number;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
 };
 
 export type ShiftCreateRequest = {
   startTime: string;
   endTime: string;
+  startTimeView?: TemporalView | null;
+  endTimeView?: TemporalView | null;
   status: ShiftStatus;
   notes: string;
   timezoneId: number;
@@ -23,18 +31,23 @@ export type ShiftCreateRequest = {
   timezoneDisplayName?: string | null;
   timezone?: string | null;
   employeeId: number;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
 };
 
 export type ShiftUpdateRequest = {
   id?: number;
   startTime: string;
   endTime: string;
+  startTimeView?: TemporalView | null;
+  endTimeView?: TemporalView | null;
   status: ShiftStatus;
   notes?: string;
   timezoneId: number;
   timezoneName?: string | null;
   timezoneDisplayName?: string | null;
   timezone?: string | null;
+  warehouseId?: number | null;
 };
 
 export type ShiftFiltersState = {
@@ -52,8 +65,11 @@ export type ShiftEmployeeOption = {
 export type ShiftFormValues = {
   startTime: string;
   endTime: string;
+  startTimeView?: TemporalView | null;
+  endTimeView?: TemporalView | null;
   status: ShiftStatus;
   notes: string;
   timezoneId?: number | '';
   employeeId: number | '';
+  warehouseId?: number | '';
 };

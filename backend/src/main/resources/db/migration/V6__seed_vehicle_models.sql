@@ -66,11 +66,11 @@ VALUES
     (N'Volvo', N'FL', 1),
     (N'Volvo', N'FM', 1);
 
-MERGE VEHICLE_MODELS AS target
+MERGE vehicle_models AS target
 USING (
     SELECT b.id AS brand_id, m.model_name AS name, m.active
     FROM @models m
-    INNER JOIN VEHICLE_BRANDS b ON LOWER(b.name) = LOWER(m.brand_name)
+    INNER JOIN vehicle_brands b ON LOWER(b.name) = LOWER(m.brand_name)
 ) AS source
 ON target.brand_id = source.brand_id AND LOWER(target.name) = LOWER(source.name)
 WHEN MATCHED THEN

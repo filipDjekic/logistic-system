@@ -55,6 +55,7 @@ export type VehicleResponse = {
   active?: boolean;
   companyId?: number | null;
   companyName?: string | null;
+  hasActiveMaintenance?: boolean | null;
 };
 
 export type VehicleCreateRequest = {

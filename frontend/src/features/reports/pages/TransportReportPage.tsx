@@ -24,7 +24,7 @@ import {
 } from '../api/reportsApi';
 import ReportDataTable from '../components/ReportDataTable';
 
-const statusOptions = ['ALL', 'CREATED', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'] as const;
+const statusOptions = ['ALL', 'DRAFT', 'CREATED', 'ASSIGNED', 'PICKING', 'PACKING', 'READY_FOR_LOADING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'RETURNING', 'RESCHEDULED', 'CANCELLED'] as const;
 const priorityOptions = ['ALL', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
 
 function toDateTimeStartParam(value: string) {
@@ -145,15 +145,24 @@ export default function TransportReportPage() {
         <Stack spacing={2}>
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' } }}>
             <StatCard title="Total transports" value={formatNumber(report.totalTransports)} subtitle={`${formatNumber(report.activeTransports)} active`} icon={<LocalShippingRoundedIcon fontSize="small" />} accent="primary" />
-            <StatCard title="Completed" value={formatNumber(report.completedTransports)} subtitle={`${formatNumber(report.cancelledTransports)} cancelled`} icon={<AssignmentTurnedInRoundedIcon fontSize="small" />} accent="success" />
-            <StatCard title="Cancelled" value={formatNumber(report.cancelledTransports)} subtitle="Failed or stopped transport flow" icon={<CancelRoundedIcon fontSize="small" />} accent="error" />
-            <StatCard title="Planned weight" value={formatNumber(report.totalPlannedWeight)} subtitle={`${formatNumber(report.completedTransportWeight)} completed`} icon={<ScaleRoundedIcon fontSize="small" />} accent="info" />
+            <StatCard title="Completed" value={formatNumber(report.completedTransports)} subtitle={`${formatNumber(report.deliverySuccessRate)}% success rate`} icon={<AssignmentTurnedInRoundedIcon fontSize="small" />} accent="success" />
+            <StatCard title="Delayed" value={formatNumber(report.delayedTransports)} subtitle={`${formatNumber(report.averageDelayMinutes)} min avg delay`} icon={<CancelRoundedIcon fontSize="small" />} accent="warning" />
+            <StatCard title="Planned weight" value={formatNumber(report.totalPlannedWeight)} subtitle={`${formatNumber(report.completedTransportWeight)} completed · ${formatNumber(report.averageTransportDurationMinutes)} min avg`} icon={<ScaleRoundedIcon fontSize="small" />} accent="info" />
           </Box>
 
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' } }}>
             <SectionCard title="Status breakdown"><Stack spacing={1}>{Object.entries(report.transportsByStatus).map(([key, value]) => <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>)}</Stack></SectionCard>
             <SectionCard title="Priority breakdown"><Stack spacing={1}>{Object.entries(report.transportsByPriority).map(([key, value]) => <Typography key={key} variant="body2">{key}: {formatNumber(value)}</Typography>)}</Stack></SectionCard>
           </Box>
+
+          <SectionCard title="Operational quality" description="Delay, cancellation and duration indicators derived from transport lifecycle timestamps.">
+            <Stack spacing={1}>
+              <Typography variant="body2">Cancelled: {formatNumber(report.cancelledTransports)} ({formatNumber(report.cancellationRate)}%)</Typography>
+              <Typography variant="body2">Failed: {formatNumber(report.failedTransports)}</Typography>
+              <Typography variant="body2">Delayed: {formatNumber(report.delayedTransports)}</Typography>
+              <Typography variant="body2">Average duration: {formatNumber(report.averageTransportDurationMinutes)} minutes</Typography>
+            </Stack>
+          </SectionCard>
 
           <TableLayout title="Top routes" description="Routes ordered by transport count." table={<ReportDataTable title="top routes" rows={report.routeUsage} columns={routeColumns} getRowId={(row) => `${row.sourceWarehouseId}-${row.destinationWarehouseId}`} minWidth={760} />} />
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' } }}>

@@ -11,5 +11,7 @@ public enum StockMovementReasonCode {
     DAMAGE_WRITE_OFF,
     RETURN_IN,
     RETURN_OUT,
+    STOCK_RESERVED,
+    RESERVATION_RELEASED,
     CORRECTION
 }

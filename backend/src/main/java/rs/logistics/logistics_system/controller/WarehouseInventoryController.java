@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
+import rs.logistics.logistics_system.dto.create.StockReservationCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
@@ -41,6 +42,18 @@ public class WarehouseInventoryController {
         return new ResponseEntity<>(warehouseInventoryService.update(warehouseId, productId, dto), HttpStatus.OK);
     }
 
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PostMapping("/reserve")
+    public ResponseEntity<WarehouseInventoryResponse> reserve(@Valid @RequestBody StockReservationCreate dto) {
+        return ResponseEntity.ok(warehouseInventoryService.reserveStock(dto));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PostMapping("/release-reservation")
+    public ResponseEntity<WarehouseInventoryResponse> releaseReservation(@Valid @RequestBody StockReservationCreate dto) {
+        return ResponseEntity.ok(warehouseInventoryService.releaseReservedStock(dto));
+    }
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
     public ResponseEntity<PageResponse<WarehouseInventoryResponse>> search(

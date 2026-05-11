@@ -1,6 +1,6 @@
 SET NOCOUNT ON;
 
-MERGE VEHICLE_BRANDS AS target
+MERGE vehicle_brands AS target
 USING (VALUES
     (N'DAF', 1),
     (N'Fiat', 1),

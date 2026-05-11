@@ -8,11 +8,11 @@ export function canManageTransportOrders(role: Role | null | undefined) {
 }
 
 export function canEditTransportOrder(role: Role | null | undefined, order: TransportOrderResponse | null | undefined) {
-  return canManageTransportOrders(role) && order != null && order.status === 'CREATED';
+  return canManageTransportOrders(role) && order != null && (order.status === 'CREATED' || order.status === 'DRAFT');
 }
 
 export function canMutateTransportOrderItems(role: Role | null | undefined, order: TransportOrderResponse | null | undefined) {
-  return canManageTransportOrders(role) && order != null && order.status === 'CREATED';
+  return canManageTransportOrders(role) && order != null && (order.status === 'CREATED' || order.status === 'DRAFT');
 }
 
 export function getAllowedTransportOrderStatusTransitions(
@@ -20,12 +20,16 @@ export function getAllowedTransportOrderStatusTransitions(
   status: TransportOrderStatus,
 ): TransportOrderStatus[] {
   if (role === ROLES.DRIVER) {
-    if (status === 'ASSIGNED') {
+    if (status === 'LOADING') {
       return ['IN_TRANSIT'];
     }
 
     if (status === 'IN_TRANSIT') {
-      return ['DELIVERED'];
+      return ['DELIVERED', 'RETURNING', 'FAILED'];
+    }
+
+    if (status === 'RETURNING') {
+      return ['FAILED'];
     }
 
     return [];

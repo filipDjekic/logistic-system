@@ -1,10 +1,30 @@
+import type { TemporalView } from '../../../core/utils/timezoneFormat';
+
 export type TransportOrderStatus =
+  | 'DRAFT'
   | 'CREATED'
   | 'ASSIGNED'
+  | 'PICKING'
+  | 'PACKING'
+  | 'READY_FOR_LOADING'
+  | 'LOADING'
   | 'IN_TRANSIT'
   | 'DELIVERED'
   | 'FAILED'
+  | 'RETURNING'
+  | 'RESCHEDULED'
   | 'CANCELLED';
+
+
+export type TransportTimelineEntry = {
+  status: TransportOrderStatus;
+  label: string;
+  description: string;
+  completed: boolean;
+  current: boolean;
+  timestamp: string | null;
+  timestampView?: TemporalView | null;
+};
 
 export type TransportOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
@@ -16,6 +36,14 @@ export type TransportOrderResponse = {
   departureTime: string;
   plannedArrivalTime: string;
   actualArrivalTime: string | null;
+  orderDateView?: TemporalView | null;
+  departureTimeView?: TemporalView | null;
+  plannedArrivalTimeView?: TemporalView | null;
+  actualArrivalTimeView?: TemporalView | null;
+  sourceTimezone?: string | null;
+  destinationTimezone?: string | null;
+  allowedNextStatuses?: TransportOrderStatus[];
+  timeline?: TransportTimelineEntry[];
   status: TransportOrderStatus;
   priority: TransportOrderPriority;
   totalWeight: number | null;

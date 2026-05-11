@@ -14,6 +14,8 @@ export const notificationsApi = {
           size: params.size ?? 20,
           status: params.status || undefined,
           type: params.type || undefined,
+          severity: params.severity || undefined,
+          category: params.category || undefined,
         },
       })
       .then((response) => response.data);

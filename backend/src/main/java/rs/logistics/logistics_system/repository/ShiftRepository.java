@@ -84,6 +84,16 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     List<Shift> findShiftByBetweenDatesAndCompany(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("companyId") Long companyId);
 
     @Query("""
+            select case when count(s) > 0 then true else false end
+            from Shift s
+            where s.employee.id = :employeeId
+            and s.status in :statuses
+            and s.startTime <= :moment
+            and s.endTime >= :moment
+            """)
+    boolean existsCoveringActiveOrPlannedShift(@Param("employeeId") Long employeeId, @Param("moment") LocalDateTime moment, @Param("statuses") java.util.Collection<ShiftStatus> statuses);
+
+    @Query("""
             select s
             from Shift s
             join fetch s.employee employee

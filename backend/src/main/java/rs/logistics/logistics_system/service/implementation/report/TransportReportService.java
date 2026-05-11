@@ -21,6 +21,8 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.report.TransportReportServiceDefinition;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -38,7 +40,19 @@ public class TransportReportService implements TransportReportServiceDefinition 
 
     private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = java.util.Arrays.asList(
             TransportOrderStatus.ASSIGNED,
-            TransportOrderStatus.IN_TRANSIT
+            TransportOrderStatus.PICKING,
+            TransportOrderStatus.PACKING,
+            TransportOrderStatus.READY_FOR_LOADING,
+            TransportOrderStatus.LOADING,
+            TransportOrderStatus.IN_TRANSIT,
+            TransportOrderStatus.RETURNING,
+            TransportOrderStatus.RESCHEDULED
+    );
+
+    private static final Set<TransportOrderStatus> TERMINAL_STATUSES = Set.of(
+            TransportOrderStatus.DELIVERED,
+            TransportOrderStatus.FAILED,
+            TransportOrderStatus.CANCELLED
     );
 
     private final TransportOrderRepository transportOrderRepository;
@@ -94,13 +108,24 @@ public class TransportReportService implements TransportReportServiceDefinition 
                         .toList()
         );
 
+        long completedTransports = orders.stream().filter(order -> order.getStatus() == TransportOrderStatus.DELIVERED).count();
+        long cancelledTransports = orders.stream().filter(order -> order.getStatus() == TransportOrderStatus.CANCELLED).count();
+        long failedTransports = orders.stream().filter(order -> order.getStatus() == TransportOrderStatus.FAILED).count();
+        long delayedTransports = countDelayedTransports(orders);
+
         return new TransportReportResponse(
                 fromDate,
                 toDate,
                 orders.size(),
                 orders.stream().filter(order -> ACTIVE_TRANSPORT_STATUSES.contains(order.getStatus())).count(),
-                orders.stream().filter(order -> order.getStatus() == TransportOrderStatus.DELIVERED).count(),
-                orders.stream().filter(order -> order.getStatus() == TransportOrderStatus.CANCELLED).count(),
+                completedTransports,
+                cancelledTransports,
+                failedTransports,
+                delayedTransports,
+                percentage(completedTransports, orders.size()),
+                percentage(cancelledTransports, orders.size()),
+                averageDelayMinutes(orders),
+                averageTransportDurationMinutes(orders),
                 totalPlannedWeight,
                 completedTransportWeight,
                 countByEnum(orders, TransportOrder::getStatus, TransportOrderStatus.values()),
@@ -139,7 +164,8 @@ public class TransportReportService implements TransportReportServiceDefinition 
         List<List<?>> rows = new java.util.ArrayList<>();
         rows.add(java.util.Arrays.asList("Transport report"));
         rows.add(java.util.Arrays.asList("fromDate", report.fromDate(), "toDate", report.toDate()));
-        rows.add(java.util.Arrays.asList("totalTransports", report.totalTransports(), "activeTransports", report.activeTransports(), "completedTransports", report.completedTransports(), "cancelledTransports", report.cancelledTransports()));
+        rows.add(java.util.Arrays.asList("totalTransports", report.totalTransports(), "activeTransports", report.activeTransports(), "completedTransports", report.completedTransports(), "cancelledTransports", report.cancelledTransports(), "failedTransports", report.failedTransports(), "delayedTransports", report.delayedTransports()));
+        rows.add(java.util.Arrays.asList("deliverySuccessRate", report.deliverySuccessRate(), "cancellationRate", report.cancellationRate(), "averageDelayMinutes", report.averageDelayMinutes(), "averageTransportDurationMinutes", report.averageTransportDurationMinutes()));
         rows.add(java.util.Arrays.asList("totalPlannedWeight", report.totalPlannedWeight(), "completedTransportWeight", report.completedTransportWeight()));
 
         ReportCsvExportHelper.addSectionTitle(rows, "Transport rows");
@@ -183,6 +209,58 @@ public class TransportReportService implements TransportReportServiceDefinition 
         report.routeUsage().forEach(row -> rows.add(java.util.Arrays.asList(row.sourceWarehouseId(), row.sourceWarehouseName(), row.destinationWarehouseId(), row.destinationWarehouseName(), row.transportsTotal(), row.completedTransports(), row.totalWeight())));
 
         return ReportCsvExportHelper.toCsvBytes(rows);
+    }
+
+    private long countDelayedTransports(List<TransportOrder> orders) {
+        LocalDateTime now = LocalDateTime.now();
+        return orders.stream()
+                .filter(order -> order.getPlannedArrivalTime() != null)
+                .filter(order -> {
+                    if (order.getActualArrivalTime() != null) {
+                        return order.getActualArrivalTime().isAfter(order.getPlannedArrivalTime());
+                    }
+                    return !TERMINAL_STATUSES.contains(order.getStatus()) && now.isAfter(order.getPlannedArrivalTime());
+                })
+                .count();
+    }
+
+    private BigDecimal averageDelayMinutes(List<TransportOrder> orders) {
+        List<Long> delays = orders.stream()
+                .filter(order -> order.getPlannedArrivalTime() != null && order.getActualArrivalTime() != null)
+                .filter(order -> order.getActualArrivalTime().isAfter(order.getPlannedArrivalTime()))
+                .map(order -> Duration.between(order.getPlannedArrivalTime(), order.getActualArrivalTime()).toMinutes())
+                .toList();
+
+        if (delays.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        long total = delays.stream().mapToLong(Long::longValue).sum();
+        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(delays.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal averageTransportDurationMinutes(List<TransportOrder> orders) {
+        List<Long> durations = orders.stream()
+                .filter(order -> order.getDepartureTime() != null && order.getActualArrivalTime() != null)
+                .filter(order -> !order.getActualArrivalTime().isBefore(order.getDepartureTime()))
+                .map(order -> Duration.between(order.getDepartureTime(), order.getActualArrivalTime()).toMinutes())
+                .toList();
+
+        if (durations.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        long total = durations.stream().mapToLong(Long::longValue).sum();
+        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(durations.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal percentage(long part, long total) {
+        if (total <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(part)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
     }
 
     private void validateReportFilters(Long companyId, Long sourceWarehouseId, Long destinationWarehouseId, Long vehicleId, Long assignedEmployeeId) {

@@ -17,12 +17,14 @@ import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.VehicleModel;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
+import rs.logistics.logistics_system.enums.VehicleMaintenanceStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.VehicleMapper;
 import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
+import rs.logistics.logistics_system.repository.VehicleMaintenanceRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
@@ -35,12 +37,22 @@ public class VehicleService implements VehicleServiceDefinition {
     private final VehicleRepository vehicleRepository;
     private final TransportOrderRepository transportOrderRepository;
     private final CompanyRepository companyRepository;
+    private final VehicleMaintenanceRepository vehicleMaintenanceRepository;
     private final VehicleCatalogService vehicleCatalogService;
     private final AuditFacadeDefinition auditFacade;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
     private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES =
-            Arrays.asList(TransportOrderStatus.ASSIGNED, TransportOrderStatus.IN_TRANSIT);
+            Arrays.asList(
+                    TransportOrderStatus.ASSIGNED,
+                    TransportOrderStatus.PICKING,
+                    TransportOrderStatus.PACKING,
+                    TransportOrderStatus.READY_FOR_LOADING,
+                    TransportOrderStatus.LOADING,
+                    TransportOrderStatus.IN_TRANSIT,
+                    TransportOrderStatus.RETURNING,
+                    TransportOrderStatus.RESCHEDULED
+            );
 
     @Transactional
     @Override
@@ -89,6 +101,7 @@ public class VehicleService implements VehicleServiceDefinition {
         if (dto.getStatus() != vehicle.getStatus()) {
             validateStatusTransition(vehicle.getStatus(), dto.getStatus());
             validateStatusChangeAgainstActiveTransport(vehicle, dto.getStatus());
+            validateStatusChangeAgainstActiveMaintenance(vehicle, dto.getStatus());
         }
 
         VehicleModel vehicleModel = vehicleCatalogService.getRequiredModel(dto.getVehicleModelId());
@@ -189,6 +202,7 @@ public class VehicleService implements VehicleServiceDefinition {
 
         validateStatusTransition(currentStatus, newStatus);
         validateStatusChangeAgainstActiveTransport(vehicle, newStatus);
+        validateStatusChangeAgainstActiveMaintenance(vehicle, newStatus);
 
         vehicle.setStatus(newStatus);
         vehicle.setActive(newStatus != VehicleStatus.OUT_OF_SERVICE);
@@ -293,6 +307,17 @@ public class VehicleService implements VehicleServiceDefinition {
 
         if (hasActiveTransport && newStatus != VehicleStatus.RESERVED && newStatus != VehicleStatus.IN_USE) {
             throw new BadRequestException("Vehicle with active transport must remain RESERVED or IN_USE");
+        }
+    }
+
+    private void validateStatusChangeAgainstActiveMaintenance(Vehicle vehicle, VehicleStatus newStatus) {
+        boolean hasActiveMaintenance = vehicleMaintenanceRepository.existsByVehicleIdAndStatusIn(
+                vehicle.getId(),
+                List.of(VehicleMaintenanceStatus.PLANNED, VehicleMaintenanceStatus.IN_PROGRESS)
+        );
+
+        if (hasActiveMaintenance && newStatus != VehicleStatus.MAINTENANCE && newStatus != VehicleStatus.OUT_OF_SERVICE) {
+            throw new BadRequestException("Vehicle with active maintenance must remain in MAINTENANCE or OUT_OF_SERVICE status");
         }
     }
 
