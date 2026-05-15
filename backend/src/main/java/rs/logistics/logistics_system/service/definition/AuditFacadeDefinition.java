@@ -26,4 +26,8 @@ public interface AuditFacadeDefinition {
     void recordStatusChange(String entityName, Long entityId, String fieldName, Object oldValue, Object newValue);
 
     void recordStatusChange(String entityName, Long entityId, String entityIdentifier, String fieldName, Object oldValue, Object newValue);
+
+    void logSystem(String action, String entityName, Long entityId, String entityIdentifier, String description);
+
+void recordSystemStatusChange(String entityName, Long entityId, String entityIdentifier, String fieldName, Object oldValue, Object newValue);
 }

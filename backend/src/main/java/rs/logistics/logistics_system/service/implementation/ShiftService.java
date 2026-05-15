@@ -314,11 +314,12 @@ public class ShiftService implements ShiftServiceDefinition {
             shift.setStatus(ShiftStatus.ACTIVE);
             Shift saved = _shiftRepository.save(shift);
 
-            auditFacade.recordStatusChange("SHIFT", saved.getId(), "status", oldStatus, saved.getStatus());
-            auditFacade.log(
+            auditFacade.recordSystemStatusChange("SHIFT", saved.getId(), null, "status", oldStatus, saved.getStatus());
+            auditFacade.logSystem(
                     "SHIFT_AUTO_ACTIVATED",
                     "SHIFT",
                     saved.getId(),
+                    null,
                     "SHIFT " + saved.getId() + " automatically changed from PLANNED to ACTIVE using timezone " + (saved.getTimezone() != null ? saved.getTimezone().getName() : null)
             );
 
@@ -340,11 +341,12 @@ public class ShiftService implements ShiftServiceDefinition {
             shift.setStatus(ShiftStatus.FINISHED);
             Shift saved = _shiftRepository.save(shift);
 
-            auditFacade.recordStatusChange("SHIFT", saved.getId(), "status", oldStatus, saved.getStatus());
-            auditFacade.log(
+            auditFacade.recordSystemStatusChange("SHIFT", saved.getId(), null, "status", oldStatus, saved.getStatus());
+            auditFacade.logSystem(
                     "SHIFT_AUTO_FINISHED",
                     "SHIFT",
                     saved.getId(),
+                    null,
                     "SHIFT " + saved.getId() + " automatically changed from ACTIVE to FINISHED using timezone " + (saved.getTimezone() != null ? saved.getTimezone().getName() : null)
             );
 

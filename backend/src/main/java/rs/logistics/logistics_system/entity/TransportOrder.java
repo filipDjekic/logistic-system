@@ -67,7 +67,8 @@ public class TransportOrder {
     @Column(name = "status", nullable = false, length = 30)
     private TransportOrderStatus status;
 
-    @Column(name = "priority", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority", nullable = false, length = 20)
     private PriorityLevel priority;
 
     @Column(name = "total_weight", nullable = false, precision = 12, scale = 2)

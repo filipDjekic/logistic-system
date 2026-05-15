@@ -11,6 +11,8 @@ import rs.logistics.logistics_system.repository.ActivityLogRepository;
 import rs.logistics.logistics_system.repository.ChangeHistoryRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.repository.UserRepository;
 
 import java.util.Objects;
 
@@ -22,6 +24,8 @@ public class AuditFacadeService implements AuditFacadeDefinition {
     private final ActivityLogRepository activityLogRepository;
     private final ChangeHistoryRepository changeHistoryRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -168,6 +172,36 @@ public class AuditFacadeService implements AuditFacadeDefinition {
         changeHistoryRepository.save(changeHistory);
     }
 
+    @Override
+    public void logSystem(String action, String entityName, Long entityId, String entityIdentifier, String description) {
+        log(action, entityName, entityId, entityIdentifier, description, getSystemActor());
+    }
+
+    @Override
+    public void recordSystemStatusChange(String entityName, Long entityId, String entityIdentifier, String fieldName, Object oldValue, Object newValue) {
+        if (!hasRealChange(oldValue, newValue)) {
+            return;
+        }
+
+        ChangeHistory changeHistory = new ChangeHistory(
+                entityName,
+                entityId,
+                entityIdentifier,
+                ChangeType.STATUS_CHANGE,
+                fieldName,
+                normalizeValue(oldValue),
+                normalizeValue(newValue),
+                getSystemActor()
+        );
+
+        changeHistoryRepository.save(changeHistory);
+    }
+
+    private User getSystemActor() {
+        return userRepository.findByEmail("filip.djekic@slu.admin.rs")
+                .orElseThrow(() -> new ResourceNotFoundException("System audit user is not found"));
+    }
+    
     private boolean hasRealChange(Object oldValue, Object newValue) {
         return !Objects.equals(normalizeValue(oldValue), normalizeValue(newValue));
     }
