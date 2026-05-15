@@ -15,6 +15,7 @@ export const companyRegistrationSchema = z.object({
   postalCode: optionalText(20),
   adminFirstName: z.string().trim().min(1, 'Admin first name is required').max(60),
   adminLastName: z.string().trim().min(1, 'Admin last name is required').max(60),
+  adminAddress: z.string().trim().min(1, 'Admin address is required').max(200),
   adminEmail: z.string().trim().email('Admin email is not valid').max(255),
   adminPhoneNumber: z.string().trim().min(1, 'Admin phone number is required').max(30),
   adminJmbg: z.string().trim().min(1, 'Admin JMBG is required').max(13),

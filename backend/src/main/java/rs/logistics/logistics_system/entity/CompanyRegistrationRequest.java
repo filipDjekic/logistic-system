@@ -71,6 +71,9 @@ public class CompanyRegistrationRequest {
     @Column(name = "admin_last_name", length = 60, nullable = false)
     private String adminLastName;
 
+    @Column(name = "admin_address", length = 200, nullable = false)
+    private String adminAddress;
+
     @Column(name = "admin_email", length = 255, nullable = false)
     private String adminEmail;
 
@@ -127,6 +130,7 @@ public class CompanyRegistrationRequest {
         postalCode = trim(postalCode);
         adminFirstName = trim(adminFirstName);
         adminLastName = trim(adminLastName);
+        adminAddress = trim(adminAddress);
         adminEmail = lower(adminEmail);
         adminPhoneNumber = trim(adminPhoneNumber);
         adminJmbg = trim(adminJmbg);

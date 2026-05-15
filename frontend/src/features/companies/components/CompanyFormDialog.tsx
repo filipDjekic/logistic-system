@@ -261,11 +261,11 @@ export default function CompanyFormDialog({
               </Grid>
 
               <Grid size={{ xs: 12, md: 6 }}>
-                <FormTextField name="phoneNumber" control={form.control} label="Phone number" />
+                <FormTextField name="phoneNumber" control={form.control} label="Phone number" helperText="Enter only the remaining digits, without the country calling code." />
               </Grid>
 
               <Grid size={{ xs: 12, md: 6 }}>
-                <FormTextField name="email" control={form.control} label="Company email" />
+                <FormTextField name="email" control={form.control} label="Company email" helperText="Created companies use contact@company.countryCode; backend finalizes the generated value." />
               </Grid>
 
               <Grid size={{ xs: 12, md: 6 }}>
@@ -338,6 +338,7 @@ export default function CompanyFormDialog({
                       name="adminPhoneNumber"
                       control={form.control}
                       label="Phone number"
+                      helperText="Enter only the remaining digits, without the country calling code."
                       required
                     />
                   </Grid>

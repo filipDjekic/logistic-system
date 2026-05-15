@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import rs.logistics.logistics_system.dto.create.CompanyRegistrationReject;
 import rs.logistics.logistics_system.dto.create.CompanyRegistrationRequestCreate;
 import rs.logistics.logistics_system.dto.response.CompanyRegistrationRequestResponse;
+import rs.logistics.logistics_system.dto.response.CompanyRegistrationValidationResponse;
+import rs.logistics.logistics_system.dto.response.CompanyRegistrationPublicStatusResponse;
 import rs.logistics.logistics_system.enums.CompanyRegistrationRequestStatus;
 import rs.logistics.logistics_system.service.definition.CompanyRegistrationRequestServiceDefinition;
 
@@ -32,10 +34,31 @@ public class CompanyRegistrationRequestController {
         return ResponseEntity.ok(registrationRequestService.getAll(status));
     }
 
+    @GetMapping("/{id}/status")
+    public ResponseEntity<CompanyRegistrationPublicStatusResponse> getPublicStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(registrationRequestService.getPublicStatus(id));
+    }
+
+    @GetMapping("/validate")
+    public ResponseEntity<CompanyRegistrationValidationResponse> validateAvailability(
+            @RequestParam(required = false) String companyName,
+            @RequestParam(required = false) String registrationNumber,
+            @RequestParam(required = false) String taxNumber,
+            @RequestParam(required = false) String adminEmail
+    ) {
+        return ResponseEntity.ok(registrationRequestService.validateAvailability(companyName, registrationNumber, taxNumber, adminEmail));
+    }
+
     @PreAuthorize("hasRole('OVERLORD')")
     @GetMapping("/{id}")
     public ResponseEntity<CompanyRegistrationRequestResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(registrationRequestService.getById(id));
+    }
+
+    @PreAuthorize("hasRole('OVERLORD')")
+    @PostMapping("/{id}/under-review")
+    public ResponseEntity<CompanyRegistrationRequestResponse> markUnderReview(@PathVariable Long id) {
+        return ResponseEntity.ok(registrationRequestService.markUnderReview(id));
     }
 
     @PreAuthorize("hasRole('OVERLORD')")

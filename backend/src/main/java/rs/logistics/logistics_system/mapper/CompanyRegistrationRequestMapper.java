@@ -3,6 +3,7 @@ package rs.logistics.logistics_system.mapper;
 import rs.logistics.logistics_system.dto.create.CompanyRegistrationRequestCreate;
 import rs.logistics.logistics_system.dto.response.CompanyRegistrationRequestResponse;
 import rs.logistics.logistics_system.entity.*;
+import rs.logistics.logistics_system.enums.CompanyRegistrationRequestStatus;
 
 public class CompanyRegistrationRequestMapper {
 
@@ -15,11 +16,12 @@ public class CompanyRegistrationRequestMapper {
         request.setCompanyPhoneNumber(dto.getCompanyPhoneNumber());
         request.setCountry(country);
         request.setCity(city);
+        request.setPostalCode(city.getPostalCode());
         request.setTimezone(timezone);
         request.setAddress(dto.getAddress());
-        request.setPostalCode(dto.getPostalCode());
         request.setAdminFirstName(dto.getAdminFirstName());
         request.setAdminLastName(dto.getAdminLastName());
+        request.setAdminAddress(dto.getAdminAddress());
         request.setAdminEmail(dto.getAdminEmail());
         request.setAdminPhoneNumber(dto.getAdminPhoneNumber());
         request.setAdminJmbg(dto.getAdminJmbg());
@@ -55,11 +57,22 @@ public class CompanyRegistrationRequestMapper {
         response.setPostalCode(request.getPostalCode());
         response.setAdminFirstName(request.getAdminFirstName());
         response.setAdminLastName(request.getAdminLastName());
+        response.setAdminAddress(request.getAdminAddress());
         response.setAdminEmail(request.getAdminEmail());
         response.setAdminPhoneNumber(request.getAdminPhoneNumber());
         response.setAdminJmbg(request.getAdminJmbg());
         response.setAdminEmploymentDate(request.getAdminEmploymentDate());
-        response.setStatus(request.getStatus());
+        CompanyRegistrationRequestStatus status = request.getStatus();
+        response.setStatus(status);
+        response.setStatusLabel(statusLabel(status));
+        response.setStatusDescription(statusDescription(status));
+        response.setReviewable(status == CompanyRegistrationRequestStatus.SUBMITTED || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
+        response.setTerminal(status == CompanyRegistrationRequestStatus.APPROVED
+                || status == CompanyRegistrationRequestStatus.REJECTED
+                || status == CompanyRegistrationRequestStatus.CANCELLED);
+        response.setCanMoveToReview(status == CompanyRegistrationRequestStatus.SUBMITTED);
+        response.setCanApprove(status == CompanyRegistrationRequestStatus.SUBMITTED || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
+        response.setCanReject(status == CompanyRegistrationRequestStatus.SUBMITTED || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
         response.setSubmittedAt(request.getSubmittedAt());
         response.setReviewedAt(request.getReviewedAt());
         response.setReviewedById(reviewer != null ? reviewer.getId() : null);
@@ -69,5 +82,31 @@ public class CompanyRegistrationRequestMapper {
         response.setCreatedCompanyId(company != null ? company.getId() : null);
         response.setUpdatedAt(request.getUpdatedAt());
         return response;
+    }
+
+    public static String statusLabel(CompanyRegistrationRequestStatus status) {
+        if (status == null) {
+            return null;
+        }
+        return switch (status) {
+            case SUBMITTED -> "Pending";
+            case UNDER_REVIEW -> "Under review";
+            case APPROVED -> "Approved";
+            case REJECTED -> "Rejected";
+            case CANCELLED -> "Cancelled";
+        };
+    }
+
+    public static String statusDescription(CompanyRegistrationRequestStatus status) {
+        if (status == null) {
+            return null;
+        }
+        return switch (status) {
+            case SUBMITTED -> "Request has been submitted and is waiting for review.";
+            case UNDER_REVIEW -> "Request is currently being reviewed by an overlord.";
+            case APPROVED -> "Request has been approved and the company account has been created.";
+            case REJECTED -> "Request has been rejected.";
+            case CANCELLED -> "Request has been cancelled.";
+        };
     }
 }

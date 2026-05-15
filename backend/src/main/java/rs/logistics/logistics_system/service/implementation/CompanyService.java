@@ -67,6 +67,7 @@ public class CompanyService implements CompanyServiceDefinition {
         Timezone timezone = timezoneService.getRequiredForCountry(dto.getTimezoneId(), country.getId());
         City city = cityService.getRequiredActiveForCountry(dto.getCityId(), country.getId());
         Company company = CompanyMapper.toEntity(dto, country, city, timezone);
+        company.setEmail(generateCompanyContactEmail(dto.getName(), country.getIso2Code()));
         Company savedCompany = companyRepository.save(company);
 
         Role companyAdminRole = roleRepository.findByName(ROLE_COMPANY_ADMIN)
@@ -284,6 +285,16 @@ public class CompanyService implements CompanyServiceDefinition {
         if (!company.getProducts().isEmpty()) {
             throw new BadRequestException("Company cannot be deleted while it still has products");
         }
+    }
+
+
+    private String generateCompanyContactEmail(String companyName, String countryCode) {
+        String companySlug = normalizeForUsername(companyName, true);
+        String countrySlug = normalizeForUsername(countryCode, true);
+        if (companySlug.isBlank() || countrySlug.isBlank()) {
+            throw new BadRequestException("Unable to generate company contact email");
+        }
+        return "contact@" + companySlug + "." + countrySlug;
     }
 
     private String generateUniqueUsername(String firstName, String lastName) {

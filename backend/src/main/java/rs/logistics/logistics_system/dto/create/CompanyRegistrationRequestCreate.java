@@ -60,6 +60,10 @@ public class CompanyRegistrationRequestCreate {
     private String adminLastName;
 
     @NotBlank
+    @Size(max = 200)
+    private String adminAddress;
+
+    @NotBlank
     @Email
     @Size(max = 255)
     private String adminEmail;

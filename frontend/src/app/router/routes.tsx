@@ -9,6 +9,7 @@ import { ROLES } from '../../core/constants/roles';
 const StarterPage = lazy(() => import('./StarterPage'));
 const LoginPage = lazy(() => import('../../features/auth/pages/LoginPage'));
 const CompanyRegistrationPage = lazy(() => import('../../features/company-registration/pages/CompanyRegistrationPage'));
+const CompanyRegistrationStatusPage = lazy(() => import('../../features/company-registration/pages/CompanyRegistrationStatusPage'));
 const DashboardPage = lazy(() => import('../../features/dashboard/pages/DashboardPage'));
 const CompaniesPage = lazy(() => import('../../features/companies/pages/CompaniesPage'));
 const CompanyRegistrationRequestsPage = lazy(() => import('../../features/company-registration/pages/CompanyRegistrationRequestsPage'));
@@ -69,6 +70,7 @@ export const routes = [
           { path: '/', element: lazyPage(<StarterPage />) },
           { path: '/login', element: lazyPage(<LoginPage />) },
           { path: '/register-company', element: lazyPage(<CompanyRegistrationPage />) },
+          { path: '/register-company/status/:requestId', element: lazyPage(<CompanyRegistrationStatusPage />) },
         ],
       },
     ],

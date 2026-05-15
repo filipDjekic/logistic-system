@@ -1,4 +1,4 @@
-export type CompanyRegistrationStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+export type CompanyRegistrationStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 export type CompanyRegistrationCreateRequest = {
   companyName: string;
@@ -13,6 +13,7 @@ export type CompanyRegistrationCreateRequest = {
   postalCode?: string | null;
   adminFirstName: string;
   adminLastName: string;
+  adminAddress: string;
   adminEmail: string;
   adminPhoneNumber: string;
   adminJmbg: string;
@@ -40,11 +41,19 @@ export type CompanyRegistrationResponse = {
   postalCode: string | null;
   adminFirstName: string;
   adminLastName: string;
+  adminAddress: string | null;
   adminEmail: string;
   adminPhoneNumber: string;
   adminJmbg: string;
   adminEmploymentDate: string;
   status: CompanyRegistrationStatus;
+  statusLabel?: string | null;
+  statusDescription?: string | null;
+  reviewable?: boolean;
+  terminal?: boolean;
+  canMoveToReview?: boolean;
+  canApprove?: boolean;
+  canReject?: boolean;
   submittedAt: string;
   reviewedAt: string | null;
   reviewedById: number | null;
@@ -53,4 +62,22 @@ export type CompanyRegistrationResponse = {
   notes: string | null;
   createdCompanyId: number | null;
   updatedAt: string | null;
+};
+
+export type CompanyRegistrationPublicStatus = {
+  id: number;
+  companyName: string;
+  adminEmail: string;
+  status: CompanyRegistrationStatus;
+  submittedAt: string;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  createdCompanyId: number | null;
+};
+
+export type CompanyRegistrationValidationResponse = {
+  companyNameAvailable: boolean;
+  registrationNumberAvailable: boolean;
+  taxNumberAvailable: boolean;
+  adminEmailAvailable: boolean;
 };

@@ -14,6 +14,19 @@ export function useSubmitCompanyRegistration() {
   });
 }
 
+export function useMarkCompanyRegistrationUnderReview() {
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
+  return useMutation({
+    mutationFn: (id: number) => companyRegistrationApi.markUnderReview(id),
+    onSuccess: async () => {
+      showSnackbar({ message: 'Registration request moved to review.', severity: 'success' });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.companyRegistrationRequests.root() });
+    },
+    onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
+  });
+}
+
 export function useApproveCompanyRegistration() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();

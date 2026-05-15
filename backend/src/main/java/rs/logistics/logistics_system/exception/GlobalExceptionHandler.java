@@ -16,6 +16,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -160,6 +162,19 @@ public class GlobalExceptionHandler {
     ) {
         return build(HttpStatus.BAD_REQUEST, "INVALID_OPERATION", safeMessage(ex, "Request payload is invalid"), request);
     }
+
+    @ExceptionHandler({BadCredentialsException.class, AuthenticationException.class})
+        public ResponseEntity<ErrorResponse> handleAuthenticationException(
+                RuntimeException ex,
+                HttpServletRequest request
+        ) {
+                return build(
+                        HttpStatus.UNAUTHORIZED,
+                        "INVALID_CREDENTIALS",
+                        "Invalid email or password",
+                        request
+                );
+        }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(

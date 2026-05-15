@@ -360,7 +360,7 @@ export default function EmployeeFormDialog({
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormTextField name="phoneNumber" control={form.control} label="Phone number" required />
+              <FormTextField name="phoneNumber" control={form.control} label="Phone number" helperText="Enter only the remaining digits, without the country calling code." required />
             </Grid>
 
           </Grid>
