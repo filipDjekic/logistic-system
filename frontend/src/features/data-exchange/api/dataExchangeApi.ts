@@ -3,6 +3,11 @@ import { apiClient } from '../../../core/api/client';
 export type ImportType = 'products' | 'vehicles' | 'warehouses' | 'warehouse-inventory' | 'employees';
 export type ExportType = 'transport-report' | 'inventory-report' | 'employee-task-report';
 
+export type DataExchangeCapabilitiesResponse = {
+  importTypes: ImportType[];
+  exportTypes: ExportType[];
+};
+
 export type ImportRowErrorResponse = {
   line: number;
   field: string;
@@ -33,6 +38,10 @@ export const importTemplates: Record<ImportType, string> = {
 };
 
 export const dataExchangeApi = {
+  getCapabilities() {
+    return apiClient.get<DataExchangeCapabilitiesResponse>('/api/data/capabilities').then((response) => response.data);
+  },
+
   importCsv(type: ImportType, file: File) {
     const formData = new FormData();
     formData.append('file', file);

@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation.dashboard;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import rs.logistics.logistics_system.service.implementation.dashboard.cache.DashboardResponseCache;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.dashboard.OverlordDashboardResponse;
 import rs.logistics.logistics_system.entity.ActivityLog;
@@ -46,33 +47,54 @@ public class OverlordDashboardService implements OverlordDashboardServiceDefinit
     private final StockMovementRepository stockMovementRepository;
     private final ActivityLogRepository activityLogRepository;
     private final ChangeHistoryRepository changeHistoryRepository;
+    private final DashboardResponseCache dashboardResponseCache;
 
     @Override
     @Transactional(readOnly = true)
     public OverlordDashboardResponse getOverview() {
+        return dashboardResponseCache.get("overlord", this::buildOverview);
+    }
+
+    private OverlordDashboardResponse buildOverview() {
+        Map<String, Long> usersByStatus = countUsersByStatus();
+        Map<String, Long> transportOrdersByStatus = countTransportOrdersByStatus();
+        Map<String, Long> tasksByStatus = countTasksByStatus();
+        Map<String, Long> vehiclesByStatus = countVehiclesByStatus();
+        long lowStockRowsTotal = warehouseInventoryRepository.countLowStockRows();
+
         return new OverlordDashboardResponse(
                 companyRepository.count(),
                 companyRepository.countByActiveTrue(),
                 userRepository.count(),
-                countUsersByStatus(),
+                usersByStatus,
                 employeeRepository.count(),
                 employeeRepository.countByActiveTrue(),
                 transportOrderRepository.count(),
-                countTransportOrdersByStatus(),
+                transportOrdersByStatus,
                 taskRepository.count(),
-                countTasksByStatus(),
+                tasksByStatus,
                 vehicleRepository.count(),
-                countVehiclesByStatus(),
+                vehiclesByStatus,
                 warehouseRepository.count(),
                 productRepository.count(),
                 warehouseInventoryRepository.count(),
-                warehouseInventoryRepository.countLowStockRows(),
+                lowStockRowsTotal,
                 safeBigDecimal(warehouseInventoryRepository.sumQuantity()),
                 safeBigDecimal(warehouseInventoryRepository.sumAvailableQuantity()),
                 stockMovementRepository.count(),
                 activityLogRepository.count(),
                 changeHistoryRepository.count(),
-                recentActivities()
+                recentActivities(),
+                List.of(
+                        DashboardResponseFactory.statusChart("usersByStatus", "Users by status", usersByStatus),
+                        DashboardResponseFactory.statusChart("transportOrdersByStatus", "Transport orders by status", transportOrdersByStatus),
+                        DashboardResponseFactory.statusChart("tasksByStatus", "Tasks by status", tasksByStatus),
+                        DashboardResponseFactory.statusChart("vehiclesByStatus", "Vehicles by status", vehiclesByStatus)
+                ),
+                List.of(
+                        DashboardResponseFactory.lowStockAlert(lowStockRowsTotal),
+                        DashboardResponseFactory.alert("INFO", "SYSTEM_ACTIVITY", "Activity logs", "System-wide activity log rows available for audit review.", activityLogRepository.count())
+                )
         );
     }
 

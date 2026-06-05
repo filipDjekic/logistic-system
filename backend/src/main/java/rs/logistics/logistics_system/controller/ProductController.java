@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,6 +58,19 @@ public class ProductController {
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return new ResponseEntity<>(productService.getAll(search, active, pageable), HttpStatus.OK);
+    }
+
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PatchMapping("/{id}/archive")
+    public ResponseEntity<ProductResponse> archiveProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(productService.archiveProduct(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<ProductResponse> restoreProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(productService.restoreProduct(id));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")

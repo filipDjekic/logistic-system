@@ -4,6 +4,7 @@ import { authStore } from '../auth/authStore';
 import { getAccessToken } from '../auth/token';
 import type { ApiErrorResponse } from '../../shared/types/api.types';
 import { applyIdempotencyKey } from './idempotency';
+import { clearQueryCache } from '../query/queryClient';
 
 export const apiClient = axios.create({
   baseURL: appEnv.apiBaseUrl,
@@ -27,6 +28,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorResponse>) => {
     if (error.response?.status === 401) {
+      clearQueryCache();
       authStore.setUnauthenticated();
 
       const requestUrl = error.config?.url ?? '';

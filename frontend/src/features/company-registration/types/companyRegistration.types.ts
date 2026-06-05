@@ -1,4 +1,4 @@
-export type CompanyRegistrationStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+export type CompanyRegistrationStatus = 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 export type CompanyRegistrationCreateRequest = {
   companyName: string;
@@ -69,6 +69,9 @@ export type CompanyRegistrationPublicStatus = {
   companyName: string;
   adminEmail: string;
   status: CompanyRegistrationStatus;
+  statusLabel?: string | null;
+  statusDescription?: string | null;
+  terminal?: boolean;
   submittedAt: string;
   reviewedAt: string | null;
   rejectionReason: string | null;

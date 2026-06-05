@@ -6,7 +6,9 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -23,6 +25,7 @@ public interface ChangeHistoryRepository extends JpaRepository<ChangeHistory, Lo
               and (:search is null or :search = ''
                    or lower(h.entityName) like lower(concat('%', :search, '%'))
                    or lower(coalesce(h.fieldName, '')) like lower(concat('%', :search, '%'))
+                   or lower(coalesce(h.entityIdentifier, '')) like lower(concat('%', :search, '%'))
                    or lower(coalesce(h.oldValue, '')) like lower(concat('%', :search, '%'))
                    or lower(coalesce(h.newValue, '')) like lower(concat('%', :search, '%')))
               and (:changeType is null or h.changeType = :changeType)
@@ -30,6 +33,7 @@ public interface ChangeHistoryRepository extends JpaRepository<ChangeHistory, Lo
               and (:entityId is null or h.entityId = :entityId)
               and (:userId is null or h.changedBy.id = :userId)
             """)
+    @EntityGraph(attributePaths = {"changedBy", "changedBy.company"})
     Page<ChangeHistory> searchHistory(
             @Param("companyId") Long companyId,
             @Param("search") String search,
@@ -59,4 +63,9 @@ public interface ChangeHistoryRepository extends JpaRepository<ChangeHistory, Lo
     List<ChangeHistory> findByChangedAtBetweenAndChangedBy_Company_Id(LocalDateTime start, LocalDateTime end, Long companyId);
 
     long countByChangedBy_Company_Id(Long companyId);
+
+    @Modifying
+    @Query("DELETE FROM ChangeHistory h WHERE h.changedAt < :cutoff")
+    int deleteOlderThan(@Param("cutoff") LocalDateTime cutoff);
 }
+

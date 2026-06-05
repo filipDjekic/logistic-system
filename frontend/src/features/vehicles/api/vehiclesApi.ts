@@ -7,13 +7,27 @@ import type {
   VehicleResponse,
   VehicleSearchParams,
   VehicleStatus,
+  VehicleStatusUpdateRequest,
   VehicleUpdateRequest,
+  AllowedStatusTransitionsResponse,
 } from '../types/vehicle.types';
+
+export type StatusCountResponse = {
+  status: string;
+  count: number;
+};
 
 export const vehiclesApi = {
   getAll(params?: VehicleSearchParams & PageParams) {
     return apiClient
       .get<PageResponse<VehicleResponse>>('/api/vehicles', { params })
+      .then((response) => response.data);
+  },
+
+
+  getStatusCounts(params?: Omit<VehicleSearchParams, 'status'>) {
+    return apiClient
+      .get<StatusCountResponse[]>('/api/vehicles/status-counts', { params })
       .then((response) => response.data);
   },
 
@@ -35,15 +49,28 @@ export const vehiclesApi = {
       .then((response) => response.data);
   },
 
+  archive(id: number) {
+    return apiClient.patch<VehicleResponse>(`/api/vehicles/${id}/archive`).then((response) => response.data);
+  },
+
+  restore(id: number) {
+    return apiClient.patch<VehicleResponse>(`/api/vehicles/${id}/restore`).then((response) => response.data);
+  },
+
   delete(id: number) {
     return apiClient.delete(`/api/vehicles/${id}`);
   },
 
-  changeStatus(id: number, status: VehicleStatus) {
+  getAllowedStatusTransitions(id: number) {
     return apiClient
-      .patch<VehicleResponse>(`/api/vehicles/${id}/status`, null, {
-        params: { status },
-      })
+      .get<AllowedStatusTransitionsResponse<VehicleStatus>>(`/api/vehicles/${id}/status-transitions`)
+      .then((response) => response.data);
+  },
+
+  changeStatus(id: number, status: VehicleStatus, reason?: string, expectedVersion?: number) {
+    const payload: VehicleStatusUpdateRequest = { status, reason, expectedVersion };
+    return apiClient
+      .patch<VehicleResponse>(`/api/vehicles/${id}/status`, payload)
       .then((response) => response.data);
   },
 

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
+import rs.logistics.logistics_system.enums.VehicleStatus;
 
 @Component
 @ConfigurationProperties(prefix = "logistics")
@@ -67,6 +68,27 @@ public class AppProperties {
         }
 
         return getAllowed(statusTransitions.transportOrder, current.name()).contains(next.name());
+    }
+
+
+    public boolean isVehicleStatusTransitionAllowed(VehicleStatus current, VehicleStatus next) {
+        if (current == null || next == null) {
+            return false;
+        }
+
+        return getAllowed(statusTransitions.vehicle, current.name()).contains(next.name());
+    }
+
+    public List<String> allowedTaskStatusTransitions(TaskStatus current) {
+        return current == null ? List.of() : getAllowed(statusTransitions.task, current.name());
+    }
+
+    public List<String> allowedTransportOrderStatusTransitions(TransportOrderStatus current) {
+        return current == null ? List.of() : getAllowed(statusTransitions.transportOrder, current.name());
+    }
+
+    public List<String> allowedVehicleStatusTransitions(VehicleStatus current) {
+        return current == null ? List.of() : getAllowed(statusTransitions.vehicle, current.name());
     }
 
     private List<String> getAllowed(Map<String, List<String>> transitions, String current) {
@@ -155,6 +177,7 @@ public class AppProperties {
     public static class StatusTransitions {
         private Map<String, List<String>> task = defaultTaskTransitions();
         private Map<String, List<String>> transportOrder = defaultTransportOrderTransitions();
+        private Map<String, List<String>> vehicle = defaultVehicleTransitions();
 
         public Map<String, List<String>> getTask() {
             return task;
@@ -172,10 +195,21 @@ public class AppProperties {
             this.transportOrder = normalize(transportOrder);
         }
 
+        public Map<String, List<String>> getVehicle() {
+            return vehicle;
+        }
+
+        public void setVehicle(Map<String, List<String>> vehicle) {
+            this.vehicle = normalize(vehicle);
+        }
+
         private static Map<String, List<String>> defaultTaskTransitions() {
             Map<String, List<String>> transitions = new LinkedHashMap<>();
-            transitions.put("NEW", List.of("IN_PROGRESS", "CANCELLED"));
-            transitions.put("IN_PROGRESS", List.of("COMPLETED", "CANCELLED"));
+            transitions.put("NEW", List.of("ASSIGNED", "IN_PROGRESS", "CANCELLED"));
+            transitions.put("OPEN", List.of("ASSIGNED", "IN_PROGRESS", "CANCELLED"));
+            transitions.put("ASSIGNED", List.of("IN_PROGRESS", "BLOCKED", "CANCELLED"));
+            transitions.put("IN_PROGRESS", List.of("BLOCKED", "COMPLETED", "CANCELLED"));
+            transitions.put("BLOCKED", List.of("ASSIGNED", "IN_PROGRESS", "CANCELLED"));
             transitions.put("COMPLETED", List.of());
             transitions.put("CANCELLED", List.of());
             return transitions;
@@ -184,7 +218,6 @@ public class AppProperties {
         private static Map<String, List<String>> defaultTransportOrderTransitions() {
             Map<String, List<String>> transitions = new LinkedHashMap<>();
             transitions.put("DRAFT", List.of("ASSIGNED", "CANCELLED"));
-            transitions.put("CREATED", List.of("ASSIGNED", "CANCELLED"));
             transitions.put("ASSIGNED", List.of("PICKING", "CANCELLED"));
             transitions.put("PICKING", List.of("PACKING", "CANCELLED"));
             transitions.put("PACKING", List.of("READY_FOR_LOADING", "CANCELLED"));
@@ -196,6 +229,17 @@ public class AppProperties {
             transitions.put("DELIVERED", List.of());
             transitions.put("FAILED", List.of());
             transitions.put("CANCELLED", List.of());
+            return transitions;
+        }
+
+
+        private static Map<String, List<String>> defaultVehicleTransitions() {
+            Map<String, List<String>> transitions = new LinkedHashMap<>();
+            transitions.put("AVAILABLE", List.of("RESERVED", "MAINTENANCE", "OUT_OF_SERVICE"));
+            transitions.put("RESERVED", List.of("IN_USE", "AVAILABLE", "MAINTENANCE", "OUT_OF_SERVICE"));
+            transitions.put("IN_USE", List.of("AVAILABLE", "MAINTENANCE", "OUT_OF_SERVICE"));
+            transitions.put("MAINTENANCE", List.of("AVAILABLE", "OUT_OF_SERVICE"));
+            transitions.put("OUT_OF_SERVICE", List.of("MAINTENANCE", "AVAILABLE"));
             return transitions;
         }
 

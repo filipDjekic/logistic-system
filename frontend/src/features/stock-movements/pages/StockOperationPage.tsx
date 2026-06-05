@@ -1,11 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, CardActionArea, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Button, CardActionArea, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import BusinessRuleWarnings, { type BusinessRuleWarning } from '../../../shared/components/BusinessRuleWarnings';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormProgress from '../../../shared/components/Form/FormProgress';
+import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
 import { ProductSearchSelect, StockMovementSearchSelect, TransportOrderSearchSelect, WarehouseSearchSelect } from '../../search-select';
+import { EntityLookupField, type LookupOption } from '../../lookup';
 import type { ProductResponse } from '../../product/types/product.types';
 import type { StockMovementResponse, StockOperationType } from '../types/stockMovement.types';
 import type { TransportOrderResponse } from '../../transport-orders/types/transportOrder.types';
@@ -18,6 +23,8 @@ type StockOperationFormValues = {
   warehouse: WarehouseResponse | null;
   destinationWarehouse: WarehouseResponse | null;
   product: ProductResponse | null;
+  binLocation: LookupOption | null;
+  destinationBinLocation: LookupOption | null;
   transportOrder: TransportOrderResponse | null;
   stockMovementReference: StockMovementResponse | null;
   adjustmentDirection: 'INCREASE' | 'DECREASE';
@@ -68,12 +75,15 @@ const operationConfig: Record<StockOperationType, OperationConfig> = {
 };
 
 const operationOrder: StockOperationType[] = ['inbound', 'outbound', 'transfer', 'adjustment', 'write-off', 'return'];
+const stockOperationSteps = ['Operation', 'Entities', 'Quantity', 'Reference', 'Review'];
 
 const initialValues: StockOperationFormValues = {
   quantity: '',
   warehouse: null,
   destinationWarehouse: null,
   product: null,
+  binLocation: null,
+  destinationBinLocation: null,
   transportOrder: null,
   stockMovementReference: null,
   adjustmentDirection: 'INCREASE',
@@ -153,6 +163,7 @@ export default function StockOperationPage() {
   const usesTransportOrder = operation === 'inbound' || operation === 'outbound' || operation === 'transfer';
   const allowsStockMovementReference = operation === 'outbound' || operation === 'write-off' || operation === 'return';
   const submitDisabled = mutation.isPending;
+  const supportsBinSelection = operation !== null;
   const quantityValue = Number(values.quantity);
 
   const checksSourceWarehouseCapacity =
@@ -182,6 +193,67 @@ export default function StockOperationPage() {
   const destinationCapacityExceeded = operation === 'transfer' && Number.isFinite(quantityValue)
     ? exceedsWarehouseCapacity(values.destinationWarehouse, destinationWarehouseQuantity, quantityValue)
     : false;
+
+  const businessWarnings: BusinessRuleWarning[] = [];
+
+  if (values.warehouse && values.warehouse.status !== 'ACTIVE') {
+    businessWarnings.push({
+      key: 'source-warehouse-status',
+      severity: values.warehouse.status === 'FULL' ? 'warning' : 'error',
+      message: `Selected warehouse is ${values.warehouse.status}. Stock operations should normally run only on active warehouses.`,
+    });
+  }
+
+  if (values.destinationWarehouse && values.destinationWarehouse.status !== 'ACTIVE') {
+    businessWarnings.push({
+      key: 'destination-warehouse-status',
+      severity: values.destinationWarehouse.status === 'FULL' ? 'warning' : 'error',
+      message: `Destination warehouse is ${values.destinationWarehouse.status}. Check operational availability before transfer.`,
+    });
+  }
+
+  if (values.warehouse?.binTrackingEnabled && !values.binLocation) {
+    businessWarnings.push({
+      key: 'source-bin-required',
+      severity: 'error',
+      message: 'Source warehouse has bin tracking enabled. Source bin is required for this operation.',
+    });
+  }
+
+  if (isTransfer && values.destinationWarehouse?.binTrackingEnabled && !values.destinationBinLocation) {
+    businessWarnings.push({
+      key: 'destination-bin-required',
+      severity: 'error',
+      message: 'Destination warehouse has bin tracking enabled. Destination bin is required for transfer.',
+    });
+  }
+
+
+  if (values.transportOrder && ['DELIVERED', 'FAILED', 'CANCELLED'].includes(values.transportOrder.status)) {
+    businessWarnings.push({
+      key: 'terminal-transport-reference',
+      severity: 'error',
+      message: `Selected transport order is ${values.transportOrder.status}. Do not attach new stock operations to terminal transports.`,
+    });
+  }
+
+  if (sourceCapacityExceeded || destinationCapacityExceeded) {
+    businessWarnings.push({
+      key: 'capacity-exceeded',
+      severity: 'error',
+      message: 'Warehouse capacity would be exceeded. Current occupied quantity is checked from inventory records before submit.',
+    });
+  }
+
+  const hasBlockingBusinessWarning = businessWarnings.some((warning) => warning.severity === 'error');
+
+  const activeStep = useMemo(() => {
+    if (!operation) return 0;
+    if (!values.warehouse || !values.product || (isTransfer && !values.destinationWarehouse)) return 1;
+    if (!Number.isFinite(quantityValue) || quantityValue <= 0) return 2;
+    if (values.transportOrder || values.stockMovementReference || values.referenceNumber.trim()) return 4;
+    return 3;
+  }, [isTransfer, operation, quantityValue, values.destinationWarehouse, values.product, values.referenceNumber, values.stockMovementReference, values.transportOrder, values.warehouse]);
 
   const pageDescription = useMemo(() => {
     if (!operation || !config) {
@@ -247,12 +319,24 @@ export default function StockOperationPage() {
       nextErrors.product = 'Product is required';
     }
 
+    if (values.warehouse?.binTrackingEnabled && !values.binLocation) {
+      nextErrors.binLocation = 'Source bin is required because selected warehouse has bin tracking enabled';
+    }
+
+    if (isTransfer && values.destinationWarehouse?.binTrackingEnabled && !values.destinationBinLocation) {
+      nextErrors.destinationBinLocation = 'Destination bin is required because selected warehouse has bin tracking enabled';
+    }
+
     if (sourceCapacityExceeded) {
       nextErrors.warehouse = 'Warehouse capacity would be exceeded';
     }
 
     if (destinationCapacityExceeded) {
       nextErrors.destinationWarehouse = 'Destination warehouse capacity would be exceeded';
+    }
+
+    if (hasBlockingBusinessWarning) {
+      nextErrors.referenceNote = nextErrors.referenceNote ?? 'Resolve blocking business warnings before submit';
     }
 
     if (values.referenceNumber.trim().length > 100) {
@@ -301,6 +385,8 @@ export default function StockOperationPage() {
             sourceWarehouseId: values.warehouse.id,
             destinationWarehouseId: values.destinationWarehouse.id,
             productId: values.product.id,
+            sourceBinLocationId: values.binLocation?.id,
+            destinationBinLocationId: values.destinationBinLocation?.id,
           },
         },
         { onSuccess: afterSuccess },
@@ -317,6 +403,7 @@ export default function StockOperationPage() {
             direction: values.adjustmentDirection,
             warehouseId: values.warehouse.id,
             productId: values.product.id,
+            binLocationId: values.binLocation?.id,
           },
         },
         { onSuccess: afterSuccess },
@@ -333,6 +420,7 @@ export default function StockOperationPage() {
             referenceId: selectedReferenceId,
             warehouseId: values.warehouse.id,
             productId: values.product.id,
+            binLocationId: values.binLocation?.id,
           },
         },
         { onSuccess: afterSuccess },
@@ -349,6 +437,7 @@ export default function StockOperationPage() {
             referenceId: selectedReferenceId,
             warehouseId: values.warehouse.id,
             productId: values.product.id,
+            binLocationId: values.binLocation?.id,
           },
         },
         { onSuccess: afterSuccess },
@@ -365,6 +454,7 @@ export default function StockOperationPage() {
           transportOrderId: values.transportOrder?.id,
           warehouseId: values.warehouse.id,
           productId: values.product.id,
+          binLocationId: values.binLocation?.id,
         },
       },
       { onSuccess: afterSuccess },
@@ -384,7 +474,9 @@ export default function StockOperationPage() {
         }
       />
 
-      <SectionCard title="1. Choose operation" description="Backend remains split by operation; this page only chooses which endpoint will be used.">
+      <FormProgress steps={stockOperationSteps} activeStep={activeStep} />
+
+      <SectionCard title="1. Choose operation" description="Pick the operational intent first. The remaining form is scoped to the matching backend endpoint.">
         <Grid container spacing={2}>
           {operationOrder.map((item) => {
             const itemConfig = operationConfig[item];
@@ -415,7 +507,8 @@ export default function StockOperationPage() {
       </SectionCard>
 
       {operation && config ? (
-        <SectionCard title={`2. ${config.title} data`} description="Selectable entities use the shared search/result-box components. Fixed values stay as dropdowns. Reference number is optional.">
+        <>
+        <SectionCard title="2. Entities and locations" description="Select the operational entities first. Dynamic references use lookup/search fields; enum values stay as dropdowns.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <WarehouseSearchSelect
@@ -424,7 +517,7 @@ export default function StockOperationPage() {
                 active
                 disabledWarehouseIds={values.destinationWarehouse ? [values.destinationWarehouse.id] : []}
                 onSelect={(warehouse) => {
-                  setValues((prev) => ({ ...prev, warehouse }));
+                  setValues((prev) => ({ ...prev, warehouse, binLocation: null }));
                   setErrors((prev) => ({ ...prev, warehouse: undefined }));
                 }}
               />
@@ -439,7 +532,7 @@ export default function StockOperationPage() {
                   active
                   disabledWarehouseIds={values.warehouse ? [values.warehouse.id] : []}
                   onSelect={(destinationWarehouse) => {
-                    setValues((prev) => ({ ...prev, destinationWarehouse }));
+                    setValues((prev) => ({ ...prev, destinationWarehouse, destinationBinLocation: null }));
                     setErrors((prev) => ({ ...prev, destinationWarehouse: undefined }));
                   }}
                 />
@@ -460,14 +553,58 @@ export default function StockOperationPage() {
               {errors.product ? <Typography variant="caption" color="error">{errors.product}</Typography> : null}
             </Grid>
 
-            {(sourceCapacityExceeded || destinationCapacityExceeded) ? (
-              <Grid size={{ xs: 12 }}>
-                <Alert severity="error">
-                  Warehouse capacity would be exceeded. Current occupied quantity is checked from inventory records before submit.
-                </Alert>
+            {supportsBinSelection ? (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <EntityLookupField
+                  label={isTransfer ? 'Source bin location' : 'Bin location'}
+                  entityType="bin-locations"
+                  value={values.binLocation}
+                  disabled={submitDisabled || !values.warehouse}
+                  error={Boolean(errors.binLocation)}
+                  helperText={errors.binLocation ?? (values.warehouse?.binTrackingEnabled ? 'Required because selected warehouse has bin tracking enabled.' : 'Optional. Empty value updates only warehouse inventory.')}
+                  placeholder={values.warehouse ? 'No bin selected' : 'Choose warehouse first'}
+                  searchPlaceholder="Search bins by code, name, zone or warehouse..."
+                  warehouseId={values.warehouse?.id}
+                  activeOnly
+                  sort="code,asc"
+                  onChange={(binLocation) => {
+                    setValues((prev) => ({ ...prev, binLocation }));
+                    setErrors((prev) => ({ ...prev, binLocation: undefined }));
+                  }}
+                />
               </Grid>
             ) : null}
 
+            {isTransfer ? (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <EntityLookupField
+                  label="Destination bin location"
+                  entityType="bin-locations"
+                  value={values.destinationBinLocation}
+                  disabled={submitDisabled || !values.destinationWarehouse}
+                  error={Boolean(errors.destinationBinLocation)}
+                  helperText={errors.destinationBinLocation ?? (values.destinationWarehouse?.binTrackingEnabled ? 'Required because selected destination warehouse has bin tracking enabled.' : 'Optional unless destination warehouse has bin tracking enabled.')}
+                  placeholder={values.destinationWarehouse ? 'No destination bin selected' : 'Choose destination warehouse first'}
+                  searchPlaceholder="Search destination bins by code, name, zone or warehouse..."
+                  warehouseId={values.destinationWarehouse?.id}
+                  activeOnly
+                  sort="code,asc"
+                  onChange={(destinationBinLocation) => {
+                    setValues((prev) => ({ ...prev, destinationBinLocation }));
+                    setErrors((prev) => ({ ...prev, destinationBinLocation: undefined }));
+                  }}
+                />
+              </Grid>
+            ) : null}
+
+            <Grid size={{ xs: 12 }}>
+              <BusinessRuleWarnings warnings={businessWarnings} />
+            </Grid>
+          </Grid>
+        </SectionCard>
+
+        <SectionCard title="3. Quantity and operation details" description="Enter the quantity and operation-specific values. Blocking warnings prevent submit before the request reaches backend.">
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Quantity"
@@ -506,6 +643,11 @@ export default function StockOperationPage() {
               </Grid>
             ) : null}
 
+          </Grid>
+        </SectionCard>
+
+        <SectionCard title="4. Reference context" description="Attach transport or stock movement context where it belongs. Manual reference number is still allowed for standalone operations.">
+          <Grid container spacing={2}>
             {usesTransportOrder ? (
               <Grid size={{ xs: 12 }}>
                 <TransportOrderSearchSelect
@@ -555,6 +697,11 @@ export default function StockOperationPage() {
               />
             </Grid>
 
+          </Grid>
+        </SectionCard>
+
+        <SectionCard title="5. Review and submit" description="Add the human-readable reason/note, then confirm. Cancel always returns to stock movements without submitting.">
+          <Grid container spacing={2}>
             <Grid size={{ xs: 12 }}>
               <TextField
                 label="Reason description"
@@ -588,17 +735,24 @@ export default function StockOperationPage() {
             </Grid>
 
             <Grid size={{ xs: 12 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="flex-end">
-                <Button variant="outlined" onClick={() => navigate('/stock-movements')} disabled={submitDisabled}>
-                  Cancel
-                </Button>
-                <Button variant="contained" onClick={handleSubmit} disabled={submitDisabled}>
-                  {config.submitLabel}
-                </Button>
-              </Stack>
+              <FormGlobalError error={mutation.error} fallbackMessage="Stock operation could not be submitted." />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <FormActions
+                cancelLabel="Cancel"
+                submitLabel={config.submitLabel}
+                submittingLabel="Submitting..."
+                helperText={hasBlockingBusinessWarning ? 'Resolve blocking business warnings before submitting.' : 'Review operation, quantity, references and notes before submit.'}
+                loading={submitDisabled}
+                submitDisabled={hasBlockingBusinessWarning}
+                onCancel={() => navigate('/stock-movements')}
+                onSubmit={handleSubmit}
+              />
             </Grid>
           </Grid>
         </SectionCard>
+        </>
       ) : null}
     </Stack>
   );

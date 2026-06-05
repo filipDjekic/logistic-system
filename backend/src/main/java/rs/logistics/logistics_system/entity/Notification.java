@@ -21,7 +21,9 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_notifications_user_status_created", columnList = "user_id, status, created_at"),
                 @Index(name = "idx_notifications_user_severity_status", columnList = "user_id, severity, status"),
                 @Index(name = "idx_notifications_category_status", columnList = "category, status"),
-                @Index(name = "idx_notifications_dedup_key", columnList = "dedup_key")
+                @Index(name = "idx_notifications_dedup_key", columnList = "dedup_key"),
+                @Index(name = "idx_notifications_group_key", columnList = "user_id, group_key, status"),
+                @Index(name = "idx_notifications_status_created", columnList = "status, created_at")
         }
 )
 @Getter
@@ -66,8 +68,29 @@ public class Notification {
     @Column(name = "dedup_key", length = 180)
     private String dedupKey;
 
+    @Column(name = "group_key", length = 180)
+    private String groupKey;
+
+    @Column(name = "group_count", nullable = false)
+    private Integer groupCount = 1;
+
+    @Column(name = "last_grouped_at")
+    private LocalDateTime lastGroupedAt;
+
     @Column(name = "escalated_at")
     private LocalDateTime escalatedAt;
+
+    @Column(name = "acknowledged_at")
+    private LocalDateTime acknowledgedAt;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
+
+    @Column(name = "action_label", length = 80)
+    private String actionLabel;
+
+    @Column(name = "action_path", length = 220)
+    private String actionPath;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -108,6 +131,8 @@ public class Notification {
         this.sourceType = sourceType != null ? sourceType : NotificationSourceType.SYSTEM;
         this.sourceId = sourceId;
         this.dedupKey = dedupKey;
+        this.groupKey = dedupKey;
+        this.groupCount = 1;
     }
 
     // methods
@@ -123,7 +148,40 @@ public class Notification {
     }
 
     public void markEscalated() {
-        this.escalatedAt = LocalDateTime.now();
+        if (this.escalatedAt == null) {
+            this.escalatedAt = LocalDateTime.now();
+        }
+    }
+
+    public void acknowledge() {
+        if (this.status == NotificationStatus.RESOLVED) {
+            return;
+        }
+        this.status = NotificationStatus.ACKNOWLEDGED;
+        this.acknowledgedAt = LocalDateTime.now();
+    }
+
+    public void resolve() {
+        this.status = NotificationStatus.RESOLVED;
+        this.resolvedAt = LocalDateTime.now();
+        if (this.acknowledgedAt == null) {
+            this.acknowledgedAt = this.resolvedAt;
+        }
+    }
+
+    public boolean isActionable() {
+        return this.status == NotificationStatus.UNREAD || this.status == NotificationStatus.ACKNOWLEDGED;
+    }
+
+    public void registerGroupedOccurrence(String latestTitle, String latestMessage) {
+        if (latestTitle != null && !latestTitle.isBlank()) {
+            this.title = latestTitle;
+        }
+        if (latestMessage != null && !latestMessage.isBlank()) {
+            this.message = latestMessage;
+        }
+        this.groupCount = this.groupCount == null || this.groupCount < 1 ? 2 : this.groupCount + 1;
+        this.lastGroupedAt = LocalDateTime.now();
     }
 
     @PrePersist
@@ -141,12 +199,68 @@ public class Notification {
         if (this.dedupKey != null) {
             this.dedupKey = this.dedupKey.trim();
         }
+        if (this.groupKey != null) {
+            this.groupKey = this.groupKey.trim();
+        }
+        if (this.groupKey == null && this.dedupKey != null) {
+            this.groupKey = this.dedupKey;
+        }
+        if (this.groupCount == null || this.groupCount < 1) {
+            this.groupCount = 1;
+        }
+        if (this.actionLabel == null) {
+            this.actionLabel = defaultActionLabel(this.sourceType);
+        }
+        if (this.actionPath == null) {
+            this.actionPath = defaultActionPath(this.sourceType, this.sourceId);
+        }
         if (this.title != null) {
             this.title = this.title.trim();
         }
         if (this.message != null) {
             this.message = this.message.trim();
         }
+    }
+
+    private String defaultActionLabel(NotificationSourceType sourceType) {
+        if (sourceType == NotificationSourceType.TRANSPORT_ORDER) {
+            return "Open transport";
+        }
+        if (sourceType == NotificationSourceType.WAREHOUSE_INVENTORY) {
+            return "Open inventory";
+        }
+        if (sourceType == NotificationSourceType.STOCK_MOVEMENT) {
+            return "Open movement";
+        }
+        if (sourceType == NotificationSourceType.TASK) {
+            return "Open task";
+        }
+        if (sourceType == NotificationSourceType.SHIFT) {
+            return "Open shift";
+        }
+        if (sourceType == NotificationSourceType.WAREHOUSE) {
+            return "Open warehouse";
+        }
+        if (sourceType == NotificationSourceType.USER) {
+            return "Open user";
+        }
+        return null;
+    }
+
+    private String defaultActionPath(NotificationSourceType sourceType, Long sourceId) {
+        if (sourceType == null || sourceId == null) {
+            return null;
+        }
+        return switch (sourceType) {
+            case TRANSPORT_ORDER -> "/transport-orders/" + sourceId;
+            case WAREHOUSE_INVENTORY -> "/inventory/" + sourceId;
+            case STOCK_MOVEMENT -> "/stock-movements/" + sourceId;
+            case TASK -> "/tasks/" + sourceId;
+            case SHIFT -> "/shifts/" + sourceId;
+            case WAREHOUSE -> "/warehouses/" + sourceId;
+            case USER -> "/users/" + sourceId;
+            default -> null;
+        };
     }
 
     private NotificationSeverity mapSeverity(NotificationType type) {

@@ -5,8 +5,10 @@ import java.math.BigDecimal;
 import org.springframework.data.domain.Pageable;
 
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 
@@ -22,5 +24,13 @@ public interface VehicleServiceDefinition {
 
     void delete(Long id);
 
-    VehicleResponse changeStatus(Long id, VehicleStatus status);
+    VehicleResponse changeStatus(Long id, VehicleStatus status, String reason, Long expectedVersion);
+    java.util.List<StatusCountResponse> countByStatus(String search, String type, Boolean available, BigDecimal capacityFrom, BigDecimal capacityTo);
+
+
+    AllowedStatusTransitionsResponse allowedStatusTransitions(Long id);
+
+    VehicleResponse archiveVehicle(Long id);
+
+    VehicleResponse restoreVehicle(Long id);
 }

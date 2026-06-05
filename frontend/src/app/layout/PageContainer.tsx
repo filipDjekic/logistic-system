@@ -6,11 +6,12 @@ export default function PageContainer({ children }: PropsWithChildren) {
     <Box
       sx={{
         width: '100%',
-        maxWidth: 1440,
+        maxWidth: 1360,
         minWidth: 0,
         mx: 'auto',
-        px: { xs: 1.5, sm: 2.5, lg: 4 },
-        py: { xs: 1.5, sm: 2.5, md: 3 },
+        px: { xs: 1.25, sm: 2, lg: 3 },
+        py: { xs: 1.25, sm: 2, md: 2.5 },
+        pb: { xs: 'calc(env(safe-area-inset-bottom) + 7.5rem)', md: 2.5 },
       }}
     >
       {children}

@@ -3,6 +3,7 @@ import { Skeleton, Stack, Typography } from '@mui/material';
 type InlineLoaderProps = {
   message?: string;
   lines?: number;
+  size?: number;
 };
 
 export default function InlineLoader({ message = 'Loading...', lines = 3 }: InlineLoaderProps) {

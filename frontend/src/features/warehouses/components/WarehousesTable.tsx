@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button, Stack } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
@@ -31,6 +31,7 @@ export default function WarehousesTable({
   sort,
   onSortChange,
 }: Props) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<WarehouseResponse>[] = [
     {
       id: 'name',
@@ -127,6 +128,8 @@ export default function WarehousesTable({
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}
+      onRowClick={(row) => navigate(`/warehouses/${row.id}`)}
+      rowClickLabel="Open details"
     />
   );
 }

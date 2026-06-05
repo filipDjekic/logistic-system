@@ -12,6 +12,8 @@ type ShiftsTableProps = {
   error?: boolean;
   onRetry?: () => void;
   onEdit?: (shift: ShiftResponse) => void;
+  onCancel?: (shift: ShiftResponse) => void;
+  cancelLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
   showEmployeeColumn?: boolean;
@@ -26,6 +28,8 @@ export default function ShiftsTable({
   error = false,
   onRetry,
   onEdit,
+  onCancel,
+  cancelLoading = false,
   emptyTitle,
   emptyDescription,
   showEmployeeColumn = true,
@@ -91,16 +95,27 @@ export default function ShiftsTable({
             id: 'actions',
             header: 'Actions',
             align: 'right' as const,
-            minWidth: 120,
+            minWidth: 180,
             render: (row: ShiftResponse) => (
-              <Button
-                variant="text"
-                size="small"
-                onClick={() => onEdit?.(row)}
-                disabled={row.status !== 'PLANNED'}
-              >
-                Edit
-              </Button>
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => onEdit?.(row)}
+                  disabled={row.status !== 'PLANNED'}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="text"
+                  color="warning"
+                  size="small"
+                  onClick={() => onCancel?.(row)}
+                  disabled={row.status !== 'PLANNED' || cancelLoading}
+                >
+                  Cancel
+                </Button>
+              </Stack>
             ),
           },
         ]

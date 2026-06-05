@@ -3,8 +3,10 @@ package rs.logistics.logistics_system.service.definition;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Pageable;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
@@ -27,10 +29,14 @@ public interface TaskServiceDefinition {
     void delete(Long id);
 
     @Transactional
-    TaskResponse changeStatus(Long id, TaskStatus status);
+    TaskResponse changeStatus(Long id, TaskStatus status, String reason, Long expectedVersion);
 
     @Transactional
     TaskResponse assignTask(Long id, Long employeeId);
 
     int closeTransportTasks(Long transportOrderId, TaskStatus status);
+    java.util.List<StatusCountResponse> countByStatus(String search, TaskPriority priority, Long assignedEmployeeId, Long transportOrderId, Long stockMovementId, String linkedProcessType);
+
+
+    AllowedStatusTransitionsResponse allowedStatusTransitions(Long id);
 }

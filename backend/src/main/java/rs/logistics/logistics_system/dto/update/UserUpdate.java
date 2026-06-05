@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,8 +15,6 @@ import rs.logistics.logistics_system.enums.UserStatus;
 @Setter
 @NoArgsConstructor
 public class UserUpdate {
-
-    private Long id;
 
     @NotBlank(message = "First name is required")
     @Size(max = 60, message = "First name must be at most 60 characters")
@@ -31,6 +30,7 @@ public class UserUpdate {
     private String email;
 
     @NotNull(message = "Role is required")
+    @Positive(message = "Selected role is not valid")
     private Long roleId;
 
     @NotNull(message = "Enabled flag is required")

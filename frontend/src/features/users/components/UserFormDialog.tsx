@@ -1,8 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -14,6 +12,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { useForm } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import Form from '../../../shared/components/Form/Form';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
@@ -39,6 +39,8 @@ type UserFormDialogProps = {
   roles: RoleResponse[];
   companies?: CompanyResponse[];
   loading?: boolean;
+  createError?: unknown;
+  updateError?: unknown;
   onClose: () => void;
   onSubmitCreate: (values: CreateUserFormValues) => void;
   onSubmitUpdate: (values: UpdateUserFormValues) => void;
@@ -91,6 +93,8 @@ export default function UserFormDialog({
   roles,
   companies = [],
   loading = false,
+  createError = null,
+  updateError = null,
   onClose,
   onSubmitCreate,
   onSubmitUpdate,
@@ -98,11 +102,13 @@ export default function UserFormDialog({
   const createForm = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
     defaultValues: createDefaultValues,
+    mode: 'onChange',
   });
 
   const updateForm = useForm<UpdateUserFormValues>({
     resolver: zodResolver(updateUserSchema),
     defaultValues: updateDefaultValues,
+    mode: 'onChange',
   });
 
   useEffect(() => {
@@ -138,6 +144,23 @@ export default function UserFormDialog({
 
     updateForm.reset(updateDefaultValues);
   }, [open, mode, initialData, createForm, updateForm]);
+
+
+  useEffect(() => {
+    if (!open || !createError) {
+      return;
+    }
+
+    applyServerFieldErrors(createError, createForm.setError);
+  }, [createError, createForm, open]);
+
+  useEffect(() => {
+    if (!open || !updateError) {
+      return;
+    }
+
+    applyServerFieldErrors(updateError, updateForm.setError);
+  }, [open, updateError, updateForm]);
 
   const auth = useAuthStore();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
@@ -437,29 +460,17 @@ export default function UserFormDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-
-        {isCreate ? (
-          <Button
-            variant="contained"
-            onClick={createForm.handleSubmit(onSubmitCreate)}
-            disabled={loading}
-          >
-            Create
-          </Button>
-        ) : (
-          <Button
-            variant="contained"
-            onClick={updateForm.handleSubmit(onSubmitUpdate)}
-            disabled={loading}
-          >
-            Save changes
-          </Button>
-        )}
-      </DialogActions>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel={isCreate ? 'Create' : 'Save changes'}
+          submittingLabel={isCreate ? 'Creating user...' : 'Saving changes...'}
+          helperText="User, role and employee fields must be valid before saving."
+          loading={loading}
+          submitDisabled={isCreate ? !createForm.formState.isValid : !updateForm.formState.isValid}
+          onCancel={onClose}
+          onSubmit={isCreate ? createForm.handleSubmit(onSubmitCreate) : updateForm.handleSubmit(onSubmitUpdate)}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

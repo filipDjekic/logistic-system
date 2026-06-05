@@ -8,7 +8,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import rs.logistics.logistics_system.enums.ShiftStatus;
 
 @Getter
 @Setter
@@ -21,8 +20,6 @@ public class ShiftCreate {
     @NotNull
     private LocalDateTime endTime;
 
-    @NotNull
-    private ShiftStatus status;
 
     @Size(max = 255)
     private String notes;
@@ -40,12 +37,10 @@ public class ShiftCreate {
 
     public ShiftCreate(LocalDateTime startTime,
                        LocalDateTime endTime,
-                       ShiftStatus status,
                        String notes,
                        Long employeeId) {
         this.startTime = startTime;
         this.endTime = endTime;
-        this.status = status;
         this.notes = notes;
         this.employeeId = employeeId;
     }

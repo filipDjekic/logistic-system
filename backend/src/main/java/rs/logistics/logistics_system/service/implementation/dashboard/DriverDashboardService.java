@@ -79,16 +79,28 @@ public class DriverDashboardService implements DriverDashboardServiceDefinition 
                 .map(this::mapTransportOrder)
                 .orElse(null);
 
+        Map<String, Long> transportOrdersByStatus = countTransportOrdersByStatus(assignedTransportOrders);
+        long openTransportTasksTotal = transportTasks.stream().filter(task -> OPEN_TASK_STATUSES.contains(task.getStatus())).count();
+        Map<String, Long> transportTasksByStatus = countTasksByStatus(transportTasks);
+
         return new DriverDashboardResponse(
                 activeTransportOrders.size(),
                 assignedTransportOrders.size(),
-                countTransportOrdersByStatus(assignedTransportOrders),
+                transportOrdersByStatus,
                 transportTasks.size(),
-                transportTasks.stream().filter(task -> OPEN_TASK_STATUSES.contains(task.getStatus())).count(),
-                countTasksByStatus(transportTasks),
+                openTransportTasksTotal,
+                transportTasksByStatus,
                 nextTransportOrder,
                 activeTransportOrders.stream().map(this::mapTransportOrder).toList(),
-                transportTasks.stream().limit(10).map(this::mapTask).toList()
+                transportTasks.stream().limit(10).map(this::mapTask).toList(),
+                List.of(
+                        DashboardResponseFactory.statusChart("transportOrdersByStatus", "My transports by status", transportOrdersByStatus),
+                        DashboardResponseFactory.statusChart("transportTasksByStatus", "My transport tasks by status", transportTasksByStatus)
+                ),
+                List.of(
+                        DashboardResponseFactory.activeTransportsAlert(activeTransportOrders.size()),
+                        DashboardResponseFactory.openTasksAlert(openTransportTasksTotal)
+                )
         );
     }
 

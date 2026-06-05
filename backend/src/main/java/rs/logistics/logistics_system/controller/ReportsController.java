@@ -23,6 +23,7 @@ import rs.logistics.logistics_system.service.definition.report.EmployeeTaskRepor
 import rs.logistics.logistics_system.service.definition.report.InventoryReportServiceDefinition;
 import rs.logistics.logistics_system.service.definition.report.TransportReportServiceDefinition;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 @RestController
@@ -68,7 +69,8 @@ public class ReportsController {
             @RequestParam(required = false) Long sourceWarehouseId,
             @RequestParam(required = false) Long destinationWarehouseId,
             @RequestParam(required = false) Long vehicleId,
-            @RequestParam(required = false) Long assignedEmployeeId
+            @RequestParam(required = false) Long assignedEmployeeId,
+            @RequestParam(defaultValue = "CSV") String format
     ) {
         byte[] csv = transportReportService.exportTransportReportCsv(
                 fromDate,
@@ -80,7 +82,7 @@ public class ReportsController {
                 vehicleId,
                 assignedEmployeeId
         );
-        return csvResponse(csv, "transport-report.csv");
+        return exportResponse(csv, "transport-report", format);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
@@ -108,7 +110,8 @@ public class ReportsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) Long productId,
-            @RequestParam(required = false) StockMovementType movementType
+            @RequestParam(required = false) StockMovementType movementType,
+            @RequestParam(defaultValue = "CSV") String format
     ) {
         byte[] csv = inventoryReportService.exportInventoryReportCsv(
                 fromDate,
@@ -117,7 +120,7 @@ public class ReportsController {
                 productId,
                 movementType
         );
-        return csvResponse(csv, "inventory-report.csv");
+        return exportResponse(csv, "inventory-report", format);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
@@ -148,7 +151,8 @@ public class ReportsController {
             @RequestParam(required = false) Long employeeId,
             @RequestParam(required = false) EmployeePosition position,
             @RequestParam(required = false) TaskStatus taskStatus,
-            @RequestParam(required = false) TaskPriority taskPriority
+            @RequestParam(required = false) TaskPriority taskPriority,
+            @RequestParam(defaultValue = "CSV") String format
     ) {
         byte[] csv = employeeTaskReportService.exportEmployeeTaskReportCsv(
                 fromDate,
@@ -158,14 +162,50 @@ public class ReportsController {
                 taskStatus,
                 taskPriority
         );
-        return csvResponse(csv, "employee-task-report.csv");
+        return exportResponse(csv, "employee-task-report", format);
     }
 
-    private ResponseEntity<byte[]> csvResponse(byte[] csv, String fileName) {
+    private ResponseEntity<byte[]> exportResponse(byte[] csv, String baseFileName, String format) {
+        if ("XLSX".equalsIgnoreCase(format)) {
+            byte[] workbook = toSpreadsheetXml(csv);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + baseFileName + ".xlsx\"")
+                    .contentLength(workbook.length)
+                    .body(workbook);
+        }
+
         return ResponseEntity.ok()
                 .contentType(new MediaType("text", "csv"))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + baseFileName + ".csv\"")
                 .contentLength(csv.length)
                 .body(csv);
+    }
+
+    private byte[] toSpreadsheetXml(byte[] csv) {
+        String csvText = new String(csv, StandardCharsets.UTF_8).replace("\uFEFF", "");
+        StringBuilder xml = new StringBuilder();
+        xml.append("<?xml version=\"1.0\"?>");
+        xml.append("<?mso-application progid=\"Excel.Sheet\"?>");
+        xml.append("<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" ");
+        xml.append("xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"><Worksheet ss:Name=\"Report\"><Table>");
+        for (String line : csvText.split("\\n")) {
+            xml.append("<Row>");
+            for (String cell : line.split(",", -1)) {
+                xml.append("<Cell><Data ss:Type=\"String\">").append(escapeXml(cell.replace("\"", ""))).append("</Data></Cell>");
+            }
+            xml.append("</Row>");
+        }
+        xml.append("</Table></Worksheet></Workbook>");
+        return xml.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String escapeXml(String value) {
+        return value
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
     }
 }

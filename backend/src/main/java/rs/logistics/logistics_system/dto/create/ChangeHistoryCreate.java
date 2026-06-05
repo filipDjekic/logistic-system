@@ -14,7 +14,7 @@ import rs.logistics.logistics_system.enums.ChangeType;
 @NoArgsConstructor
 public class ChangeHistoryCreate {
 
-    @NotNull
+    @NotBlank
     @Size(min = 1, max = 100)
     private String entityName;
 

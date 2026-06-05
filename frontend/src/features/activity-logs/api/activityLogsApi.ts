@@ -2,10 +2,21 @@ import { apiClient } from '../../../core/api/client';
 import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type { ActivityLogQueryParams, ActivityLogResponse } from '../types/activityLog.types';
 
+export type AuditExportFormat = 'CSV' | 'XLSX';
+
 export const activityLogsApi = {
   getAll(params?: ActivityLogQueryParams & PageParams) {
     return apiClient
       .get<PageResponse<ActivityLogResponse>>('/api/activity_logs', { params })
+      .then((response) => response.data);
+  },
+
+  exportAuditLogs(params?: ActivityLogQueryParams & { format?: AuditExportFormat }) {
+    return apiClient
+      .get<Blob>('/api/activity_logs/export', {
+        params,
+        responseType: 'blob',
+      })
       .then((response) => response.data);
   },
 

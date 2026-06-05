@@ -73,6 +73,8 @@ public class EmployeeUpdate {
     @Positive(message = "Selected user is not valid")
     private Long userId;
 
+    private Boolean applyGeneratedEmailSuggestion;
+
     public EmployeeUpdate(String firstName,
                           String lastName,
                           String jmbg,

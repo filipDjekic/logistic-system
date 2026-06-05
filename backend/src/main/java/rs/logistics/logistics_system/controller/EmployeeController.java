@@ -1,10 +1,12 @@
 package rs.logistics.logistics_system.controller;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -87,10 +89,25 @@ public class EmployeeController {
             @RequestParam(required = false) EmployeePosition position,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) String linkedUser,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime availableFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime availableTo,
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        PageResponse<EmployeeResponse> response = employeeService.getAll(search, position, active, linkedUser, pageable);
+        PageResponse<EmployeeResponse> response = employeeService.getAll(search, position, active, linkedUser, availableFrom, availableTo, pageable);
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PatchMapping("/{id}/archive")
+    public ResponseEntity<EmployeeResponse> archiveEmployee(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeService.archiveEmployee(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<EmployeeResponse> restoreEmployee(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeService.restoreEmployee(id));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")

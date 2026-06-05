@@ -38,7 +38,7 @@ export default function CompanyRegistrationStatusPage() {
           <Stack spacing={1} alignItems="center" textAlign="center">
             {query.data?.status === 'APPROVED' ? <CheckCircleOutlineIcon color="success" sx={{ fontSize: 54 }} /> : null}
             {query.data?.status === 'REJECTED' || query.data?.status === 'CANCELLED' ? <CancelOutlinedIcon color="error" sx={{ fontSize: 54 }} /> : null}
-            {!query.data || query.data.status === 'SUBMITTED' || query.data.status === 'UNDER_REVIEW' ? <HourglassTopIcon color="warning" sx={{ fontSize: 54 }} /> : null}
+            {!query.data || query.data.status === 'PENDING' || query.data.status === 'UNDER_REVIEW' ? <HourglassTopIcon color="warning" sx={{ fontSize: 54 }} /> : null}
             <Typography variant="h4" fontWeight={800}>Company request status</Typography>
             <Typography color="text.secondary">Request #{requestId} is tracked through the approval lifecycle.</Typography>
           </Stack>
@@ -58,7 +58,7 @@ export default function CompanyRegistrationStatusPage() {
                   <Typography variant="h6">{query.data.companyName}</Typography>
                   <Typography variant="body2" color="text.secondary">Administrator: {query.data.adminEmail}</Typography>
                 </Box>
-                <Chip label={query.data.status === 'SUBMITTED' ? 'PENDING REVIEW' : query.data.status === 'UNDER_REVIEW' ? 'UNDER REVIEW' : query.data.status} color={statusColor} sx={{ fontWeight: 800, alignSelf: { xs: 'flex-start', sm: 'center' } }} />
+                <Chip label={query.data.status === 'PENDING' ? 'PENDING REVIEW' : query.data.status === 'UNDER_REVIEW' ? 'UNDER REVIEW' : query.data.status} color={statusColor} sx={{ fontWeight: 800, alignSelf: { xs: 'flex-start', sm: 'center' } }} />
               </Stack>
 
               <Stepper activeStep={activeStep(query.data.status)} alternativeLabel sx={{ display: { xs: 'none', md: 'flex' } }}>
@@ -75,7 +75,7 @@ export default function CompanyRegistrationStatusPage() {
 
               {query.data.status === 'REJECTED' ? <Alert severity="error">Rejected reason: {query.data.rejectionReason ?? 'No reason provided.'}</Alert> : null}
               {query.data.status === 'APPROVED' ? <Alert severity="success">Approved. Company #{query.data.createdCompanyId ?? '—'} is active and the administrator can sign in.</Alert> : null}
-              {query.data.status === 'SUBMITTED' ? <Alert severity="info">Your request is waiting for Overlord approval.</Alert> : null}
+              {query.data.status === 'PENDING' ? <Alert severity="info">Your request is waiting for Overlord approval.</Alert> : null}
               {query.data.status === 'UNDER_REVIEW' ? <Alert severity="warning">Your request is under review. The final decision will appear on this page.</Alert> : null}
 
               <Stack direction="row" spacing={1} justifyContent="center">

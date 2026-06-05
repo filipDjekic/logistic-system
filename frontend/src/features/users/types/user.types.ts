@@ -56,6 +56,7 @@ export type UserEmployeeUpdateRequest = {
   employmentDate: string;
   salary: number;
   active: boolean;
+  applyGeneratedEmailSuggestion?: boolean;
 };
 
 export type UserCreateRequest = {
@@ -70,7 +71,6 @@ export type UserCreateRequest = {
 };
 
 export type UserUpdateRequest = {
-  id?: number;
   firstName: string;
   lastName: string;
   email: string;

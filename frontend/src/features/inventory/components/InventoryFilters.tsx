@@ -1,8 +1,8 @@
-import { Grid, MenuItem, Stack, TextField } from '/material';
+import { MenuItem, Stack, TextField } from '@mui/material';
+import { useState } from 'react';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
-import { ProductSearchSelect } from '../../search-select/components/ProductSearchSelect';
-import { WarehouseSearchSelect } from '../../search-select/components/WarehouseSearchSelect';
+import { EntityLookupField, type LookupOption } from '../../lookup';
 import { inventoryDerivedStatusOptions } from '../validation/inventorySchema';
 import type { InventoryFiltersState } from '../types/inventory.types';
 
@@ -19,6 +19,42 @@ export default function InventoryFilters({
   onChange,
   onRefresh,
 }: InventoryFiltersProps) {
+  const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<LookupOption | null>(null);
+
+  const clearFilters = () => {
+    setSelectedWarehouse(null);
+    setSelectedProduct(null);
+    onChange({ search: '', warehouseId: 'ALL', productId: 'ALL', status: 'ALL' });
+  };
+
+  const hasActiveFilters =
+    value.search.trim().length > 0 ||
+    value.warehouseId !== 'ALL' ||
+    value.productId !== 'ALL' ||
+    value.status !== 'ALL';
+
+  const activeFilterChips = [
+    ...(value.search.trim()
+      ? [{ key: 'search', label: `Search: ${value.search.trim()}`, onDelete: () => onChange({ ...value, search: '' }) }]
+      : []),
+    ...(value.warehouseId !== 'ALL'
+      ? [{ key: 'warehouseId', label: selectedWarehouse ? `Warehouse: ${selectedWarehouse.label}` : `Warehouse #${value.warehouseId}`, onDelete: () => {
+          setSelectedWarehouse(null);
+          onChange({ ...value, warehouseId: 'ALL' });
+        } }]
+      : []),
+    ...(value.productId !== 'ALL'
+      ? [{ key: 'productId', label: selectedProduct ? `Product: ${selectedProduct.label}` : `Product #${value.productId}`, onDelete: () => {
+          setSelectedProduct(null);
+          onChange({ ...value, productId: 'ALL' });
+        } }]
+      : []),
+    ...(value.status !== 'ALL'
+      ? [{ key: 'status', label: `Status: ${value.status}`, onDelete: () => onChange({ ...value, status: 'ALL' }) }]
+      : []),
+  ];
+
   return (
     <Stack spacing={2}>
       <TableToolbar
@@ -27,8 +63,9 @@ export default function InventoryFilters({
         searchPlaceholder="Search by warehouse, city, product, SKU or ID"
         onRefresh={onRefresh}
         refreshDisabled={loading}
-        onClearFilters={() => onChange({ ...value, warehouseId: 'ALL', productId: 'ALL' })}
-        clearDisabled={loading || (value.warehouseId === 'ALL' && value.productId === 'ALL')}
+        onClearFilters={clearFilters}
+        clearDisabled={loading || !hasActiveFilters}
+        activeFilters={activeFilterChips}
       />
 
       <FilterPanel minColumnWidth={180}>
@@ -51,22 +88,28 @@ export default function InventoryFilters({
         </TextField>
       </FilterPanel>
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <WarehouseSearchSelect
-            title="Warehouse filter"
-            value={value.warehouseId === 'ALL' ? null : value.warehouseId}
-            onSelect={(warehouse) => onChange({ ...value, warehouseId: warehouse.id })}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <ProductSearchSelect
-            title="Product filter"
-            value={value.productId === 'ALL' ? null : value.productId}
-            onSelect={(product) => onChange({ ...value, productId: product.id })}
-          />
-        </Grid>
-      </Grid>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+        <EntityLookupField
+          label="Warehouse"
+          entityType="warehouses"
+          value={selectedWarehouse}
+          onChange={(warehouse) => {
+            setSelectedWarehouse(warehouse);
+            onChange({ ...value, warehouseId: warehouse?.id ?? 'ALL' });
+          }}
+          disabled={loading}
+        />
+        <EntityLookupField
+          label="Product"
+          entityType="products"
+          value={selectedProduct}
+          onChange={(product) => {
+            setSelectedProduct(product);
+            onChange({ ...value, productId: product?.id ?? 'ALL' });
+          }}
+          disabled={loading}
+        />
+      </Stack>
     </Stack>
   );
 }

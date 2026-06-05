@@ -7,6 +7,8 @@ import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
+import DashboardAlerts from './DashboardAlerts';
+import DashboardCharts from './DashboardCharts';
 import type { WorkerDashboardResponse, WorkerShiftResponse, WorkerTaskResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -153,6 +155,10 @@ export default function WorkerDashboardPanel({ data }: Props) {
           { label: 'Next shift', value: data.nextShift?.status ?? '-', tone: data.nextShift ? 'info' : 'default' },
         ]}
       />
+
+      <DashboardAlerts alerts={data.alerts} />
+
+      <DashboardCharts charts={data.charts} />
 
       <Box
         sx={{

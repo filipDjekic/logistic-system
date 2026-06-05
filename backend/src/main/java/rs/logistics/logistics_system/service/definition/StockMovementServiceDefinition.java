@@ -13,6 +13,8 @@ import rs.logistics.logistics_system.dto.create.StockTransferCreate;
 import rs.logistics.logistics_system.dto.create.StockWriteOffCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
+import rs.logistics.logistics_system.dto.response.StockMovementTraceResponse;
+import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementType;
 
 public interface StockMovementServiceDefinition {
@@ -37,7 +39,9 @@ public interface StockMovementServiceDefinition {
 
     StockMovementResponse getById(Long id);
 
+    StockMovementTraceResponse trace(Long id);
+
     PageResponse<StockMovementResponse> getAll(Pageable pageable);
 
-    PageResponse<StockMovementResponse> search(String search, StockMovementType movementType, Long warehouseId, Long productId, Long transportOrderId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable);
+    PageResponse<StockMovementResponse> search(String search, StockMovementType movementType, StockMovementReasonCode reasonCode, Long warehouseId, Long productId, Long transportOrderId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable);
 }

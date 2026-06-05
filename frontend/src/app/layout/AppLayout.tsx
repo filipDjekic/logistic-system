@@ -5,6 +5,7 @@ import Sidebar, { SIDEBAR_WIDTH } from './Sidebar';
 import Topbar from './Topbar';
 import PageContainer from './PageContainer';
 import BreadcrumbsBar from './BreadcrumbsBar';
+import { OfflineAwarenessBanner } from '../../shared/components/OfflineAwareness';
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -21,6 +22,7 @@ export default function AppLayout() {
         }}
       >
         <Topbar onOpenSidebar={() => setMobileOpen(true)} />
+        <OfflineAwarenessBanner />
 
         <PageContainer>
           <Box sx={{ mb: { xs: 2, md: 3 } }}>

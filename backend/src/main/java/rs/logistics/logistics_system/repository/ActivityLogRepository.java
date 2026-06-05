@@ -2,7 +2,9 @@ package rs.logistics.logistics_system.repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import rs.logistics.logistics_system.entity.ActivityLog;
@@ -26,6 +28,7 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
               and (:entityName is null or :entityName = '' or lower(a.entityName) like lower(concat('%', :entityName, '%')))
               and (:userId is null or a.user.id = :userId)
             """)
+    @EntityGraph(attributePaths = {"user", "user.company"})
     Page<ActivityLog> searchLogs(
             @Param("companyId") Long companyId,
             @Param("search") String search,
@@ -66,4 +69,9 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     long countByUser_Company_Id(Long companyId);
 
     List<ActivityLog> findTop10ByUser_Company_IdOrderByCreatedAtDesc(Long companyId);
+
+    @Modifying
+    @Query("DELETE FROM ActivityLog a WHERE a.createdAt < :cutoff")
+    int deleteOlderThan(@Param("cutoff") LocalDateTime cutoff);
 }
+

@@ -37,4 +37,6 @@ public class UserEmployeeUpdate {
 
     @NotNull
     private Boolean active;
+
+    private Boolean applyGeneratedEmailSuggestion;
 }

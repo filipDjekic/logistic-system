@@ -12,10 +12,16 @@ import type {
   TransportOrderListFilters,
   TransportOrderResponse,
   TransportOrderStatus,
+  AllowedStatusTransitionsResponse,
   TransportOrderUpdateRequest,
   VehicleOption,
   WarehouseOption,
 } from '../types/transportOrder.types';
+
+export type StatusCountResponse = {
+  status: string;
+  count: number;
+};
 
 type EmployeeResponse = {
   id: number;
@@ -95,6 +101,15 @@ export const transportOrdersApi = {
       .then((response) => response.data);
   },
 
+
+  getStatusCounts(filters?: Omit<TransportOrderListFilters, 'status'>) {
+    return apiClient
+      .get<StatusCountResponse[]>('/api/transport_orders/status-counts', {
+        params: buildTransportOrderParams(filters as TransportOrderListFilters & PageParams | undefined),
+      })
+      .then((response) => response.data);
+  },
+
   getById(id: number) {
     return apiClient
       .get<TransportOrderResponse>(`/api/transport_orders/${id}`)
@@ -113,9 +128,15 @@ export const transportOrdersApi = {
       .then((response) => response.data);
   },
 
-  updateStatus(id: number, status: TransportOrderStatus) {
+  getAllowedStatusTransitions(id: number) {
     return apiClient
-      .patch<TransportOrderResponse>(`/api/transport_orders/${id}/status`, { status })
+      .get<AllowedStatusTransitionsResponse<TransportOrderStatus>>(`/api/transport_orders/${id}/status-transitions`)
+      .then((response) => response.data);
+  },
+
+  updateStatus(id: number, status: TransportOrderStatus, reason?: string, expectedVersion?: number) {
+    return apiClient
+      .patch<TransportOrderResponse>(`/api/transport_orders/${id}/status`, { status, reason, expectedVersion })
       .then((response) => response.data);
   },
 

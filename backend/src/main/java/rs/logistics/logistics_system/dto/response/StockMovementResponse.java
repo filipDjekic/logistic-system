@@ -28,6 +28,11 @@ public class StockMovementResponse {
     private String referenceNumber;
     private String referenceNote;
     private String transferGroupId;
+    private String sourceType;
+    private Long sourceId;
+    private String referenceCode;
+    private Long parentMovementId;
+    private Long rootMovementId;
     private StockAdjustmentDirection adjustmentDirection;
 
     private BigDecimal quantityBefore;
@@ -48,6 +53,13 @@ public class StockMovementResponse {
     private Long createdById;
     private Long transportOrderId;
 
+    private Long sourceBinId;
+    private String sourceBinCode;
+    private Long sourceBinZoneId;
+    private Long destinationBinId;
+    private String destinationBinCode;
+    private Long destinationBinZoneId;
+
     private LocalDateTime createdAt;
 
     public StockMovementResponse(
@@ -61,6 +73,11 @@ public class StockMovementResponse {
             String referenceNumber,
             String referenceNote,
             String transferGroupId,
+            String sourceType,
+            Long sourceId,
+            String referenceCode,
+            Long parentMovementId,
+            Long rootMovementId,
             StockAdjustmentDirection adjustmentDirection,
             BigDecimal quantityBefore,
             BigDecimal quantityAfter,
@@ -76,6 +93,12 @@ public class StockMovementResponse {
             Long productCompanyId,
             Long createdById,
             Long transportOrderId,
+            Long sourceBinId,
+            String sourceBinCode,
+            Long sourceBinZoneId,
+            Long destinationBinId,
+            String destinationBinCode,
+            Long destinationBinZoneId,
             LocalDateTime createdAt
     ) {
         this.id = id;
@@ -88,6 +111,11 @@ public class StockMovementResponse {
         this.referenceNumber = referenceNumber;
         this.referenceNote = referenceNote;
         this.transferGroupId = transferGroupId;
+        this.sourceType = sourceType;
+        this.sourceId = sourceId;
+        this.referenceCode = referenceCode;
+        this.parentMovementId = parentMovementId;
+        this.rootMovementId = rootMovementId;
         this.adjustmentDirection = adjustmentDirection;
         this.quantityBefore = quantityBefore;
         this.quantityAfter = quantityAfter;
@@ -103,6 +131,12 @@ public class StockMovementResponse {
         this.productCompanyId = productCompanyId;
         this.createdById = createdById;
         this.transportOrderId = transportOrderId;
+        this.sourceBinId = sourceBinId;
+        this.sourceBinCode = sourceBinCode;
+        this.sourceBinZoneId = sourceBinZoneId;
+        this.destinationBinId = destinationBinId;
+        this.destinationBinCode = destinationBinCode;
+        this.destinationBinZoneId = destinationBinZoneId;
         this.createdAt = createdAt;
     }
 }

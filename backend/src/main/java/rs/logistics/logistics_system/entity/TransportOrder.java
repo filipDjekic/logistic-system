@@ -77,7 +77,11 @@ public class TransportOrder {
     @Column(name = "notes", length = 255)
     private String notes;
 
-    @Column(name = "updated_at")
+        @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
+@Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 

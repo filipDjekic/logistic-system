@@ -87,6 +87,22 @@ export default function ProductsPage() {
 
   const query = useProducts(productSearchParams);
   const rows = query.data?.content ?? [];
+  const hasActiveFilters = filters.search.trim().length > 0 || filters.active !== 'ALL';
+
+  const clearFilters = () => {
+    setPage(0);
+    setFilters({ search: '', active: 'ALL' });
+  };
+
+  const activeFilterChips = [
+    ...(filters.search.trim()
+      ? [{ key: 'search', label: `Search: ${filters.search.trim()}`, onDelete: () => setFilters((prev) => ({ ...prev, search: '' })) }]
+      : []),
+    ...(filters.active !== 'ALL'
+      ? [{ key: 'active', label: `Status: ${filters.active}`, onDelete: () => setFilters((prev) => ({ ...prev, active: 'ALL' })) }]
+      : []),
+  ];
+
   const companiesQuery = useCompanies(
     canManage && isOverlord && open && selected === null,
   );
@@ -130,6 +146,9 @@ export default function ProductsPage() {
               if (canManage && isOverlord && open && selected === null) void companiesQuery.refetch();
             }}
             refreshDisabled={query.isFetching || companiesQuery.isFetching}
+            onClearFilters={clearFilters}
+            clearDisabled={query.isFetching || companiesQuery.isFetching || !hasActiveFilters}
+            activeFilters={activeFilterChips}
           />
         }
         filters={
@@ -179,12 +198,13 @@ export default function ProductsPage() {
           initialData={selected}
           companies={companiesQuery.data ?? []}
           showCompanySelect={isOverlord && selected === null}
+          loading={create.isPending || update.isPending}
           onClose={() => setOpen(false)}
           onSubmit={(values: ProductFormValues) => {
             const payload = {
-              name: values.name,
-              description: values.description,
-              sku: values.sku,
+              name: values.name.trim(),
+              description: values.description?.trim() ?? '',
+              sku: values.sku.trim(),
               unit: values.unit,
               price: Number(values.price),
               fragile: values.fragile,

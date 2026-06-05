@@ -8,6 +8,7 @@ import type {
   StockMovementFiltersState,
   StockMovementProductOption,
   StockMovementResponse,
+  StockMovementTraceResponse,
   StockMovementTransportOrderOption,
   StockMovementWarehouseOption,
   StockOutboundRequest,
@@ -27,9 +28,10 @@ function buildStockMovementParams(filters?: Partial<StockMovementFiltersState> &
     size: filters.size,
     sort: filters.sort,
     movementType: enumFilter(filters.movementType),
-    warehouseId: enumFilter(filters.warehouseId),
-    productId: enumFilter(filters.productId),
-    transportOrderId: enumFilter(filters.transportOrderId),
+    reasonCode: enumFilter(filters.reasonCode),
+    warehouseId: filters.warehouseId === 'ALL' ? undefined : filters.warehouseId,
+    productId: filters.productId === 'ALL' ? undefined : filters.productId,
+    transportOrderId: filters.transportOrderId === 'ALL' ? undefined : filters.transportOrderId,
     fromDate: filters.fromDate || undefined,
     toDate: filters.toDate || undefined,
   });
@@ -47,6 +49,12 @@ export const stockMovementsApi = {
   getById(id: number) {
     return apiClient
       .get<StockMovementResponse>(`/api/stock_movements/${id}`)
+      .then((response) => response.data);
+  },
+
+  trace(id: number) {
+    return apiClient
+      .get<StockMovementTraceResponse>(`/api/stock_movements/${id}/trace`)
       .then((response) => response.data);
   },
 

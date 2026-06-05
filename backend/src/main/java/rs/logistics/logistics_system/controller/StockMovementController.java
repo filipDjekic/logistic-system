@@ -17,6 +17,8 @@ import rs.logistics.logistics_system.dto.create.StockTransferCreate;
 import rs.logistics.logistics_system.dto.create.StockWriteOffCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
+import rs.logistics.logistics_system.dto.response.StockMovementTraceResponse;
+import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
 
@@ -66,17 +68,24 @@ public class StockMovementController {
         return new ResponseEntity<>(stockMovementService.returnStock(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/{id}")
     public ResponseEntity<StockMovementResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.getById(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @GetMapping("/{id}/trace")
+    public ResponseEntity<StockMovementTraceResponse> trace(@PathVariable Long id) {
+        return ResponseEntity.ok(stockMovementService.trace(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
     public ResponseEntity<PageResponse<StockMovementResponse>> search(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) StockMovementType movementType,
+            @RequestParam(required = false) StockMovementReasonCode reasonCode,
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) Long productId,
             @RequestParam(required = false) Long transportOrderId,
@@ -87,6 +96,7 @@ public class StockMovementController {
         return ResponseEntity.ok(stockMovementService.search(
                 search,
                 movementType,
+                reasonCode,
                 warehouseId,
                 productId,
                 transportOrderId,

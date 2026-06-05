@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation.dashboard;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import rs.logistics.logistics_system.service.implementation.dashboard.cache.DashboardResponseCache;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.dashboard.CompanyAdminDashboardResponse;
 import rs.logistics.logistics_system.entity.ActivityLog;
@@ -53,33 +54,56 @@ public class CompanyAdminDashboardService implements CompanyAdminDashboardServic
     private final StockMovementRepository stockMovementRepository;
     private final ActivityLogRepository activityLogRepository;
     private final ChangeHistoryRepository changeHistoryRepository;
+    private final DashboardResponseCache dashboardResponseCache;
 
     @Override
     @Transactional(readOnly = true)
     public CompanyAdminDashboardResponse getOverview() {
         Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
+        return dashboardResponseCache.get("company-admin:" + companyId, () -> buildOverview(companyId));
+    }
+
+    private CompanyAdminDashboardResponse buildOverview(Long companyId) {
+        long activeTransportOrders = transportOrderRepository.countByCreatedBy_Company_IdAndStatusIn(companyId, ACTIVE_TRANSPORT_STATUSES);
+        Map<String, Long> transportOrdersByStatus = countTransportOrdersByStatus(companyId);
+        long openTasksTotal = countOpenTasks(companyId);
+        Map<String, Long> tasksByStatus = countTasksByStatus(companyId);
+        Map<String, Long> vehiclesByStatus = countVehiclesByStatus(companyId);
+        long lowStockRowsTotal = warehouseInventoryRepository.countLowStockRowsByCompanyId(companyId);
+
         return new CompanyAdminDashboardResponse(
                 employeeRepository.countByCompany_Id(companyId),
                 employeeRepository.countByCompany_IdAndActiveTrue(companyId),
                 transportOrderRepository.countByCreatedBy_Company_Id(companyId),
-                transportOrderRepository.countByCreatedBy_Company_IdAndStatusIn(companyId, ACTIVE_TRANSPORT_STATUSES),
-                countTransportOrdersByStatus(companyId),
-                taskRepository.findAllByAssignedEmployee_Company_Id(companyId).size(),
-                countOpenTasks(companyId),
-                countTasksByStatus(companyId),
+                activeTransportOrders,
+                transportOrdersByStatus,
+                taskRepository.countByAssignedEmployee_Company_Id(companyId),
+                openTasksTotal,
+                tasksByStatus,
                 vehicleRepository.countByCompany_Id(companyId),
-                countVehiclesByStatus(companyId),
+                vehiclesByStatus,
                 warehouseRepository.countByCompany_Id(companyId),
                 productRepository.countByCompany_Id(companyId),
                 warehouseInventoryRepository.countByWarehouse_Company_Id(companyId),
-                warehouseInventoryRepository.countLowStockRowsByCompanyId(companyId),
+                lowStockRowsTotal,
                 safeBigDecimal(warehouseInventoryRepository.sumQuantityByCompanyId(companyId)),
                 safeBigDecimal(warehouseInventoryRepository.sumAvailableQuantityByCompanyId(companyId)),
                 stockMovementRepository.countByWarehouse_Company_Id(companyId),
                 activityLogRepository.countByUser_Company_Id(companyId),
                 changeHistoryRepository.countByChangedBy_Company_Id(companyId),
-                recentActivities(companyId)
+                recentActivities(companyId),
+                List.of(
+                        DashboardResponseFactory.statusChart("transportOrdersByStatus", "Transport orders by status", transportOrdersByStatus),
+                        DashboardResponseFactory.statusChart("tasksByStatus", "Tasks by status", tasksByStatus),
+                        DashboardResponseFactory.statusChart("vehiclesByStatus", "Vehicles by status", vehiclesByStatus),
+                        DashboardResponseFactory.comparisonChart("inventoryHealth", "Inventory health", "Low stock", lowStockRowsTotal, "Available rows", Math.max(warehouseInventoryRepository.countByWarehouse_Company_Id(companyId) - lowStockRowsTotal, 0))
+                ),
+                List.of(
+                        DashboardResponseFactory.activeTransportsAlert(activeTransportOrders),
+                        DashboardResponseFactory.openTasksAlert(openTasksTotal),
+                        DashboardResponseFactory.lowStockAlert(lowStockRowsTotal)
+                )
         );
     }
 
@@ -91,18 +115,13 @@ public class CompanyAdminDashboardService implements CompanyAdminDashboardServic
     }
 
     private long countOpenTasks(Long companyId) {
-        return taskRepository.findAllByAssignedEmployee_Company_Id(companyId)
-                .stream()
-                .filter(task -> OPEN_TASK_STATUSES.contains(task.getStatus()))
-                .count();
+        return taskRepository.countByAssignedEmployee_Company_IdAndStatusIn(companyId, OPEN_TASK_STATUSES);
     }
 
     private Map<String, Long> countTasksByStatus(Long companyId) {
         Map<String, Long> result = emptyEnumMap(TaskStatus.values());
-        taskRepository.findAllByAssignedEmployee_Company_Id(companyId)
-                .stream()
-                .collect(java.util.stream.Collectors.groupingBy(task -> task.getStatus(), java.util.stream.Collectors.counting()))
-                .forEach((status, count) -> result.put(status.name(), count));
+        taskRepository.countGroupedByStatusAndCompanyId(companyId)
+                .forEach(row -> result.put(String.valueOf(row[0]), (Long) row[1]));
         return result;
     }
 

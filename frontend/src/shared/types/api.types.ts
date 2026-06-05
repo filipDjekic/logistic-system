@@ -20,11 +20,12 @@ export type ApiFieldErrorResponse = {
 };
 
 export type ApiErrorResponse = {
-  timestamp: string;
-  status: number;
-  error: string;
+  timestamp?: string;
+  status?: number;
+  error?: string;
   code?: string;
-  message: string;
-  path: string;
-  fieldErrors?: ApiFieldErrorResponse[];
+  message?: string;
+  path?: string;
+  fieldErrors?: ApiFieldErrorResponse[] | Record<string, string>;
+  fieldErrorMap?: Record<string, string>;
 };

@@ -93,15 +93,26 @@ public class WorkerDashboardService implements WorkerDashboardServiceDefinition 
                 .map(this::mapShift)
                 .orElse(null);
 
+        Map<String, Long> tasksByStatus = countTasksByStatus(assignedTasks);
+        Map<String, Long> tasksByType = countTasksByType(assignedTasks);
+
         return new WorkerDashboardResponse(
                 openTasks.size(),
                 todayTasks.size(),
-                countTasksByStatus(assignedTasks),
-                countTasksByType(assignedTasks),
+                tasksByStatus,
+                tasksByType,
                 currentShift,
                 nextShift,
                 openTasks.stream().limit(10).map(this::mapTask).toList(),
-                todayTasks.stream().limit(10).map(this::mapTask).toList()
+                todayTasks.stream().limit(10).map(this::mapTask).toList(),
+                List.of(
+                        DashboardResponseFactory.statusChart("tasksByStatus", "My tasks by status", tasksByStatus),
+                        DashboardResponseFactory.barChart("tasksByType", "My tasks by type", tasksByType)
+                ),
+                List.of(
+                        DashboardResponseFactory.openTasksAlert(openTasks.size()),
+                        DashboardResponseFactory.alert(todayTasks.isEmpty() ? "SUCCESS" : "INFO", "TODAY_TASKS", "Today tasks", todayTasks.isEmpty() ? "No tasks are due today." : "Tasks are due today.", todayTasks.size())
+                )
         );
     }
 

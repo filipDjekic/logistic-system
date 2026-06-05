@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -11,10 +9,15 @@ import {
   Typography,
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import { EntityLookupField } from '../../lookup';
 import FormTextField from '../../../shared/components/Form/Form';
+import BusinessRuleWarnings, { type BusinessRuleWarning } from '../../../shared/components/BusinessRuleWarnings';
 import type {
   EmployeeOption,
   TransportOrderResponse,
@@ -34,6 +37,7 @@ type TransportOrderFormDialogProps = {
   employees: EmployeeOption[];
   initialData?: TransportOrderResponse | null;
   loading?: boolean;
+  serverError?: unknown;
   onClose: () => void;
   onSubmit: (values: TransportOrderSchemaValues) => void;
 };
@@ -80,6 +84,7 @@ export default function TransportOrderFormDialog({
   employees,
   initialData = null,
   loading = false,
+  serverError = null,
   onClose,
   onSubmit,
 }: TransportOrderFormDialogProps) {
@@ -114,23 +119,69 @@ export default function TransportOrderFormDialog({
     });
   }, [form, initialData, open]);
 
-  const warehouseOptions = warehouses.map((warehouse) => ({
-    value: warehouse.id,
-    label: `${warehouse.name} (${warehouse.city})`,
-  }));
+  useEffect(() => {
+    if (!open || !serverError) {
+      return;
+    }
 
-  const vehicleOptions = vehicles.map((vehicle) => ({
-    value: vehicle.id,
-    label: `${vehicle.registrationNumber} — ${vehicle.brand} ${vehicle.model}`,
-  }));
+    applyServerFieldErrors(serverError, form.setError);
+  }, [form, open, serverError]);
 
-  const driverOptions = employees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.firstName} ${employee.lastName} (${employee.email})`,
-  }));
+  const sourceWarehouseId = useWatch({ control: form.control, name: 'sourceWarehouseId' });
+  const destinationWarehouseId = useWatch({ control: form.control, name: 'destinationWarehouseId' });
+  const vehicleId = useWatch({ control: form.control, name: 'vehicleId' });
+  const assignedEmployeeId = useWatch({ control: form.control, name: 'assignedEmployeeId' });
+
+  const selectedSourceWarehouse = warehouses.find((warehouse) => warehouse.id === Number(sourceWarehouseId));
+  const selectedDestinationWarehouse = warehouses.find((warehouse) => warehouse.id === Number(destinationWarehouseId));
+  const selectedVehicle = vehicles.find((vehicle) => vehicle.id === Number(vehicleId));
+  const selectedDriver = employees.find((employee) => employee.id === Number(assignedEmployeeId));
 
   const isEditMode = initialData !== null;
-  const disableSubmit = loading || !form.formState.isValid;
+  const businessWarnings: BusinessRuleWarning[] = [];
+
+  if (selectedSourceWarehouse && selectedSourceWarehouse.status !== 'ACTIVE') {
+    businessWarnings.push({
+      key: 'source-warehouse-status',
+      severity: 'error',
+      message: `Source warehouse is ${selectedSourceWarehouse.status}. Transport orders should start only from active warehouses.`,
+    });
+  }
+
+  if (selectedDestinationWarehouse && selectedDestinationWarehouse.status !== 'ACTIVE') {
+    businessWarnings.push({
+      key: 'destination-warehouse-status',
+      severity: selectedDestinationWarehouse.status === 'FULL' ? 'warning' : 'error',
+      message: `Destination warehouse is ${selectedDestinationWarehouse.status}. Check capacity and operational availability before creating the order.`,
+    });
+  }
+
+  if (selectedVehicle && selectedVehicle.status !== 'AVAILABLE') {
+    businessWarnings.push({
+      key: 'vehicle-status',
+      severity: 'error',
+      message: `Selected vehicle is ${selectedVehicle.status}. Use an available vehicle or update vehicle status first.`,
+    });
+  }
+
+  if (selectedDriver && selectedDriver.position !== 'DRIVER') {
+    businessWarnings.push({
+      key: 'driver-role',
+      severity: 'warning',
+      message: `Selected employee has ${selectedDriver.position} position. Driver assignment should normally use an employee with DRIVER position.`,
+    });
+  }
+
+  if (sourceWarehouseId && destinationWarehouseId && Number(sourceWarehouseId) === Number(destinationWarehouseId)) {
+    businessWarnings.push({
+      key: 'same-warehouse',
+      severity: 'error',
+      message: 'Source and destination warehouse must be different for a transport order.',
+    });
+  }
+
+  const blockingWarning = businessWarnings.some((warning) => warning.severity === 'error');
+  const disableSubmit = loading || !form.formState.isValid || blockingWarning;
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
@@ -221,47 +272,106 @@ export default function TransportOrderFormDialog({
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
+              <Controller
                 name="sourceWarehouseId"
                 control={form.control}
-                label="Source warehouse"
-                options={warehouseOptions}
-                required
+                render={({ field, fieldState }) => (
+                  <EntityLookupField
+                    label="Source warehouse"
+                    entityType="warehouses"
+                    required
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedSourceWarehouse?.name ?? `Warehouse #${field.value}`,
+                      subtitle: selectedSourceWarehouse?.city ?? undefined,
+                      status: selectedSourceWarehouse?.status ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? 0)}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                    searchPlaceholder="Search warehouses..."
+                    disabledOptionIds={destinationWarehouseId ? [Number(destinationWarehouseId)] : []}
+                  />
+                )}
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
+              <Controller
                 name="destinationWarehouseId"
                 control={form.control}
-                label="Destination warehouse"
-                options={warehouseOptions}
-                required
+                render={({ field, fieldState }) => (
+                  <EntityLookupField
+                    label="Destination warehouse"
+                    entityType="warehouses"
+                    required
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedDestinationWarehouse?.name ?? `Warehouse #${field.value}`,
+                      subtitle: selectedDestinationWarehouse?.city ?? undefined,
+                      status: selectedDestinationWarehouse?.status ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? 0)}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                    searchPlaceholder="Search warehouses..."
+                    disabledOptionIds={sourceWarehouseId ? [Number(sourceWarehouseId)] : []}
+                  />
+                )}
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
+              <Controller
                 name="vehicleId"
                 control={form.control}
-                label="Vehicle"
-                options={vehicleOptions}
-                required
+                render={({ field, fieldState }) => (
+                  <EntityLookupField
+                    label="Vehicle"
+                    entityType="vehicles"
+                    required
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedVehicle?.registrationNumber ?? `Vehicle #${field.value}`,
+                      subtitle: selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model}` : undefined,
+                      status: selectedVehicle?.status ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? 0)}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                    searchPlaceholder="Search vehicles..."
+                  />
+                )}
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
+              <Controller
                 name="assignedEmployeeId"
                 control={form.control}
-                label="Driver"
-                options={driverOptions}
-                required
+                render={({ field, fieldState }) => (
+                  <EntityLookupField
+                    label="Driver"
+                    entityType="employees"
+                    required
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedDriver ? `${selectedDriver.firstName} ${selectedDriver.lastName}` : `Employee #${field.value}`,
+                      subtitle: selectedDriver?.email ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? 0)}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                    searchPlaceholder="Search drivers..."
+                  />
+                )}
               />
             </Grid>
           </Grid>
 
           <Divider />
+
+          <BusinessRuleWarnings warnings={businessWarnings} />
 
           <Typography variant="subtitle2" fontWeight={700}>
             Notes
@@ -275,19 +385,24 @@ export default function TransportOrderFormDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormGlobalError error={serverError} />
 
-        <Button
-          variant="contained"
-          disabled={disableSubmit}
-          onClick={form.handleSubmit((values) => onSubmit(values))}
-        >
-          {isEditMode ? 'Update' : 'Create'}
-        </Button>
-      </DialogActions>
+        <FormActions
+          submitLabel={isEditMode ? 'Update' : 'Create'}
+          submittingLabel={isEditMode ? 'Updating order...' : 'Creating order...'}
+          helperText="Warehouses, vehicle, driver and schedule fields must be valid before saving."
+          loading={loading}
+          submitDisabled={disableSubmit && !loading}
+          onCancel={onClose}
+          onSubmit={form.handleSubmit((values) => onSubmit({
+            ...values,
+            orderNumber: values.orderNumber.trim(),
+            description: values.description.trim(),
+            notes: values.notes?.trim() || '',
+          }))}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

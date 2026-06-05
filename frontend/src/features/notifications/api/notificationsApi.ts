@@ -33,6 +33,18 @@ export const notificationsApi = {
       .then((response) => response.data);
   },
 
+  acknowledge(id: number) {
+    return apiClient
+      .patch<NotificationResponse>(`/api/notifications/${id}/acknowledge`)
+      .then((response) => response.data);
+  },
+
+  resolve(id: number) {
+    return apiClient
+      .patch<NotificationResponse>(`/api/notifications/${id}/resolve`)
+      .then((response) => response.data);
+  },
+
   markAllMyAsRead() {
     return apiClient
       .patch<void>('/api/notifications/my/mark_all_as_read')

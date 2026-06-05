@@ -27,7 +27,14 @@ public class NotificationResponse {
     private NotificationSourceType sourceType;
     private Long sourceId;
     private String dedupKey;
+    private String groupKey;
+    private Integer groupCount;
+    private LocalDateTime lastGroupedAt;
     private LocalDateTime escalatedAt;
+    private LocalDateTime acknowledgedAt;
+    private LocalDateTime resolvedAt;
+    private String actionLabel;
+    private String actionPath;
     private LocalDateTime createdAt;
 
     private Long userId;
@@ -58,7 +65,14 @@ public class NotificationResponse {
                                 NotificationSourceType sourceType,
                                 Long sourceId,
                                 String dedupKey,
+                                String groupKey,
+                                Integer groupCount,
+                                LocalDateTime lastGroupedAt,
                                 LocalDateTime escalatedAt,
+                                LocalDateTime acknowledgedAt,
+                                LocalDateTime resolvedAt,
+                                String actionLabel,
+                                String actionPath,
                                 Long userId,
                                 LocalDateTime createdAt) {
         this.id = id;
@@ -71,7 +85,14 @@ public class NotificationResponse {
         this.sourceType = sourceType;
         this.sourceId = sourceId;
         this.dedupKey = dedupKey;
+        this.groupKey = groupKey;
+        this.groupCount = groupCount;
+        this.lastGroupedAt = lastGroupedAt;
         this.escalatedAt = escalatedAt;
+        this.acknowledgedAt = acknowledgedAt;
+        this.resolvedAt = resolvedAt;
+        this.actionLabel = actionLabel;
+        this.actionPath = actionPath;
         this.userId = userId;
         this.createdAt = createdAt;
     }

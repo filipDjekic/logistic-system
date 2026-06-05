@@ -39,6 +39,8 @@ const WarehouseCreatePage = lazy(() => import('../../features/warehouses/pages/W
 const WarehouseEditPage = lazy(() => import('../../features/warehouses/pages/WarehouseEditPage'));
 const WarehouseDetailsPage = lazy(() => import('../../features/warehouses/pages/WarehouseDetailsPage'));
 const WarehouseLocationsPage = lazy(() => import('../../features/warehouse-locations/pages/WarehouseLocationsPage'));
+const ZoneDetailsPage = lazy(() => import('../../features/warehouse-locations/pages/ZoneDetailsPage'));
+const BinDetailsPage = lazy(() => import('../../features/warehouse-locations/pages/BinDetailsPage'));
 const ProductsPage = lazy(() => import('../../features/product/pages/ProductsPage'));
 const ProductDetailsPage = lazy(() => import('../../features/product/pages/ProductDetailsPage'));
 const InventoryPage = lazy(() => import('../../features/inventory/pages/InventoryPage'));
@@ -46,6 +48,7 @@ const InventoryCreatePage = lazy(() => import('../../features/inventory/pages/In
 const InventoryEditPage = lazy(() => import('../../features/inventory/pages/InventoryEditPage'));
 const InventoryDetailsPage = lazy(() => import('../../features/inventory/pages/InventoryDetailsPage'));
 const StockMovementsPage = lazy(() => import('../../features/stock-movements/pages/StockMovementsPage'));
+const StockMovementDetailsPage = lazy(() => import('../../features/stock-movements/pages/StockMovementDetailsPage'));
 const StockOperationPage = lazy(() => import('../../features/stock-movements/pages/StockOperationPage'));
 const TasksPage = lazy(() => import('../../features/tasks/pages/TasksPage'));
 const TaskCreatePage = lazy(() => import('../../features/tasks/pages/TaskCreatePage'));
@@ -99,6 +102,16 @@ export const routes = [
           { path: '/company-registration-requests', element: lazyPage(<CompanyRegistrationRequestsPage />) },
           { path: '/companies/:id', element: lazyPage(<CompanyDetailsPage />) },
           { path: '/activity-logs', element: lazyPage(<ActivityLogsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
           { path: '/change-history', element: lazyPage(<ChangeHistoryPage />) },
         ],
       },
@@ -124,6 +137,17 @@ export const routes = [
         children: [
           { path: '/users', element: lazyPage(<UsersPage />) },
           { path: '/users/:id', element: lazyPage(<UserDetailsPage />) },
+
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.HR_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
           { path: '/shifts', element: lazyPage(<ShiftsPage />) },
         ],
       },
@@ -136,8 +160,18 @@ export const routes = [
         element: <AppLayout />,
         children: [
           { path: '/employees', element: lazyPage(<EmployeesPage />) },
-          { path: '/employee-warehouse-assignments', element: lazyPage(<EmployeeWarehouseAssignmentsPage />) },
           { path: '/employees/:id', element: lazyPage(<EmployeeDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/employee-warehouse-assignments', element: lazyPage(<EmployeeWarehouseAssignmentsPage />) },
         ],
       },
     ],
@@ -149,9 +183,19 @@ export const routes = [
         element: <AppLayout />,
         children: [
           { path: '/transport-orders', element: lazyPage(<TransportOrdersPage />) },
+          { path: '/transport-orders/:id', element: lazyPage(<TransportOrderDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.DISPATCHER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
           { path: '/transport-orders/create', element: lazyPage(<TransportOrderCreatePage />) },
           { path: '/transport-orders/:id/edit', element: lazyPage(<TransportOrderEditPage />) },
-          { path: '/transport-orders/:id', element: lazyPage(<TransportOrderDetailsPage />) },
         ],
       },
     ],
@@ -163,9 +207,29 @@ export const routes = [
         element: <AppLayout />,
         children: [
           { path: '/tasks', element: lazyPage(<TasksPage />) },
-          { path: '/tasks/create', element: lazyPage(<TaskCreatePage />) },
-          { path: '/tasks/:id/edit', element: lazyPage(<TaskEditPage />) },
           { path: '/tasks/:id', element: lazyPage(<TaskDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/tasks/create', element: lazyPage(<TaskCreatePage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/tasks/:id/edit', element: lazyPage(<TaskEditPage />) },
         ],
       },
     ],
@@ -184,6 +248,20 @@ export const routes = [
     ],
   },
   {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/warehouse-locations', element: lazyPage(<WarehouseLocationsPage />) },
+          { path: '/warehouses/:warehouseId/zones', element: lazyPage(<WarehouseLocationsPage />) },
+          { path: '/warehouses/:warehouseId/zones/:zoneId', element: lazyPage(<ZoneDetailsPage />) },
+          { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', element: lazyPage(<BinDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
     element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
     children: [
       {
@@ -191,7 +269,6 @@ export const routes = [
         children: [
           { path: '/warehouses', element: lazyPage(<WarehousesPage />) },
           { path: '/warehouses/:id', element: lazyPage(<WarehouseDetailsPage />) },
-          { path: '/warehouse-locations', element: lazyPage(<WarehouseLocationsPage />) },
           { path: '/products', element: lazyPage(<ProductsPage />) },
           { path: '/products/:id', element: lazyPage(<ProductDetailsPage />) },
           { path: '/inventory', element: lazyPage(<InventoryPage />) },
@@ -215,11 +292,14 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
     children: [
       {
         element: <AppLayout />,
-        children: [{ path: '/stock-movements', element: lazyPage(<StockMovementsPage />) }],
+        children: [
+          { path: '/stock-movements', element: lazyPage(<StockMovementsPage />) },
+          { path: '/stock-movements/:id', element: lazyPage(<StockMovementDetailsPage />) },
+        ],
       },
     ],
   },
@@ -266,6 +346,16 @@ export const routes = [
         element: <AppLayout />,
         children: [
           { path: '/data-exchange', element: lazyPage(<DataExchangePage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
           { path: '/activity-timeline', element: lazyPage(<ActivityTimelinePage />) },
         ],
       },

@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class TaskResponse {
 
     private Long id;
+    private Long version;
 
     private String title;
     private String description;

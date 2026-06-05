@@ -14,8 +14,6 @@ import lombok.Setter;
 @NoArgsConstructor
 public class TransportOrderItemUpdate {
 
-    private Long id;
-
     @NotNull
     @Positive
     private BigDecimal quantity;
@@ -31,11 +29,4 @@ public class TransportOrderItemUpdate {
     @Positive
     private Long productId;
 
-    public TransportOrderItemUpdate(Long id, BigDecimal quantity, String note, Long transportOrderId, Long productId) {
-        this.id = id;
-        this.quantity = quantity;
-        this.note = note;
-        this.transportOrderId = transportOrderId;
-        this.productId = productId;
-    }
 }

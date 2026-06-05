@@ -3,6 +3,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
 import rs.logistics.logistics_system.dto.create.StockReservationCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.StockMovement;
@@ -35,6 +37,7 @@ import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
+import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +51,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final NotificationServiceDefinition notificationService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final AppProperties appProperties;
+    private final WarehouseAccessGuard warehouseAccessGuard;
 
     @Override
     @Transactional
@@ -64,7 +68,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory warehouseInventory = createInventory(dto, warehouse, product);
         validateWarehouseCapacity(warehouse, BigDecimal.ZERO, warehouseInventory.getSafeQuantity());
 
-        WarehouseInventory saved = warehouseInventoryRepository.save(warehouseInventory);
+        WarehouseInventory saved = warehouseInventoryRepository.saveAndFlush(warehouseInventory);
 
         if (QueryParameterNormalizer.zeroIfNull(saved.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
             recordInventoryMovement(
@@ -117,7 +121,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         dto.setProductId(productId);
 
         applyInventoryChange(() -> inventory.updateMinStockLevel(dto.getMinStockLevel()));
-        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
+        WarehouseInventory saved = warehouseInventoryRepository.saveAndFlush(inventory);
 
         auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "quantity", oldQuantity, saved.getQuantity());
         auditFacade.recordFieldChange("WAREHOUSE_INVENTORY", warehouse.getId(), inventoryIdentifier(saved), "reservedQuantity", oldReserved, saved.getReservedQuantity());
@@ -165,9 +169,57 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
             getAccessibleProduct(productId);
         }
 
-        return PageResponse.from(warehouseInventoryRepository
-                .searchInventory(companyId, normalizedSearch, warehouseId, productId, normalizedStatus, pageable)
-                .map(WarehouseInventoryMapper::toResponse));
+        List<Long> scopedWarehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+        Page<WarehouseInventory> page;
+        if (scopedWarehouseIds != null) {
+            page = scopedWarehouseIds.isEmpty()
+                    ? Page.empty(pageable)
+                    : warehouseInventoryRepository.searchInventoryForWarehouseIds(
+                    companyId,
+                    scopedWarehouseIds,
+                    normalizedSearch,
+                    warehouseId,
+                    productId,
+                    normalizedStatus,
+                    pageable
+            );
+        } else {
+            page = warehouseInventoryRepository.searchInventory(companyId, normalizedSearch, warehouseId, productId, normalizedStatus, pageable);
+        }
+
+        return PageResponse.from(page.map(WarehouseInventoryMapper::toResponse));
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StatusCountResponse> countByStatus(String search, Long warehouseId, Long productId) {
+        String normalizedSearch = QueryParameterNormalizer.trimToNull(search);
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        if (warehouseId != null) {
+            getAccessibleWarehouse(warehouseId);
+        }
+
+        if (productId != null) {
+            getAccessibleProduct(productId);
+        }
+
+        List<Long> scopedWarehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+
+        return List.of("LOW_STOCK", "RESERVED", "OUT_OF_STOCK", "AVAILABLE", "SUFFICIENT")
+                .stream()
+                .map(status -> new StatusCountResponse(
+                        status,
+                        scopedWarehouseIds == null
+                                ? warehouseInventoryRepository.countByDerivedStatus(companyId, normalizedSearch, warehouseId, productId, status)
+                                : scopedWarehouseIds.isEmpty()
+                                ? 0
+                                : warehouseInventoryRepository.countByDerivedStatusForWarehouseIds(companyId, scopedWarehouseIds, normalizedSearch, warehouseId, productId, status)
+                ))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -265,7 +317,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
 
         applyInventoryChange(() -> inventory.reserve(requested));
-        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
+        WarehouseInventory saved = warehouseInventoryRepository.saveAndFlush(inventory);
 
         recordInventoryMovement(
                 saved,
@@ -290,7 +342,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
 
         applyInventoryChange(() -> inventory.release(requested));
-        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
+        WarehouseInventory saved = warehouseInventoryRepository.saveAndFlush(inventory);
 
         recordInventoryMovement(
                 saved,
@@ -317,7 +369,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
 
         applyInventoryChange(() -> inventory.moveOutReserved(requested));
-        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
+        WarehouseInventory saved = warehouseInventoryRepository.saveAndFlush(inventory);
 
         recordInventoryMovement(
                 saved,
@@ -346,7 +398,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         validateWarehouseCapacity(inventory.getWarehouse(), quantityBefore, quantityAfter);
 
         applyInventoryChange(() -> inventory.increase(requested));
-        WarehouseInventory saved = warehouseInventoryRepository.save(inventory);
+        WarehouseInventory saved = warehouseInventoryRepository.saveAndFlush(inventory);
 
         recordInventoryMovement(
                 saved,
@@ -417,29 +469,39 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     }
 
     private Warehouse getAccessibleWarehouse(Long warehouseId) {
-        if (authenticatedUserProvider.isOverlord()) {
-            return warehouseRepository.findById(warehouseId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-        }
-
-        return warehouseRepository.findByIdAndCompany_Id(
+        Warehouse warehouse = authenticatedUserProvider.isOverlord()
+                ? warehouseRepository.findById(warehouseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"))
+                : warehouseRepository.findByIdAndCompany_Id(
                         warehouseId,
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 )
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        enforceWarehouseScopeForCurrentRole(warehouse, false);
+        return warehouse;
     }
 
     private Warehouse getAccessibleWarehouseForUpdate(Long warehouseId) {
-        if (authenticatedUserProvider.isOverlord()) {
-            return warehouseRepository.findByIdForUpdate(warehouseId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
-        }
-
-        return warehouseRepository.findByIdAndCompanyIdForUpdate(
+        Warehouse warehouse = authenticatedUserProvider.isOverlord()
+                ? warehouseRepository.findByIdForUpdate(warehouseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"))
+                : warehouseRepository.findByIdAndCompanyIdForUpdate(
                         warehouseId,
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 )
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        enforceWarehouseScopeForCurrentRole(warehouse, true);
+        return warehouse;
+    }
+
+    private void enforceWarehouseScopeForCurrentRole(Warehouse warehouse, boolean write) {
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || authenticatedUserProvider.hasRole("WORKER")) {
+            if (write) {
+                warehouseAccessGuard.ensureCanMutateWarehouse(warehouse);
+            } else {
+                warehouseAccessGuard.ensureCanReadWarehouse(warehouse);
+            }
+        }
     }
 
     private Product getAccessibleProduct(Long productId) {
@@ -512,7 +574,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         movement.setCreatedBy(currentUser);
         movement.setTransportOrder(null);
 
-        StockMovement savedMovement = stockMovementRepository.save(movement);
+        StockMovement savedMovement = stockMovementRepository.saveAndFlush(movement);
 
         auditFacade.recordCreate("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement));
         auditFacade.recordFieldChange("STOCK_MOVEMENT", savedMovement.getId(), stockMovementIdentifier(savedMovement), "movementType", null, savedMovement.getMovementType());

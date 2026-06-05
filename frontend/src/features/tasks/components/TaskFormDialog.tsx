@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -10,13 +8,20 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import FormTextField from '../../../shared/components/Form/Form';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import BusinessRuleWarnings, { type BusinessRuleWarning } from '../../../shared/components/BusinessRuleWarnings';
+import { EntityLookupField } from '../../lookup';
 import type { EmployeeOption, TransportOrderResponse } from '../../transport-orders/types/transportOrder.types';
 import type { StockMovementResponse } from '../../stock-movements/types/stockMovement.types';
 import type { TaskFormValues, TaskResponse } from '../types/task.types';
+import { taskSchema } from '../validation/taskSchema';
 
 type Props = {
   open: boolean;
@@ -25,6 +30,7 @@ type Props = {
   transportOrders: TransportOrderResponse[];
   stockMovements: StockMovementResponse[];
   loading?: boolean;
+  serverError?: unknown;
   allowTransportOrderLink?: boolean;
   onClose: () => void;
   onSubmit: (values: TaskFormValues) => void;
@@ -48,11 +54,13 @@ export default function TaskFormDialog({
   transportOrders,
   stockMovements,
   loading = false,
+  serverError = null,
   allowTransportOrderLink = true,
   onClose,
   onSubmit,
 }: Props) {
-  const { control, formState, handleSubmit, reset } = useForm<TaskFormValues>({
+  const { control, formState, handleSubmit, reset, setError } = useForm<TaskFormValues>({
+    resolver: zodResolver(taskSchema) as never,
     defaultValues,
     mode: 'onChange',
   });
@@ -79,7 +87,59 @@ export default function TaskFormDialog({
     reset(defaultValues);
   }, [initialData, open, reset]);
 
-  const disableSubmit = loading || !formState.isValid;
+  useEffect(() => {
+    if (!open || !serverError) {
+      return;
+    }
+
+    applyServerFieldErrors(serverError, setError);
+  }, [open, serverError, setError]);
+
+  const assignedEmployeeId = useWatch({ control, name: 'assignedEmployeeId' });
+  const transportOrderId = useWatch({ control, name: 'transportOrderId' });
+  const selectedEmployee = employees.find((employee) => employee.id === Number(assignedEmployeeId));
+  const selectedTransportOrder = transportOrders.find((order) => order.id === Number(transportOrderId));
+  const stockMovementId = useWatch({ control, name: 'stockMovementId' });
+  const selectedStockMovement = stockMovements.find((movement) => movement.id === Number(stockMovementId));
+  const taskType = useWatch({ control, name: 'taskType' });
+
+  const businessWarnings: BusinessRuleWarning[] = [];
+  const terminalTransportStatuses = ['DELIVERED', 'FAILED', 'CANCELLED'];
+
+  if (selectedTransportOrder && terminalTransportStatuses.includes(selectedTransportOrder.status)) {
+    businessWarnings.push({
+      key: 'terminal-transport',
+      severity: 'error',
+      message: `Selected transport order is ${selectedTransportOrder.status}. Do not create new operational tasks for terminal transports.`,
+    });
+  }
+
+  if (selectedEmployee && taskType === 'DRIVING' && selectedEmployee.position !== 'DRIVER') {
+    businessWarnings.push({
+      key: 'driving-assignee-role',
+      severity: 'warning',
+      message: `Driving tasks should normally be assigned to employees with DRIVER position. Selected employee is ${selectedEmployee.position}.`,
+    });
+  }
+
+  if (selectedEmployee && ['PICKING', 'PACKING', 'LOADING', 'UNLOADING', 'COUNTING', 'STOCK_MOVEMENT'].includes(String(taskType)) && !['WORKER', 'WAREHOUSE_MANAGER'].includes(selectedEmployee.position)) {
+    businessWarnings.push({
+      key: 'warehouse-assignee-role',
+      severity: 'warning',
+      message: `Warehouse task is assigned to ${selectedEmployee.position}. Check whether this employee should execute warehouse operations.`,
+    });
+  }
+
+  if (transportOrderId && stockMovementId) {
+    businessWarnings.push({
+      key: 'two-process-links',
+      severity: 'error',
+      message: 'Task can be linked either to a transport order or to a stock movement, not both.',
+    });
+  }
+
+  const blockingWarning = businessWarnings.some((warning) => warning.severity === 'error');
+  const disableSubmit = loading || !formState.isValid || blockingWarning;
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
@@ -173,16 +233,26 @@ export default function TaskFormDialog({
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
+              <Controller
                 name="assignedEmployeeId"
                 control={control}
-                label="Assigned employee"
-                required
                 rules={{ required: 'Assigned employee is required' }}
-                options={employees.map((employee) => ({
-                  value: employee.id,
-                  label: `${employee.firstName} ${employee.lastName} (${employee.position})`,
-                }))}
+                render={({ field, fieldState }) => (
+                  <EntityLookupField
+                    label="Assigned employee"
+                    entityType="employees"
+                    required
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedEmployee ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : `Employee #${field.value}`,
+                      subtitle: selectedEmployee?.position ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? '')}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                    searchPlaceholder="Search employees..."
+                  />
+                )}
               />
             </Grid>
           </Grid>
@@ -196,47 +266,74 @@ export default function TaskFormDialog({
           <Grid container spacing={2}>
             {allowTransportOrderLink ? (
               <Grid size={{ xs: 12, md: 6 }}>
-                <FormSelect
+                <Controller
                   name="transportOrderId"
                   control={control}
-                  label="Transport order"
-                  helperText="Optional. Leave empty for non-transport tasks."
-                  options={[
-                    { value: '', label: 'No transport order' },
-                    ...transportOrders.map((order) => ({
-                      value: order.id,
-                      label: `${order.orderNumber} (${order.status})`,
-                    })),
-                  ]}
+                  render={({ field, fieldState }) => (
+                    <EntityLookupField
+                      label="Transport order"
+                      entityType="transport-orders"
+                      value={field.value ? {
+                        id: Number(field.value),
+                        label: selectedTransportOrder?.orderNumber ?? `Transport order #${field.value}`,
+                        status: selectedTransportOrder?.status ?? undefined,
+                      } : null}
+                      onChange={(option) => field.onChange(option?.id ?? '')}
+                      error={Boolean(fieldState.error)}
+                      helperText={fieldState.error?.message ?? 'Optional. Leave empty for non-transport tasks.'}
+                      searchPlaceholder="Search transport orders..."
+                    />
+                  )}
                 />
               </Grid>
             ) : null}
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
+              <Controller
                 name="stockMovementId"
                 control={control}
-                label="Stock movement"
-                helperText="Optional. Leave empty if this task is not linked to warehouse movement."
-                options={[
-                  { value: '', label: 'No stock movement' },
-                  ...stockMovements.map((movement) => ({
-                    value: movement.id,
-                    label: `${movement.movementType} #${movement.id}`,
-                  })),
-                ]}
+                render={({ field, fieldState }) => (
+                  <EntityLookupField
+                    label="Stock movement"
+                    entityType="stock-movements"
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedStockMovement ? `${selectedStockMovement.movementType} #${selectedStockMovement.id}` : `Stock movement #${field.value}`,
+                      subtitle: selectedStockMovement?.productName ?? selectedStockMovement?.warehouseName ?? undefined,
+                      status: selectedStockMovement?.reasonCode ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? '')}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message ?? 'Optional. Leave empty if this task is not linked to warehouse movement.'}
+                    searchPlaceholder="Search stock movements by product, warehouse, reference or ID..."
+                    sort="id,desc"
+                  />
+                )}
               />
             </Grid>
           </Grid>
+
+          <BusinessRuleWarnings warnings={businessWarnings} />
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>Cancel</Button>
-        <Button onClick={handleSubmit(onSubmit)} variant="contained" disabled={disableSubmit}>
-          {initialData ? 'Save changes' : 'Create task'}
-        </Button>
-      </DialogActions>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormGlobalError error={serverError} />
+
+        <FormActions
+          submitLabel={initialData ? 'Save changes' : 'Create task'}
+          submittingLabel={initialData ? 'Saving changes...' : 'Creating task...'}
+          helperText="Task assignment and related workflow fields must be valid before saving."
+          loading={loading}
+          submitDisabled={disableSubmit && !loading}
+          onCancel={onClose}
+          onSubmit={handleSubmit((values) => onSubmit({
+            ...values,
+            title: values.title.trim(),
+            description: values.description?.trim() ?? '',
+          }))}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

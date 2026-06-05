@@ -19,6 +19,8 @@ import HrManagerDashboardPanel from '../components/HrManagerDashboardPanel';
 import OverlordDashboardPanel from '../components/OverlordDashboardPanel';
 import WarehouseManagerDashboardPanel from '../components/WarehouseManagerDashboardPanel';
 import WorkerDashboardPanel from '../components/WorkerDashboardPanel';
+import LifecycleMonitoringPanel from '../components/LifecycleMonitoringPanel';
+import OperationalDashboardPanel from '../components/OperationalDashboardPanel';
 
 type DashboardAction = {
   label: string;
@@ -50,7 +52,7 @@ function getDashboardActions(role: string): DashboardAction[] {
     case ROLES.WAREHOUSE_MANAGER:
       return [
         { label: 'Create inventory record', to: '/inventory?create=1', variant: 'contained', icon: 'add' },
-        { label: 'Create stock movement', to: '/stock/inbound', icon: 'add' },
+        { label: 'Create stock movement', to: '/stock-movements/create', icon: 'add' },
         { label: 'Create warehouse task', to: '/tasks?create=1', icon: 'add' },
       ];
     case ROLES.DISPATCHER:
@@ -61,13 +63,13 @@ function getDashboardActions(role: string): DashboardAction[] {
       ];
     case ROLES.DRIVER:
       return [
-        { label: 'Open my transports', to: '/transport-orders', variant: 'contained', icon: 'list' },
-        { label: 'Open my tasks', to: '/tasks', icon: 'list' },
+        { label: 'Open my transports', to: '/transport-orders?assignedToMe=true', variant: 'contained', icon: 'list' },
+        { label: 'Open my tasks', to: '/tasks?assignedToMe=true', icon: 'list' },
         { label: 'Open my shifts', to: '/my-shifts', icon: 'list' },
       ];
     case ROLES.WORKER:
       return [
-        { label: 'Open my tasks', to: '/tasks', variant: 'contained', icon: 'list' },
+        { label: 'Open my tasks', to: '/tasks?assignedToMe=true', variant: 'contained', icon: 'list' },
         { label: 'Open my shifts', to: '/my-shifts', icon: 'list' },
         { label: 'Open notifications', to: '/notifications', icon: 'list' },
       ];
@@ -118,15 +120,14 @@ export default function DashboardPage() {
   const isDispatcher = role === ROLES.DISPATCHER;
   const isDriver = role === ROLES.DRIVER;
   const isWorker = role === ROLES.WORKER;
+  const canViewLifecycleMonitoring = isOverlord || isCompanyAdmin || isHrManager || isWarehouseManager || isDispatcher || isDriver || isWorker;
+  const canViewOperationalDashboard = isOverlord || isCompanyAdmin || isHrManager || isWarehouseManager || isDispatcher || isDriver || isWorker;
 
   const overlordDashboardQuery = useQuery({
     queryKey: queryKeys.dashboard.role('overlord'),
     queryFn: dashboardApi.getOverlordDashboard,
     enabled: isOverlord,
     staleTime: cacheTimes.volatile,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const companyAdminDashboardQuery = useQuery({
@@ -134,9 +135,6 @@ export default function DashboardPage() {
     queryFn: dashboardApi.getCompanyAdminDashboard,
     enabled: isCompanyAdmin,
     staleTime: cacheTimes.volatile,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const hrManagerDashboardQuery = useQuery({
@@ -144,9 +142,6 @@ export default function DashboardPage() {
     queryFn: dashboardApi.getHrManagerDashboard,
     enabled: isHrManager,
     staleTime: cacheTimes.volatile,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const warehouseManagerDashboardQuery = useQuery({
@@ -154,9 +149,6 @@ export default function DashboardPage() {
     queryFn: dashboardApi.getWarehouseManagerDashboard,
     enabled: isWarehouseManager,
     staleTime: cacheTimes.volatile,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const dispatcherDashboardQuery = useQuery({
@@ -164,9 +156,6 @@ export default function DashboardPage() {
     queryFn: dashboardApi.getDispatcherDashboard,
     enabled: isDispatcher,
     staleTime: cacheTimes.volatile,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const driverDashboardQuery = useQuery({
@@ -174,9 +163,6 @@ export default function DashboardPage() {
     queryFn: dashboardApi.getDriverDashboard,
     enabled: isDriver,
     staleTime: cacheTimes.volatile,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const workerDashboardQuery = useQuery({
@@ -184,9 +170,21 @@ export default function DashboardPage() {
     queryFn: dashboardApi.getWorkerDashboard,
     enabled: isWorker,
     staleTime: cacheTimes.volatile,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
+  });
+
+  const operationalDashboardQuery = useQuery({
+    queryKey: queryKeys.dashboard.operational(role),
+    queryFn: dashboardApi.getOperationalDashboard,
+    enabled: canViewOperationalDashboard,
+    staleTime: cacheTimes.volatile,
+  });
+
+
+  const lifecycleMonitoringQuery = useQuery({
+    queryKey: queryKeys.dashboard.lifecycleMonitoring(),
+    queryFn: dashboardApi.getLifecycleMonitoring,
+    enabled: canViewLifecycleMonitoring,
+    staleTime: cacheTimes.volatile,
   });
 
   if (!role) {
@@ -291,7 +289,15 @@ export default function DashboardPage() {
               size="small"
               variant="contained"
               startIcon={<RefreshRoundedIcon />}
-              onClick={() => void activeQuery?.refetch()}
+              onClick={() => {
+                void activeQuery?.refetch();
+                if (canViewOperationalDashboard) {
+                  void operationalDashboardQuery.refetch();
+                }
+                if (canViewLifecycleMonitoring) {
+                  void lifecycleMonitoringQuery.refetch();
+                }
+              }}
             >
               Refresh
             </Button>
@@ -326,6 +332,21 @@ export default function DashboardPage() {
             </Stack>
           </Stack>
         </Box>
+      ) : null}
+
+      {canViewOperationalDashboard ? (
+        <OperationalDashboardPanel
+          data={operationalDashboardQuery.data}
+          loading={operationalDashboardQuery.isLoading || operationalDashboardQuery.isFetching}
+        />
+      ) : null}
+
+      {canViewLifecycleMonitoring ? (
+        <LifecycleMonitoringPanel
+          data={lifecycleMonitoringQuery.data}
+          loading={lifecycleMonitoringQuery.isLoading || lifecycleMonitoringQuery.isFetching}
+          onRefresh={() => void lifecycleMonitoringQuery.refetch()}
+        />
       ) : null}
 
       {isOverlord && overlordDashboardQuery.data ? (

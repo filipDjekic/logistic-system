@@ -1,5 +1,5 @@
 import { Button, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 import type { CompanyResponse } from '../types/company.types';
@@ -19,6 +19,7 @@ export default function CompaniesTable({
   onRetry,
   onEdit,
 }: CompaniesTableProps) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<CompanyResponse>[] = [
     {
       id: 'id',
@@ -118,6 +119,8 @@ export default function CompaniesTable({
       emptyTitle="No companies found"
       emptyDescription="There are no companies in the system yet."
       minWidth={1100}
+      onRowClick={(row) => navigate(`/companies/${row.id}`)}
+      rowClickLabel="Open company details"
     />
   );
 }

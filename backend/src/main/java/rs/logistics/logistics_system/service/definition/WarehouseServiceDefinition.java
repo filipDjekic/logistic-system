@@ -35,4 +35,8 @@ public interface WarehouseServiceDefinition {
     List<TransportOrderResponse> getIncomingTransportOrders(Long id);
 
     List<WarehouseResponse> getByManager(Long managerId);
+
+    WarehouseResponse archiveWarehouse(Long id);
+
+    WarehouseResponse restoreWarehouse(Long id);
 }

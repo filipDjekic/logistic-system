@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import {
   Alert,
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -13,6 +11,7 @@ import {
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormTextField from '../../../shared/components/Form/Form';
@@ -76,8 +75,9 @@ export default function CompanyFormDialog({
   );
 
   const form = useForm<CompanySchemaValues>({
-    resolver: zodResolver(companySchema),
+    resolver: zodResolver(companySchema) as never,
     defaultValues,
+    mode: 'onChange',
   });
 
   useEffect(() => {
@@ -379,19 +379,18 @@ export default function CompanyFormDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-
-        <Button
-          variant="contained"
-          onClick={form.handleSubmit((values) => onSubmit(values))}
-          disabled={loading}
-        >
-          {mode === 'create' ? 'Create company' : 'Save changes'}
-        </Button>
-      </DialogActions>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          cancelLabel="Cancel"
+          submitLabel={mode === 'create' ? 'Create company' : 'Save changes'}
+          submittingLabel={mode === 'create' ? 'Creating company...' : 'Saving changes...'}
+          helperText="Required fields must be valid before the company can be saved."
+          loading={loading}
+          submitDisabled={!form.formState.isValid}
+          onCancel={onClose}
+          onSubmit={form.handleSubmit((values) => onSubmit(values))}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

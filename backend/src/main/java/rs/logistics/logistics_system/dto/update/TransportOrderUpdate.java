@@ -15,8 +15,6 @@ import rs.logistics.logistics_system.enums.PriorityLevel;
 @Setter
 @NoArgsConstructor
 public class TransportOrderUpdate {
-    private Long id;
-
     @NotBlank
     @Size(min = 1, max = 50)
     private String orderNumber;
@@ -57,31 +55,4 @@ public class TransportOrderUpdate {
     @Positive
     private Long assignedEmployeeId;
 
-    public TransportOrderUpdate(Long id,
-                                String orderNumber,
-                                String description,
-                                LocalDateTime orderDate,
-                                LocalDateTime departureTime,
-                                LocalDateTime plannedArrivalTime,
-                                LocalDateTime actualArrivalTime,
-                                PriorityLevel priority,
-                                String notes,
-                                Long sourceWarehouseId,
-                                Long destinationWarehouseId,
-                                Long vehicleId,
-                                Long assignedEmployeeId) {
-        this.id = id;
-        this.orderNumber = orderNumber;
-        this.description = description;
-        this.orderDate = orderDate;
-        this.departureTime = departureTime;
-        this.plannedArrivalTime = plannedArrivalTime;
-        this.actualArrivalTime = actualArrivalTime;
-        this.priority = priority;
-        this.notes = notes;
-        this.sourceWarehouseId = sourceWarehouseId;
-        this.destinationWarehouseId = destinationWarehouseId;
-        this.vehicleId = vehicleId;
-        this.assignedEmployeeId = assignedEmployeeId;
-    }
 }

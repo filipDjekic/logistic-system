@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.controller;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -23,7 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.response.TransportOrderResponse;
 import rs.logistics.logistics_system.dto.statusUpdate.TransportOrderStatusUpdate;
 import rs.logistics.logistics_system.dto.update.TransportOrderUpdate;
@@ -57,6 +60,22 @@ public class TransportOrderController {
     public ResponseEntity<TransportOrderResponse> getById(@PathVariable Long id) {
         TransportOrderResponse response = transportOrderService.getById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @GetMapping("/status-counts")
+    public ResponseEntity<List<StatusCountResponse>> countByStatus(
+            @RequestParam(required = false) PriorityLevel priority,
+            @RequestParam(required = false) Long sourceWarehouseId,
+            @RequestParam(required = false) Long destinationWarehouseId,
+            @RequestParam(required = false) Long vehicleId,
+            @RequestParam(required = false) Long assignedEmployeeId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate,
+            @RequestParam(required = false) String search
+    ) {
+        return ResponseEntity.ok(transportOrderService.countByStatus(priority, sourceWarehouseId, destinationWarehouseId, vehicleId, assignedEmployeeId, fromDate, toDate, search));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
@@ -96,9 +115,15 @@ public class TransportOrderController {
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','DRIVER')")
+    @GetMapping("/{id}/status-transitions")
+    public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
+        return ResponseEntity.ok(transportOrderService.allowedStatusTransitions(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','DRIVER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TransportOrderResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TransportOrderStatusUpdate dto) {
-        TransportOrderResponse response = transportOrderService.changeStatus(id, dto.getStatus());
+        TransportOrderResponse response = transportOrderService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

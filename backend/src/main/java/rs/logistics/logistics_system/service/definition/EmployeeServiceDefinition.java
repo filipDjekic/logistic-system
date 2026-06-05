@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.service.definition;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 import org.springframework.data.domain.Pageable;
 
@@ -23,7 +24,7 @@ public interface EmployeeServiceDefinition {
 
     EmployeeResponse getById(Long id);
 
-    PageResponse<EmployeeResponse> getAll(String search, EmployeePosition position, Boolean active, String linkedUser, Pageable pageable);
+    PageResponse<EmployeeResponse> getAll(String search, EmployeePosition position, Boolean active, String linkedUser, LocalDateTime availableFrom, LocalDateTime availableTo, Pageable pageable);
 
     void delete(Long id);
 
@@ -32,4 +33,8 @@ public interface EmployeeServiceDefinition {
     List<ShiftResponse> getShiftsByEmployeeId(Long id);
 
     void terminateEmployee(Long id);
+
+    EmployeeResponse archiveEmployee(Long id);
+
+    EmployeeResponse restoreEmployee(Long id);
 }

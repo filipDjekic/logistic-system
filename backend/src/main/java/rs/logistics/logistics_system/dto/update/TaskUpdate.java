@@ -17,8 +17,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class TaskUpdate {
 
-    private Long id;
-
     @NotBlank
     @Size(min = 1, max = 100)
     private String title;
@@ -45,21 +43,4 @@ public class TaskUpdate {
     @Positive
     private Long stockMovementId;
 
-    public TaskUpdate(Long id,
-                      String title,
-                      String description,
-                      LocalDateTime dueDate,
-                      TaskPriority priority,
-                      Long assignedEmployeeId,
-                      Long transportOrderId,
-                      Long stockMovementId) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.dueDate = dueDate;
-        this.priority = priority;
-        this.assignedEmployeeId = assignedEmployeeId;
-        this.transportOrderId = transportOrderId;
-        this.stockMovementId = stockMovementId;
-    }
 }

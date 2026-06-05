@@ -16,8 +16,6 @@ import rs.logistics.logistics_system.enums.NotificationType;
 
 public class NotificationUpdate {
 
-    private Long id;
-
     @NotBlank
     @Size(min = 1, max = 100)
     private String title;
@@ -36,12 +34,4 @@ public class NotificationUpdate {
     @Positive
     private Long userId;
 
-    public NotificationUpdate(Long id, String title, String message, NotificationType type, NotificationStatus status, Long userId) {
-        this.id = id;
-        this.title = title;
-        this.message = message;
-        this.type = type;
-        this.status = status;
-        this.userId = userId;
-    }
 }

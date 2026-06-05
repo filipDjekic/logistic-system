@@ -15,10 +15,10 @@ import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
-import { ProductSearchSelect } from '../../search-select/components/ProductSearchSelect';
-import { WarehouseSearchSelect } from '../../search-select/components/WarehouseSearchSelect';
-import type { ProductResponse } from '../../product/types/product.types';
-import type { WarehouseResponse } from '../../warehouses/types/warehouse.types';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
+import { EntityLookupField } from '../../lookup';
+import type { LookupOption } from '../../lookup';
 import { useInventoryRecord } from '../hooks/useInventoryRecord';
 import {
   useCreateInventoryRecord,
@@ -59,8 +59,8 @@ export default function InventoryFormPage({ mode }: Props) {
   const createInventoryMutation = useCreateInventoryRecord();
   const updateInventoryMutation = useUpdateInventoryRecord();
 
-  const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseResponse | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<ProductResponse | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<LookupOption | null>(null);
   const [quantity, setQuantity] = useState('');
   const [minStockLevel, setMinStockLevel] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -72,22 +72,20 @@ export default function InventoryFormPage({ mode }: Props) {
     setSelectedWarehouse(
       warehouse
         ? {
-            ...warehouse,
-            active: warehouse.status === 'ACTIVE',
-            managerName: null,
-            companyId: record.warehouseCompanyId,
-            companyName: null,
+            id: warehouse.id,
+            label: warehouse.name,
+            subtitle: warehouse.city ?? record.warehouseName ?? undefined,
+            status: warehouse.status,
           }
         : null,
     );
     setSelectedProduct(
       product
         ? {
-            ...product,
-            description: product.description ?? '',
-            active: true,
-            companyId: record.productCompanyId,
-            companyName: null,
+            id: product.id,
+            label: product.name,
+            subtitle: product.sku ?? product.description ?? undefined,
+            status: 'ACTIVE',
           }
         : null,
     );
@@ -136,6 +134,7 @@ export default function InventoryFormPage({ mode }: Props) {
   const hasInvalidQuantity = submitted && (normalizedQuantity === null || normalizedQuantity < 0);
   const hasInvalidMinStockLevel = submitted && (normalizedMinStockLevel === null || normalizedMinStockLevel < 0);
   const isSubmitting = createInventoryMutation.isPending || updateInventoryMutation.isPending;
+  const submitError = createInventoryMutation.error ?? updateInventoryMutation.error;
   const disableSubmit =
     isSubmitting ||
     !hasWarehouse ||
@@ -220,19 +219,27 @@ export default function InventoryFormPage({ mode }: Props) {
           {mode === 'create' ? (
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, lg: 6 }}>
-                <WarehouseSearchSelect
-                  title="Warehouse"
-                  value={selectedWarehouse?.id ?? null}
-                  active
-                  onSelect={setSelectedWarehouse}
+                <EntityLookupField
+                  label="Warehouse"
+                  entityType="warehouses"
+                  value={selectedWarehouse}
+                  onChange={setSelectedWarehouse}
+                  required
+                  error={submitted && !selectedWarehouse}
+                  helperText={submitted && !selectedWarehouse ? 'Warehouse is required.' : undefined}
+                  searchPlaceholder="Search warehouses..."
                 />
               </Grid>
               <Grid size={{ xs: 12, lg: 6 }}>
-                <ProductSearchSelect
-                  title="Product"
-                  value={selectedProduct?.id ?? null}
-                  activeOnly
-                  onSelect={setSelectedProduct}
+                <EntityLookupField
+                  label="Product"
+                  entityType="products"
+                  value={selectedProduct}
+                  onChange={setSelectedProduct}
+                  required
+                  error={submitted && !selectedProduct}
+                  helperText={submitted && !selectedProduct ? 'Product is required.' : undefined}
+                  searchPlaceholder="Search products..."
                 />
               </Grid>
             </Grid>
@@ -296,14 +303,18 @@ export default function InventoryFormPage({ mode }: Props) {
             </Grid>
           </Grid>
 
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
-            <Button color="inherit" onClick={() => navigate('/inventory')} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button variant="contained" onClick={handleSubmit} disabled={disableSubmit}>
-              {mode === 'create' ? 'Create record' : 'Save changes'}
-            </Button>
-          </Stack>
+          <FormGlobalError error={submitError} fallbackMessage="Inventory record could not be saved." />
+
+          <FormActions
+            cancelLabel="Cancel"
+            submitLabel={mode === 'create' ? 'Create record' : 'Save changes'}
+            submittingLabel={mode === 'create' ? 'Creating record...' : 'Saving changes...'}
+            helperText="Warehouse, product and stock levels must be valid before saving."
+            loading={isSubmitting}
+            submitDisabled={disableSubmit}
+            onCancel={() => navigate('/inventory')}
+            onSubmit={handleSubmit}
+          />
         </Stack>
       </SectionCard>
     </Stack>

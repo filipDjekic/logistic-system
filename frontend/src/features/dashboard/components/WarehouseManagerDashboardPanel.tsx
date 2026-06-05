@@ -7,6 +7,8 @@ import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
+import DashboardAlerts from './DashboardAlerts';
+import DashboardCharts from './DashboardCharts';
 import type { WarehouseManagerDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -95,6 +97,10 @@ export default function WarehouseManagerDashboardPanel({ data }: Props) {
           { label: 'Open warehouse tasks', value: formatNumber(data.openWarehouseTasksTotal), tone: 'warning' },
         ]}
       />
+
+      <DashboardAlerts alerts={data.alerts} />
+
+      <DashboardCharts charts={data.charts} />
 
       <Box
         sx={{

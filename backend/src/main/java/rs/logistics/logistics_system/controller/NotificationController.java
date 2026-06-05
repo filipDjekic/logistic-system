@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import rs.logistics.logistics_system.enums.NotificationSeverity;
 import rs.logistics.logistics_system.enums.NotificationCategory;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
+import rs.logistics.logistics_system.service.realtime.NotificationSseService;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -32,6 +35,7 @@ public class NotificationController {
 
     private final NotificationServiceDefinition notificationService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final NotificationSseService notificationSseService;
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PostMapping
@@ -59,6 +63,14 @@ public class NotificationController {
             @RequestParam(defaultValue = "20") int size) {
         NotificationPageResponse response = notificationService.getByUser(id, status, type, severity, category, page, size);
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @GetMapping(value = "/my/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamMyNotifications() {
+        Long userId = authenticatedUserProvider.getAuthenticatedUserId();
+        return notificationSseService.subscribe(userId);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
@@ -121,6 +133,20 @@ public class NotificationController {
     @PatchMapping("/{id}/mark_as_read")
     public ResponseEntity<NotificationResponse> markAsRead(@PathVariable Long id) {
         NotificationResponse response = notificationService.markAsRead(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN') or @notificationSecurity.isOwner(#id)")
+    @PatchMapping("/{id}/acknowledge")
+    public ResponseEntity<NotificationResponse> acknowledge(@PathVariable Long id) {
+        NotificationResponse response = notificationService.acknowledge(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN') or @notificationSecurity.isOwner(#id)")
+    @PatchMapping("/{id}/resolve")
+    public ResponseEntity<NotificationResponse> resolve(@PathVariable Long id) {
+        NotificationResponse response = notificationService.resolve(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

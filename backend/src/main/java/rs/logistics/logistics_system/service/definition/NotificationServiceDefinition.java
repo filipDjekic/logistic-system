@@ -19,6 +19,10 @@ public interface NotificationServiceDefinition {
 
     NotificationResponse markAsRead(Long id);
 
+    NotificationResponse acknowledge(Long id);
+
+    NotificationResponse resolve(Long id);
+
     void markAllAsRead(Long userId);
 
     NotificationPageResponse getByUser(Long userId, int page, int size);
@@ -32,6 +36,8 @@ public interface NotificationServiceDefinition {
     long getUnreadCount(Long userId);
 
     NotificationResponse createSystemNotification(Long userId, String title, String message, NotificationType type);
+
+    NotificationResponse createInternalSystemNotification(Long userId, String title, String message, NotificationType type);
 
     NotificationResponse createOperationalNotification(Long userId, String title, String message, NotificationType type, NotificationSeverity severity, NotificationCategory category, NotificationSourceType sourceType, Long sourceId, String dedupKey);
 }

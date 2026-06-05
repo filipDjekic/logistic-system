@@ -6,6 +6,7 @@ import {
   CircularProgress,
   InputAdornment,
   MenuItem,
+  Pagination,
   Paper,
   Stack,
   Table,
@@ -51,6 +52,9 @@ export type SearchSelectPanelProps<T, TStatus extends string = string> = {
   loading?: boolean;
   error?: string | null;
   emptyMessage?: string;
+  page?: number;
+  pageCount?: number;
+  onPageChange?: (page: number) => void;
 };
 
 export function SearchSelectPanel<T, TStatus extends string = string>({
@@ -73,8 +77,12 @@ export function SearchSelectPanel<T, TStatus extends string = string>({
   loading = false,
   error = null,
   emptyMessage = 'No records found.',
+  page,
+  pageCount,
+  onPageChange,
 }: SearchSelectPanelProps<T, TStatus>) {
   const hasStatusFilter = Boolean(statusOptions?.length && onStatusChange && statusValue !== undefined);
+  const hasPagination = Boolean(onPageChange && pageCount && pageCount > 1 && page !== undefined);
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -112,7 +120,7 @@ export function SearchSelectPanel<T, TStatus extends string = string>({
               size="small"
               label={statusLabel}
               value={statusValue}
-              onChange={(event) => onStatusChange(event.target.value as TStatus)}
+              onChange={(event) => onStatusChange?.(event.target.value as TStatus)}
               sx={{ minWidth: { xs: '100%', md: 220 } }}
             >
               {statusOptions?.map((option) => (
@@ -180,6 +188,12 @@ export function SearchSelectPanel<T, TStatus extends string = string>({
             </TableBody>
           </Table>
         </TableContainer>
+
+        {hasPagination ? (
+          <Stack alignItems="center">
+            <Pagination count={pageCount} page={(page ?? 0) + 1} onChange={(_, nextPage) => onPageChange?.(nextPage - 1)} />
+          </Stack>
+        ) : null}
       </Stack>
     </Paper>
   );

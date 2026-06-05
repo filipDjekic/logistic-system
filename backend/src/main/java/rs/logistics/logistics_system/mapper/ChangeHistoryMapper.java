@@ -36,6 +36,7 @@ public class ChangeHistoryMapper {
                 changeHistory.getId(),
                 changeHistory.getEntityName(),
                 changeHistory.getEntityId(),
+                changeHistory.getEntityIdentifier(),
                 changeHistory.getChangeType(),
                 changeHistory.getFieldName(),
                 changeHistory.getOldValue(),

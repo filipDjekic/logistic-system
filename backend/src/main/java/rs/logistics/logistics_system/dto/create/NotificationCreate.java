@@ -38,6 +38,7 @@ public class NotificationCreate {
 
     private NotificationSourceType sourceType;
 
+    @Positive
     private Long sourceId;
 
     @Size(max = 180)

@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
         name = "OPERATIONAL_ATTACHMENTS",
         indexes = {
                 @Index(name = "idx_operational_attachments_entity", columnList = "entity_type, entity_id"),
+                @Index(name = "idx_operational_attachments_entity_created", columnList = "entity_type, entity_id, created_at"),
                 @Index(name = "idx_operational_attachments_company_created", columnList = "company_id, created_at"),
                 @Index(name = "idx_operational_attachments_uploaded_by", columnList = "uploaded_by_id")
         }

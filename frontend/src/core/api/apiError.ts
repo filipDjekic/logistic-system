@@ -89,17 +89,26 @@ function isApiFieldError(value: unknown): value is ApiFieldErrorResponse {
 }
 
 function normalizeStructuredFieldErrors(fieldErrors: unknown): NormalizedApiFieldError[] {
-  if (!Array.isArray(fieldErrors)) {
-    return [];
+  if (Array.isArray(fieldErrors)) {
+    return fieldErrors
+      .filter(isApiFieldError)
+      .map((fieldError) => ({
+        field: fieldError.field.trim(),
+        message: fieldError.message.trim(),
+      }))
+      .filter((fieldError) => fieldError.field.length > 0 && fieldError.message.length > 0);
   }
 
-  return fieldErrors
-    .filter(isApiFieldError)
-    .map((fieldError) => ({
-      field: fieldError.field.trim(),
-      message: fieldError.message.trim(),
-    }))
-    .filter((fieldError) => fieldError.field.length > 0 && fieldError.message.length > 0);
+  if (fieldErrors && typeof fieldErrors === 'object') {
+    return Object.entries(fieldErrors as Record<string, unknown>)
+      .map(([field, message]) => ({
+        field: field.trim(),
+        message: typeof message === 'string' ? message.trim() : '',
+      }))
+      .filter((fieldError) => fieldError.field.length > 0 && fieldError.message.length > 0);
+  }
+
+  return [];
 }
 
 function normalizeLegacyFieldErrors(message: string): NormalizedApiFieldError[] {
@@ -129,10 +138,11 @@ export function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
   const candidate = value as Partial<ApiErrorResponse>;
 
   return (
-    typeof candidate.status === 'number' &&
-    typeof candidate.message === 'string' &&
-    typeof candidate.error === 'string' &&
-    typeof candidate.path === 'string'
+    typeof candidate.status === 'number' ||
+    typeof candidate.message === 'string' ||
+    typeof candidate.error === 'string' ||
+    typeof candidate.code === 'string' ||
+    Boolean(candidate.fieldErrors)
   );
 }
 
@@ -146,19 +156,25 @@ export function normalizeApiError(
     const data = axiosError.response?.data;
 
     if (isApiErrorResponse(data)) {
-      const message = cleanMessage(data.message) ?? defaultMessageForStatus(data.status, fallbackMessage);
+      const responseStatus = status ?? data.status ?? null;
+      const message = cleanMessage(data.message) ?? defaultMessageForStatus(responseStatus, fallbackMessage);
       const structuredFieldErrors = normalizeStructuredFieldErrors(data.fieldErrors);
+      const mappedFieldErrors = normalizeStructuredFieldErrors(data.fieldErrorMap);
       const fieldErrors =
-        structuredFieldErrors.length > 0 ? structuredFieldErrors : normalizeLegacyFieldErrors(message);
+        structuredFieldErrors.length > 0
+          ? structuredFieldErrors
+          : mappedFieldErrors.length > 0
+            ? mappedFieldErrors
+            : normalizeLegacyFieldErrors(message);
 
       return {
-        status: data.status,
-        title: titleForStatus(data.status),
+        status: responseStatus,
+        title: titleForStatus(responseStatus),
         message,
-        error: data.error,
+        error: data.error ?? null,
         code: data.code ?? null,
-        path: data.path,
-        timestamp: data.timestamp,
+        path: data.path ?? null,
+        timestamp: data.timestamp ?? null,
         fieldErrors: toFieldErrorMessages(fieldErrors),
         structuredFieldErrors: fieldErrors,
         isAxiosError: true,

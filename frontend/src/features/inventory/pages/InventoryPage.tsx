@@ -70,6 +70,11 @@ export default function InventoryPage() {
     { ...filters, page, size, sort: buildSortParam(sort) },
     { warehouses, products },
   );
+  const inventoryStatusCountsQuery = useQuery({
+    queryKey: queryKeys.inventory.statusCounts(filters),
+    queryFn: () => inventoryApi.getStatusCounts(filters),
+    staleTime: 30_000,
+  });
   const rows = inventoryQuery.data?.content ?? [];
   const deleteInventoryMutation = useDeleteInventoryRecord();
   const reserveInventoryMutation = useReserveInventoryStock();
@@ -79,11 +84,19 @@ export default function InventoryPage() {
   const hasLookupError = warehousesQuery.isError || productsQuery.isError;
 
   const statusOverviewItems = useMemo(
-    () => ['LOW_STOCK', 'RESERVED', 'OUT_OF_STOCK', 'AVAILABLE', 'SUFFICIENT'].map((status) => ({
-      value: status,
-      count: rows.filter((row) => row.derivedStatus === status).length,
-    })),
-    [rows],
+    () => {
+      const counts = inventoryStatusCountsQuery.data;
+
+      if (counts) {
+        return counts.map((item) => ({ value: item.status, count: item.count }));
+      }
+
+      return ['LOW_STOCK', 'RESERVED', 'OUT_OF_STOCK', 'AVAILABLE', 'SUFFICIENT'].map((status) => ({
+        value: status,
+        count: rows.filter((row) => row.derivedStatus === status).length,
+      }));
+    },
+    [inventoryStatusCountsQuery.data, rows],
   );
 
   const inventoryMetrics = useMemo(() => {
@@ -150,12 +163,14 @@ export default function InventoryPage() {
   useEffect(() => {
     const warehouseId = searchParams.get('warehouseId');
     const productId = searchParams.get('productId');
+    const status = searchParams.get('status');
 
     setFilters((current) => {
       const nextWarehouseId = warehouseId && Number.isFinite(Number(warehouseId)) ? Number(warehouseId) : current.warehouseId;
       const nextProductId = productId && Number.isFinite(Number(productId)) ? Number(productId) : current.productId;
+      const nextStatus = status === 'LOW_STOCK' || status === 'RESERVED' || status === 'OUT_OF_STOCK' || status === 'AVAILABLE' || status === 'SUFFICIENT' ? status : current.status;
 
-      if (nextWarehouseId === current.warehouseId && nextProductId === current.productId) {
+      if (nextWarehouseId === current.warehouseId && nextProductId === current.productId && nextStatus === current.status) {
         return current;
       }
 
@@ -163,6 +178,7 @@ export default function InventoryPage() {
         ...current,
         warehouseId: nextWarehouseId,
         productId: nextProductId,
+        status: nextStatus,
       };
     });
   }, [searchParams]);
@@ -225,13 +241,14 @@ export default function InventoryPage() {
                     warehousesQuery.refetch(),
                     productsQuery.refetch(),
                     inventoryQuery.refetch(),
+                    inventoryStatusCountsQuery.refetch(),
                   ]);
                 }}
               />
             </FilterPanel>
           </>
         }
-        summary={<StatusOverview items={statusOverviewItems} />}
+        summary={<StatusOverview items={statusOverviewItems} title="Filtered result status" />}
         table={
           <InventoryTable
             rows={rows}
@@ -242,6 +259,7 @@ export default function InventoryPage() {
                 warehousesQuery.refetch(),
                 productsQuery.refetch(),
                 inventoryQuery.refetch(),
+                inventoryStatusCountsQuery.refetch(),
               ]);
             }}
             onEdit={(row) => navigate(`/inventory/${row.warehouseId}/${row.productId}/edit`)}

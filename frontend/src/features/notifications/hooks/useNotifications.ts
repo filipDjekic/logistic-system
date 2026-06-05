@@ -8,9 +8,12 @@ import { NOTIFICATION_POLL_INTERVAL_MS } from '../constants/notificationLive';
 export function useNotifications(params: GetMyNotificationsParams = {}) {
   const page = params.page ?? 0;
   const size = params.size ?? 20;
-  const status = params.status || '';
-  const type = params.type || '';
-  const queryParams = { page, size, status, type };
+  const queryParams: GetMyNotificationsParams = {
+    page,
+    size,
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.type ? { type: params.type } : {}),
+  };
 
   return useQuery({
     queryKey: queryKeys.notifications.my(queryParams),
@@ -19,6 +22,6 @@ export function useNotifications(params: GetMyNotificationsParams = {}) {
     staleTime: cacheTimes.volatile,
     refetchInterval: NOTIFICATION_POLL_INTERVAL_MS,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 }

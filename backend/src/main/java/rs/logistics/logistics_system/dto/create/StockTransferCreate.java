@@ -29,4 +29,8 @@ public class StockTransferCreate {
     private Long destinationWarehouseId;
     @NotNull @Positive
     private Long productId;
+    @Positive
+    private Long sourceBinLocationId;
+    @Positive
+    private Long destinationBinLocationId;
 }

@@ -13,6 +13,7 @@ import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.NotificationSeverity;
 import rs.logistics.logistics_system.enums.NotificationCategory;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,7 +48,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
               and (:type is null or n.type = :type)
               and (:severity is null or n.severity = :severity)
               and (:category is null or n.category = :category)
-            order by n.createdAt desc
+            order by coalesce(n.lastGroupedAt, n.createdAt) desc
             """)
     Page<Notification> searchForUser(
             @Param("userId") Long userId,
@@ -73,8 +74,15 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Optional<Notification> findFirstByUserIdAndDedupKeyAndStatus(Long userId, String dedupKey, NotificationStatus status);
 
+    Optional<Notification> findFirstByUserIdAndGroupKeyAndStatusOrderByCreatedAtDesc(Long userId, String groupKey, NotificationStatus status);
+
     @Transactional
     @Modifying
-    @Query("UPDATE Notification n SET n.status = :status WHERE n.user.id = :userId AND n.status <> :status")
+    @Query("DELETE FROM Notification n WHERE n.status = :status AND n.createdAt < :cutoff")
+    int deleteByStatusAndCreatedAtBefore(@Param("status") NotificationStatus status, @Param("cutoff") LocalDateTime cutoff);
+
+    @Transactional
+    @Modifying
+    @Query("UPDATE Notification n SET n.status = :status WHERE n.user.id = :userId AND n.status = rs.logistics.logistics_system.enums.NotificationStatus.UNREAD")
     void markAllAsRead(@Param("userId") Long userId, @Param("status") NotificationStatus status);
 }

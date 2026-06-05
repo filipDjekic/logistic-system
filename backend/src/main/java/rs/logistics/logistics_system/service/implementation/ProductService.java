@@ -178,6 +178,19 @@ public class ProductService implements ProductServiceDefinition {
         return ProductMapper.toResponse(saved);
     }
 
+
+    @Override
+    @Transactional
+    public ProductResponse archiveProduct(Long id) {
+        return deactivateProduct(id);
+    }
+
+    @Override
+    @Transactional
+    public ProductResponse restoreProduct(Long id) {
+        return activateProduct(id);
+    }
+
     private String normalizeSearch(String search) {
         if (search == null || search.trim().isEmpty()) {
             return null;

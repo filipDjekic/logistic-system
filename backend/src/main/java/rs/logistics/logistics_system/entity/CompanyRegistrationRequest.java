@@ -91,7 +91,7 @@ public class CompanyRegistrationRequest {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30, nullable = false)
-    private CompanyRegistrationRequestStatus status = CompanyRegistrationRequestStatus.SUBMITTED;
+    private CompanyRegistrationRequestStatus status = CompanyRegistrationRequestStatus.PENDING;
 
     @Column(name = "submitted_at", nullable = false, updatable = false)
     @CreationTimestamp

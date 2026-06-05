@@ -8,6 +8,8 @@ import type { TransportOrderStatus } from '../types/transportOrder.types';
 type UpdateTransportOrderStatusPayload = {
   id: number;
   status: TransportOrderStatus;
+  reason?: string;
+  expectedVersion?: number;
 };
 
 export function useUpdateTransportOrderStatus() {
@@ -15,8 +17,8 @@ export function useUpdateTransportOrderStatus() {
   const { showSnackbar } = useAppSnackbar();
 
   return useMutation({
-    mutationFn: ({ id, status }: UpdateTransportOrderStatusPayload) =>
-      transportOrdersApi.updateStatus(id, status),
+    mutationFn: ({ id, status, reason, expectedVersion }: UpdateTransportOrderStatusPayload) =>
+      transportOrdersApi.updateStatus(id, status, reason, expectedVersion),
     onSuccess: async (_, variables) => {
       showSnackbar({
         message: `Transport order status updated to ${variables.status}.`,

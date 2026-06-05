@@ -18,6 +18,14 @@ public class AuthenticatedUserProvider {
 
     private final UserRepository userRepository;
 
+
+    public boolean hasAuthenticatedUserContext() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken);
+    }
+
     public User getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 

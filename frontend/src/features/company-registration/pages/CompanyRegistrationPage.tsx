@@ -136,7 +136,7 @@ export default function CompanyRegistrationPage() {
   const countriesQuery = useActiveCountries(true);
 
   const form = useForm<CompanyRegistrationSchemaValues>({
-    resolver: zodResolver(companyRegistrationSchema),
+    resolver: zodResolver(companyRegistrationSchema) as never,
     defaultValues,
     mode: 'onBlur',
   });
@@ -167,8 +167,8 @@ export default function CompanyRegistrationPage() {
     queryKey: ['company-registration-validation', values.companyName, values.registrationNumber, values.taxNumber, values.adminEmail],
     queryFn: () => companyRegistrationApi.validate({
       companyName: values.companyName,
-      registrationNumber: values.registrationNumber,
-      taxNumber: values.taxNumber,
+      registrationNumber: values.registrationNumber ?? undefined,
+      taxNumber: values.taxNumber ?? undefined,
       adminEmail: values.adminEmail,
     }),
     enabled: activeStep <= 2,

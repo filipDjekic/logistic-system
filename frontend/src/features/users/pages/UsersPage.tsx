@@ -186,19 +186,21 @@ export default function UsersPage() {
           roles={rolesQuery.data ?? []}
           companies={companiesQuery.data ?? []}
           loading={isSaving}
+          createError={createUserMutation.error}
+          updateError={updateUserMutation.error}
           onClose={() => setDialogOpen(false)}
           onSubmitCreate={(values: CreateUserFormValues) => {
             createUserMutation.mutate({
               password: values.password,
-              firstName: values.firstName,
-              lastName: values.lastName,
-              email: values.email,
+              firstName: values.firstName.trim(),
+              lastName: values.lastName.trim(),
+              email: values.email.trim(),
               roleId: Number(values.roleId),
               status: values.status,
               companyId: Number(values.companyId),
               employee: {
-                jmbg: values.employeeJmbg,
-                phoneNumber: values.employeePhoneNumber,
+                jmbg: values.employeeJmbg.trim(),
+                phoneNumber: values.employeePhoneNumber.trim(),
                 position: values.employeePosition,
                 employmentDate: values.employeeEmploymentDate,
                 salary: Number(values.employeeSalary),
@@ -213,15 +215,15 @@ export default function UsersPage() {
             updateUserMutation.mutate({
               id: selectedUser.id,
               data: {
-                firstName: values.firstName,
-                lastName: values.lastName,
-                email: values.email,
+                firstName: values.firstName.trim(),
+                lastName: values.lastName.trim(),
+                email: values.email.trim(),
                 roleId: Number(values.roleId),
                 enabled: values.enabled,
                 status: values.status,
                 employee: {
-                  jmbg: values.employeeJmbg,
-                  phoneNumber: values.employeePhoneNumber,
+                  jmbg: values.employeeJmbg.trim(),
+                  phoneNumber: values.employeePhoneNumber.trim(),
                   position: values.employeePosition,
                   employmentDate: values.employeeEmploymentDate,
                   salary: Number(values.employeeSalary),

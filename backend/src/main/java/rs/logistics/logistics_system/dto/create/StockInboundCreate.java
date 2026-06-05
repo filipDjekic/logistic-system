@@ -29,4 +29,6 @@ public class StockInboundCreate {
     private Long warehouseId;
     @NotNull @Positive
     private Long productId;
+    @Positive
+    private Long binLocationId;
 }

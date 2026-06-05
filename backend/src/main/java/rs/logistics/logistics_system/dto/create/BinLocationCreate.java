@@ -22,6 +22,7 @@ public class BinLocationCreate {
     private String code;
     @NotBlank @Size(max = 120)
     private String name;
+    @Positive
     private BigDecimal capacity;
     @Size(max = 500)
     private String description;

@@ -1,12 +1,15 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.NotificationCreate;
@@ -27,6 +30,8 @@ import rs.logistics.logistics_system.repository.NotificationRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
+import rs.logistics.logistics_system.service.support.PageRequestSanitizer;
+import rs.logistics.logistics_system.service.realtime.NotificationSseService;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +40,7 @@ public class NotificationService implements NotificationServiceDefinition {
     private final NotificationRepository _notificationRepository;
     private final UserRepository _userRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final NotificationSseService notificationSseService;
 
     @Override
     @Transactional
@@ -45,9 +51,17 @@ public class NotificationService implements NotificationServiceDefinition {
             throw new BadRequestException("User status is invalid");
         }
 
-        Notification notification = NotificationMapper.toEntity(dto, user);
-        Notification saved = _notificationRepository.save(notification);
-        return NotificationMapper.toResponse(saved);
+        return createOperationalNotification(
+                user.getId(),
+                dto.getTitle(),
+                dto.getMessage(),
+                dto.getType(),
+                dto.getSeverity(),
+                dto.getCategory(),
+                dto.getSourceType(),
+                dto.getSourceId(),
+                dto.getDedupKey()
+        );
     }
 
     @Override
@@ -70,7 +84,31 @@ public class NotificationService implements NotificationServiceDefinition {
         Notification notification = getAccessibleNotification(id);
         notification.markAsRead();
         Notification saved = _notificationRepository.save(notification);
-        return NotificationMapper.toResponse(saved);
+        NotificationResponse response = NotificationMapper.toResponse(saved);
+        publishAfterCommit(() -> notificationSseService.publishUpdated(notification.getUser().getId(), response));
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public NotificationResponse acknowledge(Long id) {
+        Notification notification = getAccessibleNotification(id);
+        notification.acknowledge();
+        Notification saved = _notificationRepository.save(notification);
+        NotificationResponse response = NotificationMapper.toResponse(saved);
+        publishAfterCommit(() -> notificationSseService.publishUpdated(notification.getUser().getId(), response));
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public NotificationResponse resolve(Long id) {
+        Notification notification = getAccessibleNotification(id);
+        notification.resolve();
+        Notification saved = _notificationRepository.save(notification);
+        NotificationResponse response = NotificationMapper.toResponse(saved);
+        publishAfterCommit(() -> notificationSseService.publishUpdated(notification.getUser().getId(), response));
+        return response;
     }
 
     @Override
@@ -78,6 +116,7 @@ public class NotificationService implements NotificationServiceDefinition {
     public void markAllAsRead(Long userId) {
         validateUserAccess(userId);
         _notificationRepository.markAllAsRead(userId, NotificationStatus.READ);
+        publishAfterCommit(() -> notificationSseService.publishBulkUpdated(userId));
     }
 
     @Override
@@ -101,7 +140,7 @@ public class NotificationService implements NotificationServiceDefinition {
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequestSanitizer.sanitize(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Notification> notificationPage = _notificationRepository.searchForUser(
                 userId,
                 companyId,
@@ -158,7 +197,7 @@ public class NotificationService implements NotificationServiceDefinition {
     @Override
     @Transactional
     public NotificationResponse createSystemNotification(Long userId, String title, String message, NotificationType type) {
-        User user = getAccessibleUserForNotificationTarget(userId);
+        getAccessibleUserForNotificationTarget(userId);
 
         return createOperationalNotification(
                 userId,
@@ -175,6 +214,29 @@ public class NotificationService implements NotificationServiceDefinition {
 
     @Override
     @Transactional
+    public NotificationResponse createInternalSystemNotification(Long userId, String title, String message, NotificationType type) {
+        User user = _userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.getStatus() == null) {
+            throw new BadRequestException("User status is invalid");
+        }
+
+        return saveOperationalNotification(
+                user,
+                title,
+                message,
+                type,
+                NotificationSeverity.INFO,
+                NotificationCategory.GENERAL,
+                NotificationSourceType.SYSTEM,
+                null,
+                "INTERNAL_SYSTEM:" + userId + ":" + title + ":" + message
+        );
+    }
+
+    @Override
+    @Transactional
     public NotificationResponse createOperationalNotification(Long userId,
                                                              String title,
                                                              String message,
@@ -184,14 +246,23 @@ public class NotificationService implements NotificationServiceDefinition {
                                                              NotificationSourceType sourceType,
                                                              Long sourceId,
                                                              String dedupKey) {
-        User user = _userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = getOperationalNotificationTarget(userId);
 
         String normalizedDedupKey = hasText(dedupKey) ? dedupKey.trim() : null;
-        if (normalizedDedupKey != null) {
-            return _notificationRepository.findFirstByUserIdAndDedupKeyAndStatus(userId, normalizedDedupKey, NotificationStatus.UNREAD)
-                    .map(NotificationMapper::toResponse)
-                    .orElseGet(() -> saveOperationalNotification(user, title, message, type, severity, category, sourceType, sourceId, normalizedDedupKey));
+        String groupKey = normalizedDedupKey != null
+                ? normalizedDedupKey
+                : buildFallbackGroupKey(title, message, type, category, sourceType, sourceId);
+
+        if (groupKey != null) {
+            return _notificationRepository.findFirstByUserIdAndGroupKeyAndStatusOrderByCreatedAtDesc(userId, groupKey, NotificationStatus.UNREAD)
+                    .map(existing -> {
+                        existing.registerGroupedOccurrence(title, message);
+                        Notification saved = _notificationRepository.save(existing);
+                        NotificationResponse response = NotificationMapper.toResponse(saved);
+                        publishAfterCommit(() -> notificationSseService.publishUpdated(userId, response));
+                        return response;
+                    })
+                    .orElseGet(() -> saveOperationalNotification(user, title, message, type, severity, category, sourceType, sourceId, groupKey));
         }
 
         boolean duplicateUnreadExists = _notificationRepository.existsByUserIdAndTitleAndMessageAndTypeAndStatus(
@@ -243,7 +314,40 @@ public class NotificationService implements NotificationServiceDefinition {
             notification.markEscalated();
         }
         Notification saved = _notificationRepository.save(notification);
-        return NotificationMapper.toResponse(saved);
+        NotificationResponse response = NotificationMapper.toResponse(saved);
+        publishAfterCommit(() -> notificationSseService.publishCreated(user.getId(), response));
+        return response;
+    }
+
+    private void publishAfterCommit(Runnable publisher) {
+        if (publisher == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            publisher.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                publisher.run();
+            }
+        });
+    }
+
+    private String buildFallbackGroupKey(String title,
+                                         String message,
+                                         NotificationType type,
+                                         NotificationCategory category,
+                                         NotificationSourceType sourceType,
+                                         Long sourceId) {
+        if (sourceType != null && sourceId != null) {
+            return sourceType + ":" + sourceId + ":" + (category != null ? category : NotificationCategory.GENERAL) + ":" + type;
+        }
+        if (hasText(title) && hasText(message) && type != null) {
+            return "TEXT:" + type + ":" + title.trim() + ":" + message.trim();
+        }
+        return null;
     }
 
     private boolean hasText(String value) {
@@ -293,5 +397,31 @@ public class NotificationService implements NotificationServiceDefinition {
         if (!authenticatedUserProvider.isSelf(userId)) {
             throw new ForbiddenException("You do not have permission to access notifications for this user");
         }
+    }
+
+    private User getOperationalNotificationTarget(Long targetUserId) {
+        if (targetUserId == null) {
+            throw new BadRequestException("Notification target user id is required");
+        }
+
+        User targetUser = _userRepository.findById(targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification target user is not found"));
+
+        if (!authenticatedUserProvider.hasAuthenticatedUserContext()) {
+            return targetUser;
+        }
+
+        if (authenticatedUserProvider.isOverlord()) {
+            return targetUser;
+        }
+
+        Long authenticatedCompanyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        if (targetUser.getCompany() == null
+                || !Objects.equals(targetUser.getCompany().getId(), authenticatedCompanyId)) {
+            throw new ForbiddenException("You cannot create notification for user from another company");
+        }
+
+        return targetUser;
     }
 }

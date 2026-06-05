@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
@@ -31,6 +31,7 @@ export default function ProductsTable({
   sort,
   onSortChange,
 }: Props) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<ProductResponse>[] = [
     { id: 'name', header: 'Name', accessor: 'name', minWidth: 160, sortField: 'name' },
     { id: 'sku', header: 'SKU', accessor: 'sku', minWidth: 120, sortField: 'sku' },
@@ -99,6 +100,8 @@ export default function ProductsTable({
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}
+      onRowClick={(row) => navigate(`/products/${row.id}`)}
+      rowClickLabel="Open details"
     />
   );
 }

@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.dto.response.dashboard;
 
+import java.util.List;
 import java.util.Map;
 
 public record HrManagerDashboardResponse(
@@ -13,6 +14,8 @@ public record HrManagerDashboardResponse(
         long newEmployeesLast30Days,
         long deactivatedEmployees,
         long hrTasksTotal,
-        Map<String, Long> hrTasksByStatus
+        Map<String, Long> hrTasksByStatus,
+        List<DashboardChartResponse> charts,
+        List<DashboardAlertResponse> alerts
 ) {
 }

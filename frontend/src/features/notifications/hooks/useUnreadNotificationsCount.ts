@@ -11,6 +11,6 @@ export function useUnreadNotificationsCount() {
     staleTime: cacheTimes.volatile,
     refetchInterval: NOTIFICATION_POLL_INTERVAL_MS,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 }

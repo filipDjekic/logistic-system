@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -17,6 +19,7 @@ import { useCreateVehicle } from '../hooks/useCreateVehicle';
 import { useDeleteVehicle } from '../hooks/useDeleteVehicle';
 import { useUpdateVehicle } from '../hooks/useUpdateVehicle';
 import { useVehicles } from '../hooks/useVehicles';
+import { vehiclesApi } from '../api/vehiclesApi';
 import type { SortState } from '../../../shared/types/common.types';
 import type { VehicleFiltersState, VehicleResponse, VehicleSearchParams } from '../types/vehicle.types';
 import { vehicleStatusOptions, type VehicleSchemaValues } from '../validation/vehicleSchema';
@@ -88,18 +91,35 @@ export default function VehiclesPage() {
     capacityTo: normalizeNumberFilter(filters.capacityTo),
   }), [filters]);
 
+  const vehicleStatusCountParams = useMemo(() => ({
+    search: vehicleSearchParams.search,
+    type: vehicleSearchParams.type,
+    available: vehicleSearchParams.available,
+    capacityFrom: vehicleSearchParams.capacityFrom,
+    capacityTo: vehicleSearchParams.capacityTo,
+  }), [vehicleSearchParams]);
+
   const vehiclesQuery = useVehicles({ ...vehicleSearchParams, page, size, sort: buildSortParam(sort) }, true);
+  const vehicleStatusCountsQuery = useQuery({
+    queryKey: queryKeys.vehicles.statusCounts(vehicleStatusCountParams),
+    queryFn: () => vehiclesApi.getStatusCounts(vehicleStatusCountParams),
+    staleTime: 30_000,
+  });
   const rows = useMemo(
     () => vehiclesQuery.data?.content ?? [],
     [vehiclesQuery.data?.content],
   );
 
   const statusOverviewItems = useMemo(
-    () => vehicleStatusOptions.map((status) => ({
-      value: status,
-      count: rows.filter((row) => row.status === status).length,
-    })),
-    [rows],
+    () => {
+      const countsByStatus = new Map((vehicleStatusCountsQuery.data ?? []).map((item) => [item.status, item.count]));
+
+      return vehicleStatusOptions.map((status) => ({
+        value: status,
+        count: countsByStatus.get(status) ?? rows.filter((row) => row.status === status).length,
+      }));
+    },
+    [rows, vehicleStatusCountsQuery.data],
   );
 
   const companiesQuery = useCompanies(canManage && isOverlord && dialogOpen && dialogMode === 'create');
@@ -171,13 +191,13 @@ export default function VehiclesPage() {
             <TextField size="small" label="Capacity to" type="number" value={filters.capacityTo} onChange={(event) => updateFilters({ capacityTo: event.target.value })} />
           </FilterPanel>
         }
-        summary={<StatusOverview items={statusOverviewItems} />}
+        summary={<StatusOverview items={statusOverviewItems} title="Filtered result status" />}
         table={
           <VehiclesTable
             rows={rows}
             loading={vehiclesQuery.isLoading}
             error={vehiclesQuery.isError}
-            onRetry={() => { void vehiclesQuery.refetch(); }}
+            onRetry={() => { void Promise.all([vehiclesQuery.refetch(), vehicleStatusCountsQuery.refetch()]); }}
             onEdit={(vehicle) => {
               if (!canManage) return;
               setDialogMode('edit');
@@ -214,7 +234,7 @@ export default function VehiclesPage() {
           onClose={() => setDialogOpen(false)}
           onSubmit={(values: VehicleSchemaValues) => {
             const payload = {
-              registrationNumber: values.registrationNumber,
+              registrationNumber: values.registrationNumber.trim(),
               vehicleModelId: Number(values.vehicleModelId),
               type: values.type,
               capacity: Number(values.capacity),
@@ -230,12 +250,22 @@ export default function VehiclesPage() {
               createVehicleMutation.mutate({
                 ...payload,
                 companyId: values.companyId ? Number(values.companyId) : undefined,
+              }, {
+                onSuccess: () => {
+                  setDialogOpen(false);
+                  setSelectedVehicle(null);
+                },
               });
               return;
             }
 
             if (!selectedVehicle) return;
-            updateVehicleMutation.mutate({ id: selectedVehicle.id, data: payload });
+            updateVehicleMutation.mutate({ id: selectedVehicle.id, data: payload }, {
+              onSuccess: () => {
+                setDialogOpen(false);
+                setSelectedVehicle(null);
+              },
+            });
           }}
         />
       ) : null}

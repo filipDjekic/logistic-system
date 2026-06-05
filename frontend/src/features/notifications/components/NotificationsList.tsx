@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Stack } from '@mui/material';
 import EmptyState from '../../../shared/components/EmptyState/EmptyState';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
@@ -11,16 +12,26 @@ type NotificationsListProps = {
   isError?: boolean;
   onRetry?: () => void;
   onMarkAsRead?: (id: number) => void;
+  onAcknowledge?: (id: number) => void;
+  onResolve?: (id: number) => void;
+  onOpenSource?: (notification: NotificationResponse) => void;
   markingNotificationId?: number | null;
+  acknowledgingNotificationId?: number | null;
+  resolvingNotificationId?: number | null;
 };
 
-export default function NotificationsList({
+function NotificationsList({
   notifications,
   isLoading = false,
   isError = false,
   onRetry,
   onMarkAsRead,
+  onAcknowledge,
+  onResolve,
+  onOpenSource,
   markingNotificationId = null,
+  acknowledgingNotificationId = null,
+  resolvingNotificationId = null,
 }: NotificationsListProps) {
   if (isLoading) {
     return <InlineLoader message="Loading notifications..." />;
@@ -52,9 +63,16 @@ export default function NotificationsList({
           key={notification.id}
           notification={notification}
           onMarkAsRead={onMarkAsRead}
+          onAcknowledge={onAcknowledge}
+          onResolve={onResolve}
+          onOpenSource={onOpenSource}
           isMarking={markingNotificationId === notification.id}
+          isAcknowledging={acknowledgingNotificationId === notification.id}
+          isResolving={resolvingNotificationId === notification.id}
         />
       ))}
     </Stack>
   );
 }
+
+export default memo(NotificationsList);

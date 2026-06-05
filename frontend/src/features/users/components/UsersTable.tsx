@@ -1,5 +1,5 @@
 import { Button, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import type { DataTableColumn } from '../../../shared/types/common.types';
@@ -33,6 +33,7 @@ export default function UsersTable({
   showDetails = true,
   showEdit = false,
 }: UsersTableProps) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<UserResponse>[] = [
     {
       id: 'user',
@@ -121,6 +122,8 @@ export default function UsersTable({
       emptyTitle="No users found"
       emptyDescription="There are no user records for the current filter combination."
       minWidth={1220}
+      onRowClick={showDetails ? (row) => navigate(`/users/${row.id}`) : undefined}
+      rowClickLabel="Open user details"
     />
   );
 }

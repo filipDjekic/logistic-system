@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
@@ -31,6 +31,7 @@ export default function VehiclesTable({
   sort,
   onSortChange,
 }: Props) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<VehicleResponse>[] = [
     {
       id: 'registrationNumber',
@@ -133,6 +134,8 @@ export default function VehiclesTable({
       sort={sort}
       onSortChange={onSortChange}
       getRowStatus={(row) => row.status}
+      onRowClick={(row) => navigate(`/vehicles/${row.id}`)}
+      rowClickLabel="Open vehicle details"
     />
   );
 }

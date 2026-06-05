@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Button,
@@ -20,7 +20,8 @@ import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { DEFAULT_PAGE_SIZE } from '../../../core/api/pagination';
-import { useVehicles } from '../../vehicles/hooks/useVehicles';
+import { EntityLookupField } from '../../lookup';
+import type { LookupOption } from '../../lookup';
 import { useCreateVehicleMaintenance, useVehicleMaintenanceAction } from '../hooks/useVehicleMaintenanceMutations';
 import { useVehicleMaintenance } from '../hooks/useVehicleMaintenance';
 import type { VehicleMaintenanceStatus, VehicleMaintenanceType } from '../types/vehicleMaintenance.types';
@@ -44,29 +45,22 @@ export default function VehicleMaintenancePage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [status, setStatus] = useState<VehicleMaintenanceStatus | 'ALL'>('ALL');
-  const [vehicleId, setVehicleId] = useState<number | ''>('');
+  const [selectedVehicle, setSelectedVehicle] = useState<LookupOption | null>(null);
   const [type, setType] = useState<VehicleMaintenanceType>('ROUTINE_SERVICE');
   const [scheduledAt, setScheduledAt] = useState(toLocalInput(new Date(Date.now() + 60 * 60 * 1000)));
   const [notes, setNotes] = useState('');
 
-  const vehiclesQuery = useVehicles({ size: 200, status: 'AVAILABLE' });
   const maintenanceQuery = useVehicleMaintenance({
     page,
     size,
-    vehicleId: vehicleId === '' ? undefined : vehicleId,
+    vehicleId: selectedVehicle?.id,
     status: status === 'ALL' ? undefined : status,
   });
   const createMutation = useCreateVehicleMaintenance();
   const actionMutation = useVehicleMaintenanceAction();
 
-  const vehicles = vehiclesQuery.data?.content ?? [];
   const rows = maintenanceQuery.data?.content ?? [];
-  const availableVehicleOptions = useMemo(
-    () => vehicles.map((vehicle) => ({ value: vehicle.id, label: `${vehicle.registrationNumber} · ${vehicle.brand ?? ''} ${vehicle.model ?? ''}` })),
-    [vehicles],
-  );
-
-  const canSubmit = vehicleId !== '' && scheduledAt.trim().length > 0;
+  const canSubmit = Boolean(selectedVehicle?.id) && scheduledAt.trim().length > 0;
 
   return (
     <Stack spacing={3}>
@@ -78,36 +72,41 @@ export default function VehicleMaintenancePage() {
 
       <SectionCard title="Schedule maintenance" description="Planned maintenance blocks the vehicle from new transport assignment.">
         <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <TextField select label="Vehicle" value={vehicleId} onChange={(event) => setVehicleId(Number(event.target.value))} fullWidth>
-              {availableVehicleOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-              ))}
-            </TextField>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <EntityLookupField
+              label="Vehicle"
+              entityType="vehicles"
+              value={selectedVehicle}
+              onChange={setSelectedVehicle}
+              required
+              placeholder="Choose vehicle"
+              searchPlaceholder="Search vehicles by registration, brand or model..."
+              sort="registrationNumber,asc"
+            />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <TextField select label="Type" value={type} onChange={(event) => setType(event.target.value as VehicleMaintenanceType)} fullWidth>
               {maintenanceTypes.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
             </TextField>
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <TextField label="Scheduled at" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
           </Grid>
-          <Grid item xs={12} md={2}>
+          <Grid size={{ xs: 12, md: 2 }}>
             <Button
               variant="contained"
               fullWidth
               sx={{ height: '100%' }}
               disabled={!canSubmit || createMutation.isPending}
               onClick={() => {
-                if (vehicleId === '') return;
-                createMutation.mutate({ vehicleId, type, scheduledAt, notes: notes.trim() || undefined });
+                if (!selectedVehicle?.id) return;
+                createMutation.mutate({ vehicleId: selectedVehicle.id, type, scheduledAt, notes: notes.trim() || undefined });
               }}
             >
               Schedule
             </Button>
           </Grid>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <TextField label="Notes" value={notes} onChange={(event) => setNotes(event.target.value)} multiline minRows={2} fullWidth />
           </Grid>
         </Grid>

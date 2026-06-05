@@ -20,7 +20,7 @@ public class DomainEventController {
 
     private final DomainEventServiceDefinition domainEventService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @PostMapping
     public ResponseEntity<DomainEventResponse> create(@Valid @RequestBody DomainEventCreate dto) {
         return new ResponseEntity<>(domainEventService.create(dto), HttpStatus.CREATED);

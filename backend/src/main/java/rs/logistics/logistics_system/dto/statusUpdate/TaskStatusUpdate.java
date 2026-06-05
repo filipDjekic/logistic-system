@@ -15,4 +15,8 @@ public class TaskStatusUpdate {
 
     @NotNull
     private TaskStatus status;
+
+    private String reason;
+
+    private Long expectedVersion;
 }

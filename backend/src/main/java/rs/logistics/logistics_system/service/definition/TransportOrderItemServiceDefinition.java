@@ -18,5 +18,7 @@ public interface TransportOrderItemServiceDefinition {
 
     PageResponse<TransportOrderItemResponse> getByTransportOrderId(Long transportOrderId, Pageable pageable);
 
+    PageResponse<TransportOrderItemResponse> getByProductId(Long productId, Pageable pageable);
+
     void delete(Long id);
 }

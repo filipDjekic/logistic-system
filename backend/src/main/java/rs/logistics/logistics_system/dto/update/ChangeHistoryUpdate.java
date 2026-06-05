@@ -14,9 +14,7 @@ import rs.logistics.logistics_system.enums.ChangeType;
 @NoArgsConstructor
 public class ChangeHistoryUpdate {
 
-    private Long id;
-
-    @NotNull
+    @NotBlank
     @Size(min = 1, max = 100)
     private String entityName;
 
@@ -42,14 +40,4 @@ public class ChangeHistoryUpdate {
     @Positive
     private Long userId;
 
-    public ChangeHistoryUpdate(Long id, String entityName, Long entityId, ChangeType changeType, String fieldName, String oldValue, String newValue, Long userId) {
-        this.id = id;
-        this.entityName = entityName;
-        this.entityId = entityId;
-        this.changeType = changeType;
-        this.fieldName = fieldName;
-        this.oldValue = oldValue;
-        this.newValue = newValue;
-        this.userId = userId;
-    }
 }

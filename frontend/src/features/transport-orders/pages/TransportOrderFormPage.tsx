@@ -8,17 +8,18 @@ import {
   MenuItem,
   Stack,
   TextField,
-  Typography,
 } from '@mui/material';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
-import { EmployeeSearchSelect } from '../../search-select/components/EmployeeSearchSelect';
-import { VehicleSearchSelect } from '../../search-select/components/VehicleSearchSelect';
-import { WarehouseSearchSelect } from '../../search-select/components/WarehouseSearchSelect';
+import { EntityLookupField } from '../../lookup';
+import { EmployeeSearchSelect } from '../../search-select';
+import type { LookupOption } from '../../lookup';
 import { useCreateTransportOrder } from '../hooks/useCreateTransportOrder';
 import { useTransportOrder } from '../hooks/useTransportOrder';
 import { useUpdateTransportOrder } from '../hooks/useUpdateTransportOrder';
@@ -69,10 +70,10 @@ export default function TransportOrderFormPage({ mode }: Props) {
   const [plannedArrivalTime, setPlannedArrivalTime] = useState('');
   const [priority, setPriority] = useState<TransportOrderPriority>('MEDIUM');
   const [notes, setNotes] = useState('');
-  const [sourceWarehouseId, setSourceWarehouseId] = useState<number | null>(null);
-  const [destinationWarehouseId, setDestinationWarehouseId] = useState<number | null>(null);
-  const [vehicleId, setVehicleId] = useState<number | null>(null);
-  const [assignedEmployeeId, setAssignedEmployeeId] = useState<number | null>(null);
+  const [sourceWarehouse, setSourceWarehouse] = useState<LookupOption | null>(null);
+  const [destinationWarehouse, setDestinationWarehouse] = useState<LookupOption | null>(null);
+  const [vehicle, setVehicle] = useState<LookupOption | null>(null);
+  const [assignedEmployee, setAssignedEmployee] = useState<LookupOption | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
@@ -91,10 +92,10 @@ export default function TransportOrderFormPage({ mode }: Props) {
     setPlannedArrivalTime(toInputDateTime(order.plannedArrivalTime));
     setPriority(order.priority);
     setNotes(order.notes ?? '');
-    setSourceWarehouseId(order.sourceWarehouseId);
-    setDestinationWarehouseId(order.destinationWarehouseId);
-    setVehicleId(order.vehicleId);
-    setAssignedEmployeeId(order.assignedEmployeeId);
+    setSourceWarehouse({ id: order.sourceWarehouseId, label: `Warehouse #${order.sourceWarehouseId}` });
+    setDestinationWarehouse({ id: order.destinationWarehouseId, label: `Warehouse #${order.destinationWarehouseId}` });
+    setVehicle({ id: order.vehicleId, label: `Vehicle #${order.vehicleId}` });
+    setAssignedEmployee({ id: order.assignedEmployeeId, label: `Employee #${order.assignedEmployeeId}` });
   }, [isEdit, orderQuery.data]);
 
   if (!canManage) {
@@ -122,7 +123,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
   }
 
   const dateTimeError = getDateTimeError(departureTime, plannedArrivalTime);
-  const sameWarehouseError = sourceWarehouseId !== null && destinationWarehouseId !== null && sourceWarehouseId === destinationWarehouseId;
+  const sameWarehouseError = sourceWarehouse !== null && destinationWarehouse !== null && sourceWarehouse.id === destinationWarehouse.id;
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const disableSubmit =
     isSubmitting ||
@@ -131,16 +132,16 @@ export default function TransportOrderFormPage({ mode }: Props) {
     !orderDate ||
     !departureTime ||
     !plannedArrivalTime ||
-    !sourceWarehouseId ||
-    !destinationWarehouseId ||
-    !vehicleId ||
-    !assignedEmployeeId ||
+    !sourceWarehouse ||
+    !destinationWarehouse ||
+    !vehicle ||
+    !assignedEmployee ||
     Boolean(dateTimeError) ||
     sameWarehouseError;
 
   const handleSubmit = () => {
     setSubmitted(true);
-    if (disableSubmit || !sourceWarehouseId || !destinationWarehouseId || !vehicleId || !assignedEmployeeId) return;
+    if (disableSubmit || !sourceWarehouse || !destinationWarehouse || !vehicle || !assignedEmployee) return;
 
     const payload = {
       orderNumber: orderNumber.trim(),
@@ -150,10 +151,10 @@ export default function TransportOrderFormPage({ mode }: Props) {
       plannedArrivalTime,
       priority,
       notes: notes.trim() || undefined,
-      sourceWarehouseId,
-      destinationWarehouseId,
-      vehicleId,
-      assignedEmployeeId,
+      sourceWarehouseId: sourceWarehouse.id,
+      destinationWarehouseId: destinationWarehouse.id,
+      vehicleId: vehicle.id,
+      assignedEmployeeId: assignedEmployee.id,
     };
 
     if (isEdit) {
@@ -241,20 +242,36 @@ export default function TransportOrderFormPage({ mode }: Props) {
       <SectionCard title="Route and assignment" description="Warehouses, vehicle and driver are not static values, so they use search result tables with explicit Select buttons.">
         <Stack spacing={2.5}>
           {submitted && sameWarehouseError ? <Alert severity="error">Source and destination warehouses must be different.</Alert> : null}
-          {submitted && (!sourceWarehouseId || !destinationWarehouseId || !vehicleId || !assignedEmployeeId) ? <Alert severity="error">Select source warehouse, destination warehouse, vehicle and driver.</Alert> : null}
+          {submitted && (!sourceWarehouse || !destinationWarehouse || !vehicle || !assignedEmployee) ? <Alert severity="error">Select source warehouse, destination warehouse, vehicle and driver.</Alert> : null}
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, lg: 6 }}>
-              <WarehouseSearchSelect title="Source warehouse" value={sourceWarehouseId} active onSelect={(warehouse) => setSourceWarehouseId(warehouse.id)} disabledWarehouseIds={destinationWarehouseId ? [destinationWarehouseId] : []} />
+              <EntityLookupField label="Source warehouse" entityType="warehouses" value={sourceWarehouse} onChange={setSourceWarehouse} required disabled={isSubmitting} error={submitted && !sourceWarehouse} helperText={submitted && !sourceWarehouse ? 'Source warehouse is required.' : undefined} disabledOptionIds={destinationWarehouse ? [destinationWarehouse.id] : []} searchPlaceholder="Search warehouses..." />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
-              <WarehouseSearchSelect title="Destination warehouse" value={destinationWarehouseId} active onSelect={(warehouse) => setDestinationWarehouseId(warehouse.id)} disabledWarehouseIds={sourceWarehouseId ? [sourceWarehouseId] : []} />
+              <EntityLookupField label="Destination warehouse" entityType="warehouses" value={destinationWarehouse} onChange={setDestinationWarehouse} required disabled={isSubmitting} error={submitted && !destinationWarehouse} helperText={submitted && !destinationWarehouse ? 'Destination warehouse is required.' : undefined} disabledOptionIds={sourceWarehouse ? [sourceWarehouse.id] : []} searchPlaceholder="Search warehouses..." />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
-              <VehicleSearchSelect title="Vehicle" value={vehicleId} availableOnly={!isEdit} onSelect={(vehicle) => setVehicleId(vehicle.id)} />
+              <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicle} onChange={setVehicle} required disabled={isSubmitting} error={submitted && !vehicle} helperText={submitted && !vehicle ? 'Vehicle is required.' : undefined} searchPlaceholder="Search vehicles..." />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
-              <EmployeeSearchSelect title="Driver" value={assignedEmployeeId} position="DRIVER" active onSelect={(employee) => setAssignedEmployeeId(employee.id)} />
+              <EmployeeSearchSelect
+                title="Driver"
+                value={assignedEmployee?.id ?? null}
+                onSelect={(employee) => setAssignedEmployee({ id: employee.id, label: `${employee.firstName} ${employee.lastName}` })}
+                position="DRIVER"
+                active
+                disabled={isSubmitting || !departureTime || !plannedArrivalTime || Boolean(dateTimeError)}
+                availableFrom={departureTime || undefined}
+                availableTo={plannedArrivalTime || undefined}
+                helperText={
+                  submitted && !assignedEmployee
+                    ? 'Driver is required.'
+                    : departureTime && plannedArrivalTime && !dateTimeError
+                      ? 'Only drivers with a planned or active shift covering the full transport interval are shown.'
+                      : 'Select a valid departure and arrival time first.'
+                }
+              />
             </Grid>
           </Grid>
         </Stack>
@@ -264,16 +281,20 @@ export default function TransportOrderFormPage({ mode }: Props) {
         <TextField label="Notes" value={notes} onChange={(event) => setNotes(event.target.value)} fullWidth multiline minRows={3} disabled={isSubmitting} inputProps={{ maxLength: 255 }} />
       </SectionCard>
 
+      <FormGlobalError error={createMutation.error ?? updateMutation.error} />
+
       <Divider />
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="flex-end">
-        <Button variant="outlined" onClick={() => navigate('/transport-orders')} disabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={disableSubmit}>
-          {isEdit ? 'Update transport order' : 'Create transport order'}
-        </Button>
-      </Stack>
+      <FormActions
+        cancelLabel="Cancel"
+        submitLabel={isEdit ? 'Update transport order' : 'Create transport order'}
+        submittingLabel={isEdit ? 'Updating transport order...' : 'Creating transport order...'}
+        helperText="Route, vehicle, driver and schedule must be valid before saving. Status changes use lifecycle actions."
+        loading={isSubmitting}
+        submitDisabled={disableSubmit && !isSubmitting}
+        onCancel={() => navigate('/transport-orders')}
+        onSubmit={handleSubmit}
+      />
     </Stack>
   );
 }

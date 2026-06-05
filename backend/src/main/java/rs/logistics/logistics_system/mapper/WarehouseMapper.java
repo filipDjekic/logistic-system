@@ -18,6 +18,7 @@ public class WarehouseMapper {
         warehouse.setTimezone(timezone);
         warehouse.setLatitude(dto.getLatitude());
         warehouse.setLongitude(dto.getLongitude());
+        warehouse.setBinTrackingEnabled(Boolean.TRUE.equals(dto.getBinTrackingEnabled()));
         return warehouse;
     }
 
@@ -31,6 +32,7 @@ public class WarehouseMapper {
         warehouse.setLatitude(dto.getLatitude());
         warehouse.setLongitude(dto.getLongitude());
         warehouse.setCapacity(dto.getCapacity());
+        warehouse.setBinTrackingEnabled(Boolean.TRUE.equals(dto.getBinTrackingEnabled()));
     }
 
     public static WarehouseResponse toResponse(Warehouse warehouse) {
@@ -59,6 +61,7 @@ public class WarehouseMapper {
         response.setCapacity(warehouse.getCapacity());
         response.setStatus(warehouse.getStatus());
         response.setActive(warehouse.getActive());
+        response.setBinTrackingEnabled(Boolean.TRUE.equals(warehouse.getBinTrackingEnabled()));
         response.setEmployeeId(employeeId);
         response.setManagerName(managerName);
         response.setCompanyId(warehouse.getCompany() != null ? warehouse.getCompany().getId() : null);

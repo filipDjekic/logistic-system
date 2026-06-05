@@ -11,9 +11,6 @@ export const shiftSchema = z
   .object({
     startTime: z.string().min(1, 'Start time is required'),
     endTime: z.string().min(1, 'End time is required'),
-    status: z.enum(shiftStatusOptions, {
-      error: 'Status is required',
-    }),
     notes: z
       .string()
       .max(255, 'Notes must be at most 255 characters'),

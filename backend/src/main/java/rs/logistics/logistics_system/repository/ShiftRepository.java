@@ -32,6 +32,7 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
             SELECT s
             FROM Shift s
             WHERE s.employee.id = :employeeId
+            AND s.status <> rs.logistics.logistics_system.enums.ShiftStatus.CANCELLED
             AND s.startTime < :endTime
             AND s.endTime > :startTime
             """)
@@ -42,6 +43,7 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
             FROM Shift s
             WHERE s.employee.id = :employeeId
             AND s.id <> :shiftId
+            AND s.status <> rs.logistics.logistics_system.enums.ShiftStatus.CANCELLED
             AND s.startTime < :endTime
             AND s.endTime > :startTime
             """)
@@ -92,6 +94,16 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
             and s.endTime >= :moment
             """)
     boolean existsCoveringActiveOrPlannedShift(@Param("employeeId") Long employeeId, @Param("moment") LocalDateTime moment, @Param("statuses") java.util.Collection<ShiftStatus> statuses);
+
+    @Query("""
+            select case when count(s) > 0 then true else false end
+            from Shift s
+            where s.employee.id = :employeeId
+            and s.status in :statuses
+            and s.startTime <= :startTime
+            and s.endTime >= :endTime
+            """)
+    boolean existsCoveringActiveOrPlannedShiftInterval(@Param("employeeId") Long employeeId, @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("statuses") java.util.Collection<ShiftStatus> statuses);
 
     @Query("""
             select s

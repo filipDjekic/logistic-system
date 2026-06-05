@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.definition;
 
 import java.math.BigDecimal;
 import java.util.List;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 
 import org.springframework.data.domain.Pageable;
 
@@ -41,4 +42,6 @@ public interface WarehouseInventoryServiceDefinition {
     void moveInStock(Long warehouseId, Long productId, BigDecimal quantity);
 
     void checkLowStockAndNotify(WarehouseInventory inventory);
+    List<StatusCountResponse> countByStatus(String search, Long warehouseId, Long productId);
+
 }

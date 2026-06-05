@@ -17,6 +17,8 @@ export const queryKeys = {
     root: () => ['activity-timeline'] as const,
     entity: (entityType: unknown, entityId: unknown) => ['activity-timeline', 'entity', entityType, entityId] as const,
     recent: () => ['activity-timeline', 'recent'] as const,
+    comments: (entityType: unknown, entityId: unknown) => ['activity-timeline', 'comments', entityType, entityId] as const,
+    attachments: (entityType: unknown, entityId: unknown) => ['activity-timeline', 'attachments', entityType, entityId] as const,
   },
 
   changeHistory: {
@@ -40,6 +42,8 @@ export const queryKeys = {
     vehicles: () => ['dashboard', 'vehicles'] as const,
     warehouses: () => ['dashboard', 'warehouses'] as const,
     warehouseInventory: (warehouseId: number) => ['dashboard', 'warehouse-inventory', warehouseId] as const,
+    lifecycleMonitoring: () => ['dashboard', 'lifecycle-monitoring'] as const,
+    operational: (role?: string | null) => ['dashboard', 'operational', role ?? null] as const,
   },
 
   employees: {
@@ -57,6 +61,7 @@ export const queryKeys = {
     detail: (warehouseId: number, productId: number) => ['inventory', 'details', warehouseId, productId] as const,
     warehouses: () => ['inventory', 'warehouses'] as const,
     products: () => ['inventory', 'products'] as const,
+    statusCounts: (filters: unknown) => ['inventory', 'status-counts', filters] as const,
   },
 
   notifications: {
@@ -89,6 +94,7 @@ export const queryKeys = {
     root: () => ['stock-movements'] as const,
     list: (params: unknown) => ['stock-movements', 'list', params] as const,
     detail: (id: number) => ['stock-movements', 'details', id] as const,
+    trace: (id: number) => ['stock-movements', 'trace', id] as const,
     operationWarehouseSearch: (search: string) => ['stock-operation', 'warehouse-search', search] as const,
     operationProductSearch: (search: string) => ['stock-operation', 'product-search', search] as const,
     operationTransportOrderSearch: (search: string) => ['stock-operation', 'transport-order-search', search] as const,
@@ -106,6 +112,7 @@ export const queryKeys = {
     detailEmployee: (employeeId: number | null | undefined) => ['task-details', 'employee', employeeId ?? null] as const,
     detailTransportOrder: (transportOrderId: number | null | undefined) => ['task-details', 'transport-order', transportOrderId ?? null] as const,
     detailStockMovement: (stockMovementId: number | null | undefined) => ['task-details', 'stock-movement', stockMovementId ?? null] as const,
+    statusCounts: (params?: unknown) => ['tasks', 'status-counts', params ?? {}] as const,
   },
 
   transportOrders: {
@@ -119,6 +126,7 @@ export const queryKeys = {
     vehicles: () => ['transport-orders', 'vehicles'] as const,
     employees: () => ['transport-orders', 'employees'] as const,
     products: () => ['transport-orders', 'products'] as const,
+    statusCounts: (params: unknown) => ['transport-orders', 'status-counts', params] as const,
   },
 
   users: {
@@ -131,6 +139,7 @@ export const queryKeys = {
     root: () => ['vehicles'] as const,
     all: (params?: unknown) => ['vehicles', 'all', params ?? {}] as const,
     detail: (id: number) => ['vehicles', 'details', id] as const,
+    statusCounts: (params?: unknown) => ['vehicles', 'status-counts', params ?? {}] as const,
   },
 
   vehicleMaintenance: {

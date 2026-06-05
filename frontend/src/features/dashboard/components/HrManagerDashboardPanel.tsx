@@ -7,6 +7,8 @@ import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
+import DashboardAlerts from './DashboardAlerts';
+import DashboardCharts from './DashboardCharts';
 import type { HrManagerDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -97,6 +99,10 @@ export default function HrManagerDashboardPanel({ data }: Props) {
           { label: 'New employees 30d', value: formatNumber(data.newEmployeesLast30Days), tone: 'info' },
         ]}
       />
+
+      <DashboardAlerts alerts={data.alerts} />
+
+      <DashboardCharts charts={data.charts} />
 
       <Box
         sx={{

@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.controller;
 
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -20,7 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.statusUpdate.TaskStatusUpdate;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
@@ -64,6 +68,20 @@ public class TaskController {
         }
 
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @GetMapping("/status-counts")
+    public ResponseEntity<List<StatusCountResponse>> countByStatus(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) TaskPriority priority,
+            @RequestParam(required = false) Long assignedEmployeeId,
+            @RequestParam(required = false) Long transportOrderId,
+            @RequestParam(required = false) Long stockMovementId,
+            @RequestParam(required = false) String linkedProcessType
+    ) {
+        return ResponseEntity.ok(taskService.countByStatus(search, priority, assignedEmployeeId, transportOrderId, stockMovementId, linkedProcessType));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
@@ -114,8 +132,14 @@ public class TaskController {
     @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TaskResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TaskStatusUpdate dto) {
-        TaskResponse response = taskService.changeStatus(id, dto.getStatus());
+        TaskResponse response = taskService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion());
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
+    @GetMapping("/{id}/status-transitions")
+    public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.allowedStatusTransitions(id));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")

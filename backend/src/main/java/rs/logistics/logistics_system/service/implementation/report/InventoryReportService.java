@@ -80,6 +80,7 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 null,
                 null,
                 movementType,
+                null,
                 warehouseId,
                 productId,
                 null,

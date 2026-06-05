@@ -2,6 +2,8 @@ package rs.logistics.logistics_system.dto.create;
 
 import java.math.BigDecimal;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -41,8 +43,12 @@ public class WarehouseCreate {
     @Positive
     private Long timezoneId;
 
+    @DecimalMin(value = "-90.0")
+    @DecimalMax(value = "90.0")
     private BigDecimal latitude;
 
+    @DecimalMin(value = "-180.0")
+    @DecimalMax(value = "180.0")
     private BigDecimal longitude;
 
     @NotNull
@@ -58,6 +64,9 @@ public class WarehouseCreate {
 
     @Positive
     private Long companyId;
+
+    @NotNull
+    private Boolean binTrackingEnabled = false;
 
     public WarehouseCreate(String name,
                         String address,

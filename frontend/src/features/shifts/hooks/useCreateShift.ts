@@ -14,6 +14,10 @@ type SaveShiftPayload =
       mode: 'edit';
       id: number;
       data: ShiftUpdateRequest;
+    }
+  | {
+      mode: 'cancel';
+      id: number;
     };
 
 export function useCreateShift() {
@@ -26,6 +30,10 @@ export function useCreateShift() {
         return shiftsApi.create(payload.data);
       }
 
+      if (payload.mode === 'cancel') {
+        return shiftsApi.cancel(payload.id);
+      }
+
       return shiftsApi.update(payload.id, payload.data);
     },
     onSuccess: async (_, variables) => {
@@ -33,7 +41,9 @@ export function useCreateShift() {
         message:
           variables.mode === 'create'
             ? 'Shift created successfully.'
-            : 'Shift updated successfully.',
+            : variables.mode === 'cancel'
+              ? 'Shift cancelled successfully.'
+              : 'Shift updated successfully.',
         severity: 'success',
       });
 

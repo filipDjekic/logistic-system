@@ -67,6 +67,19 @@ public class WarehouseController {
         return new ResponseEntity<>(warehouseService.getAll(search, status, active, managerId, pageable), HttpStatus.OK);
     }
 
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PatchMapping("/{id}/archive")
+    public ResponseEntity<WarehouseResponse> archiveWarehouse(@PathVariable Long id) {
+        return ResponseEntity.ok(warehouseService.archiveWarehouse(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<WarehouseResponse> restoreWarehouse(@PathVariable Long id) {
+        return ResponseEntity.ok(warehouseService.restoreWarehouse(id));
+    }
+
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {

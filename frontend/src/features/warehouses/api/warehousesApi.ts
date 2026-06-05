@@ -35,6 +35,14 @@ export const warehousesApi = {
       .then((response) => response.data);
   },
 
+  archive(id: number) {
+    return apiClient.patch<WarehouseResponse>(`/api/warehouses/${id}/archive`).then((response) => response.data);
+  },
+
+  restore(id: number) {
+    return apiClient.patch<WarehouseResponse>(`/api/warehouses/${id}/restore`).then((response) => response.data);
+  },
+
   delete(id: number) {
     return apiClient.delete(`/api/warehouses/${id}`);
   },

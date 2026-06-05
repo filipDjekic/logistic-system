@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
         name = "DOMAIN_EVENTS",
         indexes = {
                 @Index(name = "idx_domain_events_entity", columnList = "entity_type, entity_id"),
+                @Index(name = "idx_domain_events_entity_created", columnList = "entity_type, entity_id, created_at"),
                 @Index(name = "idx_domain_events_company_created", columnList = "company_id, created_at"),
                 @Index(name = "idx_domain_events_type", columnList = "event_type")
         }

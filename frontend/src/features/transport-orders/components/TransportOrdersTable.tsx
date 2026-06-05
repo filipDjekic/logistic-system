@@ -3,6 +3,7 @@ import { Button, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import DataTable from '../../../shared/components/DataTable/DataTable';
+import { MobileOperationalCard } from '../../../shared/components/Mobile';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import TransportOrderStatusChip from './TransportOrderStatusChip';
 import type {
@@ -250,6 +251,41 @@ export default function TransportOrdersTable({
       sort={sort}
       onSortChange={onSortChange}
       getRowStatus={(row) => row.status}
+      onRowClick={(row) => navigate(`/transport-orders/${row.id}`)}
+      rowClickLabel="Open transport order details"
+      renderMobileCard={(row) => {
+        const source = warehousesById?.[row.sourceWarehouseId];
+        const destination = warehousesById?.[row.destinationWarehouseId];
+        const vehicle = vehiclesById?.[row.vehicleId];
+        const employee = employeesById?.[row.assignedEmployeeId];
+
+        return (
+          <MobileOperationalCard
+            overline={`${row.priority} · ${formatWeight(row.totalWeight)}`}
+            title={row.orderNumber}
+            status={<TransportOrderStatusChip status={row.status} />}
+            meta={`${source?.name ?? `Warehouse #${row.sourceWarehouseId}`} → ${destination?.name ?? `Warehouse #${row.destinationWarehouseId}`}`}
+            onClick={() => navigate(`/transport-orders/${row.id}`)}
+            actions={
+              <Stack direction="row" spacing={1}>
+                <Button fullWidth variant="outlined" size="small" onClick={() => navigate(`/transport-orders/${row.id}`)}>
+                  Open
+                </Button>
+                {canManage && canEditTransportOrder(role, row) && onEdit ? (
+                  <Button fullWidth variant="text" size="small" onClick={() => onEdit(row)}>
+                    Edit
+                  </Button>
+                ) : null}
+              </Stack>
+            }
+          >
+            <Stack spacing={0.5}>
+              <Typography variant="body2" color="text.secondary">Departure: {formatTemporalView(row.departureTimeView, row.departureTime)} · {formatTemporalZone(row.departureTimeView, row.sourceTimezone)}</Typography>
+              <Typography variant="body2" color="text.secondary">Vehicle: {vehicle ? `${vehicle.brand} ${vehicle.model}` : `#${row.vehicleId}`} · Driver: {employee ? `${employee.firstName} ${employee.lastName}` : `#${row.assignedEmployeeId}`}</Typography>
+            </Stack>
+          </MobileOperationalCard>
+        );
+      }}
     />
   );
 }

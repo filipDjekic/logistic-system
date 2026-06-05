@@ -25,4 +25,8 @@ public interface ProductServiceDefinition {
     ProductResponse activateProduct(Long id);
 
     ProductResponse deactivateProduct(Long id);
+
+    ProductResponse archiveProduct(Long id);
+
+    ProductResponse restoreProduct(Long id);
 }

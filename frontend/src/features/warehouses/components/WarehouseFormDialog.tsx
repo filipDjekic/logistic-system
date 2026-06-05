@@ -1,15 +1,18 @@
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
+  Stack,
 } from '@mui/material';
 import { useEffect, useMemo, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import Form from '../../../shared/components/Form/Form';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormSection from '../../../shared/components/Form/FormSection';
 import type { CompanyResponse } from '../../companies/types/company.types';
 import { useCitiesByCountry } from '../../cities/hooks/useCities';
 import { useActiveCountries } from '../../countries/hooks/useCountries';
@@ -18,6 +21,7 @@ import type {
   WarehouseFormValues,
   WarehouseResponse,
 } from '../types/warehouse.types';
+import { warehouseSchema } from '../validation/warehouseSchema';
 
 type Props = {
   open: boolean;
@@ -50,6 +54,7 @@ const defaultValues: WarehouseFormValues = {
   status: 'ACTIVE',
   employeeId: '',
   companyId: '',
+  binTrackingEnabled: false,
 };
 
 export default function WarehouseFormDialog({
@@ -65,8 +70,10 @@ export default function WarehouseFormDialog({
 }: Props) {
   const countriesQuery = useActiveCountries(open);
   const previousCountryIdRef = useRef<number | null>(null);
-  const { control, handleSubmit, reset, setValue, getValues } = useForm<WarehouseFormValues>({
+  const { control, handleSubmit, reset, setValue, getValues, formState } = useForm<WarehouseFormValues>({
+    resolver: zodResolver(warehouseSchema),
     defaultValues,
+    mode: 'onChange',
   });
 
   const selectedCompanyId = useWatch({ control, name: 'companyId' });
@@ -90,6 +97,7 @@ export default function WarehouseFormDialog({
         status: initialData.status,
         employeeId: initialData.employeeId ?? '',
         companyId: initialData.companyId != null ? String(initialData.companyId) : '',
+        binTrackingEnabled: Boolean(initialData.binTrackingEnabled),
       });
       return;
     }
@@ -183,7 +191,9 @@ export default function WarehouseFormDialog({
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
       <DialogTitle>{mode === 'create' ? 'Create warehouse' : 'Edit warehouse'}</DialogTitle>
       <DialogContent>
-        <Grid container spacing={2} sx={{ pt: 1 }}>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+        <FormSection title="Location and capacity" description="Define the physical warehouse location, timezone and operational capacity.">
+        <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}><Form name="name" control={control} label="Name" required /></Grid>
           <Grid size={{ xs: 12, md: 6 }}><FormSelect name="cityId" control={control} label="City" options={cityOptions} required disabled={!selectedCountryId || citiesQuery.isLoading || cityOptions.length === 0} helperText={!selectedCountryId ? 'Select country first' : undefined} /></Grid>
           <Grid size={{ xs: 12 }}><Form name="address" control={control} label="Address" required /></Grid>
@@ -191,15 +201,30 @@ export default function WarehouseFormDialog({
           <Grid size={{ xs: 12, md: 6 }}><Form name="capacity" control={control} label="Capacity" type="number" required /></Grid>
           <Grid size={{ xs: 12, md: 6 }}><FormSelect name="countryId" control={control} label="Country" options={countryOptions} required /></Grid>
           <Grid size={{ xs: 12, md: 6 }}><FormSelect name="timezoneId" control={control} label="Timezone" options={timezoneOptions} required disabled={!selectedCountryId || timezoneOptions.length === 0} /></Grid>
+        </Grid>
+        </FormSection>
+
+        <FormSection title="Operational setup" description="Status is fixed after creation through lifecycle actions. Bin tracking should match real warehouse process.">
+        <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}><FormSelect name="status" control={control} label="Status" options={[...warehouseStatusOptions]} required disabled={mode === 'edit'} /></Grid>
           {mode === 'create' && isOverlord ? <Grid size={{ xs: 12, md: 6 }}><FormSelect name="companyId" control={control} label="Company" options={companyOptions} required /></Grid> : null}
+          <Grid size={{ xs: 12, md: 6 }}><FormCheckbox name="binTrackingEnabled" control={control} label="Enable bin tracking" helperText="When enabled, stock operations require bin selection." /></Grid>
           <Grid size={{ xs: 12 }}><FormSelect name="employeeId" control={control} label="Manager" options={visibleManagers.map((manager) => ({ value: manager.id, label: `${manager.firstName} ${manager.lastName}` }))} required disabled={mode === 'edit' || (mode === 'create' && isOverlord && !selectedCompanyId)} helperText={mode === 'create' && isOverlord && !selectedCompanyId ? 'Select company first' : undefined} /></Grid>
         </Grid>
+        </FormSection>
+
+        <FormActions
+          cancelLabel="Cancel"
+          submitLabel={mode === 'create' ? 'Create warehouse' : 'Save warehouse'}
+          submittingLabel="Saving..."
+          helperText="Cancel returns without saving. Status changes after creation should use lifecycle actions, not edit form."
+          loading={loading}
+          onCancel={onClose}
+          submitDisabled={!formState.isValid || (mode === 'create' && isOverlord && !selectedCompanyId)}
+          onSubmit={handleSubmit(onSubmit)}
+        />
+        </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} color="inherit" disabled={loading}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit(onSubmit)} disabled={loading}>Save</Button>
-      </DialogActions>
     </Dialog>
   );
 }

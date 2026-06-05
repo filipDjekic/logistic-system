@@ -9,8 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
 import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Vehicle;
@@ -20,6 +22,9 @@ import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.enums.VehicleMaintenanceStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
+import rs.logistics.logistics_system.lifecycle.LifecycleTransitionContext;
+import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.mapper.VehicleMapper;
 import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
@@ -41,6 +46,7 @@ public class VehicleService implements VehicleServiceDefinition {
     private final VehicleCatalogService vehicleCatalogService;
     private final AuditFacadeDefinition auditFacade;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final LifecycleTransitionEngine lifecycleTransitionEngine;
 
     private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES =
             Arrays.asList(
@@ -161,6 +167,28 @@ public class VehicleService implements VehicleServiceDefinition {
         ).map(VehicleMapper::toResponse));
     }
 
+
+    @Override
+    public List<StatusCountResponse> countByStatus(String search, String type, Boolean available, BigDecimal capacityFrom, BigDecimal capacityTo) {
+        validateCapacityRange(capacityFrom, capacityTo);
+
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        return vehicleRepository.countGroupedByStatusFiltered(
+                        companyId,
+                        QueryParameterNormalizer.trimToNull(search),
+                        QueryParameterNormalizer.trimToNull(type),
+                        available,
+                        capacityFrom,
+                        capacityTo
+                )
+                .stream()
+                .map(row -> new StatusCountResponse(String.valueOf(row[0]), ((Number) row[1]).longValue()))
+                .toList();
+    }
+
     @Transactional
     @Override
     public void delete(Long id) {
@@ -187,20 +215,22 @@ public class VehicleService implements VehicleServiceDefinition {
 
     @Override
     @Transactional
-    public VehicleResponse changeStatus(Long id, VehicleStatus newStatus) {
+    public VehicleResponse changeStatus(Long id, VehicleStatus newStatus, String reason, Long expectedVersion) {
         Vehicle vehicle = findVehicleById(id);
         VehicleStatus currentStatus = vehicle.getStatus();
         Boolean oldActive = vehicle.getActive();
 
-        if (newStatus == null) {
-            throw new BadRequestException("Vehicle status is required");
-        }
+        LifecycleTransitionContext<VehicleStatus> lifecycleContext = lifecycleTransitionEngine.validate(
+                LifecycleEntityType.VEHICLE,
+                vehicle.getId(),
+                VehicleStatus.class,
+                currentStatus,
+                newStatus,
+                reason,
+                expectedVersion,
+                vehicle.getVersion()
+        );
 
-        if (currentStatus == newStatus) {
-            throw new BadRequestException("Vehicle already has selected status");
-        }
-
-        validateStatusTransition(currentStatus, newStatus);
         validateStatusChangeAgainstActiveTransport(vehicle, newStatus);
         validateStatusChangeAgainstActiveMaintenance(vehicle, newStatus);
 
@@ -215,10 +245,42 @@ public class VehicleService implements VehicleServiceDefinition {
                 "STATUS_CHANGED",
                 "VEHICLE",
                 updated.getId(),
-                "Vehicle status changed from " + currentStatus + " to " + newStatus + " (ID: " + updated.getId() + ")"
+                "Vehicle status changed from " + currentStatus + " to " + newStatus + transitionReasonSuffix(reason) + " (ID: " + updated.getId() + ")"
         );
+        lifecycleTransitionEngine.afterTransition(lifecycleContext, VehicleStatus.class);
 
         return VehicleMapper.toResponse(updated);
+    }
+
+
+    @Override
+    public AllowedStatusTransitionsResponse allowedStatusTransitions(Long id) {
+        Vehicle vehicle = findVehicleById(id);
+        return new AllowedStatusTransitionsResponse(
+                vehicle.getStatus().name(),
+                lifecycleTransitionEngine.allowedStatuses(LifecycleEntityType.VEHICLE, VehicleStatus.class, vehicle.getStatus()).stream().map(Enum::name).toList(),
+                vehicle.getVersion()
+        );
+    }
+
+
+    @Override
+    @Transactional
+    public VehicleResponse archiveVehicle(Long id) {
+        return changeStatus(id, VehicleStatus.OUT_OF_SERVICE, "Archived", null);
+    }
+
+    @Override
+    @Transactional
+    public VehicleResponse restoreVehicle(Long id) {
+        return changeStatus(id, VehicleStatus.AVAILABLE, "Restored", null);
+    }
+
+    private String transitionReasonSuffix(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return "";
+        }
+        return " with reason: " + reason.trim();
     }
 
     private Vehicle findVehicleById(Long id) {
@@ -267,35 +329,13 @@ public class VehicleService implements VehicleServiceDefinition {
     }
 
     private void validateStatusTransition(VehicleStatus currentStatus, VehicleStatus newStatus) {
-        switch (currentStatus) {
-            case AVAILABLE -> {
-                if (newStatus != VehicleStatus.MAINTENANCE
-                        && newStatus != VehicleStatus.OUT_OF_SERVICE) {
-                    throw new BadRequestException("Vehicle in AVAILABLE status cannot be manually changed to " + newStatus);
-                }
-            }
-            case RESERVED -> {
-                if (newStatus != VehicleStatus.AVAILABLE && newStatus != VehicleStatus.IN_USE) {
-                    throw new BadRequestException("Vehicle in RESERVED status cannot change to " + newStatus);
-                }
-            }
-            case IN_USE -> {
-                if (newStatus != VehicleStatus.AVAILABLE) {
-                    throw new BadRequestException("Vehicle in IN_USE status can only change to AVAILABLE");
-                }
-            }
-            case MAINTENANCE -> {
-                if (newStatus != VehicleStatus.AVAILABLE && newStatus != VehicleStatus.OUT_OF_SERVICE) {
-                    throw new BadRequestException("Vehicle in MAINTENANCE status cannot change to " + newStatus);
-                }
-            }
-            case OUT_OF_SERVICE -> {
-                if (newStatus != VehicleStatus.AVAILABLE && newStatus != VehicleStatus.MAINTENANCE) {
-                    throw new BadRequestException("Vehicle in OUT_OF_SERVICE status cannot change to " + newStatus);
-                }
-            }
-            default -> throw new BadRequestException("Unsupported current vehicle status");
-        }
+        lifecycleTransitionEngine.requireTransitionAllowed(
+                LifecycleEntityType.VEHICLE,
+                VehicleStatus.class,
+                currentStatus,
+                newStatus,
+                "Vehicle status cannot be changed from " + currentStatus + " to " + newStatus
+        );
     }
 
     private void validateStatusChangeAgainstActiveTransport(Vehicle vehicle, VehicleStatus newStatus) {

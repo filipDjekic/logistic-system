@@ -7,6 +7,8 @@ import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
+import DashboardAlerts from './DashboardAlerts';
+import DashboardCharts from './DashboardCharts';
 import type { DispatcherDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -100,6 +102,10 @@ export default function DispatcherDashboardPanel({ data }: Props) {
         ]}
       />
 
+      <DashboardAlerts alerts={data.alerts} />
+
+      <DashboardCharts charts={data.charts} />
+
       <Box
         sx={{
           display: 'grid',
@@ -109,7 +115,6 @@ export default function DispatcherDashboardPanel({ data }: Props) {
       >
         <SectionCard title="Transport planning" description="Transport statuses and dispatch workload.">
           <Stack spacing={1.25}>
-            <Typography variant="body2">Created: {formatNumber(data.transportOrdersByStatus.CREATED ?? 0)}</Typography>
             <Typography variant="body2">Assigned: {formatNumber(data.transportOrdersByStatus.ASSIGNED ?? 0)}</Typography>
             <Typography variant="body2">In transit: {formatNumber(data.transportOrdersByStatus.IN_TRANSIT ?? 0)}</Typography>
             <Typography variant="body2">Delivered: {formatNumber(data.transportOrdersByStatus.DELIVERED ?? 0)}</Typography>

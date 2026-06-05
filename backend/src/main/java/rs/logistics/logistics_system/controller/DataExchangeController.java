@@ -43,6 +43,7 @@ import rs.logistics.logistics_system.dto.create.ProductCreate;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
 import rs.logistics.logistics_system.dto.create.WarehouseCreate;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
+import rs.logistics.logistics_system.dto.response.data.DataExchangeCapabilitiesResponse;
 import rs.logistics.logistics_system.dto.response.data.ImportResultResponse;
 import rs.logistics.logistics_system.dto.response.data.ImportRowErrorResponse;
 import rs.logistics.logistics_system.dto.response.report.EmployeeTaskReportResponse;
@@ -60,6 +61,7 @@ import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.enums.VehicleType;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.repository.TimezoneRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
@@ -78,6 +80,10 @@ import rs.logistics.logistics_system.service.implementation.VehicleCatalogServic
 public class DataExchangeController {
 
     private static final String TRANSACTION_MODE = "ALL_OR_NOTHING";
+    private static final long MAX_IMPORT_FILE_SIZE_BYTES = 5L * 1024L * 1024L;
+    private static final int MAX_IMPORT_ROWS = 5000;
+    private static final int MAX_CSV_COLUMNS = 80;
+    private static final String CSV_CONTENT_TYPE = "text/csv";
 
     private final ProductServiceDefinition productService;
     private final VehicleServiceDefinition vehicleService;
@@ -92,6 +98,12 @@ public class DataExchangeController {
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final Validator validator;
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
+    @GetMapping("/capabilities")
+    public DataExchangeCapabilitiesResponse getCapabilities() {
+        return new DataExchangeCapabilitiesResponse(resolveAllowedImportTypes(), resolveAllowedExportTypes());
+    }
+
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
     @PostMapping(value = "/import/{type}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Transactional
@@ -100,6 +112,7 @@ public class DataExchangeController {
             @RequestPart("file") MultipartFile file
     ) {
         String normalizedType = normalizeType(type);
+        enforceImportTypePermission(normalizedType);
 
         return ResponseEntity.ok(switch (normalizedType) {
             case "products" -> importRows(normalizedType, file, this::parseProductRow, productService::create);
@@ -196,6 +209,64 @@ public class DataExchangeController {
         return csvResponse("employee-task-report.csv", csv.toString());
     }
 
+    private List<String> resolveAllowedImportTypes() {
+        if (authenticatedUserProvider.hasRole("OVERLORD") || authenticatedUserProvider.hasRole("COMPANY_ADMIN")) {
+            return List.of("products", "vehicles", "warehouses", "warehouse-inventory", "employees");
+        }
+
+        if (authenticatedUserProvider.hasRole("HR_MANAGER")) {
+            return List.of("employees");
+        }
+
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return List.of("products", "warehouses", "warehouse-inventory");
+        }
+
+        return List.of();
+    }
+
+    private List<String> resolveAllowedExportTypes() {
+        if (authenticatedUserProvider.hasRole("OVERLORD") || authenticatedUserProvider.hasRole("COMPANY_ADMIN")) {
+            return List.of("transport-report", "inventory-report", "employee-task-report");
+        }
+
+        if (authenticatedUserProvider.hasRole("HR_MANAGER")) {
+            return List.of("employee-task-report");
+        }
+
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return List.of("transport-report", "inventory-report");
+        }
+
+        if (authenticatedUserProvider.hasRole("DISPATCHER")) {
+            return List.of("transport-report");
+        }
+
+        return List.of();
+    }
+
+    private void enforceImportTypePermission(String type) {
+        if (authenticatedUserProvider.hasRole("OVERLORD") || authenticatedUserProvider.hasRole("COMPANY_ADMIN")) {
+            return;
+        }
+
+        if (authenticatedUserProvider.hasRole("HR_MANAGER")) {
+            if ("employees".equals(type)) {
+                return;
+            }
+            throw new ForbiddenException("HR_MANAGER can import only employees CSV data");
+        }
+
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            if (Set.of("products", "warehouses", "warehouse-inventory").contains(type)) {
+                return;
+            }
+            throw new ForbiddenException("WAREHOUSE_MANAGER can import only products, warehouses and warehouse inventory CSV data");
+        }
+
+        throw new ForbiddenException("Current role is not allowed to import CSV data");
+    }
+
     private <T> ImportResultResponse importRows(String type, MultipartFile file, Function<Map<String, String>, T> rowParser, Consumer<T> rowImporter) {
         validateImportFile(file);
 
@@ -212,6 +283,10 @@ public class DataExchangeController {
                     .map(DataExchangeController::normalizeHeader)
                     .toList();
 
+            if (headers.size() > MAX_CSV_COLUMNS) {
+                errors.add(new ImportRowErrorResponse(1, "header", null, "CSV has too many columns. Maximum allowed is " + MAX_CSV_COLUMNS));
+            }
+
             validateHeaders(type, headers, errors);
             validateCompanyHeader(type, headers, errors);
 
@@ -219,6 +294,11 @@ public class DataExchangeController {
             int lineNumber = 1;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
+                if (lineNumber - 1 > MAX_IMPORT_ROWS) {
+                    errors.add(new ImportRowErrorResponse(lineNumber, "row", null, "CSV import is limited to " + MAX_IMPORT_ROWS + " data rows per file"));
+                    break;
+                }
+
                 if (line.trim().isEmpty()) {
                     continue;
                 }
@@ -610,9 +690,20 @@ public class DataExchangeController {
             throw new BadRequestException("CSV file is required");
         }
 
+        if (file.getSize() > MAX_IMPORT_FILE_SIZE_BYTES) {
+            throw new BadRequestException("CSV file size must be 5 MB or less");
+        }
+
         String originalFileName = file.getOriginalFilename();
-        if (originalFileName != null && !originalFileName.isBlank() && !originalFileName.toLowerCase(Locale.ROOT).endsWith(".csv")) {
+        if (originalFileName == null || originalFileName.isBlank() || !originalFileName.toLowerCase(Locale.ROOT).endsWith(".csv")) {
             throw new BadRequestException("Only .csv files are supported");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType != null && !contentType.isBlank()
+                && !CSV_CONTENT_TYPE.equalsIgnoreCase(contentType)
+                && !"application/vnd.ms-excel".equalsIgnoreCase(contentType)) {
+            throw new BadRequestException("Unsupported CSV content type");
         }
     }
 

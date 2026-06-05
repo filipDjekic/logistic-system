@@ -66,13 +66,13 @@ public class CompanyRegistrationRequestMapper {
         response.setStatus(status);
         response.setStatusLabel(statusLabel(status));
         response.setStatusDescription(statusDescription(status));
-        response.setReviewable(status == CompanyRegistrationRequestStatus.SUBMITTED || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
+        response.setReviewable(status == CompanyRegistrationRequestStatus.PENDING || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
         response.setTerminal(status == CompanyRegistrationRequestStatus.APPROVED
                 || status == CompanyRegistrationRequestStatus.REJECTED
                 || status == CompanyRegistrationRequestStatus.CANCELLED);
-        response.setCanMoveToReview(status == CompanyRegistrationRequestStatus.SUBMITTED);
-        response.setCanApprove(status == CompanyRegistrationRequestStatus.SUBMITTED || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
-        response.setCanReject(status == CompanyRegistrationRequestStatus.SUBMITTED || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
+        response.setCanMoveToReview(status == CompanyRegistrationRequestStatus.PENDING);
+        response.setCanApprove(status == CompanyRegistrationRequestStatus.PENDING || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
+        response.setCanReject(status == CompanyRegistrationRequestStatus.PENDING || status == CompanyRegistrationRequestStatus.UNDER_REVIEW);
         response.setSubmittedAt(request.getSubmittedAt());
         response.setReviewedAt(request.getReviewedAt());
         response.setReviewedById(reviewer != null ? reviewer.getId() : null);
@@ -89,7 +89,7 @@ public class CompanyRegistrationRequestMapper {
             return null;
         }
         return switch (status) {
-            case SUBMITTED -> "Pending";
+            case PENDING -> "Pending";
             case UNDER_REVIEW -> "Under review";
             case APPROVED -> "Approved";
             case REJECTED -> "Rejected";
@@ -102,7 +102,7 @@ public class CompanyRegistrationRequestMapper {
             return null;
         }
         return switch (status) {
-            case SUBMITTED -> "Request has been submitted and is waiting for review.";
+            case PENDING -> "Request has been submitted and is waiting for review.";
             case UNDER_REVIEW -> "Request is currently being reviewed by an overlord.";
             case APPROVED -> "Request has been approved and the company account has been created.";
             case REJECTED -> "Request has been rejected.";

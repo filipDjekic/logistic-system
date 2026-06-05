@@ -9,6 +9,7 @@ import rs.logistics.logistics_system.entity.Shift;
 import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
+import rs.logistics.logistics_system.enums.ShiftStatus;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -20,7 +21,7 @@ public class ShiftMapper {
     }
 
     public static Shift toEntity(ShiftCreate dto, Employee employee, Timezone timezone, Warehouse warehouse) {
-        Shift shift = new Shift(dto.getStartTime(), dto.getEndTime(), dto.getStatus(), dto.getNotes(), employee);
+        Shift shift = new Shift(dto.getStartTime(), dto.getEndTime(), ShiftStatus.PLANNED, dto.getNotes(), employee);
         shift.setTimezone(timezone);
         shift.setWarehouse(warehouse);
         return shift;
@@ -33,7 +34,6 @@ public class ShiftMapper {
     public static void updateEntity(Shift shift, ShiftUpdate dto, Timezone timezone, Warehouse warehouse) {
         shift.setStartTime(dto.getStartTime());
         shift.setEndTime(dto.getEndTime());
-        shift.setStatus(dto.getStatus());
         shift.setNotes(dto.getNotes());
         shift.setTimezone(timezone);
         shift.setWarehouse(warehouse);

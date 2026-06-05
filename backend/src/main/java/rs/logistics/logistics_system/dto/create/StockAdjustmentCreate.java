@@ -30,4 +30,6 @@ public class StockAdjustmentCreate {
     private Long warehouseId;
     @NotNull @Positive
     private Long productId;
+    @Positive
+    private Long binLocationId;
 }

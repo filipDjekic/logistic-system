@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Button, Stack, Typography } from '@mui/material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
@@ -23,6 +24,14 @@ function formatOptionalNumber(value: number | null | undefined) {
   return value === null || value === undefined ? '—' : value;
 }
 
+function binDetailsPath(warehouseId: number, zoneId: number | null | undefined, binId: number | null | undefined) {
+  if (!zoneId || !binId) {
+    return `/warehouses/${warehouseId}/zones`;
+  }
+
+  return `/warehouses/${warehouseId}/zones/${zoneId}/bins/${binId}`;
+}
+
 export default function StockMovementsTable({
   rows,
   loading,
@@ -32,6 +41,7 @@ export default function StockMovementsTable({
   sort,
   onSortChange,
 }: Props) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<StockMovementResponse>[] = [
     {
       id: 'movement',
@@ -50,11 +60,38 @@ export default function StockMovementsTable({
     {
       id: 'warehouseProduct',
       header: 'Warehouse / product',
-      minWidth: 260,
+      minWidth: 280,
       render: (row) => (
-        <Stack spacing={0.25}>
-          <Typography variant="body2" fontWeight={600}>{row.warehouseName}</Typography>
-          <Typography variant="caption" color="text.secondary">{row.productName}</Typography>
+        <Stack spacing={0.25} alignItems="flex-start">
+          <Button component={RouterLink} to={`/warehouses/${row.warehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
+            {row.warehouseName}
+          </Button>
+          <Button component={RouterLink} to={`/products/${row.productId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
+            {row.productName}
+          </Button>
+        </Stack>
+      ),
+    },
+    {
+      id: 'bins',
+      header: 'Bins',
+      minWidth: 240,
+      render: (row) => (
+        <Stack spacing={0.25} alignItems="flex-start">
+          {row.sourceBinId ? (
+            <Button component={RouterLink} to={binDetailsPath(row.warehouseId, row.sourceBinZoneId, row.sourceBinId)} size="small" sx={{ px: 0, minWidth: 0 }}>
+              Source: {row.sourceBinCode ?? `#${row.sourceBinId}`}
+            </Button>
+          ) : (
+            <Typography variant="caption" color="text.secondary">Source: —</Typography>
+          )}
+          {row.destinationBinId ? (
+            <Button component={RouterLink} to={binDetailsPath(row.warehouseId, row.destinationBinZoneId, row.destinationBinId)} size="small" sx={{ px: 0, minWidth: 0 }}>
+              Destination: {row.destinationBinCode ?? `#${row.destinationBinId}`}
+            </Button>
+          ) : (
+            <Typography variant="caption" color="text.secondary">Destination: —</Typography>
+          )}
         </Stack>
       ),
     },
@@ -91,8 +128,13 @@ export default function StockMovementsTable({
         <Stack spacing={0.25}>
           <Typography variant="body2" fontWeight={600}>{row.referenceNumber ?? row.referenceType ?? '—'}</Typography>
           <Typography variant="caption" color="text.secondary">
-            {row.referenceType ?? 'No type'}{row.referenceId ? ` · #${row.referenceId}` : ''}{row.transportOrderId ? ` · Transport #${row.transportOrderId}` : ''}
+            {row.referenceType ?? 'No type'}{row.referenceId ? ` · #${row.referenceId}` : ''}
           </Typography>
+          {row.transportOrderId ? (
+            <Button component={RouterLink} to={`/transport-orders/${row.transportOrderId}`} size="small" sx={{ px: 0, minWidth: 0, alignSelf: 'flex-start' }}>
+              Transport #{row.transportOrderId}
+            </Button>
+          ) : null}
           {row.transferGroupId ? (
             <Typography variant="caption" color="text.secondary">Transfer group: {row.transferGroupId}</Typography>
           ) : null}
@@ -118,6 +160,22 @@ export default function StockMovementsTable({
       nowrap: true,
       render: (row) => formatDateTime(row.createdAt),
     },
+    {
+      id: 'actions',
+      header: 'Actions',
+      minWidth: 120,
+      nowrap: true,
+      render: (row) => (
+        <Button
+          component={RouterLink}
+          to={`/stock-movements/${row.id}`}
+          size="small"
+          variant="outlined"
+        >
+          Open
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -134,7 +192,9 @@ export default function StockMovementsTable({
       getRowStatus={(row) => row.movementType}
       emptyTitle="No stock movements found"
       emptyDescription="There are no stock movements that match the current filters."
-      minWidth={1540}
+      minWidth={1840}
+      onRowClick={(row) => navigate(`/stock-movements/${row.id}`)}
+      rowClickLabel="Open stock movement details"
     />
   );
 }

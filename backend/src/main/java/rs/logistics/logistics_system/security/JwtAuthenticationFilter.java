@@ -27,14 +27,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
+        final String jwtFromQuery = request.getRequestURI().equals("/api/notifications/my/stream")
+                ? request.getParameter("access_token")
+                : null;
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if ((authHeader == null || !authHeader.startsWith("Bearer "))
+                && (jwtFromQuery == null || jwtFromQuery.isBlank())) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            String jwt = authHeader.substring(7);
+            String jwt = authHeader != null && authHeader.startsWith("Bearer ")
+                    ? authHeader.substring(7)
+                    : jwtFromQuery;
             String email = jwtService.extractUsername(jwt);
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {

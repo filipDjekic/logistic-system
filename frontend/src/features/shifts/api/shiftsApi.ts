@@ -65,6 +65,10 @@ export const shiftsApi = {
       .then((response) => response.data);
   },
 
+  cancel(id: number) {
+    return apiClient.patch<void>(`/api/shifts/${id}/cancel`).then((response) => response.data);
+  },
+
   getEmployees() {
     return apiClient
       .get<EmployeeResponse[] | PageResponse<EmployeeResponse>>('/api/employees', {

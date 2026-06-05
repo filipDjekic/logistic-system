@@ -11,6 +11,7 @@ import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
+import { AuditScopeGuide } from '../../../shared/components/OperationalPanels';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import ChangeHistoryTable from '../components/ChangeHistoryTable';
 import { useChangeHistory } from '../hooks/useChangeHistory';
@@ -125,11 +126,13 @@ export default function ChangeHistoryPage() {
 
   return (
     <Stack spacing={3}>
-      <PageHeader overline={isContextView ? 'Entity context' : 'Administration'} title="Change History" description={isContextView ? 'Review change history for the selected entity context.' : 'Review backend change history records.'} />
+      <PageHeader overline={isContextView ? 'Entity context' : 'Audit'} title="Change History" description={isContextView ? 'Review field-level changes for the selected entity context.' : 'Review field-level change records across accessible entities.'} />
+
+      <AuditScopeGuide mode="change-history" />
 
       <TableLayout
         title="Change history list"
-        description="Use filters and server pagination for history review."
+        description="Use filters and server pagination for field-level before/after changes. Operational domain events live in Activity Timeline; raw system logs are OVERLORD-only."
         toolbar={
           <TableToolbar
             searchValue={filters.search}

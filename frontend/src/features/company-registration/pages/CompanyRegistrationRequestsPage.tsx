@@ -39,8 +39,8 @@ import {
 import { useCompanyRegistrationRequests } from '../hooks/useCompanyRegistrationRequests';
 import type { CompanyRegistrationResponse, CompanyRegistrationStatus } from '../types/companyRegistration.types';
 
-const statuses: Array<CompanyRegistrationStatus | ''> = ['', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED'];
-const lifecycleSteps: CompanyRegistrationStatus[] = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED'];
+const statuses: Array<CompanyRegistrationStatus | ''> = ['', 'PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED'];
+const lifecycleSteps: CompanyRegistrationStatus[] = ['PENDING', 'UNDER_REVIEW', 'APPROVED'];
 
 function statusColor(status: CompanyRegistrationStatus) {
   if (status === 'APPROVED') return 'success';
@@ -50,28 +50,28 @@ function statusColor(status: CompanyRegistrationStatus) {
 }
 
 function statusLabel(status: CompanyRegistrationStatus) {
-  if (status === 'SUBMITTED') return 'PENDING REVIEW';
+  if (status === 'PENDING') return 'PENDING REVIEW';
   if (status === 'UNDER_REVIEW') return 'UNDER REVIEW';
   return status;
 }
 
 function lifecycleStepIndex(status: CompanyRegistrationStatus) {
-  if (status === 'SUBMITTED') return 0;
+  if (status === 'PENDING') return 0;
   if (status === 'UNDER_REVIEW') return 1;
   if (status === 'APPROVED') return 2;
   return 1;
 }
 
 function canMoveToReview(row: CompanyRegistrationResponse) {
-  return row.canMoveToReview ?? (row.status === 'SUBMITTED');
+  return row.canMoveToReview ?? (row.status === 'PENDING');
 }
 
 function canApprove(row: CompanyRegistrationResponse) {
-  return row.canApprove ?? (row.status === 'SUBMITTED' || row.status === 'UNDER_REVIEW');
+  return row.canApprove ?? (row.status === 'PENDING' || row.status === 'UNDER_REVIEW');
 }
 
 function canReject(row: CompanyRegistrationResponse) {
-  return row.canReject ?? (row.status === 'SUBMITTED' || row.status === 'UNDER_REVIEW');
+  return row.canReject ?? (row.status === 'PENDING' || row.status === 'UNDER_REVIEW');
 }
 
 function InfoCard({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
@@ -122,7 +122,7 @@ function StatusLifecycle({ request }: { request: CompanyRegistrationResponse }) 
 }
 
 export default function CompanyRegistrationRequestsPage() {
-  const [status, setStatus] = useState<CompanyRegistrationStatus | ''>('SUBMITTED');
+  const [status, setStatus] = useState<CompanyRegistrationStatus | ''>('PENDING');
   const [selected, setSelected] = useState<CompanyRegistrationResponse | null>(null);
   const [rejectTarget, setRejectTarget] = useState<CompanyRegistrationResponse | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -132,7 +132,7 @@ export default function CompanyRegistrationRequestsPage() {
   const approveMutation = useApproveCompanyRegistration();
   const rejectMutation = useRejectCompanyRegistration();
   const rows = requestsQuery.data ?? [];
-  const pendingCount = rows.filter((row) => row.status === 'SUBMITTED').length;
+  const pendingCount = rows.filter((row) => row.status === 'PENDING').length;
   const reviewCount = rows.filter((row) => row.status === 'UNDER_REVIEW').length;
   const decidedCount = rows.filter((row) => row.status === 'APPROVED' || row.status === 'REJECTED').length;
 

@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.dto.update;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -14,8 +16,6 @@ import java.math.BigDecimal;
 @Setter
 @NoArgsConstructor
 public class WarehouseUpdate {
-
-    private Long id;
 
     @NotBlank
     @Size(min = 1, max = 100)
@@ -41,20 +41,19 @@ public class WarehouseUpdate {
     @Positive
     private Long timezoneId;
 
+    @DecimalMin(value = "-90.0")
+    @DecimalMax(value = "90.0")
     private BigDecimal latitude;
 
+    @DecimalMin(value = "-180.0")
+    @DecimalMax(value = "180.0")
     private BigDecimal longitude;
 
     @NotNull
     @Positive
-    private BigDecimal capacity;;
+    private BigDecimal capacity;
 
-    public WarehouseUpdate(Long id, String name, String address, Long cityId, String city, BigDecimal capacity) {
-        this.id = id;
-        this.name = name;
-        this.address = address;
-        this.cityId = cityId;
-        this.city = city;
-        this.capacity = capacity;
-    }
+    @NotNull
+    private Boolean binTrackingEnabled = false;
+
 }

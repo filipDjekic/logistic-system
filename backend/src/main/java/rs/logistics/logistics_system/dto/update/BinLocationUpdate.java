@@ -20,6 +20,7 @@ public class BinLocationUpdate {
     private String code;
     @NotBlank @Size(max = 120)
     private String name;
+    @Positive
     private BigDecimal capacity;
     @NotNull
     private Boolean active;

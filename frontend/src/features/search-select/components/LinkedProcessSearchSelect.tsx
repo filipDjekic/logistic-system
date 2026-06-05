@@ -1,6 +1,6 @@
 import { Box, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { StockMovementSearchSelect } from './StockMovementSearchSelect';
-import { TransportOrderSearchSelect } from './TransportOrderSearchSelect';
+import { EntityLookupField } from '../../lookup';
 
 export type LinkedProcessType = 'TRANSPORT_ORDER' | 'STOCK_MOVEMENT' | 'UNLINKED';
 
@@ -41,9 +41,12 @@ export function LinkedProcessSearchSelect({ value, onChange }: LinkedProcessSear
       </ToggleButtonGroup>
 
       {value.type === 'TRANSPORT_ORDER' ? (
-        <TransportOrderSearchSelect
-          value={value.id}
-          onSelect={(transportOrder) => onChange({ type: 'TRANSPORT_ORDER', id: transportOrder.id })}
+        <EntityLookupField
+          label="Transport order"
+          entityType="transport-orders"
+          value={value.id ? { id: value.id, label: `Transport order #${value.id}` } : null}
+          onChange={(option) => onChange({ type: 'TRANSPORT_ORDER', id: option?.id ?? null })}
+          searchPlaceholder="Search transport orders..."
         />
       ) : null}
 

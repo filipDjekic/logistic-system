@@ -21,7 +21,6 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   CANCELLED: { label: 'Cancelled', tone: 'error' },
 
   // TransportOrderStatus
-  CREATED: { label: 'Created', tone: 'info' },
   ASSIGNED: { label: 'Assigned', tone: 'warning' },
   IN_TRANSIT: { label: 'In Transit', tone: 'primary' },
   DELIVERED: { label: 'Delivered', tone: 'success' },
@@ -92,9 +91,7 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   // Derived inventory UI status
   LOW_STOCK: { label: 'Low Stock', tone: 'warning' },
   SUFFICIENT: { label: 'Sufficient', tone: 'success' },
-  RESERVED: { label: 'Reserved', tone: 'info' },
   OUT_OF_STOCK: { label: 'Out of Stock', tone: 'error' },
-  AVAILABLE: { label: 'Available', tone: 'success' },
 };
 
 export function getStatusConfig(value: string): StatusConfig {

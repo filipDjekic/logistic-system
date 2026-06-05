@@ -6,6 +6,8 @@ import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
+import DashboardAlerts from './DashboardAlerts';
+import DashboardCharts from './DashboardCharts';
 import type { OverlordDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -94,6 +96,10 @@ export default function OverlordDashboardPanel({ data }: Props) {
           { label: 'Available quantity', value: formatNumber(data.inventoryAvailableQuantityTotal), tone: 'success' },
         ]}
       />
+
+      <DashboardAlerts alerts={data.alerts} />
+
+      <DashboardCharts charts={data.charts} />
 
       <Box
         sx={{

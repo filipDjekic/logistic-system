@@ -1,7 +1,9 @@
 package rs.logistics.logistics_system.service.implementation.dashboard;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import rs.logistics.logistics_system.service.implementation.dashboard.cache.DashboardResponseCache;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.dashboard.WarehouseManagerDashboardResponse;
 import rs.logistics.logistics_system.entity.Employee;
@@ -56,6 +58,7 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
     private final StockMovementRepository stockMovementRepository;
     private final TaskRepository taskRepository;
     private final TransportOrderRepository transportOrderRepository;
+    private final DashboardResponseCache dashboardResponseCache;
 
     @Override
     @Transactional(readOnly = true)
@@ -69,44 +72,84 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
             throw new ForbiddenException("Only warehouse managers can access warehouse manager dashboard");
         }
 
-        List<Warehouse> managedWarehouses = warehouseRepository.findByManagerIdAndCompany_Id(employee.getId(), companyId);
+        return dashboardResponseCache.get("warehouse-manager:" + companyId + ":" + employee.getId(), () -> buildOverview(employee.getId(), companyId));
+    }
+
+    private WarehouseManagerDashboardResponse buildOverview(Long employeeId, Long companyId) {
+        List<Warehouse> managedWarehouses = warehouseRepository.findByManagerIdAndCompany_Id(employeeId, companyId);
         Set<Long> managedWarehouseIds = managedWarehouses.stream()
                 .map(Warehouse::getId)
                 .collect(Collectors.toCollection(HashSet::new));
 
-        List<WarehouseInventory> inventoryRows = managedWarehouses.stream()
-                .flatMap(warehouse -> warehouseInventoryRepository.findByWarehouse_IdAndWarehouse_Company_Id(warehouse.getId(), companyId).stream())
-                .toList();
+        if (managedWarehouseIds.isEmpty()) {
+            Map<String, Long> emptyTasksByStatus = emptyEnumMap(TaskStatus.values());
+            return new WarehouseManagerDashboardResponse(
+                    0,
+                    0,
+                    0,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    0,
+                    0,
+                    0,
+                    0,
+                    emptyTasksByStatus,
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(
+                            DashboardResponseFactory.statusChart("warehouseTasksByStatus", "Warehouse tasks by status", emptyTasksByStatus),
+                            DashboardResponseFactory.comparisonChart("inventoryHealth", "Inventory health", "Low stock", 0, "Normal", 0)
+                    ),
+                    List.of(
+                            DashboardResponseFactory.lowStockAlert(0),
+                            DashboardResponseFactory.openTasksAlert(0),
+                            DashboardResponseFactory.activeTransportsAlert(0)
+                    )
+            );
+        }
 
-        List<StockMovement> stockMovements = stockMovementRepository.findAllByWarehouse_Company_Id(companyId).stream()
-                .filter(movement -> movement.getWarehouse() != null && managedWarehouseIds.contains(movement.getWarehouse().getId()))
-                .sorted(Comparator.comparing(StockMovement::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .toList();
+        long inventoryRowsTotal = warehouseInventoryRepository.countByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId);
+        long lowStockRowsTotal = warehouseInventoryRepository.countLowStockRowsByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId);
+        BigDecimal quantityTotal = safe(warehouseInventoryRepository.sumQuantityByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId));
+        BigDecimal reservedQuantityTotal = safe(warehouseInventoryRepository.sumReservedQuantityByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId));
+        BigDecimal availableQuantityTotal = safe(warehouseInventoryRepository.sumAvailableQuantityByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId));
 
-        List<TransportOrder> activeTransportOrders = transportOrderRepository.findAllByCreatedBy_Company_Id(companyId).stream()
-                .filter(order -> ACTIVE_TRANSPORT_STATUSES.contains(order.getStatus()))
-                .filter(order -> warehouseAffectsTransport(order, managedWarehouseIds))
-                .toList();
+        long stockMovementsTotal = stockMovementRepository.countByCompanyIdAndWarehouseIds(companyId, managedWarehouseIds);
+        long activeTransportOrdersTotal = transportOrderRepository.countByCompanyIdAndStatusInAndWarehouseIds(companyId, ACTIVE_TRANSPORT_STATUSES, managedWarehouseIds);
+        long warehouseTasksTotal = taskRepository.countForManagedWarehouses(companyId, managedWarehouseIds);
+        long openWarehouseTasksTotal = taskRepository.countForManagedWarehousesAndStatusIn(companyId, managedWarehouseIds, OPEN_TASK_STATUSES);
+        Map<String, Long> warehouseTasksByStatus = countTasksByStatus(companyId, managedWarehouseIds);
 
-        List<Task> warehouseTasks = taskRepository.findAllByAssignedEmployee_Company_Id(companyId).stream()
-                .filter(task -> taskAffectsManagedWarehouses(task, managedWarehouseIds))
-                .toList();
+        List<Object[]> inventorySummaryRows = warehouseInventoryRepository.aggregateInventoryByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId);
+        List<WarehouseInventory> lowStockRows = warehouseInventoryRepository.findTopLowStockRowsByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId, PageRequest.of(0, 10));
+        List<StockMovement> recentStockMovements = stockMovementRepository.findRecentByCompanyIdAndWarehouseIds(companyId, managedWarehouseIds, PageRequest.of(0, 10));
 
         return new WarehouseManagerDashboardResponse(
                 managedWarehouses.size(),
-                inventoryRows.size(),
-                inventoryRows.stream().filter(this::isLowStock).count(),
-                sumQuantity(inventoryRows),
-                sumReservedQuantity(inventoryRows),
-                sumAvailableQuantity(inventoryRows),
-                stockMovements.size(),
-                activeTransportOrders.size(),
-                warehouseTasks.size(),
-                warehouseTasks.stream().filter(task -> OPEN_TASK_STATUSES.contains(task.getStatus())).count(),
-                countTasksByStatus(warehouseTasks),
-                buildWarehouseInventorySummaries(managedWarehouses, inventoryRows),
-                buildLowStockItems(inventoryRows),
-                stockMovements.stream().limit(10).map(this::toRecentStockMovement).toList()
+                inventoryRowsTotal,
+                lowStockRowsTotal,
+                quantityTotal,
+                reservedQuantityTotal,
+                availableQuantityTotal,
+                stockMovementsTotal,
+                activeTransportOrdersTotal,
+                warehouseTasksTotal,
+                openWarehouseTasksTotal,
+                warehouseTasksByStatus,
+                buildWarehouseInventorySummaries(managedWarehouses, inventorySummaryRows),
+                buildLowStockItems(lowStockRows),
+                recentStockMovements.stream().map(this::toRecentStockMovement).toList(),
+                List.of(
+                        DashboardResponseFactory.statusChart("warehouseTasksByStatus", "Warehouse tasks by status", warehouseTasksByStatus),
+                        DashboardResponseFactory.comparisonChart("inventoryHealth", "Inventory health", "Low stock", lowStockRowsTotal, "Normal", Math.max(inventoryRowsTotal - lowStockRowsTotal, 0))
+                ),
+                List.of(
+                        DashboardResponseFactory.lowStockAlert(lowStockRowsTotal),
+                        DashboardResponseFactory.openTasksAlert(openWarehouseTasksTotal),
+                        DashboardResponseFactory.activeTransportsAlert(activeTransportOrdersTotal)
+                )
         );
     }
 
@@ -128,32 +171,43 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
         return false;
     }
 
-    private Map<String, Long> countTasksByStatus(List<Task> tasks) {
+    private Map<String, Long> countTasksByStatus(Long companyId, Set<Long> warehouseIds) {
         Map<String, Long> result = emptyEnumMap(TaskStatus.values());
-        tasks.stream()
-                .collect(Collectors.groupingBy(Task::getStatus, Collectors.counting()))
-                .forEach((status, count) -> result.put(status.name(), count));
+        taskRepository.countGroupedByStatusForManagedWarehouses(companyId, warehouseIds)
+                .forEach(row -> result.put(String.valueOf(row[0]), (Long) row[1]));
         return result;
     }
 
     private List<WarehouseManagerDashboardResponse.WarehouseInventorySummaryResponse> buildWarehouseInventorySummaries(
             List<Warehouse> warehouses,
-            List<WarehouseInventory> inventoryRows
+            List<Object[]> summaryRows
     ) {
+        Map<Long, Object[]> rowsByWarehouseId = summaryRows.stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> row));
+
         return warehouses.stream()
                 .map(warehouse -> {
-                    List<WarehouseInventory> warehouseRows = inventoryRows.stream()
-                            .filter(row -> row.getWarehouse() != null && warehouse.getId().equals(row.getWarehouse().getId()))
-                            .toList();
+                    Object[] row = rowsByWarehouseId.get(warehouse.getId());
+                    if (row == null) {
+                        return new WarehouseManagerDashboardResponse.WarehouseInventorySummaryResponse(
+                                warehouse.getId(),
+                                warehouse.getName(),
+                                0,
+                                0,
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO
+                        );
+                    }
 
                     return new WarehouseManagerDashboardResponse.WarehouseInventorySummaryResponse(
                             warehouse.getId(),
                             warehouse.getName(),
-                            warehouseRows.size(),
-                            warehouseRows.stream().filter(this::isLowStock).count(),
-                            sumQuantity(warehouseRows),
-                            sumReservedQuantity(warehouseRows),
-                            sumAvailableQuantity(warehouseRows)
+                            ((Number) row[2]).longValue(),
+                            ((Number) row[3]).longValue(),
+                            safe((BigDecimal) row[4]),
+                            safe((BigDecimal) row[5]),
+                            safe((BigDecimal) row[6])
                     );
                 })
                 .toList();

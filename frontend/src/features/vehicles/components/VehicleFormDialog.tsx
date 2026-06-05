@@ -3,9 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useWatch } from 'react-hook-form';
 import { vehiclesApi } from '../api/vehiclesApi';
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
@@ -13,6 +11,7 @@ import {
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
 import type { CompanyResponse } from '../../companies/types/company.types';
@@ -78,6 +77,7 @@ export default function VehicleFormDialog({
   const form = useForm<VehicleSchemaValues>({
     resolver: zodResolver(vehicleSchema),
     defaultValues,
+    mode: 'onChange',
   });
   const previousBrandIdRef = useRef<string>('');
 
@@ -188,6 +188,8 @@ export default function VehicleFormDialog({
                 label="Status"
                 options={statusOptions}
                 required
+                disabled={mode === 'edit'}
+                helperText={mode === 'edit' ? 'Use lifecycle actions to change vehicle status.' : undefined}
               />
             </Grid>
 
@@ -295,19 +297,17 @@ export default function VehicleFormDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-
-        <Button
-          variant="contained"
-          onClick={form.handleSubmit((values) => onSubmit(values))}
-          disabled={loading}
-        >
-          {mode === 'create' ? 'Create' : 'Save changes'}
-        </Button>
-      </DialogActions>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel={mode === 'create' ? 'Create' : 'Save changes'}
+          submittingLabel={mode === 'create' ? 'Creating vehicle...' : 'Saving changes...'}
+          helperText="Required vehicle capacity and registration data must be valid before saving."
+          loading={loading}
+          submitDisabled={!form.formState.isValid}
+          onCancel={onClose}
+          onSubmit={form.handleSubmit((values) => onSubmit(values))}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

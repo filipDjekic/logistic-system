@@ -2,7 +2,9 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.ChangeHistoryResponse;
@@ -25,6 +27,7 @@ import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.support.PageRequestSanitizer;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 
 import java.time.LocalDateTime;
@@ -76,7 +79,7 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
                 trimToNull(entityName),
                 entityId,
                 userId,
-                pageable
+                PageRequestSanitizer.sanitize(pageable, Sort.by(Sort.Direction.DESC, "changedAt"))
         );
 
         List<ChangeHistoryResponse> content = page.getContent()
@@ -90,13 +93,17 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
 
     @Override
     public List<ChangeHistoryResponse> getByEntityName(String entityName) {
-        List<ChangeHistory> data = _changeHistoryRepository.findByEntityName(entityName);
+        List<ChangeHistory> data = authenticatedUserProvider.isOverlord()
+                ? _changeHistoryRepository.findByEntityName(entityName)
+                : _changeHistoryRepository.findByEntityNameAndChangedBy_Company_Id(entityName, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
         return toAccessibleResponses(data);
     }
 
     @Override
     public List<ChangeHistoryResponse> getByEntityId(Long entityId) {
-        List<ChangeHistory> data = _changeHistoryRepository.findByEntityId(entityId);
+        List<ChangeHistory> data = authenticatedUserProvider.isOverlord()
+                ? _changeHistoryRepository.findByEntityId(entityId)
+                : _changeHistoryRepository.findByEntityIdAndChangedBy_Company_Id(entityId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
         return toAccessibleResponses(data);
     }
 
@@ -117,7 +124,7 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
     @Override
     public List<ChangeHistoryResponse> getAll() {
         ensureOverlordOnly();
-        List<ChangeHistory> data = _changeHistoryRepository.findAll();
+        List<ChangeHistory> data = _changeHistoryRepository.findAll(PageRequest.of(0, 100)).getContent();
         return toAccessibleResponses(data);
     }
 

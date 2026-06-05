@@ -17,6 +17,8 @@ import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
 import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
+import { EntityLookupField } from '../../lookup';
+import type { LookupOption } from '../../lookup';
 import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
 import { transportOrdersApi } from '../../transport-orders/api/transportOrdersApi';
 import TasksTable from '../components/TasksTable';
@@ -24,6 +26,7 @@ import { useDeleteTask } from '../hooks/useDeleteTask';
 import { useMyTasks } from '../hooks/useMyTasks';
 import { useTasks } from '../hooks/useTasks';
 import { useUpdateTaskStatus } from '../hooks/useUpdateTaskStatus';
+import { tasksApi } from '../api/tasksApi';
 import type { SortState } from '../../../shared/types/common.types';
 import type { TaskFiltersState, TaskQueryParams, TaskResponse } from '../types/task.types';
 
@@ -41,7 +44,6 @@ export default function TasksPage() {
     currentRole === ROLES.OVERLORD ||
     currentRole === ROLES.DISPATCHER ||
     currentRole === ROLES.WAREHOUSE_MANAGER ||
-    currentRole === ROLES.DRIVER ||
     currentRole === ROLES.WORKER;
   const canShowTaskActions =
     currentRole === ROLES.OVERLORD ||
@@ -55,6 +57,9 @@ export default function TasksPage() {
     assignedEmployeeId: 'ALL',
     linkedProcessType: 'ALL',
   });
+  const [assignedEmployeeFilter, setAssignedEmployeeFilter] = useState<LookupOption | null>(null);
+  const [routeTransportOrderId, setRouteTransportOrderId] = useState<number | null>(null);
+  const [routeStockMovementId, setRouteStockMovementId] = useState<number | null>(null);
 
 
   const [page, setPage] = useState(0);
@@ -93,8 +98,16 @@ export default function TasksPage() {
       params.linkedProcessType = filters.linkedProcessType;
     }
 
+    if (routeTransportOrderId != null) {
+      params.transportOrderId = routeTransportOrderId;
+    }
+
+    if (routeStockMovementId != null) {
+      params.stockMovementId = routeStockMovementId;
+    }
+
     return params;
-  }, [canListManaged, filters]);
+  }, [canListManaged, filters, routeStockMovementId, routeTransportOrderId]);
 
   const myTaskQueryParams = useMemo(() => {
     const params = { ...taskQueryParams };
@@ -105,6 +118,12 @@ export default function TasksPage() {
   const managedTasksQuery = useTasks({ ...taskQueryParams, page, size, sort: buildSortParam(sort) }, canListManaged);
   const myTasksQuery = useMyTasks({ ...myTaskQueryParams, page, size, sort: buildSortParam(sort) }, !canListManaged);
   const tasksQuery = canListManaged ? managedTasksQuery : myTasksQuery;
+  const taskStatusCountsQuery = useQuery({
+    queryKey: queryKeys.tasks.statusCounts(taskQueryParams),
+    queryFn: () => tasksApi.getStatusCounts(taskQueryParams),
+    enabled: canListManaged,
+    staleTime: 30_000,
+  });
 
   const employeesQuery = useQuery({
     queryKey: queryKeys.tasks.employees(),
@@ -186,6 +205,31 @@ export default function TasksPage() {
 
   const hasRequiredTaskSetupBlockers = setupItems.some((item) => !item.done && item.title === 'Create at least one assignable employee');
 
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    const transportId = searchParams.get('transportId') ?? searchParams.get('transportOrderId');
+    const stockMovementId = searchParams.get('stockMovementId');
+
+    setFilters((current) => {
+      const nextStatus = status && ['NEW', 'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'CANCELLED'].includes(status)
+        ? status as TaskFiltersState['status']
+        : current.status;
+
+      if (nextStatus === current.status) {
+        return current;
+      }
+
+      setPage(0);
+      return { ...current, status: nextStatus };
+    });
+
+    const nextTransportOrderId = transportId && Number.isFinite(Number(transportId)) ? Number(transportId) : null;
+    const nextStockMovementId = stockMovementId && Number.isFinite(Number(stockMovementId)) ? Number(stockMovementId) : null;
+    setRouteTransportOrderId((current) => current === nextTransportOrderId ? current : nextTransportOrderId);
+    setRouteStockMovementId((current) => current === nextStockMovementId ? current : nextStockMovementId);
+  }, [searchParams]);
+
   useEffect(() => {
     if (searchParams.get('create') !== '1' || !canCreateOrAssign || taskSetupLoading || hasRequiredTaskSetupBlockers) {
       return;
@@ -202,16 +246,21 @@ export default function TasksPage() {
   }, [filters.search, filters.status, filters.priority, filters.assignedEmployeeId, filters.linkedProcessType]);
 
   const statusOverviewItems = useMemo(
-    () => ['NEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map((status) => ({
-      value: status,
-      count: rows.filter((row) => row.status === status).length,
-    })),
-    [rows],
+    () => {
+      const countsByStatus = new Map((taskStatusCountsQuery.data ?? []).map((item) => [item.status, item.count]));
+
+      return ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'CANCELLED'].map((status) => ({
+        value: status,
+        count: countsByStatus.get(status) ?? rows.filter((row) => row.status === status).length,
+      }));
+    },
+    [rows, taskStatusCountsQuery.data],
   );
 
   const refreshAll = () => {
     void Promise.all([
       tasksQuery.refetch(),
+      taskStatusCountsQuery.refetch(),
       ...(canCreateOrAssign
         ? [
             employeesQuery.refetch(),
@@ -233,10 +282,16 @@ export default function TasksPage() {
     filters.status !== 'ALL' ||
     filters.priority !== 'ALL' ||
     filters.assignedEmployeeId !== 'ALL' ||
-    filters.linkedProcessType !== 'ALL';
+    filters.linkedProcessType !== 'ALL' ||
+    routeTransportOrderId != null ||
+    routeStockMovementId != null;
 
   const clearFilters = () => {
     setPage(0);
+    setAssignedEmployeeFilter(null);
+    setRouteTransportOrderId(null);
+    setRouteStockMovementId(null);
+    setSearchParams({}, { replace: true });
     setFilters({
       search: '',
       status: 'ALL',
@@ -308,8 +363,10 @@ export default function TasksPage() {
                 sx={{ minWidth: { xs: '100%', md: 180 } }}
               >
                 <MenuItem value="ALL">All</MenuItem>
-                <MenuItem value="NEW">NEW</MenuItem>
+                <MenuItem value="OPEN">OPEN</MenuItem>
+                <MenuItem value="ASSIGNED">ASSIGNED</MenuItem>
                 <MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem>
+                <MenuItem value="BLOCKED">BLOCKED</MenuItem>
                 <MenuItem value="COMPLETED">COMPLETED</MenuItem>
                 <MenuItem value="CANCELLED">CANCELLED</MenuItem>
               </TextField>
@@ -335,27 +392,20 @@ export default function TasksPage() {
               </TextField>
 
               {canCreateOrAssign ? (
-                <TextField
-                  select
-                  size="small"
+                <EntityLookupField
                   label="Assigned employee"
-                  value={filters.assignedEmployeeId}
-                  onChange={(event) =>
+                  entityType="employees"
+                  value={assignedEmployeeFilter}
+                  onChange={(option) => {
+                    setAssignedEmployeeFilter(option);
                     setFilters((prev) => ({
                       ...prev,
-                      assignedEmployeeId:
-                        event.target.value === 'ALL' ? 'ALL' : Number(event.target.value),
-                    }))
-                  }
-                  sx={{ minWidth: { xs: '100%', md: 220 } }}
-                >
-                  <MenuItem value="ALL">All</MenuItem>
-                  {assignableEmployees.map((employee) => (
-                    <MenuItem key={employee.id} value={employee.id}>
-                      {employee.firstName} {employee.lastName}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                      assignedEmployeeId: option?.id ?? 'ALL',
+                    }));
+                  }}
+                  placeholder="All"
+                  searchPlaceholder="Search employees..."
+                />
               ) : null}
 
               <TextField
@@ -380,7 +430,7 @@ export default function TasksPage() {
             </FilterPanel>
           </>
         }
-        summary={<StatusOverview items={statusOverviewItems} />}
+        summary={<StatusOverview items={statusOverviewItems} title="Filtered result status" />}
         table={
           <TasksTable
             rows={rows}
@@ -420,7 +470,7 @@ export default function TasksPage() {
                 return;
               }
 
-              updateTaskStatus.mutate({ id: row.id, status });
+              updateTaskStatus.mutate({ id: row.id, status, expectedVersion: row.version });
             }}
             pagination={
               <ServerTablePagination

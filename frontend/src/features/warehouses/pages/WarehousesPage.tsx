@@ -69,6 +69,25 @@ export default function WarehousesPage() {
   const deleteWarehouseMutation = useDeleteWarehouse();
 
   const rows = warehousesQuery.data?.content ?? [];
+  const hasActiveFilters = filters.search.trim().length > 0 || filters.status !== 'ALL' || filters.active !== 'ALL';
+
+  const clearFilters = () => {
+    setPage(0);
+    setFilters({ search: '', status: 'ALL', active: 'ALL' });
+  };
+
+  const activeFilterChips = [
+    ...(filters.search.trim()
+      ? [{ key: 'search', label: `Search: ${filters.search.trim()}`, onDelete: () => setFilters((prev) => ({ ...prev, search: '' })) }]
+      : []),
+    ...(filters.status !== 'ALL'
+      ? [{ key: 'status', label: `Status: ${filters.status}`, onDelete: () => setFilters((prev) => ({ ...prev, status: 'ALL' })) }]
+      : []),
+    ...(filters.active !== 'ALL'
+      ? [{ key: 'active', label: filters.active === 'true' ? 'Active only' : 'Inactive only', onDelete: () => setFilters((prev) => ({ ...prev, active: 'ALL' })) }]
+      : []),
+  ];
+
 
   const warehouseMetrics = useMemo(() => {
     const activeCount = rows.filter((warehouse) => warehouse.active && warehouse.status === 'ACTIVE').length;
@@ -127,10 +146,16 @@ export default function WarehousesPage() {
         toolbar={
           <TableToolbar
             searchValue={filters.search}
-            onSearchChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+            onSearchChange={(value) => {
+              setPage(0);
+              setFilters((prev) => ({ ...prev, search: value }));
+            }}
             searchPlaceholder="Search by name, city, address, manager, company or ID"
             onRefresh={() => { void warehousesQuery.refetch(); }}
             refreshDisabled={warehousesQuery.isFetching}
+            onClearFilters={clearFilters}
+            clearDisabled={warehousesQuery.isFetching || !hasActiveFilters}
+            activeFilters={activeFilterChips}
           />
         }
         filters={
@@ -140,9 +165,10 @@ export default function WarehousesPage() {
               size="small"
               label="Status"
               value={filters.status}
-              onChange={(event) =>
-                setFilters((prev) => ({ ...prev, status: event.target.value as WarehouseFiltersState['status'] }))
-              }
+              onChange={(event) => {
+                setPage(0);
+                setFilters((prev) => ({ ...prev, status: event.target.value as WarehouseFiltersState['status'] }));
+              }}
             >
               <MenuItem value="ALL">All</MenuItem>
               {warehouseStatusOptions.map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}

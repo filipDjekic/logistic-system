@@ -28,21 +28,21 @@ public class ChangeHistoryController {
 
     private final ChangeHistoryServiceDefinition changeHistoryService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/{id}")
     public ResponseEntity<ChangeHistoryResponse> getById(@PathVariable Long id) {
         ChangeHistoryResponse response = changeHistoryService.getById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/entity_name/{name}")
     public ResponseEntity<List<ChangeHistoryResponse>> getByEntityName(@PathVariable String name) {
         List<ChangeHistoryResponse> responses = changeHistoryService.getByEntityName(name);
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/entity_id/{id}")
     public ResponseEntity<List<ChangeHistoryResponse>> getByEntityId(@PathVariable Long id) {
         List<ChangeHistoryResponse> responses = changeHistoryService.getByEntityId(id);
@@ -66,7 +66,7 @@ public class ChangeHistoryController {
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
     public ResponseEntity<PageResponse<ChangeHistoryResponse>> getAll(
             @RequestParam(required = false) String search,

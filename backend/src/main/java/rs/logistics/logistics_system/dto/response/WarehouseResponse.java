@@ -31,6 +31,7 @@ public class WarehouseResponse {
     private BigDecimal capacity;
     private WarehouseStatus status;
     private Boolean active;
+    private Boolean binTrackingEnabled;
 
     private Long employeeId;
     private String managerName;

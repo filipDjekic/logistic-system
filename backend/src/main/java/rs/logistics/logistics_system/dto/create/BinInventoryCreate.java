@@ -16,6 +16,6 @@ public class BinInventoryCreate {
     private Long binLocationId;
     @NotNull @Positive
     private Long productId;
-    @NotNull
+    @NotNull @Positive
     private BigDecimal quantity;
 }

@@ -74,7 +74,11 @@ public class Task {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+        @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
+@Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 

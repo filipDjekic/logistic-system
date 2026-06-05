@@ -61,9 +61,7 @@ export function useInventoryRecord(
       };
     },
     enabled: isValidIds,
-    staleTime: 30_000,
-    refetchInterval: 45_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }

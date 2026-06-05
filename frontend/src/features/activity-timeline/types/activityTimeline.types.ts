@@ -13,7 +13,7 @@ export type OperationalEntityType =
   | 'NOTIFICATION'
   | 'GENERAL';
 
-export type ActivityTimelineItemType = 'COMMENT' | 'ATTACHMENT' | 'DOMAIN_EVENT' | 'ACTIVITY_LOG' | 'CHANGE_HISTORY';
+export type ActivityTimelineItemType = 'COMMENT' | 'ATTACHMENT' | 'DOMAIN_EVENT';
 export type DomainEventType =
   | 'COMMENT_CREATED'
   | 'COMMENT_DELETED'
@@ -83,6 +83,14 @@ export type OperationalAttachmentCreate = {
   contentType?: string | null;
   fileUrl: string;
   sizeBytes?: number | null;
+  description?: string | null;
+  companyId?: number | null;
+};
+
+export type OperationalAttachmentUpload = {
+  entityType: OperationalEntityType;
+  entityId: number;
+  file: File;
   description?: string | null;
   companyId?: number | null;
 };

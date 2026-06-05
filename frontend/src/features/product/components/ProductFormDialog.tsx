@@ -1,27 +1,30 @@
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
 } from '@mui/material';
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, useWatch } from 'react-hook-form';
 import Form from '../../../shared/components/Form/Form';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormSection from '../../../shared/components/Form/FormSection';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import type { CompanyResponse } from '../../companies/types/company.types';
 import type {
   ProductFormValues,
   ProductResponse,
 } from '../types/product.types';
+import { productSchema } from '../validation/productSchema';
 
 type Props = {
   open: boolean;
   initialData?: ProductResponse | null;
   companies: CompanyResponse[];
   showCompanySelect: boolean;
+  loading?: boolean;
   onClose: () => void;
   onSubmit: (values: ProductFormValues) => void;
 };
@@ -50,11 +53,14 @@ export default function ProductFormDialog({
   initialData,
   companies,
   showCompanySelect,
+  loading = false,
   onClose,
   onSubmit,
 }: Props) {
-  const { control, handleSubmit, reset } = useForm<ProductFormValues>({
+  const { control, handleSubmit, reset, formState } = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
     defaultValues,
+    mode: 'onChange',
   });
 
   useEffect(() => {
@@ -79,16 +85,20 @@ export default function ProductFormDialog({
     reset(defaultValues);
   }, [initialData, open, reset]);
 
+  const selectedCompanyId = useWatch({ control, name: 'companyId' });
   const companyOptions = companies.map((company) => ({
     value: String(company.id),
     label: company.name,
   }));
+  const companyRequired = showCompanySelect && !initialData;
+  const submitDisabled = !formState.isValid || (companyRequired && !selectedCompanyId);
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
       <DialogTitle>{initialData ? 'Edit' : 'Create'} Product</DialogTitle>
 
       <DialogContent>
+        <FormSection title="Product details" description="Keep master data clear. Dynamic relations use lookup elsewhere; enum values stay as dropdowns.">
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Form name="name" control={control} label="Name" required />
@@ -135,14 +145,21 @@ export default function ProductFormDialog({
             <FormCheckbox name="fragile" control={control} label="Fragile" />
           </Grid>
         </Grid>
+        </FormSection>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit(onSubmit)}>
-          Save
-        </Button>
-      </DialogActions>
+      <DialogContent sx={{ pt: 0 }}>
+        <FormActions
+          cancelLabel="Cancel"
+          submitLabel="Save product"
+          submittingLabel="Saving product..."
+          helperText="Review product name, SKU, unit and physical properties before saving."
+          loading={loading}
+          submitDisabled={submitDisabled}
+          onCancel={onClose}
+          onSubmit={handleSubmit(onSubmit)}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

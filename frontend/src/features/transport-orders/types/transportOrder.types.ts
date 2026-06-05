@@ -2,7 +2,6 @@ import type { TemporalView } from '../../../core/utils/timezoneFormat';
 
 export type TransportOrderStatus =
   | 'DRAFT'
-  | 'CREATED'
   | 'ASSIGNED'
   | 'PICKING'
   | 'PACKING'
@@ -30,6 +29,7 @@ export type TransportOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export type TransportOrderResponse = {
   id: number;
+  version: number;
   orderNumber: string;
   description: string;
   orderDate: string;
@@ -70,13 +70,11 @@ export type TransportOrderCreateRequest = {
 };
 
 export type TransportOrderUpdateRequest = {
-  id?: number;
   orderNumber: string;
   description: string;
   orderDate: string;
   departureTime: string;
   plannedArrivalTime: string;
-  actualArrivalTime?: string | null;
   priority: TransportOrderPriority;
   notes?: string;
   sourceWarehouseId: number;
@@ -87,6 +85,14 @@ export type TransportOrderUpdateRequest = {
 
 export type TransportOrderStatusUpdateRequest = {
   status: TransportOrderStatus;
+  reason?: string;
+  expectedVersion?: number;
+};
+
+export type AllowedStatusTransitionsResponse<TStatus extends string> = {
+  currentStatus: TStatus;
+  allowedStatuses: TStatus[];
+  currentVersion?: number;
 };
 
 export type TransportOrderItemResponse = {

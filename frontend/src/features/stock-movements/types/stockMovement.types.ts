@@ -10,6 +10,21 @@ export type StockMovementType =
   | 'RESERVATION'
   | 'RESERVATION_RELEASE';
 
+export type StockMovementReasonCode =
+  | 'INITIAL_STOCK'
+  | 'MANUAL_INBOUND'
+  | 'PURCHASE_RECEIPT'
+  | 'TRANSPORT_RECEIPT'
+  | 'MANUAL_OUTBOUND'
+  | 'TRANSPORT_DISPATCH'
+  | 'INVENTORY_ADJUSTMENT'
+  | 'CORRECTION'
+  | 'DAMAGE_WRITE_OFF'
+  | 'RETURN_IN'
+  | 'RETURN_OUT'
+  | 'STOCK_RESERVED'
+  | 'RESERVATION_RELEASED';
+
 export type StockAdjustmentDirection = 'INCREASE' | 'DECREASE';
 
 export type StockMovementResponse = {
@@ -23,12 +38,23 @@ export type StockMovementResponse = {
   referenceNumber?: string | null;
   referenceNote?: string | null;
   transferGroupId?: string | null;
+  sourceType?: string | null;
+  sourceId?: number | null;
+  referenceCode?: string | null;
+  parentMovementId?: number | null;
+  rootMovementId?: number | null;
   adjustmentDirection?: StockAdjustmentDirection | null;
   warehouseId: number;
   warehouseName: string;
   productId: number;
   productName: string;
   transportOrderId?: number | null;
+  sourceBinId?: number | null;
+  sourceBinCode?: string | null;
+  sourceBinZoneId?: number | null;
+  destinationBinId?: number | null;
+  destinationBinCode?: string | null;
+  destinationBinZoneId?: number | null;
   quantityBefore: number;
   quantityAfter: number;
   reservedBefore?: number;
@@ -36,6 +62,17 @@ export type StockMovementResponse = {
   availableBefore?: number;
   availableAfter?: number;
   createdAt: string;
+};
+
+export type StockMovementTraceResponse = {
+  movementId: number;
+  rootMovementId?: number | null;
+  parentMovementId?: number | null;
+  transferGroupId?: string | null;
+  sourceType?: string | null;
+  sourceId?: number | null;
+  referenceCode?: string | null;
+  movements: StockMovementResponse[];
 };
 
 export type StockMovementWarehouseOption = {
@@ -86,6 +123,7 @@ export type StockMovementFiltersState = {
   transportOrderId: number | 'ALL';
   fromDate: string;
   toDate: string;
+  reasonCode?: StockMovementReasonCode | 'ALL';
 };
 
 export type StockInboundRequest = {
@@ -97,6 +135,7 @@ export type StockInboundRequest = {
   transportOrderId?: number;
   warehouseId: number;
   productId: number;
+  binLocationId?: number;
 };
 
 export type StockOutboundRequest = StockInboundRequest;
@@ -110,6 +149,8 @@ export type StockTransferRequest = {
   sourceWarehouseId: number;
   destinationWarehouseId: number;
   productId: number;
+  sourceBinLocationId?: number;
+  destinationBinLocationId?: number;
 };
 
 export type StockAdjustmentRequest = {
@@ -121,6 +162,7 @@ export type StockAdjustmentRequest = {
   referenceId?: number;
   warehouseId: number;
   productId: number;
+  binLocationId?: number;
 };
 
 export type StockWriteOffRequest = {
@@ -131,6 +173,7 @@ export type StockWriteOffRequest = {
   referenceId?: number;
   warehouseId: number;
   productId: number;
+  binLocationId?: number;
 };
 
 export type StockReturnRequest = StockWriteOffRequest;

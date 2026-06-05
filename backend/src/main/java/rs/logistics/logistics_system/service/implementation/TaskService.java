@@ -8,10 +8,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.config.AppProperties;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.update.TaskUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.StockMovement;
@@ -26,6 +27,9 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
+import rs.logistics.logistics_system.lifecycle.LifecycleTransitionContext;
+import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.enums.EmployeePosition;
@@ -60,11 +64,11 @@ public class TaskService implements TaskServiceDefinition {
 
     private final NotificationServiceDefinition notificationService;
     private final AuditFacadeDefinition auditFacade;
-    private final AppProperties appProperties;
-
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final TimeServiceDefinition timeService;
     private final DomainScopeValidator domainScopeValidator;
+    private final LifecycleTransitionEngine lifecycleTransitionEngine;
+    private final LifecycleNotificationService lifecycleNotificationService;
 
     @Override
     @Transactional
@@ -81,20 +85,13 @@ public class TaskService implements TaskServiceDefinition {
         validateAssigneeRole(employee, transportOrder, stockMovement, dto.getTaskType());
         validateAssigneeOperationalScope(employee, stockMovement);
         validateEmployeeAvailabilityForTask(employee, dto.getDueDate());
-        validateWarehouseManagerMutationScope(transportOrder);
+        validateWarehouseManagerMutationScope(transportOrder, dto.getTaskType());
 
         Task task = TaskMapper.toEntity(dto, employee, transportOrder, stockMovement);
-        task.setStatus(TaskStatus.NEW);
+        task.setStatus(TaskStatus.OPEN);
         Task saved = _taskRepository.save(task);
 
-        if (employee.getUser() != null) {
-            notificationService.createSystemNotification(
-                    employee.getUser().getId(),
-                    "Task assigned",
-                    "Task '" + saved.getTitle() + "' has been assigned to you.",
-                    NotificationType.INFO
-            );
-        }
+        lifecycleNotificationService.notifyTaskAssigned(saved, null, employee);
 
         auditFacade.recordCreate("TASK", saved.getId());
         auditFacade.log(
@@ -126,7 +123,7 @@ public class TaskService implements TaskServiceDefinition {
         validateAssigneeRole(employee, transportOrder, stockMovement, dto.getTaskType());
         validateAssigneeOperationalScope(employee, stockMovement);
         validateEmployeeAvailabilityForTask(employee, dto.getDueDate());
-        validateWarehouseManagerMutationScope(transportOrder);
+        validateWarehouseManagerMutationScope(transportOrder, dto.getTaskType());
 
         if (!task.getAssignedEmployee().getId().equals(employee.getId())) {
             validateReassign(task, employee);
@@ -169,22 +166,8 @@ public class TaskService implements TaskServiceDefinition {
                 saved.getStockMovement() != null ? saved.getStockMovement().getId() : null
         );
 
-        if (oldEmployee != null && !oldEmployee.getId().equals(employee.getId()) && oldEmployee.getUser() != null) {
-            notificationService.createSystemNotification(
-                    oldEmployee.getUser().getId(),
-                    "Task reassigned",
-                    "Task '" + saved.getTitle() + "' is no longer assigned to you.",
-                    NotificationType.WARNING
-            );
-        }
-
-        if (employee.getUser() != null && (oldEmployee == null || !oldEmployee.getId().equals(employee.getId()))) {
-            notificationService.createSystemNotification(
-                    employee.getUser().getId(),
-                    "Task assigned",
-                    "Task '" + saved.getTitle() + "' has been assigned to you.",
-                    NotificationType.INFO
-            );
+        if (oldEmployee == null || !oldEmployee.getId().equals(employee.getId())) {
+            lifecycleNotificationService.notifyTaskAssigned(saved, oldEmployee, employee);
         }
 
         auditFacade.log(
@@ -211,11 +194,22 @@ public class TaskService implements TaskServiceDefinition {
 
         List<Task> tasks = _taskRepository.findOpenTasksByTransportOrderId(
                 transportOrderId,
-                List.of(TaskStatus.NEW, TaskStatus.IN_PROGRESS)
+                List.of(TaskStatus.NEW, TaskStatus.OPEN, TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED)
         );
 
         for (Task task : tasks) {
             TaskStatus oldStatus = task.getStatus();
+            LifecycleTransitionContext<TaskStatus> lifecycleContext = lifecycleTransitionEngine.validate(
+                    LifecycleEntityType.TASK,
+                    task.getId(),
+                    TaskStatus.class,
+                    oldStatus,
+                    status,
+                    "Automatically closed because transport order " + transportOrderId + " was closed",
+                    null,
+                    task.getVersion()
+            );
+
             applyTaskStatusTransitionTimestamps(task, status);
             Task saved = _taskRepository.save(task);
 
@@ -227,7 +221,9 @@ public class TaskService implements TaskServiceDefinition {
                     "TASK " + saved.getId() + " automatically changed from " + oldStatus + " to " + saved.getStatus() + " because transport order " + transportOrderId + " was closed"
             );
 
-            if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
+            lifecycleTransitionEngine.afterTransition(lifecycleContext, TaskStatus.class);
+
+        if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
                 NotificationType type = status == TaskStatus.CANCELLED ? NotificationType.WARNING : NotificationType.INFO;
                 notificationService.createSystemNotification(
                         saved.getAssignedEmployee().getUser().getId(),
@@ -239,6 +235,25 @@ public class TaskService implements TaskServiceDefinition {
         }
 
         return tasks.size();
+    }
+
+
+    @Override
+    public AllowedStatusTransitionsResponse allowedStatusTransitions(Long id) {
+        Task task = getTaskOrThrow(id);
+        validateWarehouseManagerTaskAccess(task);
+        return new AllowedStatusTransitionsResponse(
+                task.getStatus().name(),
+                lifecycleTransitionEngine.allowedStatuses(LifecycleEntityType.TASK, TaskStatus.class, task.getStatus()).stream().map(Enum::name).toList(),
+                task.getVersion()
+        );
+    }
+
+    private String transitionReasonSuffix(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return "";
+        }
+        return " with reason: " + reason.trim();
     }
 
     private void normalizeTaskType(TaskCreate dto) {
@@ -287,20 +302,25 @@ public class TaskService implements TaskServiceDefinition {
         if (employee.getPosition() != EmployeePosition.DRIVER && employee.getPosition() != EmployeePosition.WORKER) {
             return;
         }
-        boolean available = _shiftRepository.existsCoveringActiveOrPlannedShift(
+        boolean available = _shiftRepository.existsCoveringActiveOrPlannedShiftInterval(
                 employee.getId(),
+                dueDate,
                 dueDate,
                 List.of(rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE)
         );
         if (!available) {
-            throw new BadRequestException("Employee has no planned or active shift covering task due date");
+            throw new BadRequestException("Employee is not scheduled for the selected task due date");
         }
     }
 
     private void validateStatusTransition(TaskStatus current, TaskStatus next) {
-        if (!appProperties.isTaskStatusTransitionAllowed(current, next)) {
-            throw new BadRequestException("Task status cannot be changed from " + current + " to " + next);
-        }
+        lifecycleTransitionEngine.requireTransitionAllowed(
+                LifecycleEntityType.TASK,
+                TaskStatus.class,
+                current,
+                next,
+                "Task status cannot be changed from " + current + " to " + next
+        );
     }
 
     private void validateAssigneeRole(Employee employee, TransportOrder transportOrder, StockMovement stockMovement, TaskType taskType) {
@@ -462,6 +482,40 @@ public class TaskService implements TaskServiceDefinition {
         return PageResponse.fromContent(content, tasks);
     }
 
+
+    @Override
+    public List<StatusCountResponse> countByStatus(
+            String search,
+            TaskPriority priority,
+            Long assignedEmployeeId,
+            Long transportOrderId,
+            Long stockMovementId,
+            String linkedProcessType
+    ) {
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
+
+        return _taskRepository.countGroupedByStatusFiltered(
+                        companyId,
+                        assignedEmployeeId,
+                        QueryParameterNormalizer.trimToNull(search),
+                        priority,
+                        transportOrderId,
+                        stockMovementId,
+                        authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER"),
+                        false,
+                        authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER"),
+                        managedWarehouseIds,
+                        normalizeLinkedProcessType(linkedProcessType)
+                )
+                .stream()
+                .map(row -> new StatusCountResponse(String.valueOf(row[0]), ((Number) row[1]).longValue()))
+                .toList();
+    }
+
     @Override
     @Transactional
     public void delete(Long id) {
@@ -507,22 +561,23 @@ public class TaskService implements TaskServiceDefinition {
 
     @Override
     @Transactional
-    public TaskResponse changeStatus(Long id, TaskStatus status) {
-        Task task = getTaskOrThrow(id);
+    public TaskResponse changeStatus(Long id, TaskStatus status, String reason, Long expectedVersion) {
+        Task task = getTaskForUpdateOrThrow(id);
         validateWarehouseManagerTaskAccess(task);
         validateDriverTaskMutationAccess();
 
         TaskStatus current = task.getStatus();
 
-        if (status == null) {
-            throw new BadRequestException("Task status is required");
-        }
-
-        if (current == status) {
-            throw new BadRequestException("Task already has selected status");
-        }
-
-        validateStatusTransition(current, status);
+        LifecycleTransitionContext<TaskStatus> lifecycleContext = lifecycleTransitionEngine.validate(
+                LifecycleEntityType.TASK,
+                task.getId(),
+                TaskStatus.class,
+                current,
+                status,
+                reason,
+                expectedVersion,
+                task.getVersion()
+        );
 
         applyTaskStatusTransitionTimestamps(task, status);
         Task saved = _taskRepository.save(task);
@@ -532,21 +587,18 @@ public class TaskService implements TaskServiceDefinition {
                 "STATUS_CHANGE",
                 "TASK",
                 task.getId(),
-                "TASK status changed from " + current + " to " + saved.getStatus() + " (ID: " + task.getId() + ")"
+                "TASK status changed from " + current + " to " + saved.getStatus() + transitionReasonSuffix(reason) + " (ID: " + task.getId() + ")"
         );
 
         NotificationType type = saved.getStatus() == TaskStatus.CANCELLED
                 ? NotificationType.WARNING
                 : NotificationType.INFO;
 
-        if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
-            notificationService.createSystemNotification(
-                    saved.getAssignedEmployee().getUser().getId(),
-                    "Task status updated",
-                    "Task '" + saved.getTitle() + "' status changed to " + saved.getStatus() + ".",
-                    type
-            );
-        }
+        lifecycleTransitionEngine.afterTransition(lifecycleContext, TaskStatus.class);
+
+        lifecycleNotificationService.notifyTaskStatusChanged(saved, current, saved.getStatus(), reason);
+
+        synchronizeTransportFromTaskTransition(saved, current, saved.getStatus(), reason);
 
         return TaskMapper.toResponse(saved, timeService);
     }
@@ -573,29 +625,20 @@ public class TaskService implements TaskServiceDefinition {
         }
 
         Long oldEmployeeId = oldEmployee != null ? oldEmployee.getId() : null;
+        TaskStatus oldStatus = task.getStatus();
         task.setAssignedEmployee(employee);
+        if (oldStatus == TaskStatus.OPEN || oldStatus == TaskStatus.NEW) {
+            validateStatusTransition(oldStatus, TaskStatus.ASSIGNED);
+            applyTaskStatusTransitionTimestamps(task, TaskStatus.ASSIGNED);
+        }
 
         Task saved = _taskRepository.save(task);
-
-        if (oldEmployee != null
-                && !oldEmployee.getId().equals(employee.getId())
-                && oldEmployee.getUser() != null) {
-            notificationService.createSystemNotification(
-                    oldEmployee.getUser().getId(),
-                    "Task reassigned",
-                    "Task '" + task.getTitle() + "' is no longer assigned to you.",
-                    NotificationType.WARNING
-            );
+        if (oldStatus != saved.getStatus()) {
+            auditFacade.recordStatusChange("TASK", saved.getId(), "status", oldStatus, saved.getStatus());
+            auditFacade.log("STATUS_CHANGE", "TASK", saved.getId(), "TASK status changed from " + oldStatus + " to " + saved.getStatus() + " because the task was assigned (ID: " + saved.getId() + ")");
         }
 
-        if (employee.getUser() != null) {
-            notificationService.createSystemNotification(
-                    employee.getUser().getId(),
-                    "Task assigned",
-                    "Task '" + task.getTitle() + "' has been assigned to you.",
-                    NotificationType.INFO
-            );
-        }
+        lifecycleNotificationService.notifyTaskAssigned(saved, oldEmployee, employee);
 
         auditFacade.recordFieldChange("TASK", saved.getId(), "assignedEmployee", oldEmployeeId, employeeId);
         auditFacade.log(
@@ -606,6 +649,148 @@ public class TaskService implements TaskServiceDefinition {
         );
 
         return TaskMapper.toResponse(saved, timeService);
+    }
+
+    private void synchronizeTransportFromTaskTransition(Task task, TaskStatus oldStatus, TaskStatus newStatus, String reason) {
+        if (task == null || task.getTransportOrder() == null || oldStatus == newStatus) {
+            return;
+        }
+
+        TransportOrder transportOrder = authenticatedUserProvider.isOverlord()
+                ? _transportOrderRepository.findByIdForUpdate(task.getTransportOrder().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"))
+                : _transportOrderRepository.findByIdAndCreatedByCompanyIdForUpdate(
+                        task.getTransportOrder().getId(),
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                ).orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+
+        if (newStatus == TaskStatus.IN_PROGRESS) {
+            auditFacade.log(
+                    "WORKFLOW_TASK_STARTED",
+                    "TRANSPORT_ORDER",
+                    transportOrder.getId(),
+                    "Task " + task.getId() + " started inside transport workflow " + transportOrder.getId()
+            );
+            return;
+        }
+
+        if (newStatus == TaskStatus.BLOCKED) {
+            auditFacade.log(
+                    "WORKFLOW_TASK_BLOCKED",
+                    "TRANSPORT_ORDER",
+                    transportOrder.getId(),
+                    "Task " + task.getId() + " blocked transport workflow " + transportOrder.getId() + transitionReasonSuffix(reason)
+            );
+            notifyTransportStakeholders(transportOrder, "Transport workflow blocked", "Task '" + task.getTitle() + "' blocked transport order #" + transportOrder.getId() + ".", NotificationType.WARNING);
+            return;
+        }
+
+        if (newStatus != TaskStatus.COMPLETED) {
+            return;
+        }
+
+        TransportOrderStatus nextStatus = nextTransportStatusForCompletedTask(task.getTaskType(), transportOrder.getStatus());
+        if (nextStatus == null) {
+            return;
+        }
+
+        TransportOrderStatus oldTransportStatus = transportOrder.getStatus();
+        LifecycleTransitionContext<TransportOrderStatus> lifecycleContext = lifecycleTransitionEngine.validateSystem(
+                LifecycleEntityType.TRANSPORT_ORDER,
+                transportOrder.getId(),
+                TransportOrderStatus.class,
+                oldTransportStatus,
+                nextStatus,
+                "Automatically advanced after task " + task.getId() + " completion",
+                transportOrder.getVersion()
+        );
+
+        transportOrder.setStatus(nextStatus);
+        TransportOrder savedTransport = _transportOrderRepository.save(transportOrder);
+        auditFacade.recordStatusChange("TRANSPORT_ORDER", savedTransport.getId(), "status", oldTransportStatus, savedTransport.getStatus());
+        auditFacade.log(
+                "WORKFLOW_STATUS_CHANGE",
+                "TRANSPORT_ORDER",
+                savedTransport.getId(),
+                "Transport order automatically changed from " + oldTransportStatus + " to " + savedTransport.getStatus() + " after task " + task.getId() + " was completed"
+        );
+        lifecycleTransitionEngine.afterTransition(lifecycleContext, TransportOrderStatus.class);
+
+        createFollowUpTaskForTransportStatus(savedTransport, nextStatus);
+    }
+
+    private TransportOrderStatus nextTransportStatusForCompletedTask(TaskType taskType, TransportOrderStatus currentStatus) {
+        if (taskType == TaskType.PICKING && currentStatus == TransportOrderStatus.PICKING) {
+            return TransportOrderStatus.PACKING;
+        }
+        if (taskType == TaskType.PACKING && currentStatus == TransportOrderStatus.PACKING) {
+            return TransportOrderStatus.READY_FOR_LOADING;
+        }
+        if (taskType == TaskType.LOADING && currentStatus == TransportOrderStatus.READY_FOR_LOADING) {
+            return TransportOrderStatus.LOADING;
+        }
+        return null;
+    }
+
+    private void createFollowUpTaskForTransportStatus(TransportOrder transportOrder, TransportOrderStatus status) {
+        TaskType nextTaskType = switch (status) {
+            case PACKING -> TaskType.PACKING;
+            case READY_FOR_LOADING, LOADING -> TaskType.LOADING;
+            default -> null;
+        };
+
+        if (nextTaskType == null || transportOrder.getSourceWarehouse() == null || transportOrder.getSourceWarehouse().getManager() == null) {
+            return;
+        }
+
+        boolean alreadyExists = !_taskRepository.findTransportTasksByTypeAndStatusIn(
+                transportOrder.getId(),
+                nextTaskType,
+                List.of(TaskStatus.NEW, TaskStatus.OPEN, TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED)
+        ).isEmpty();
+        if (alreadyExists) {
+            return;
+        }
+
+        Task followUp = new Task(
+                nextTaskType + " for " + transportOrder.getOrderNumber(),
+                "Automatically generated " + nextTaskType + " task after transport workflow moved to " + status + ".",
+                LocalDateTime.now().plusHours(1),
+                TaskPriority.valueOf(transportOrder.getPriority().name()),
+                nextTaskType,
+                transportOrder.getSourceWarehouse().getManager(),
+                transportOrder,
+                null
+        );
+        followUp.setStatus(TaskStatus.OPEN);
+        Task saved = _taskRepository.save(followUp);
+        auditFacade.recordCreate("TASK", saved.getId());
+        auditFacade.log("WORKFLOW_TASK_CREATED", "TASK", saved.getId(), "Task automatically created for transport order " + transportOrder.getId() + " after workflow transition to " + status);
+
+        if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
+            notificationService.createSystemNotification(
+                    saved.getAssignedEmployee().getUser().getId(),
+                    "Transport task created",
+                    "Task '" + saved.getTitle() + "' was created for transport order #" + transportOrder.getId() + ".",
+                    NotificationType.INFO
+            );
+        }
+    }
+
+    private void notifyTransportStakeholders(TransportOrder transportOrder, String title, String message, NotificationType type) {
+        if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
+            notificationService.createSystemNotification(transportOrder.getAssignedEmployee().getUser().getId(), title, message, type);
+        }
+        if (transportOrder.getSourceWarehouse() != null
+                && transportOrder.getSourceWarehouse().getManager() != null
+                && transportOrder.getSourceWarehouse().getManager().getUser() != null) {
+            notificationService.createSystemNotification(transportOrder.getSourceWarehouse().getManager().getUser().getId(), title, message, type);
+        }
+        if (transportOrder.getDestinationWarehouse() != null
+                && transportOrder.getDestinationWarehouse().getManager() != null
+                && transportOrder.getDestinationWarehouse().getManager().getUser() != null) {
+            notificationService.createSystemNotification(transportOrder.getDestinationWarehouse().getManager().getUser().getId(), title, message, type);
+        }
     }
 
     private Page<Task> searchTasks(
@@ -685,15 +870,21 @@ public class TaskService implements TaskServiceDefinition {
             return true;
         }
 
+        Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
+
+        if (task.getStockMovement() != null && task.getStockMovement().getWarehouse() != null) {
+            return managedWarehouseIds.contains(task.getStockMovement().getWarehouse().getId());
+        }
+
         if (task.getTransportOrder() != null) {
-            return false;
+            return isWarehouseSideTransportTask(task)
+                    && (
+                    task.getTransportOrder().getSourceWarehouse() != null && managedWarehouseIds.contains(task.getTransportOrder().getSourceWarehouse().getId())
+                            || task.getTransportOrder().getDestinationWarehouse() != null && managedWarehouseIds.contains(task.getTransportOrder().getDestinationWarehouse().getId())
+            );
         }
 
-        if (task.getStockMovement() == null || task.getStockMovement().getWarehouse() == null) {
-            return false;
-        }
-
-        return resolveManagedWarehouseIdsForWarehouseManager().contains(task.getStockMovement().getWarehouse().getId());
+        return false;
     }
 
     private void validateWarehouseManagerTaskAccess(Task task) {
@@ -718,10 +909,29 @@ public class TaskService implements TaskServiceDefinition {
         }
     }
 
-    private void validateWarehouseManagerMutationScope(TransportOrder transportOrder) {
-        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") && transportOrder != null) {
-            throw new ForbiddenException("WAREHOUSE_MANAGER cannot create or modify transport tasks");
+    private void validateWarehouseManagerMutationScope(TransportOrder transportOrder, TaskType taskType) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || transportOrder == null) {
+            return;
         }
+
+        if (!(taskType == TaskType.PICKING || taskType == TaskType.PACKING || taskType == TaskType.LOADING || taskType == TaskType.UNLOADING)) {
+            throw new ForbiddenException("WAREHOUSE_MANAGER can create or modify only warehouse-side transport tasks");
+        }
+
+        Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
+        boolean touchesManagedWarehouse = (transportOrder.getSourceWarehouse() != null && managedWarehouseIds.contains(transportOrder.getSourceWarehouse().getId()))
+                || (transportOrder.getDestinationWarehouse() != null && managedWarehouseIds.contains(transportOrder.getDestinationWarehouse().getId()));
+
+        if (!touchesManagedWarehouse) {
+            throw new ForbiddenException("WAREHOUSE_MANAGER can create or modify only warehouse-side transport tasks for managed warehouses");
+        }
+    }
+
+    private boolean isWarehouseSideTransportTask(Task task) {
+        return task != null && (task.getTaskType() == TaskType.PICKING
+                || task.getTaskType() == TaskType.PACKING
+                || task.getTaskType() == TaskType.LOADING
+                || task.getTaskType() == TaskType.UNLOADING);
     }
 
     private Employee getActiveEmployee(Long employeeId) {
@@ -801,9 +1011,29 @@ public class TaskService implements TaskServiceDefinition {
         }
     }
 
+    private Task getTaskForUpdateOrThrow(Long id) {
+        Task task = authenticatedUserProvider.isOverlord()
+                ? _taskRepository.findByIdForUpdate(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Task not found"))
+                : _taskRepository.findByIdAndAssignedEmployeeCompanyIdForUpdate(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+                    .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+
+        if (authenticatedUserProvider.hasRole("DRIVER") || authenticatedUserProvider.hasRole("WORKER")) {
+            Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
+            Long assignedUserId = task.getAssignedEmployee() != null && task.getAssignedEmployee().getUser() != null
+                    ? task.getAssignedEmployee().getUser().getId()
+                    : null;
+            if (assignedUserId == null || !authenticatedUserId.equals(assignedUserId)) {
+                throw new ResourceNotFoundException("Task not found");
+            }
+        }
+
+        return task;
+    }
+
     private Task getTaskOrThrow(Long id) {
         if (authenticatedUserProvider.isOverlord()) {
-            return _taskRepository.findById(id)
+            return _taskRepository.findByIdWithDetails(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
         }
 

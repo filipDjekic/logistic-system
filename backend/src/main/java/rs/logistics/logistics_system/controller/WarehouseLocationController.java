@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import java.math.BigDecimal;
+import rs.logistics.logistics_system.enums.WarehouseZoneType;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,15 +35,22 @@ public class WarehouseLocationController {
         return ResponseEntity.ok(warehouseLocationService.updateZone(id, dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @GetMapping("/zones/{id}")
+    public ResponseEntity<WarehouseZoneResponse> getZone(@PathVariable Long id) {
+        return ResponseEntity.ok(warehouseLocationService.getZone(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/zones")
     public ResponseEntity<PageResponse<WarehouseZoneResponse>> searchZones(
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) WarehouseZoneType type,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "code", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return ResponseEntity.ok(warehouseLocationService.searchZones(warehouseId, active, search, pageable));
+        return ResponseEntity.ok(warehouseLocationService.searchZones(warehouseId, active, type, search, pageable));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
@@ -64,15 +73,22 @@ public class WarehouseLocationController {
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @GetMapping("/bins/{id}")
+    public ResponseEntity<BinLocationResponse> getBin(@PathVariable Long id) {
+        return ResponseEntity.ok(warehouseLocationService.getBin(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/bins")
     public ResponseEntity<PageResponse<BinLocationResponse>> searchBins(
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) Long zoneId,
             @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) WarehouseZoneType type,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "code", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return ResponseEntity.ok(warehouseLocationService.searchBins(warehouseId, zoneId, active, search, pageable));
+        return ResponseEntity.ok(warehouseLocationService.searchBins(warehouseId, zoneId, active, type, search, pageable));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
@@ -95,10 +111,14 @@ public class WarehouseLocationController {
             @RequestParam(required = false) Long zoneId,
             @RequestParam(required = false) Long binLocationId,
             @RequestParam(required = false) Long productId,
+            @RequestParam(required = false) BigDecimal quantityMin,
+            @RequestParam(required = false) BigDecimal quantityMax,
+            @RequestParam(required = false) Boolean reserved,
+            @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "lastUpdated", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return ResponseEntity.ok(warehouseLocationService.searchBinInventory(warehouseId, zoneId, binLocationId, productId, search, pageable));
+        return ResponseEntity.ok(warehouseLocationService.searchBinInventory(warehouseId, zoneId, binLocationId, productId, quantityMin, quantityMax, reserved, available, search, pageable));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER','WORKER')")
@@ -112,10 +132,11 @@ public class WarehouseLocationController {
     public ResponseEntity<PageResponse<InternalWarehouseMovementResponse>> searchInternalMovements(
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) Long productId,
+            @RequestParam(required = false) Long zoneId,
             @RequestParam(required = false) Long binLocationId,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return ResponseEntity.ok(warehouseLocationService.searchInternalMovements(warehouseId, productId, binLocationId, search, pageable));
+        return ResponseEntity.ok(warehouseLocationService.searchInternalMovements(warehouseId, productId, zoneId, binLocationId, search, pageable));
     }
 }

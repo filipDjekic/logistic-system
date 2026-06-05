@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { Card, CardContent, Divider, Stack, Typography } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 
 const cardContentPadding = { xs: 1.5, sm: 2, md: 2.5 };
 
@@ -8,6 +9,7 @@ type SectionCardProps = PropsWithChildren<{
   description?: string;
   action?: ReactNode;
   contentSx?: object;
+  sx?: SxProps<Theme>;
 }>;
 
 export default function SectionCard({
@@ -16,11 +18,12 @@ export default function SectionCard({
   action,
   children,
   contentSx,
+  sx,
 }: SectionCardProps) {
   const hasHeader = Boolean(title || description || action);
 
   return (
-    <Card>
+    <Card sx={sx}>
       {hasHeader ? (
         <>
           <CardContent sx={{ p: cardContentPadding, pb: { xs: 1.5, md: 2 } }}>

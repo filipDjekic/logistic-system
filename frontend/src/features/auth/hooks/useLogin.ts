@@ -5,6 +5,7 @@ import { authStore } from '../../../core/auth/authStore';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { persistAccessToken } from '../../../core/auth/auth.utils';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { clearQueryCache } from '../../../core/query/queryClient';
 import type { LoginRequest } from '../types/auth.types';
 
 export function useLogin() {
@@ -22,6 +23,8 @@ export function useLogin() {
       try {
         const user = await authApi.me();
 
+        clearQueryCache();
+
         authStore.setAuthenticated({
           accessToken: loginResponse.token,
           user,
@@ -29,6 +32,7 @@ export function useLogin() {
 
         return { loginResponse, user };
       } catch (error) {
+        clearQueryCache();
         authStore.setUnauthenticated();
         throw error;
       }
@@ -42,6 +46,7 @@ export function useLogin() {
       navigate('/dashboard', { replace: true });
     },
     onError: (error) => {
+      clearQueryCache();
       authStore.setUnauthenticated();
 
       showSnackbar({

@@ -21,6 +21,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -90,7 +91,11 @@ public class Vehicle {
     @Column(name = "active", nullable = false)
     private Boolean active;
 
-    @Column(name = "updated_at")
+        @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
+@Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 

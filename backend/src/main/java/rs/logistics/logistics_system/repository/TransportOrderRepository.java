@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.repository;
 
+import jakarta.persistence.LockModeType;
+
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -7,7 +9,9 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,9 +21,34 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
 public interface TransportOrderRepository extends JpaRepository<TransportOrder, Long> {
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from TransportOrder t where t.id = :id")
+    Optional<TransportOrder> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from TransportOrder t where t.id = :id and t.createdBy.company.id = :companyId")
+    Optional<TransportOrder> findByIdAndCreatedByCompanyIdForUpdate(@Param("id") Long id, @Param("companyId") Long companyId);
+
     Optional<TransportOrder> findByOrderNumber(String orderNumber);
 
+    @EntityGraph(attributePaths = {
+            "sourceWarehouse", "sourceWarehouse.timezone", "sourceWarehouse.company", "sourceWarehouse.company.timezone",
+            "destinationWarehouse", "destinationWarehouse.timezone", "destinationWarehouse.company", "destinationWarehouse.company.timezone",
+            "vehicle", "vehicle.vehicleModel", "vehicle.vehicleModel.brand",
+            "assignedEmployee", "assignedEmployee.user", "assignedEmployee.timezone", "assignedEmployee.company", "assignedEmployee.company.timezone", "assignedEmployee.primaryWarehouse", "assignedEmployee.primaryWarehouse.timezone",
+            "createdBy", "createdBy.company", "createdBy.company.timezone"
+    })
     Optional<TransportOrder> findByIdAndCreatedBy_Company_Id(Long id, Long companyId);
+
+    @EntityGraph(attributePaths = {
+            "sourceWarehouse", "sourceWarehouse.timezone", "sourceWarehouse.company", "sourceWarehouse.company.timezone",
+            "destinationWarehouse", "destinationWarehouse.timezone", "destinationWarehouse.company", "destinationWarehouse.company.timezone",
+            "vehicle", "vehicle.vehicleModel", "vehicle.vehicleModel.brand",
+            "assignedEmployee", "assignedEmployee.user", "assignedEmployee.timezone", "assignedEmployee.company", "assignedEmployee.company.timezone", "assignedEmployee.primaryWarehouse", "assignedEmployee.primaryWarehouse.timezone",
+            "createdBy", "createdBy.company", "createdBy.company.timezone"
+    })
+    @Query("select t from TransportOrder t where t.id = :id")
+    Optional<TransportOrder> findByIdWithDetails(@Param("id") Long id);
 
     List<TransportOrder> findAllByCreatedBy_Company_Id(Long companyId);
 
@@ -157,11 +186,130 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     long countByCreatedBy_Company_IdAndStatusIn(Long companyId, Collection<TransportOrderStatus> statuses);
 
+
+    long countByStatusIn(Collection<TransportOrderStatus> statuses);
+
+    long countByPlannedArrivalTimeBeforeAndStatusIn(LocalDateTime now, Collection<TransportOrderStatus> statuses);
+
+    long countByCreatedBy_Company_IdAndPlannedArrivalTimeBeforeAndStatusIn(Long companyId, LocalDateTime now, Collection<TransportOrderStatus> statuses);
+
+
+    long countByAssignedEmployee_User_IdAndStatusIn(Long userId, Collection<TransportOrderStatus> statuses);
+
+    long countByAssignedEmployee_User_IdAndPlannedArrivalTimeBeforeAndStatusIn(Long userId, LocalDateTime now, Collection<TransportOrderStatus> statuses);
+
+    @Query("""
+            select count(t)
+            from TransportOrder t
+            where (:companyId is null or t.createdBy.company.id = :companyId)
+            and t.status in :statuses
+            and (
+                (t.updatedAt is not null and t.updatedAt < :threshold)
+                or (t.updatedAt is null and t.createdAt is not null and t.createdAt < :threshold)
+            )
+            """)
+    long countStuckOperationalTransports(@Param("companyId") Long companyId, @Param("statuses") Collection<TransportOrderStatus> statuses, @Param("threshold") LocalDateTime threshold);
+
+    @Query("""
+            select t
+            from TransportOrder t
+            where (:companyId is null or t.createdBy.company.id = :companyId)
+            and t.status in :statuses
+            and t.plannedArrivalTime is not null
+            order by t.plannedArrivalTime asc
+            """)
+    List<TransportOrder> findTopOperationalTransports(@Param("companyId") Long companyId, @Param("statuses") Collection<TransportOrderStatus> statuses, Pageable pageable);
+
+
+    @Query("""
+            select t
+            from TransportOrder t
+            where t.assignedEmployee.user.id = :userId
+            and t.status in :statuses
+            and t.plannedArrivalTime is not null
+            order by t.plannedArrivalTime asc
+            """)
+    List<TransportOrder> findTopOperationalTransportsForDriver(@Param("userId") Long userId, @Param("statuses") Collection<TransportOrderStatus> statuses, Pageable pageable);
+
+    @Query("""
+            select t
+            from TransportOrder t
+            where t.createdBy.company.id = :companyId
+            and t.status in :statuses
+            and t.plannedArrivalTime is not null
+            and (t.sourceWarehouse.id in :warehouseIds or t.destinationWarehouse.id in :warehouseIds)
+            order by t.plannedArrivalTime asc
+            """)
+    List<TransportOrder> findTopOperationalTransportsForWarehouses(@Param("companyId") Long companyId, @Param("warehouseIds") Collection<Long> warehouseIds, @Param("statuses") Collection<TransportOrderStatus> statuses, Pageable pageable);
+
+
+    @Query("""
+            select count(t)
+            from TransportOrder t
+            where t.createdBy.company.id = :companyId
+            and t.status in :statuses
+            and (t.sourceWarehouse.id in :warehouseIds or t.destinationWarehouse.id in :warehouseIds)
+            """)
+    long countByCompanyIdAndStatusInAndWarehouseIds(@Param("companyId") Long companyId, @Param("statuses") Collection<TransportOrderStatus> statuses, @Param("warehouseIds") Collection<Long> warehouseIds);
+
     @Query("select t.status, count(t) from TransportOrder t where t.createdBy.company.id = :companyId group by t.status")
     List<Object[]> countGroupedByStatusAndCompanyId(@Param("companyId") Long companyId);
 
+
     @Query("""
-        select distinct t
+            select count(t)
+            from TransportOrder t
+            where t.assignedEmployee.user.id = :userId
+            and t.status in :statuses
+            and (
+                (t.updatedAt is not null and t.updatedAt < :threshold)
+                or (t.updatedAt is null and t.createdAt is not null and t.createdAt < :threshold)
+            )
+            """)
+    long countStuckOperationalTransportsForDriver(@Param("userId") Long userId, @Param("statuses") Collection<TransportOrderStatus> statuses, @Param("threshold") LocalDateTime threshold);
+
+    @Query("""
+            select count(t)
+            from TransportOrder t
+            where t.createdBy.company.id = :companyId
+            and t.status in :statuses
+            and (t.sourceWarehouse.id in :warehouseIds or t.destinationWarehouse.id in :warehouseIds)
+            and (
+                (t.updatedAt is not null and t.updatedAt < :threshold)
+                or (t.updatedAt is null and t.createdAt is not null and t.createdAt < :threshold)
+            )
+            """)
+    long countStuckOperationalTransportsForWarehouses(@Param("companyId") Long companyId, @Param("warehouseIds") Collection<Long> warehouseIds, @Param("statuses") Collection<TransportOrderStatus> statuses, @Param("threshold") LocalDateTime threshold);
+
+    @Query("""
+            select count(t)
+            from TransportOrder t
+            where t.createdBy.company.id = :companyId
+            and t.status in :statuses
+            and t.plannedArrivalTime < :now
+            and (t.sourceWarehouse.id in :warehouseIds or t.destinationWarehouse.id in :warehouseIds)
+            """)
+    long countByCompanyIdAndWarehouseIdsAndPlannedArrivalTimeBeforeAndStatusIn(@Param("companyId") Long companyId, @Param("warehouseIds") Collection<Long> warehouseIds, @Param("now") LocalDateTime now, @Param("statuses") Collection<TransportOrderStatus> statuses);
+
+    @Query("""
+            select t.status, count(t)
+            from TransportOrder t
+            where t.assignedEmployee.user.id = :userId
+            group by t.status
+            """)
+    List<Object[]> countGroupedByStatusAndAssignedUserId(@Param("userId") Long userId);
+
+    @Query("""
+            select t.status, count(t)
+            from TransportOrder t
+            where t.createdBy.company.id = :companyId
+            and (t.sourceWarehouse.id in :warehouseIds or t.destinationWarehouse.id in :warehouseIds)
+            group by t.status
+            """)
+    List<Object[]> countGroupedByStatusAndCompanyIdAndWarehouseIds(@Param("companyId") Long companyId, @Param("warehouseIds") Collection<Long> warehouseIds);
+
+    @Query("""
+        select t
         from TransportOrder t
         left join t.sourceWarehouse sourceWarehouse
         left join t.destinationWarehouse destinationWarehouse
@@ -195,6 +343,13 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             or lower(assignedEmployee.email) like lower(concat('%', :search, '%'))
         )
     """)
+    @EntityGraph(attributePaths = {
+            "sourceWarehouse", "sourceWarehouse.timezone", "sourceWarehouse.company",
+            "destinationWarehouse", "destinationWarehouse.timezone", "destinationWarehouse.company",
+            "vehicle", "vehicle.vehicleModel", "vehicle.vehicleModel.brand",
+            "assignedEmployee", "assignedEmployee.user", "assignedEmployee.timezone", "assignedEmployee.company", "assignedEmployee.primaryWarehouse", "assignedEmployee.primaryWarehouse.timezone",
+            "createdBy", "createdBy.company"
+    })
     Page<TransportOrder> searchTransportOrders(
             @Param("companyId") Long companyId,
             @Param("driverUserId") Long driverUserId,
@@ -217,5 +372,100 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
         and v.company.id = :companyId
     """)
     boolean existsVehicleInCompany(@Param("vehicleId") Long vehicleId, @Param("companyId") Long companyId);
+
+    @Query("""
+        select t.status, count(t)
+        from TransportOrder t
+        left join t.sourceWarehouse sourceWarehouse
+        left join t.destinationWarehouse destinationWarehouse
+        left join t.vehicle vehicle
+        left join t.assignedEmployee assignedEmployee
+        left join assignedEmployee.user assignedUser
+        where (:companyId is null or t.createdBy.company.id = :companyId)
+        and (:driverUserId is null or assignedUser.id = :driverUserId)
+        and (:priority is null or t.priority = :priority)
+        and (:sourceWarehouseId is null or sourceWarehouse.id = :sourceWarehouseId)
+        and (:destinationWarehouseId is null or destinationWarehouse.id = :destinationWarehouseId)
+        and (:vehicleId is null or vehicle.id = :vehicleId)
+        and (:assignedEmployeeId is null or assignedEmployee.id = :assignedEmployeeId)
+        and (:fromDate is null or t.departureTime >= :fromDate)
+        and (:toDate is null or t.departureTime <= :toDate)
+        and (
+            :search is null
+            or lower(t.orderNumber) like lower(concat('%', :search, '%'))
+            or lower(t.description) like lower(concat('%', :search, '%'))
+            or lower(coalesce(t.notes, '')) like lower(concat('%', :search, '%'))
+            or lower(sourceWarehouse.name) like lower(concat('%', :search, '%'))
+            or lower(sourceWarehouse.city.name) like lower(concat('%', :search, '%'))
+            or lower(destinationWarehouse.name) like lower(concat('%', :search, '%'))
+            or lower(destinationWarehouse.city.name) like lower(concat('%', :search, '%'))
+            or lower(vehicle.registrationNumber) like lower(concat('%', :search, '%'))
+            or lower(vehicle.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
+            or lower(vehicle.vehicleModel.name) like lower(concat('%', :search, '%'))
+            or lower(assignedEmployee.firstName) like lower(concat('%', :search, '%'))
+            or lower(assignedEmployee.lastName) like lower(concat('%', :search, '%'))
+            or lower(assignedEmployee.email) like lower(concat('%', :search, '%'))
+        )
+        group by t.status
+    """)
+    List<Object[]> countGroupedByStatusFiltered(
+            @Param("companyId") Long companyId,
+            @Param("driverUserId") Long driverUserId,
+            @Param("priority") PriorityLevel priority,
+            @Param("sourceWarehouseId") Long sourceWarehouseId,
+            @Param("destinationWarehouseId") Long destinationWarehouseId,
+            @Param("vehicleId") Long vehicleId,
+            @Param("assignedEmployeeId") Long assignedEmployeeId,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("search") String search
+    );
+
+
+    @Query("""
+            select count(t)
+            from TransportOrder t
+            where t.createdBy.company.id = :companyId
+            and (t.assignedEmployee is null or t.vehicle is null)
+            """)
+    long countUnassignedByCompanyId(@Param("companyId") Long companyId);
+
+    @Query("""
+            select count(distinct t.assignedEmployee.id)
+            from TransportOrder t
+            where t.createdBy.company.id = :companyId
+            and t.assignedEmployee is not null
+            and t.status in :statuses
+            """)
+    long countDistinctAssignedDriversByCompanyIdAndStatusIn(@Param("companyId") Long companyId, @Param("statuses") Collection<TransportOrderStatus> statuses);
+
+    @Query("""
+            select t
+            from TransportOrder t
+            left join fetch t.sourceWarehouse
+            left join fetch t.destinationWarehouse
+            left join fetch t.vehicle
+            left join fetch t.assignedEmployee assignedEmployee
+            where t.createdBy.company.id = :companyId
+            order by t.createdAt desc
+            """)
+    List<TransportOrder> findRecentByCompanyId(@Param("companyId") Long companyId, Pageable pageable);
+
+    long countByPlannedArrivalTimeBetweenAndStatusIn(LocalDateTime start, LocalDateTime end, Collection<TransportOrderStatus> statuses);
+
+    long countByCreatedBy_Company_IdAndPlannedArrivalTimeBetweenAndStatusIn(Long companyId, LocalDateTime start, LocalDateTime end, Collection<TransportOrderStatus> statuses);
+
+    long countByAssignedEmployee_User_IdAndPlannedArrivalTimeBetweenAndStatusIn(Long userId, LocalDateTime start, LocalDateTime end, Collection<TransportOrderStatus> statuses);
+
+    @Query("""
+            select count(t)
+            from TransportOrder t
+            where t.createdBy.company.id = :companyId
+            and t.status in :statuses
+            and t.plannedArrivalTime >= :start
+            and t.plannedArrivalTime <= :end
+            and (t.sourceWarehouse.id in :warehouseIds or t.destinationWarehouse.id in :warehouseIds)
+            """)
+    long countByCompanyIdAndWarehouseIdsAndPlannedArrivalTimeBetweenAndStatusIn(@Param("companyId") Long companyId, @Param("warehouseIds") Collection<Long> warehouseIds, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end, @Param("statuses") Collection<TransportOrderStatus> statuses);
 
 }

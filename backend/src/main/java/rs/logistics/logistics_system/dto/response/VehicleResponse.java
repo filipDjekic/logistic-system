@@ -15,6 +15,7 @@ import rs.logistics.logistics_system.enums.VehicleType;
 public class VehicleResponse {
 
     private Long id;
+    private Long version;
     private String registrationNumber;
 
     private Long vehicleBrandId;

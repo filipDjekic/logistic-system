@@ -23,6 +23,7 @@ public class WarehouseZoneCreate {
     private String name;
     @NotNull
     private WarehouseZoneType type;
+    @Positive
     private BigDecimal capacity;
     @Size(max = 500)
     private String description;

@@ -11,6 +11,39 @@ export type BinInventoryResponse = {
   binLocationId: number; binLocationCode: string; binLocationName: string; warehouseId: number; warehouseName: string; zoneId: number; zoneCode: string; productId: number; productName: string; sku: string; quantity: number; lastUpdated: string | null;
 };
 export type InternalWarehouseMovementResponse = {
-  id: number; warehouseId: number; warehouseName: string; productId: number; productName: string; sku: string; sourceBinId: number; sourceBinCode: string; destinationBinId: number; destinationBinCode: string; quantity: number; status: InternalWarehouseMovementStatus; note: string | null; createdById: number | null; createdByEmail: string | null; createdAt: string;
+  id: number; warehouseId: number; warehouseName: string; productId: number; productName: string; sku: string; sourceBinId: number; sourceBinCode: string; sourceBinZoneId: number; destinationBinId: number; destinationBinCode: string; destinationBinZoneId: number; quantity: number; status: InternalWarehouseMovementStatus; note: string | null; createdById: number | null; createdByEmail: string | null; createdAt: string;
 };
 export type PageResponse<T> = { content: T[]; totalElements: number; totalPages: number; size: number; number: number; numberOfElements: number; first: boolean; last: boolean; empty: boolean };
+
+
+export type WarehouseZoneCreate = {
+  warehouseId: number;
+  code: string;
+  name: string;
+  type: WarehouseZoneType;
+  capacity?: number | null;
+  description?: string | null;
+};
+
+export type BinLocationCreate = {
+  warehouseId: number;
+  zoneId: number;
+  code: string;
+  name: string;
+  capacity?: number | null;
+  description?: string | null;
+};
+
+export type BinInventoryCreate = {
+  binLocationId: number;
+  productId: number;
+  quantity: number;
+};
+
+export type InternalWarehouseMovementCreate = {
+  sourceBinId: number;
+  destinationBinId: number;
+  productId: number;
+  quantity: number;
+  note?: string | null;
+};

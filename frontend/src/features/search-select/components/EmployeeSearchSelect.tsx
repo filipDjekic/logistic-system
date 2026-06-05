@@ -16,6 +16,8 @@ export type EmployeeSearchSelectProps = {
   helperText?: string;
   companyId?: number;
   disabled?: boolean;
+  availableFrom?: string;
+  availableTo?: string;
 };
 
 const employeeColumns: SearchSelectColumn<EmployeeResponse>[] = [
@@ -67,6 +69,8 @@ export function EmployeeSearchSelect({
   helperText,
   companyId,
   disabled = false,
+  availableFrom,
+  availableTo,
 }: EmployeeSearchSelectProps) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>(
@@ -79,6 +83,8 @@ export function EmployeeSearchSelect({
     search: debouncedSearch,
     position,
     active: activeFilter,
+    availableFrom,
+    availableTo,
     size: 10,
     sort: 'lastName,asc',
   }, !disabled);
@@ -108,7 +114,7 @@ export function EmployeeSearchSelect({
         getSelectDisabled={(employee) => disabledEmployeeIds.includes(employee.id)}
         loading={!disabled && employeesQuery.isFetching}
         error={!disabled && employeesQuery.error ? getErrorMessage(employeesQuery.error) : null}
-        emptyMessage={disabled ? "Select required context before searching employees." : "No employees found."}
+        emptyMessage={disabled ? "Select required context before searching employees." : availableFrom && availableTo ? "No scheduled employees found for the selected time." : "No employees found."}
       />
       {helperText ? (
         <Typography variant="caption" color="text.secondary">

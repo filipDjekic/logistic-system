@@ -3,6 +3,7 @@ import type {
   ActivityTimelineItem,
   OperationalAttachment,
   OperationalAttachmentCreate,
+  OperationalAttachmentUpload,
   OperationalComment,
   OperationalCommentCreate,
   OperationalEntityType,
@@ -39,5 +40,26 @@ export const activityTimelineApi = {
 
   createAttachment(payload: OperationalAttachmentCreate) {
     return apiClient.post<OperationalAttachment>('/api/operational-attachments', payload).then((response) => response.data);
+  },
+
+  uploadAttachment(payload: OperationalAttachmentUpload) {
+    const formData = new FormData();
+    formData.append('entityType', payload.entityType);
+    formData.append('entityId', String(payload.entityId));
+    formData.append('file', payload.file);
+
+    if (payload.description?.trim()) {
+      formData.append('description', payload.description.trim());
+    }
+
+    if (payload.companyId != null) {
+      formData.append('companyId', String(payload.companyId));
+    }
+
+    return apiClient
+      .post<OperationalAttachment>('/api/operational-attachments/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((response) => response.data);
   },
 };

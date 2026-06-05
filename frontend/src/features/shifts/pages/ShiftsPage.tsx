@@ -129,6 +129,8 @@ export default function ShiftsPage() {
                 setSelectedShift(shift);
                 setDialogOpen(true);
               }}
+              onCancel={(shift) => saveShiftMutation.mutate({ mode: 'cancel', id: shift.id })}
+              cancelLoading={saveShiftMutation.isPending}
               showEmployeeColumn
               showActions
               emptyTitle="No shifts found"
@@ -150,6 +152,7 @@ export default function ShiftsPage() {
         initialData={selectedShift}
         employees={employeesQuery.data ?? []}
         loading={saveShiftMutation.isPending}
+        serverError={saveShiftMutation.error}
         onClose={() => setDialogOpen(false)}
         onSubmit={(values) => {
           if (dialogMode === 'create') {
@@ -158,11 +161,12 @@ export default function ShiftsPage() {
               data: {
                 startTime: values.startTime,
                 endTime: values.endTime,
-                status: 'PLANNED',
-                notes: values.notes,
+                notes: values.notes.trim(),
+                timezoneId: Number(values.timezoneId),
                 employeeId: Number(values.employeeId),
+                warehouseId: values.warehouseId ? Number(values.warehouseId) : null,
               },
-            });
+            }, { onSuccess: () => setDialogOpen(false) });
             return;
           }
 
@@ -176,10 +180,11 @@ export default function ShiftsPage() {
             data: {
               startTime: values.startTime,
               endTime: values.endTime,
-              status: values.status,
-              notes: values.notes,
+              notes: values.notes.trim(),
+              timezoneId: Number(values.timezoneId),
+              warehouseId: values.warehouseId ? Number(values.warehouseId) : null,
             },
-          });
+          }, { onSuccess: () => setDialogOpen(false) });
         }}
       />
     </Stack>

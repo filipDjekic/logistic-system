@@ -24,7 +24,6 @@ export type ShiftCreateRequest = {
   endTime: string;
   startTimeView?: TemporalView | null;
   endTimeView?: TemporalView | null;
-  status: ShiftStatus;
   notes: string;
   timezoneId: number;
   timezoneName?: string | null;
@@ -36,12 +35,10 @@ export type ShiftCreateRequest = {
 };
 
 export type ShiftUpdateRequest = {
-  id?: number;
   startTime: string;
   endTime: string;
   startTimeView?: TemporalView | null;
   endTimeView?: TemporalView | null;
-  status: ShiftStatus;
   notes?: string;
   timezoneId: number;
   timezoneName?: string | null;
@@ -67,7 +64,6 @@ export type ShiftFormValues = {
   endTime: string;
   startTimeView?: TemporalView | null;
   endTimeView?: TemporalView | null;
-  status: ShiftStatus;
   notes: string;
   timezoneId?: number | '';
   employeeId: number | '';

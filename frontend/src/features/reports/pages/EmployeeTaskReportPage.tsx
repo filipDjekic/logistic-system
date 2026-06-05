@@ -11,8 +11,10 @@ import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import { EntityLookupField, type LookupOption } from '../../lookup';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
+import { ChartCard, recordToChartData } from '../../../shared/components/Charts';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 import {
   employeeTaskReportsApi,
@@ -23,10 +25,20 @@ import {
   type TaskReportRowResponse,
 } from '../api/reportsApi';
 import ReportDataTable from '../components/ReportDataTable';
+import ReportOperationsPanel, { type ReportExportFormat } from '../components/ReportOperationsPanel';
 
 const positionOptions = ['ALL', 'OVERLORD', 'COMPANY_ADMIN', 'HR_MANAGER', 'DISPATCHER', 'DRIVER', 'WAREHOUSE_MANAGER', 'WORKER'] as const;
 const taskStatusOptions = ['ALL', 'NEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
 const taskPriorityOptions = ['ALL', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
+
+type EmployeeTaskReportSavedState = {
+  fromDate: string;
+  toDate: string;
+  selectedEmployee: LookupOption | null;
+  position: (typeof positionOptions)[number];
+  taskStatus: (typeof taskStatusOptions)[number];
+  taskPriority: (typeof taskPriorityOptions)[number];
+};
 
 function toDateTimeStartParam(value: string) {
   return value ? `${value}T00:00:00` : undefined;
@@ -48,16 +60,51 @@ function formatDate(value: string | null | undefined) {
 export default function EmployeeTaskReportPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState<LookupOption | null>(null);
   const [position, setPosition] = useState<(typeof positionOptions)[number]>('ALL');
   const [taskStatus, setTaskStatus] = useState<(typeof taskStatusOptions)[number]>('ALL');
   const [taskPriority, setTaskPriority] = useState<(typeof taskPriorityOptions)[number]>('ALL');
   const [exportingEmployeeTaskReport, setExportingEmployeeTaskReport] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ReportExportFormat>('CSV');
+
+
+  const savedState: EmployeeTaskReportSavedState = {
+    fromDate,
+    toDate,
+    selectedEmployee,
+    position,
+    taskStatus,
+    taskPriority,
+  };
+
+  const savedStateSummary = [
+    fromDate ? `from ${fromDate}` : null,
+    toDate ? `to ${toDate}` : null,
+    selectedEmployee ? `employee ${selectedEmployee.label}` : null,
+    position !== 'ALL' ? `position ${position}` : null,
+    taskStatus !== 'ALL' ? `task status ${taskStatus}` : null,
+    taskPriority !== 'ALL' ? `priority ${taskPriority}` : null,
+  ].filter(Boolean).join(' · ') || 'All employee/task records';
+
+  function applySavedState(state: EmployeeTaskReportSavedState) {
+    setFromDate(state.fromDate);
+    setToDate(state.toDate);
+    setSelectedEmployee(state.selectedEmployee);
+    setPosition(state.position);
+    setTaskStatus(state.taskStatus);
+    setTaskPriority(state.taskPriority);
+  }
+
+  const reportPresets = [
+    { id: 'overdue', label: 'Overdue workload', description: 'Open overdue work.', apply: () => { setTaskStatus('IN_PROGRESS'); setTaskPriority('ALL'); } },
+    { id: 'urgent', label: 'Urgent tasks', description: 'Urgent employee workload.', apply: () => { setTaskStatus('ALL'); setTaskPriority('URGENT'); } },
+    { id: 'workers', label: 'Workers', description: 'Warehouse worker scope.', apply: () => { setPosition('WORKER'); setTaskStatus('ALL'); } },
+  ];
 
   const filters: EmployeeTaskReportFilters = {
     fromDate: toDateTimeStartParam(fromDate),
     toDate: toDateTimeEndParam(toDate),
-    employeeId: employeeId ? Number(employeeId) : undefined,
+    employeeId: selectedEmployee?.id,
     position,
     taskStatus,
     taskPriority,
@@ -112,11 +159,15 @@ export default function EmployeeTaskReportPage() {
     { id: 'endTime', header: 'End', minWidth: 190, nowrap: true, render: (row) => formatDate(row.endTime) },
   ], []);
 
-  async function handleExportCsv() {
+  async function handleExportReport() {
     setExportingEmployeeTaskReport(true);
     try {
-      const data = await employeeTaskReportsApi.exportEmployeeTaskReport(filters);
-      downloadFile({ data, fileName: 'employee-task-report.csv', mimeType: 'text/csv;charset=utf-8' });
+      const data = await employeeTaskReportsApi.exportEmployeeTaskReport(filters, exportFormat);
+      downloadFile({
+        data,
+        fileName: `employee-task-report.${exportFormat === 'CSV' ? 'csv' : 'xlsx'}`,
+        mimeType: exportFormat === 'CSV' ? 'text/csv;charset=utf-8' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
     } finally {
       setExportingEmployeeTaskReport(false);
     }
@@ -125,7 +176,7 @@ export default function EmployeeTaskReportPage() {
   function resetFilters() {
     setFromDate('');
     setToDate('');
-    setEmployeeId('');
+    setSelectedEmployee(null);
     setPosition('ALL');
     setTaskStatus('ALL');
     setTaskPriority('ALL');
@@ -142,7 +193,7 @@ export default function EmployeeTaskReportPage() {
           <FilterPanel>
             <TextField type="date" size="small" label="From date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
             <TextField type="date" size="small" label="To date" value={toDate} onChange={(event) => setToDate(event.target.value)} InputLabelProps={{ shrink: true }} />
-            <TextField size="small" label="Employee ID" value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} sx={{ minWidth: 150 }} />
+            <EntityLookupField label="Employee" entityType="employees" value={selectedEmployee} onChange={setSelectedEmployee} />
             <TextField select size="small" label="Position" value={position} onChange={(event) => setPosition(event.target.value as (typeof positionOptions)[number])} sx={{ minWidth: 190 }}>
               {positionOptions.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
             </TextField>
@@ -153,10 +204,28 @@ export default function EmployeeTaskReportPage() {
               {taskPriorityOptions.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
             </TextField>
             <Button variant="outlined" onClick={resetFilters}>Reset</Button>
-            <Button variant="contained" onClick={() => void handleExportCsv()} disabled={exportingEmployeeTaskReport}>{exportingEmployeeTaskReport ? 'Exporting...' : 'Export CSV'}</Button>
+            <Button variant="contained" onClick={() => void handleExportReport()} disabled={exportingEmployeeTaskReport}>{exportingEmployeeTaskReport ? 'Exporting...' : `Export ${exportFormat}`}</Button>
           </FilterPanel>
         }
         table={null}
+      />
+
+
+
+      <ReportOperationsPanel<EmployeeTaskReportSavedState>
+        storageKey="reports.employeeTasks.savedFilters"
+        currentState={savedState}
+        currentSummary={savedStateSummary}
+        presets={reportPresets}
+        snapshots={report ? [
+          { label: 'Employees', value: formatNumber(report.employeesTotal), severity: 'info' },
+          { label: 'Open tasks', value: formatNumber(report.openTasks), severity: report.openTasks > 0 ? 'warning' : 'success' },
+          { label: 'Overdue', value: formatNumber(report.overdueOpenTasks), severity: report.overdueOpenTasks > 0 ? 'error' : 'success' },
+          { label: 'Shift coverage', value: `${formatNumber(report.shiftCoverageRate)}%`, severity: 'default' },
+        ] : []}
+        exportFormat={exportFormat}
+        onExportFormatChange={setExportFormat}
+        onApplySavedFilter={applySavedState}
       />
 
       {reportQuery.isLoading ? <InlineLoader message="Loading employee/task report..." size={22} /> : null}
@@ -169,6 +238,13 @@ export default function EmployeeTaskReportPage() {
             <StatCard title="Tasks" value={formatNumber(report.tasksTotal)} subtitle={`${formatNumber(report.taskCompletionRate)}% completed`} icon={<AssignmentRoundedIcon fontSize="small" />} accent="info" />
             <StatCard title="Overdue open tasks" value={formatNumber(report.overdueOpenTasks)} subtitle={`${formatNumber(report.overdueOpenTaskRate)}% of open tasks`} icon={<ReportProblemRoundedIcon fontSize="small" />} accent="warning" />
             <StatCard title="Shift coverage" value={`${formatNumber(report.shiftCoverageRate)}%`} subtitle={`${formatNumber(report.averageTasksPerActiveEmployee)} tasks / active employee`} icon={<EventNoteRoundedIcon fontSize="small" />} accent="success" />
+          </Box>
+
+          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' } }}>
+            <ChartCard title="Tasks by status" description="Task lifecycle distribution in the selected report scope." data={recordToChartData(report.tasksByStatus)} kind="donut" />
+            <ChartCard title="Tasks by priority" description="Priority distribution for selected tasks." data={recordToChartData(report.tasksByPriority)} kind="bar" />
+            <ChartCard title="Tasks by employee" description="Top assignees by task load." data={report.tasksByAssignee.slice(0, 10).map((item) => ({ key: String(item.employeeId), label: item.employeeName, value: item.tasksTotal, secondaryValue: item.completedTasks }))} kind="bar" />
+            <ChartCard title="Employees by position" description="Employee distribution by position in the selected scope." data={recordToChartData(report.employeesByPosition)} kind="donut" />
           </Box>
 
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', xl: 'repeat(3, minmax(0, 1fr))' } }}>

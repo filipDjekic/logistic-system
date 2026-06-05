@@ -15,6 +15,7 @@ import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.DomainEventRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
+import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 
 import java.util.List;
 
@@ -26,6 +27,7 @@ public class DomainEventService implements DomainEventServiceDefinition {
     private final DomainEventRepository domainEventRepository;
     private final CompanyRepository companyRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final OperationalEntityAccessValidator operationalEntityAccessValidator;
 
     @Override
     @Transactional
@@ -41,7 +43,8 @@ public class DomainEventService implements DomainEventServiceDefinition {
         }
 
         User actor = authenticatedUserProvider.getAuthenticatedUser();
-        Company company = resolveCompany(companyId, actor);
+        operationalEntityAccessValidator.ensureCanAccess(entityType, entityId);
+        Company company = resolveCompany(companyId, actor, entityType, entityId);
 
         DomainEvent event = new DomainEvent();
         event.setEventType(eventType);
@@ -57,6 +60,7 @@ public class DomainEventService implements DomainEventServiceDefinition {
 
     @Override
     public List<DomainEventResponse> getForEntity(OperationalEntityType entityType, Long entityId) {
+        operationalEntityAccessValidator.ensureCanAccess(entityType, entityId);
         List<DomainEvent> events = authenticatedUserProvider.isOverlord()
                 ? domainEventRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(entityType, entityId)
                 : domainEventRepository.findByEntityTypeAndEntityIdAndCompany_IdOrderByCreatedAtDesc(entityType, entityId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
@@ -71,19 +75,26 @@ public class DomainEventService implements DomainEventServiceDefinition {
         return events.stream().map(this::toResponse).toList();
     }
 
-    private Company resolveCompany(Long requestedCompanyId, User actor) {
+    private Company resolveCompany(Long requestedCompanyId, User actor, OperationalEntityType entityType, Long entityId) {
+        Long entityCompanyId = operationalEntityAccessValidator.resolveEntityCompanyId(entityType, entityId);
+
         if (authenticatedUserProvider.isOverlord()) {
-            if (requestedCompanyId == null) {
+            Long targetCompanyId = requestedCompanyId != null ? requestedCompanyId : entityCompanyId;
+            if (targetCompanyId == null) {
                 return null;
             }
-            return companyRepository.findById(requestedCompanyId).orElseThrow(() -> new BadRequestException("Company not found"));
+            return companyRepository.findById(targetCompanyId).orElseThrow(() -> new BadRequestException("Company not found"));
         }
+
         Company company = actor.getCompany();
         if (company == null || company.getId() == null) {
             throw new BadRequestException("Authenticated user is not assigned to a company");
         }
         if (requestedCompanyId != null && !requestedCompanyId.equals(company.getId())) {
             throw new BadRequestException("Cannot create event outside authenticated company");
+        }
+        if (entityCompanyId != null && !entityCompanyId.equals(company.getId())) {
+            throw new BadRequestException("Cannot create event for entity outside authenticated company");
         }
         return company;
     }

@@ -13,8 +13,6 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ActivityLogUpdate {
 
-    public Long id;
-
     @NotBlank
     @Size(min = 1, max = 100)
     private String action;
@@ -35,12 +33,4 @@ public class ActivityLogUpdate {
     @Positive
     private Long userId;
 
-    public ActivityLogUpdate(Long id, String action, String entityName, Long entityId, String description, Long userId) {
-        this.id = id;
-        this.action = action;
-        this.entityName = entityName;
-        this.entityId = entityId;
-        this.description = description;
-        this.userId = userId;
-    }
 }

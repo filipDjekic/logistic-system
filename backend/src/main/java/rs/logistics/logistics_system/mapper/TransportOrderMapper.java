@@ -79,7 +79,8 @@ public class TransportOrderMapper {
                 transportOrder.getCreatedBy().getId()
         );
 
-        response.setAllowedNextStatuses(transportOrder.getStatus() != null ? transportOrder.getStatus().defaultNextStatuses() : List.of());
+        response.setVersion(transportOrder.getVersion());
+        response.setAllowedNextStatuses(List.of());
 
         if (timeService != null) {
             ZoneId sourceZone = timeService.zoneIdForTransportSource(transportOrder);
@@ -110,7 +111,7 @@ public class TransportOrderMapper {
                 TransportOrderStatus.DELIVERED
         );
 
-        TransportOrderStatus current = normalizeInitialStatus(transportOrder.getStatus());
+        TransportOrderStatus current = transportOrder.getStatus();
         int currentIndex = flow.indexOf(current);
         List<TransportTimelineEntry> entries = new ArrayList<>();
         for (int i = 0; i < flow.size(); i++) {
@@ -121,7 +122,7 @@ public class TransportOrderMapper {
                     status,
                     labelForStatus(status),
                     descriptionForStatus(status),
-                    current.isTerminal() ? terminalCompleted(status, current) : currentIndex >= 0 && i < currentIndex,
+                    isTerminal(current) ? terminalCompleted(status, current) : currentIndex >= 0 && i < currentIndex,
                     status == current,
                     timestamp,
                     timeService != null && zone != null ? toTemporalView(timestamp, zone, timeService) : null
@@ -145,8 +146,10 @@ public class TransportOrderMapper {
         return entries;
     }
 
-    private static TransportOrderStatus normalizeInitialStatus(TransportOrderStatus status) {
-        return status == TransportOrderStatus.CREATED ? TransportOrderStatus.DRAFT : status;
+    private static boolean isTerminal(TransportOrderStatus status) {
+        return status == TransportOrderStatus.DELIVERED
+                || status == TransportOrderStatus.FAILED
+                || status == TransportOrderStatus.CANCELLED;
     }
 
     private static boolean terminalCompleted(TransportOrderStatus status, TransportOrderStatus current) {
@@ -154,7 +157,7 @@ public class TransportOrderMapper {
     }
 
     private static LocalDateTime timestampForStatus(TransportOrder transportOrder, TransportOrderStatus status) {
-        if (status == TransportOrderStatus.DRAFT || status == TransportOrderStatus.CREATED || status == TransportOrderStatus.ASSIGNED) {
+        if (status == TransportOrderStatus.DRAFT || status == TransportOrderStatus.ASSIGNED) {
             return transportOrder.getOrderDate();
         }
         if (status == TransportOrderStatus.IN_TRANSIT || status == TransportOrderStatus.RETURNING) {
@@ -175,7 +178,7 @@ public class TransportOrderMapper {
 
     private static String labelForStatus(TransportOrderStatus status) {
         return switch (status) {
-            case DRAFT, CREATED -> "Draft";
+            case DRAFT -> "Draft";
             case ASSIGNED -> "Assigned";
             case PICKING -> "Picking";
             case PACKING -> "Packing";
@@ -192,7 +195,7 @@ public class TransportOrderMapper {
 
     private static String descriptionForStatus(TransportOrderStatus status) {
         return switch (status) {
-            case DRAFT, CREATED -> "Transport created and waiting for assignment confirmation.";
+            case DRAFT -> "Transport created and waiting for assignment confirmation.";
             case ASSIGNED -> "Driver, vehicle and reserved inventory are locked for this transport.";
             case PICKING -> "Warehouse team is preparing reserved goods.";
             case PACKING -> "Reserved goods are being packed for dispatch.";

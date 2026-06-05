@@ -7,6 +7,8 @@ import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCrad';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
+import DashboardAlerts from './DashboardAlerts';
+import DashboardCharts from './DashboardCharts';
 import type { CompanyAdminDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -98,6 +100,10 @@ export default function CompanyAdminDashboardPanel({ data }: Props) {
         ]}
       />
 
+      <DashboardAlerts alerts={data.alerts} />
+
+      <DashboardCharts charts={data.charts} />
+
       <Box
         sx={{
           display: 'grid',
@@ -111,7 +117,6 @@ export default function CompanyAdminDashboardPanel({ data }: Props) {
               Transport orders: {formatNumber(data.transportOrdersTotal)}
             </Typography>
             <Typography variant="body2">
-              Created: {formatNumber(data.transportOrdersByStatus.CREATED ?? 0)}
             </Typography>
             <Typography variant="body2">
               Assigned: {formatNumber(data.transportOrdersByStatus.ASSIGNED ?? 0)}

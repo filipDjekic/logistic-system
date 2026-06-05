@@ -27,4 +27,6 @@ public class StockReturnCreate {
     private Long warehouseId;
     @NotNull @Positive
     private Long productId;
+    @Positive
+    private Long binLocationId;
 }

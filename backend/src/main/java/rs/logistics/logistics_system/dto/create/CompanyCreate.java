@@ -20,10 +20,12 @@ public class CompanyCreate {
     private String name;
 
     @NotNull
+    @Positive
     private Long countryId;
 
 
     @NotNull
+    @Positive
     private Long timezoneId;
 
     @Size(max = 200, message = "Address must be at most 200 characters")

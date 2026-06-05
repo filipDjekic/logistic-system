@@ -20,8 +20,10 @@ public class InternalWarehouseMovementResponse {
     private String sku;
     private Long sourceBinId;
     private String sourceBinCode;
+    private Long sourceBinZoneId;
     private Long destinationBinId;
     private String destinationBinCode;
+    private Long destinationBinZoneId;
     private BigDecimal quantity;
     private InternalWarehouseMovementStatus status;
     private String note;

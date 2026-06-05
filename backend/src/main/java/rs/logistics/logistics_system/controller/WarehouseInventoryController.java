@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.WarehouseInventoryCreate;
 import rs.logistics.logistics_system.dto.create.StockReservationCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.response.WarehouseInventoryResponse;
 import rs.logistics.logistics_system.dto.update.WarehouseInventoryUpdate;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
@@ -54,6 +55,17 @@ public class WarehouseInventoryController {
     public ResponseEntity<WarehouseInventoryResponse> releaseReservation(@Valid @RequestBody StockReservationCreate dto) {
         return ResponseEntity.ok(warehouseInventoryService.releaseReservedStock(dto));
     }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @GetMapping("/status-counts")
+    public ResponseEntity<List<StatusCountResponse>> countByStatus(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long productId
+    ) {
+        return ResponseEntity.ok(warehouseInventoryService.countByStatus(search, warehouseId, productId));
+    }
+
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
     public ResponseEntity<PageResponse<WarehouseInventoryResponse>> search(

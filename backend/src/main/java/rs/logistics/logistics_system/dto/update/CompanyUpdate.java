@@ -22,10 +22,12 @@ public class CompanyUpdate {
     private Boolean active;
 
     @NotNull
+    @Positive
     private Long countryId;
 
 
     @NotNull
+    @Positive
     private Long timezoneId;
 
     @Size(max = 200, message = "Address must be at most 200 characters")

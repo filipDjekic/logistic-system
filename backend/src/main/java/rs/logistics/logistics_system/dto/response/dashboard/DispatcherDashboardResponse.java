@@ -25,7 +25,9 @@ public record DispatcherDashboardResponse(
         Map<String, Long> dispatcherTasksByStatus,
         List<RecentTransportOrderResponse> recentTransportOrders,
         List<AvailableVehicleResponse> availableVehicleCandidates,
-        List<AvailableDriverResponse> availableDriverCandidates
+        List<AvailableDriverResponse> availableDriverCandidates,
+        List<DashboardChartResponse> charts,
+        List<DashboardAlertResponse> alerts
 ) {
     public record RecentTransportOrderResponse(
             Long id,

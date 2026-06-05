@@ -20,19 +20,19 @@ public class OperationalCommentController {
 
     private final OperationalCommentServiceDefinition commentService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @PostMapping
     public ResponseEntity<OperationalCommentResponse> create(@Valid @RequestBody OperationalCommentCreate dto) {
         return new ResponseEntity<>(commentService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<List<OperationalCommentResponse>> getForEntity(@RequestParam OperationalEntityType entityType, @RequestParam Long entityId) {
         return ResponseEntity.ok(commentService.getForEntity(entityType, entityId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         commentService.delete(id);

@@ -1,7 +1,5 @@
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -10,15 +8,20 @@ import {
   Typography,
 } from '@mui/material';
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import Form from '../../../shared/components/Form/Form';
-import FormSelect from '../../../shared/components/Form/FormSelect';
+import BusinessRuleWarnings, { type BusinessRuleWarning } from '../../../shared/components/BusinessRuleWarnings';
+import { EntityLookupField } from '../../lookup';
 import type {
   InventoryFormValues,
   InventoryProductOption,
   InventoryWarehouseOption,
   InventoryListRow,
 } from '../types/inventory.types';
+import { inventoryFormSchema } from '../validation/inventorySchema';
 
 type Props = {
   open: boolean;
@@ -27,6 +30,7 @@ type Props = {
   warehouses: InventoryWarehouseOption[];
   products: InventoryProductOption[];
   loading?: boolean;
+  serverError?: unknown;
   onClose: () => void;
   onSubmit: (values: InventoryFormValues) => void;
 };
@@ -45,13 +49,23 @@ export default function InventoryFormDialog({
   warehouses,
   products,
   loading = false,
+  serverError = null,
   onClose,
   onSubmit,
 }: Props) {
-  const { control, formState, handleSubmit, reset } = useForm<InventoryFormValues>({
+  const { control, formState, handleSubmit, reset, setError } = useForm<InventoryFormValues>({
+    resolver: zodResolver(inventoryFormSchema),
     defaultValues,
     mode: 'onChange',
   });
+
+  useEffect(() => {
+    if (!open || !serverError) {
+      return;
+    }
+
+    applyServerFieldErrors(serverError, setError);
+  }, [open, serverError, setError]);
 
   useEffect(() => {
     if (!open) {
@@ -71,7 +85,41 @@ export default function InventoryFormDialog({
     reset(defaultValues);
   }, [initialData, mode, open, reset]);
 
-  const disableSubmit = loading || !formState.isValid;
+  const warehouseId = useWatch({ control, name: 'warehouseId' });
+  const productId = useWatch({ control, name: 'productId' });
+  const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === Number(warehouseId));
+  const selectedProduct = products.find((product) => product.id === Number(productId));
+
+  const quantity = Number(useWatch({ control, name: 'quantity' }));
+  const minStockLevel = Number(useWatch({ control, name: 'minStockLevel' }));
+  const businessWarnings: BusinessRuleWarning[] = [];
+
+  if (selectedWarehouse && selectedWarehouse.status !== 'ACTIVE') {
+    businessWarnings.push({
+      key: 'warehouse-status',
+      severity: selectedWarehouse.status === 'FULL' ? 'warning' : 'error',
+      message: `Selected warehouse is ${selectedWarehouse.status}. Inventory records should normally be created or edited only for active warehouses.`,
+    });
+  }
+
+  if (selectedWarehouse && Number.isFinite(quantity) && quantity > Number(selectedWarehouse.capacity)) {
+    businessWarnings.push({
+      key: 'quantity-capacity',
+      severity: 'error',
+      message: `Quantity exceeds warehouse capacity (${selectedWarehouse.capacity}).`,
+    });
+  }
+
+  if (Number.isFinite(quantity) && Number.isFinite(minStockLevel) && quantity < minStockLevel) {
+    businessWarnings.push({
+      key: 'low-stock-at-create',
+      severity: 'warning',
+      message: 'Current quantity is below the configured minimum stock level. This record will immediately be treated as low stock.',
+    });
+  }
+
+  const blockingWarning = businessWarnings.some((warning) => warning.severity === 'error');
+  const disableSubmit = loading || !formState.isValid || blockingWarning;
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
@@ -91,34 +139,53 @@ export default function InventoryFormDialog({
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
+              <Controller
                 name="warehouseId"
                 control={control}
-                label="Warehouse"
-                required
-                disabled={mode === 'edit'}
                 rules={{ required: 'Warehouse is required' }}
-                helperText={mode === 'edit' ? 'Warehouse cannot be changed after record creation.' : undefined}
-                options={warehouses.map((warehouse) => ({
-                  value: warehouse.id,
-                  label: `${warehouse.name} (${warehouse.city})`,
-                }))}
+                render={({ field, fieldState }) => (
+                  <EntityLookupField
+                    label="Warehouse"
+                    entityType="warehouses"
+                    required
+                    disabled={mode === 'edit'}
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedWarehouse?.name ?? `Warehouse #${field.value}`,
+                      subtitle: selectedWarehouse?.city ?? undefined,
+                      status: selectedWarehouse?.status ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? '')}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message ?? (mode === 'edit' ? 'Warehouse cannot be changed after record creation.' : undefined)}
+                    searchPlaceholder="Search warehouses..."
+                  />
+                )}
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
+              <Controller
                 name="productId"
                 control={control}
-                label="Product"
-                required
-                disabled={mode === 'edit'}
                 rules={{ required: 'Product is required' }}
-                helperText={mode === 'edit' ? 'Product cannot be changed after record creation.' : undefined}
-                options={products.map((product) => ({
-                  value: product.id,
-                  label: `${product.name} (${product.sku})`,
-                }))}
+                render={({ field, fieldState }) => (
+                  <EntityLookupField
+                    label="Product"
+                    entityType="products"
+                    required
+                    disabled={mode === 'edit'}
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedProduct?.name ?? `Product #${field.value}`,
+                      subtitle: selectedProduct?.sku ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? '')}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message ?? (mode === 'edit' ? 'Product cannot be changed after record creation.' : undefined)}
+                    searchPlaceholder="Search products..."
+                  />
+                )}
               />
             </Grid>
           </Grid>
@@ -160,18 +227,22 @@ export default function InventoryFormDialog({
               />
             </Grid>
           </Grid>
+
+          <BusinessRuleWarnings warnings={businessWarnings} />
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} color="inherit" disabled={loading}>
-          Cancel
-        </Button>
-
-        <Button variant="contained" onClick={handleSubmit(onSubmit)} disabled={disableSubmit}>
-          {mode === 'create' ? 'Create record' : 'Save changes'}
-        </Button>
-      </DialogActions>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel={mode === 'create' ? 'Create record' : 'Save changes'}
+          submittingLabel={mode === 'create' ? 'Creating record...' : 'Saving changes...'}
+          helperText="Warehouse, product and stock levels must be valid before saving."
+          loading={loading}
+          submitDisabled={disableSubmit}
+          onCancel={onClose}
+          onSubmit={handleSubmit(onSubmit)}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

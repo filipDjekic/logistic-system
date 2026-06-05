@@ -39,7 +39,7 @@ public class VehicleMapper {
     public static VehicleResponse toResponse(Vehicle vehicle) {
         VehicleModel vehicleModel = vehicle.getVehicleModel();
 
-        return new VehicleResponse(
+        VehicleResponse response = new VehicleResponse(
                 vehicle.getId(),
                 vehicle.getRegistrationNumber(),
                 vehicleModel != null && vehicleModel.getBrand() != null ? vehicleModel.getBrand().getId() : null,
@@ -59,5 +59,7 @@ public class VehicleMapper {
                 vehicle.getCompany() != null ? vehicle.getCompany().getName() : null,
                 vehicle.getStatus() == rs.logistics.logistics_system.enums.VehicleStatus.MAINTENANCE
         );
+        response.setVersion(vehicle.getVersion());
+        return response;
     }
 }

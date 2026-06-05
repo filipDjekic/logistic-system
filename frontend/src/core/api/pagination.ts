@@ -25,7 +25,7 @@ export type SortState = {
   direction: SortDirection;
 };
 
-export const DEFAULT_PAGE_SIZE = appConfig.pagination.defaultPageSize;
+export const DEFAULT_PAGE_SIZE: number = appConfig.pagination.defaultPageSize;
 
 export function buildSortParam(sort: SortState) {
   return `${sort.field},${sort.direction}`;

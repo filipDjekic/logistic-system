@@ -11,6 +11,11 @@ import type {
   StockReservationRequest,
 } from '../types/inventory.types';
 
+export type StatusCountResponse = {
+  status: string;
+  count: number;
+};
+
 function buildInventoryParams(filters: InventoryFiltersState & PageParams) {
   return {
     search: filters.search?.trim() || undefined,
@@ -28,6 +33,19 @@ export const inventoryApi = {
     return apiClient
       .get<PageResponse<WarehouseInventoryResponse>>('/api/warehouse-inventory', {
         params: buildInventoryParams(filters),
+      })
+      .then((response) => response.data);
+  },
+
+
+  getStatusCounts(filters: InventoryFiltersState) {
+    return apiClient
+      .get<StatusCountResponse[]>('/api/warehouse-inventory/status-counts', {
+        params: {
+          search: filters.search?.trim() || undefined,
+          warehouseId: filters.warehouseId === 'ALL' ? undefined : filters.warehouseId,
+          productId: filters.productId === 'ALL' ? undefined : filters.productId,
+        },
       })
       .then((response) => response.data);
   },

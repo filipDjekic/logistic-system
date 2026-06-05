@@ -16,6 +16,7 @@ import java.util.List;
 public class TransportOrderResponse {
 
     private Long id;
+    private Long version;
 
     private String orderNumber;
     private String description;

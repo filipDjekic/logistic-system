@@ -3,6 +3,7 @@ package rs.logistics.logistics_system.dto.create;
 import java.math.BigDecimal;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -19,7 +20,7 @@ import rs.logistics.logistics_system.enums.VehicleType;
 public class VehicleCreate {
 
     @Size(max = 20, message = "Registration number must be at most 20 characters")
-    @NotNull(message = "Registration number is required")
+    @NotBlank(message = "Registration number is required")
     private String registrationNumber;
 
     @NotNull(message = "Vehicle model is required")

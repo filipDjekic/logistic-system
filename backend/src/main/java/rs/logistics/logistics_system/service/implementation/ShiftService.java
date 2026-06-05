@@ -304,12 +304,10 @@ public class ShiftService implements ShiftServiceDefinition {
     @Override
     @Transactional
     public void synchronizeShiftStatuses() {
-        List<Shift> shiftsToActivate = _shiftRepository.findByStatus(ShiftStatus.PLANNED);
-        for (Shift shift : shiftsToActivate) {
-            if (shift.getStartTime().isAfter(nowForShift(shift))) {
-                continue;
-            }
+        LocalDateTime now = timeService.nowSystem();
 
+        List<Shift> shiftsToActivate = _shiftRepository.findPlannedShiftsToActivate(now);
+        for (Shift shift : shiftsToActivate) {
             ShiftStatus oldStatus = shift.getStatus();
             shift.setStatus(ShiftStatus.ACTIVE);
             Shift saved = _shiftRepository.save(shift);
@@ -331,12 +329,8 @@ public class ShiftService implements ShiftServiceDefinition {
             );
         }
 
-        List<Shift> shiftsToFinish = _shiftRepository.findByStatus(ShiftStatus.ACTIVE);
+        List<Shift> shiftsToFinish = _shiftRepository.findActiveShiftsToFinish(now);
         for (Shift shift : shiftsToFinish) {
-            if (shift.getEndTime().isAfter(nowForShift(shift))) {
-                continue;
-            }
-
             ShiftStatus oldStatus = shift.getStatus();
             shift.setStatus(ShiftStatus.FINISHED);
             Shift saved = _shiftRepository.save(shift);
@@ -363,7 +357,7 @@ public class ShiftService implements ShiftServiceDefinition {
             return;
         }
 
-        notificationService.createSystemNotification(
+        notificationService.createInternalSystemNotification(
                 employee.getUser().getId(),
                 title,
                 message,

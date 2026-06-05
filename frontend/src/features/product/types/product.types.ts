@@ -30,7 +30,7 @@ export type ProductCreateRequest = {
   companyId?: number;
 };
 
-export type ProductUpdateRequest = ProductCreateRequest;
+export type ProductUpdateRequest = Omit<ProductCreateRequest, 'companyId'>;
 
 export type ProductFormValues = {
   name: string;

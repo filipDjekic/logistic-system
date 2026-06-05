@@ -1,21 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Grid, Stack, Typography } from '@mui/material';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuthStore } from '../../../core/auth/authStore';
-import { ROLES } from '../../../core/constants/roles';
 import FormTextField from '../../../shared/components/Form/Form';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import FormSection from '../../../shared/components/Form/FormSection';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import PageLoader from '../../../shared/components/Loader/PageLoader';
 import { EmployeeSearchSelect, LinkedProcessSearchSelect } from '../../search-select';
 import type { LinkedProcessSelection } from '../../search-select';
+import type { LookupOption } from '../../lookup';
 import { useCreateTask } from '../hooks/useCreateTask';
 import { useTask } from '../hooks/useTask';
 import { useUpdateTask } from '../hooks/useUpdateTask';
 import type { TaskFormValues } from '../types/task.types';
+import { taskSchema } from '../validation/taskSchema';
 
 const defaultValues: TaskFormValues = {
   title: '',
@@ -35,14 +40,13 @@ type Props = {
 export default function TaskFormPage({ mode }: Props) {
   const navigate = useNavigate();
   const params = useParams();
-  const auth = useAuthStore();
   const taskId = mode === 'edit' ? Number(params.id) : null;
   const taskQuery = useTask(taskId);
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
-  const isWarehouseManager = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
-  const { control, handleSubmit, reset, setValue, formState } = useForm<TaskFormValues>({
+  const { control, handleSubmit, reset, setValue, setError, formState } = useForm<TaskFormValues>({
+    resolver: zodResolver(taskSchema) as never,
     defaultValues,
     mode: 'onChange',
   });
@@ -50,7 +54,9 @@ export default function TaskFormPage({ mode }: Props) {
   const assignedEmployeeId = useWatch({ control, name: 'assignedEmployeeId' });
   const transportOrderId = useWatch({ control, name: 'transportOrderId' });
   const stockMovementId = useWatch({ control, name: 'stockMovementId' });
+  const dueDate = useWatch({ control, name: 'dueDate' });
 
+  const [selectedEmployee, setSelectedEmployee] = useState<LookupOption | null>(null);
   const [linkedProcess, setLinkedProcess] = useState<LinkedProcessSelection>({
     type: 'UNLINKED',
     id: null,
@@ -72,6 +78,8 @@ export default function TaskFormPage({ mode }: Props) {
       stockMovementId: taskQuery.data.stockMovementId ?? '',
     });
 
+    setSelectedEmployee({ id: taskQuery.data.assignedEmployeeId, label: `Employee #${taskQuery.data.assignedEmployeeId}` });
+
     if (taskQuery.data.transportOrderId != null) {
       setLinkedProcess({ type: 'TRANSPORT_ORDER', id: taskQuery.data.transportOrderId });
       return;
@@ -84,6 +92,20 @@ export default function TaskFormPage({ mode }: Props) {
 
     setLinkedProcess({ type: 'UNLINKED', id: null });
   }, [mode, reset, taskQuery.data]);
+
+
+  useEffect(() => {
+    const error = createTask.error ?? updateTask.error;
+    if (!error) {
+      return;
+    }
+
+    applyServerFieldErrors(error, setError);
+  }, [createTask.error, setError, updateTask.error]);
+
+  useEffect(() => {
+    setValue('assignedEmployeeId', selectedEmployee?.id ?? '', { shouldDirty: true, shouldValidate: true });
+  }, [selectedEmployee, setValue]);
 
   useEffect(() => {
     if (linkedProcess.type === 'TRANSPORT_ORDER') {
@@ -102,7 +124,6 @@ export default function TaskFormPage({ mode }: Props) {
     setValue('stockMovementId', '');
   }, [linkedProcess, setValue]);
 
-  const selectedEmployeeId = assignedEmployeeId === '' ? null : Number(assignedEmployeeId);
 
   const canSubmit = useMemo(() => {
     if (!formState.isValid || assignedEmployeeId === '') {
@@ -141,9 +162,10 @@ export default function TaskFormPage({ mode }: Props) {
 
       <SectionCard title="Task data" description="Define basic task fields, assignment and optional linked process.">
         <Stack spacing={3}>
+          <FormSection title="Basic information" description="Define what has to be done and when it is due.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormTextField name="title" control={control} label="Title" required rules={{ required: 'Title is required' }} />
+              <FormTextField name="title" control={control} label="Title" required />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
@@ -152,7 +174,6 @@ export default function TaskFormPage({ mode }: Props) {
                 control={control}
                 label="Priority"
                 required
-                rules={{ required: 'Priority is required' }}
                 options={[
                   { value: 'LOW', label: 'Low' },
                   { value: 'MEDIUM', label: 'Medium' },
@@ -171,7 +192,6 @@ export default function TaskFormPage({ mode }: Props) {
                 control={control}
                 label="Task type"
                 required
-                rules={{ required: 'Task type is required' }}
                 options={[
                   { value: 'ADMIN', label: 'Admin' },
                   { value: 'PICKING', label: 'Picking' },
@@ -188,59 +208,66 @@ export default function TaskFormPage({ mode }: Props) {
 
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormDatePicker name="dueDate" control={control} label="Due date" required rules={{ required: 'Due date is required' }} />
+              <FormDatePicker name="dueDate" control={control} label="Due date" required />
             </Grid>
           </Grid>
+          </FormSection>
 
+          <FormSection title="Assignment" description="Select the employee responsible for execution.">
           <EmployeeSearchSelect
             title="Assigned employee"
-            value={selectedEmployeeId}
+            value={selectedEmployee?.id ?? null}
+            onSelect={(employee) => setSelectedEmployee({ id: employee.id, label: `${employee.firstName} ${employee.lastName}` })}
             active
-            position={isWarehouseManager ? undefined : undefined}
-            onSelect={(employee) => setValue('assignedEmployeeId', employee.id, { shouldDirty: true, shouldValidate: true })}
-            helperText="Search by employee name, email, status or position, then select the responsible employee."
+            disabled={!dueDate || isSaving}
+            availableFrom={dueDate || undefined}
+            availableTo={dueDate || undefined}
+            helperText={dueDate ? 'Only employees with a planned or active shift covering the selected due date are shown.' : 'Select due date first so the system can show scheduled employees.'}
           />
+          </FormSection>
 
+          <FormSection title="Linked process" description="Optionally connect the task to a transport order or stock movement.">
           <LinkedProcessSearchSelect value={linkedProcess} onChange={setLinkedProcess} />
+          </FormSection>
 
-          <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-            <Button variant="outlined" onClick={() => navigate('/tasks')} disabled={isSaving}>
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              disabled={!canSubmit || isSaving}
-              onClick={handleSubmit((values) => {
-                const payload = {
-                  title: values.title,
-                  description: values.description || undefined,
-                  dueDate: values.dueDate,
-                  priority: values.priority,
-                  taskType: values.taskType,
-                  assignedEmployeeId: Number(values.assignedEmployeeId),
-                  transportOrderId: values.transportOrderId === '' ? null : Number(values.transportOrderId),
-                  stockMovementId: values.stockMovementId === '' ? null : Number(values.stockMovementId),
-                };
+          <FormGlobalError error={createTask.error ?? updateTask.error} />
 
-                if (mode === 'create') {
-                  createTask.mutate(payload, {
-                    onSuccess: (created) => navigate(`/tasks/${created.id}`),
-                  });
-                  return;
-                }
+          <FormActions
+            cancelLabel="Cancel"
+            submitLabel={mode === 'create' ? 'Create task' : 'Save changes'}
+            submittingLabel={mode === 'create' ? 'Creating task...' : 'Saving changes...'}
+            helperText="Assignment and linked process rules must be valid before saving."
+            loading={isSaving}
+            submitDisabled={!canSubmit}
+            onCancel={() => navigate('/tasks')}
+            onSubmit={handleSubmit((values) => {
+              const payload = {
+                title: values.title.trim(),
+                description: values.description?.trim() || undefined,
+                dueDate: values.dueDate,
+                priority: values.priority,
+                taskType: values.taskType,
+                assignedEmployeeId: Number(values.assignedEmployeeId),
+                transportOrderId: values.transportOrderId === '' ? null : Number(values.transportOrderId),
+                stockMovementId: values.stockMovementId === '' ? null : Number(values.stockMovementId),
+              };
 
-                if (!taskId) {
-                  return;
-                }
-
-                updateTask.mutate({ id: taskId, data: payload }, {
-                  onSuccess: (updated) => navigate(`/tasks/${updated.id}`),
+              if (mode === 'create') {
+                createTask.mutate(payload, {
+                  onSuccess: (created) => navigate(`/tasks/${created.id}`),
                 });
-              })}
-            >
-              {mode === 'create' ? 'Create task' : 'Save changes'}
-            </Button>
-          </Stack>
+                return;
+              }
+
+              if (!taskId) {
+                return;
+              }
+
+              updateTask.mutate({ id: taskId, data: payload }, {
+                onSuccess: (updated) => navigate(`/tasks/${updated.id}`),
+              });
+            })}
+          />
 
           {linkedProcess.type === 'STOCK_MOVEMENT' ? (
             <Typography variant="body2" color="text.secondary">

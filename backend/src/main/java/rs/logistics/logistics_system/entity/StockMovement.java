@@ -23,7 +23,9 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_stock_movements_reference", columnList = "reference_type, reference_id"),
                 @Index(name = "idx_stock_movements_transfer_group_id", columnList = "transfer_group_id"),
                 @Index(name = "idx_stock_movements_product_created", columnList = "product_id, created_at"),
-                @Index(name = "idx_stock_movements_warehouse_type_created", columnList = "warehouse_id, movement_type, created_at")
+                @Index(name = "idx_stock_movements_warehouse_type_created", columnList = "warehouse_id, movement_type, created_at"),
+                @Index(name = "idx_stock_movements_parent_movement_id", columnList = "parent_movement_id"),
+                @Index(name = "idx_stock_movements_root_movement_id", columnList = "root_movement_id")
         }
 )
 @Getter
@@ -66,6 +68,21 @@ public class StockMovement {
     @Column(name = "transfer_group_id", length = 100)
     private String transferGroupId;
 
+    @Column(name = "source_type", length = 50)
+    private String sourceType;
+
+    @Column(name = "source_id")
+    private Long sourceId;
+
+    @Column(name = "reference_code", length = 120)
+    private String referenceCode;
+
+    @Column(name = "parent_movement_id")
+    private Long parentMovementId;
+
+    @Column(name = "root_movement_id")
+    private Long rootMovementId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "adjustment_direction", length = 20)
     private StockAdjustmentDirection adjustmentDirection;
@@ -107,6 +124,14 @@ public class StockMovement {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "transport_order_id")
     private TransportOrder transportOrder;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "source_bin_id")
+    private BinLocation sourceBin;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "destination_bin_id")
+    private BinLocation destinationBin;
 
     @OneToMany(mappedBy = "stockMovement")
     private java.util.List<Task> tasks;

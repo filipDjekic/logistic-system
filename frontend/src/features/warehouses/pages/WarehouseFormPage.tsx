@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Button, Grid, Stack, TextField, MenuItem } from '@mui/material';
+import { Button, Grid, Stack } from '@mui/material';
 import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import Form from '../../../shared/components/Form/Form';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
+import FormActions from '../../../shared/components/Form/FormActions';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import PageLoader from '../../../shared/components/Loader/PageLoader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -16,6 +20,7 @@ import { EmployeeSearchSelect } from '../../search-select';
 import { useCreateWarehouse, useUpdateWarehouse } from '../hooks/useWarehouses';
 import { useWarehouse } from '../hooks/useWarehouse';
 import type { WarehouseFormValues } from '../types/warehouse.types';
+import { warehouseSchema } from '../validation/warehouseSchema';
 
 const warehouseStatusOptions = [
   { value: 'ACTIVE', label: 'ACTIVE' },
@@ -29,12 +34,14 @@ const defaultValues: WarehouseFormValues = {
   address: '',
   cityId: '',
   city: '',
+  postalCode: '',
   capacity: '',
   status: 'ACTIVE',
   countryId: null,
   timezoneId: '',
   employeeId: '',
   companyId: '',
+  binTrackingEnabled: false,
 };
 
 type Props = {
@@ -54,7 +61,8 @@ export default function WarehouseFormPage({ mode }: Props) {
   const createWarehouse = useCreateWarehouse();
   const updateWarehouse = useUpdateWarehouse();
 
-  const { control, handleSubmit, reset, setValue, formState } = useForm<WarehouseFormValues>({
+  const { control, handleSubmit, reset, setValue, setError, formState } = useForm<WarehouseFormValues>({
+    resolver: zodResolver(warehouseSchema),
     defaultValues,
     mode: 'onChange',
   });
@@ -74,12 +82,14 @@ export default function WarehouseFormPage({ mode }: Props) {
       address: warehouseQuery.data.address,
       cityId: warehouseQuery.data.cityId ?? '',
       city: warehouseQuery.data.cityName ?? warehouseQuery.data.city ?? '',
+      postalCode: warehouseQuery.data.postalCode ?? '',
       capacity: warehouseQuery.data.capacity,
       status: warehouseQuery.data.status,
       employeeId: warehouseQuery.data.employeeId ?? '',
       companyId: warehouseQuery.data.companyId != null ? String(warehouseQuery.data.companyId) : '',
       countryId: warehouseQuery.data.countryId ?? null,
       timezoneId: warehouseQuery.data.timezoneId ?? '',
+      binTrackingEnabled: Boolean(warehouseQuery.data.binTrackingEnabled),
     });
   }, [mode, reset, warehouseQuery.data]);
 
@@ -161,7 +171,7 @@ export default function WarehouseFormPage({ mode }: Props) {
         <Stack spacing={3}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Form name="name" control={control} label="Name" required rules={{ required: 'Name is required', maxLength: { value: 100, message: 'Name must be at most 100 characters' } }} />
+              <Form name="name" control={control} label="Name" required />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
@@ -173,16 +183,19 @@ export default function WarehouseFormPage({ mode }: Props) {
                 required
                 disabled={!countryId || citiesQuery.isLoading || cityOptions.length === 0}
                 helperText={!countryId ? 'Select country first' : undefined}
-                rules={{ required: 'City is required' }}
               />
             </Grid>
 
             <Grid size={{ xs: 12 }}>
-              <Form name="address" control={control} label="Address" required rules={{ required: 'Address is required', maxLength: { value: 200, message: 'Address must be at most 200 characters' } }} />
+              <Form name="address" control={control} label="Address" required />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <Form name="capacity" control={control} label="Capacity" type="number" required rules={{ required: 'Capacity is required', validate: (value) => Number(value) > 0 || 'Capacity must be greater than 0' }} />
+              <Form name="postalCode" control={control} label="Postal code" />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Form name="capacity" control={control} label="Capacity" type="number" required />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
@@ -204,24 +217,20 @@ export default function WarehouseFormPage({ mode }: Props) {
               />
             </Grid>
 
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormCheckbox name="binTrackingEnabled" control={control} label="Enable bin tracking" helperText="When enabled, stock movements must select bins and internal movements become available." />
+            </Grid>
+
             {mode === 'create' && isOverlord ? (
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
+                <FormSelect
+                  name="companyId"
+                  control={control}
                   label="Company"
-                  value={companyId}
-                  onChange={(event) => setValue('companyId', event.target.value, { shouldDirty: true, shouldValidate: true })}
+                  options={(companiesQuery.data ?? []).map((company) => ({ value: String(company.id), label: company.name }))}
                   required
                   disabled={companiesQuery.isLoading}
-                >
-                  {(companiesQuery.data ?? []).map((company) => (
-                    <MenuItem key={company.id} value={String(company.id)}>
-                      {company.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
               </Grid>
             ) : null}
           </Grid>
@@ -237,55 +246,53 @@ export default function WarehouseFormPage({ mode }: Props) {
             disabled={mode === 'create' && isOverlord && !selectedCompanyId}
           />
 
-          <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-            <Button variant="outlined" onClick={() => navigate('/warehouses')} disabled={isSaving}>
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              disabled={!canSubmit || isSaving}
-              onClick={handleSubmit((values) => {
-                if (mode === 'create') {
-                  createWarehouse.mutate({
-                    name: values.name,
-                    address: values.address,
-                    cityId: Number(values.cityId),
-                    city: values.city ?? null,
-                    capacity: Number(values.capacity),
-                    status: values.status,
-                    countryId: values.countryId ? Number(values.countryId) : null,
-                    timezoneId: Number(values.timezoneId),
-                    employeeId: Number(values.employeeId),
-                    companyId: values.companyId ? Number(values.companyId) : undefined,
-                  }, {
-                    onSuccess: (created) => navigate(`/warehouses/${created.id}`),
-                  });
-                  return;
-                }
+          <FormActions
+            cancelLabel="Cancel"
+            submitLabel={mode === 'create' ? 'Create warehouse' : 'Save changes'}
+            submittingLabel={mode === 'create' ? 'Creating warehouse...' : 'Saving changes...'}
+            helperText="Status changes after creation should use lifecycle actions. This form saves master/location data."
+            loading={isSaving}
+            submitDisabled={!canSubmit}
+            onCancel={() => navigate('/warehouses')}
+            onSubmit={handleSubmit((values) => {
+              const basePayload = {
+                name: values.name.trim(),
+                address: values.address.trim(),
+                cityId: Number(values.cityId),
+                city: values.city?.trim() || null,
+                postalCode: values.postalCode?.trim() || null,
+                capacity: Number(values.capacity),
+                countryId: values.countryId ? Number(values.countryId) : null,
+                timezoneId: Number(values.timezoneId),
+                binTrackingEnabled: Boolean(values.binTrackingEnabled),
+              };
 
-                if (!warehouseId) {
-                  return;
-                }
-
-                updateWarehouse.mutate({
-                  id: warehouseId,
-                  data: {
-                    name: values.name,
-                    address: values.address,
-                    cityId: Number(values.cityId),
-                    city: values.city ?? null,
-                    capacity: Number(values.capacity),
-                    countryId: values.countryId ? Number(values.countryId) : null,
-                    timezoneId: Number(values.timezoneId),
-                  },
+              if (mode === 'create') {
+                createWarehouse.mutate({
+                  ...basePayload,
+                  status: values.status,
+                  employeeId: Number(values.employeeId),
+                  companyId: values.companyId ? Number(values.companyId) : undefined,
                 }, {
-                  onSuccess: (updated) => navigate(`/warehouses/${updated.id}`),
+                  onSuccess: (created) => navigate(`/warehouses/${created.id}`),
+                  onError: (error) => { applyServerFieldErrors(error, setError); },
                 });
-              })}
-            >
-              {mode === 'create' ? 'Create warehouse' : 'Save changes'}
-            </Button>
-          </Stack>
+                return;
+              }
+
+              if (!warehouseId) {
+                return;
+              }
+
+              updateWarehouse.mutate({
+                id: warehouseId,
+                data: basePayload,
+              }, {
+                onSuccess: (updated) => navigate(`/warehouses/${updated.id}`),
+                onError: (error) => { applyServerFieldErrors(error, setError); },
+              });
+            })}
+          />
         </Stack>
       </SectionCard>
     </Stack>

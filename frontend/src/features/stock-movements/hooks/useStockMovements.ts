@@ -10,6 +10,7 @@ import type {
   StockAdjustmentRequest,
   StockInboundRequest,
   StockMovementFiltersState,
+  StockMovementResponse,
   StockOutboundRequest,
   StockReturnRequest,
   StockTransferRequest,
@@ -38,7 +39,7 @@ export function useCreateStockOperation() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
-  return useMutation({
+  return useMutation<StockMovementResponse | StockMovementResponse[], Error, StockOperationMutationPayload>({
     mutationFn: (request: StockOperationMutationPayload) => {
       switch (request.type) {
         case 'inbound':

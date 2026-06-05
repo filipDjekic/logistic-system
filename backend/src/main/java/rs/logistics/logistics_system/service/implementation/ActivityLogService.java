@@ -2,7 +2,9 @@ package rs.logistics.logistics_system.service.implementation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
@@ -14,6 +16,7 @@ import rs.logistics.logistics_system.mapper.ActivityLogMapper;
 import rs.logistics.logistics_system.repository.ActivityLogRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.support.PageRequestSanitizer;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 
 import java.time.LocalDateTime;
@@ -42,7 +45,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
     @Override
     public List<ActivityLogResponse> getAll() {
         List<ActivityLog> logs = authenticatedUserProvider.isOverlord()
-                ? _activityLogRepository.findAll()
+                ? _activityLogRepository.findAll(PageRequest.of(0, 100)).getContent()
                 : _activityLogRepository.findAllByUser_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
 
         return logs.stream().map(ActivityLogMapper::toResponse).collect(Collectors.toList());
@@ -60,7 +63,7 @@ public class ActivityLogService implements ActivityLogServiceDefinition {
                 trimToNull(action),
                 trimToNull(entityName),
                 userId,
-                pageable
+                PageRequestSanitizer.sanitize(pageable, Sort.by(Sort.Direction.DESC, "createdAt"))
         );
 
         List<ActivityLogResponse> content = logs.getContent()

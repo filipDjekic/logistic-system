@@ -25,7 +25,9 @@ public record CompanyAdminDashboardResponse(
         long stockMovementsTotal,
         long activityLogsTotal,
         long changeHistoryTotal,
-        List<RecentActivityResponse> recentActivities
+        List<RecentActivityResponse> recentActivities,
+        List<DashboardChartResponse> charts,
+        List<DashboardAlertResponse> alerts
 ) {
     public record RecentActivityResponse(
             Long id,

@@ -30,12 +30,13 @@ import rs.logistics.logistics_system.service.definition.CompanyRegistrationReque
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
+import rs.logistics.logistics_system.service.support.EmployeeEmailGenerator;
 
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.List;
-import java.util.Set;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +47,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     private static final EmployeePosition BOOTSTRAP_ADMIN_POSITION = EmployeePosition.COMPANY_ADMIN;
     private static final BigDecimal BOOTSTRAP_ADMIN_SALARY = BigDecimal.ONE;
     private static final Set<CompanyRegistrationRequestStatus> ACTIVE_REQUEST_STATUSES = Set.of(
-            CompanyRegistrationRequestStatus.SUBMITTED,
+            CompanyRegistrationRequestStatus.PENDING,
             CompanyRegistrationRequestStatus.UNDER_REVIEW
     );
 
@@ -62,6 +63,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     private final CityServiceDefinition cityService;
     private final TimezoneServiceDefinition timezoneService;
     private final TimeServiceDefinition timeService;
+    private final EmployeeEmailGenerator employeeEmailGenerator;
 
     @Override
     @Transactional
@@ -73,7 +75,9 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         }
 
         dto.setCompanyEmail(generateCompanyContactEmail(dto.getCompanyName(), country.getIso2Code()));
-        dto.setAdminEmail(generateEmployeeUserEmail(dto.getAdminFirstName(), dto.getAdminLastName(), dto.getCompanyName(), BOOTSTRAP_ADMIN_POSITION.name(), country.getIso2Code()));
+        Company requestedCompanyPreview = new Company(dto.getCompanyName());
+        requestedCompanyPreview.setCountry(country);
+        dto.setAdminEmail(employeeEmailGenerator.generateUnique(dto.getAdminFirstName(), dto.getAdminLastName(), requestedCompanyPreview, BOOTSTRAP_ADMIN_POSITION, country));
 
         validateSubmitUniqueness(dto);
 
@@ -82,7 +86,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         Timezone timezone = timezoneService.getRequiredForCountry(dto.getTimezoneId(), country.getId());
 
         CompanyRegistrationRequest request = CompanyRegistrationRequestMapper.toEntity(dto, country, city, timezone);
-        request.setStatus(CompanyRegistrationRequestStatus.SUBMITTED);
+        request.setStatus(CompanyRegistrationRequestStatus.PENDING);
         CompanyRegistrationRequest saved = requestRepository.save(request);
         notifyOverlordsAboutNewRegistrationRequest(saved);
 
@@ -159,7 +163,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         CompanyRegistrationRequest saved = requestRepository.save(request);
 
         auditFacade.recordStatusChange("COMPANY_REGISTRATION_REQUEST", saved.getId(), saved.getCompanyName(),
-                "status", CompanyRegistrationRequestStatus.SUBMITTED, CompanyRegistrationRequestStatus.UNDER_REVIEW);
+                "status", CompanyRegistrationRequestStatus.PENDING, CompanyRegistrationRequestStatus.UNDER_REVIEW);
         auditFacade.log("UNDER_REVIEW", "COMPANY_REGISTRATION_REQUEST", saved.getId(), saved.getCompanyName(),
                 "Company registration request moved to review");
 
@@ -190,12 +194,19 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
 
         Role companyAdminRole = roleRepository.findByName(ROLE_COMPANY_ADMIN)
                 .orElseThrow(() -> new ResourceNotFoundException("COMPANY_ADMIN role not found"));
+        String finalAdminEmail = employeeEmailGenerator.generateUnique(
+                request.getAdminFirstName(),
+                request.getAdminLastName(),
+                savedCompany,
+                BOOTSTRAP_ADMIN_POSITION,
+                request.getCountry()
+        );
 
         User adminUser = new User(
                 passwordEncoder.encode(request.getAdminPassword()),
                 request.getAdminFirstName(),
                 request.getAdminLastName(),
-                request.getAdminEmail(),
+                finalAdminEmail,
                 UserStatus.ACTIVE,
                 companyAdminRole
         );
@@ -208,7 +219,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
                 request.getAdminLastName(),
                 request.getAdminJmbg(),
                 request.getAdminPhoneNumber(),
-                request.getAdminEmail(),
+                finalAdminEmail,
                 BOOTSTRAP_ADMIN_POSITION,
                 request.getAdminEmploymentDate(),
                 BOOTSTRAP_ADMIN_SALARY,
@@ -221,6 +232,9 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         adminEmployee.setCity(request.getCity());
         adminEmployee.setTimezone(request.getTimezone());
         adminEmployee.setPhoneCode(request.getCountry() != null ? request.getCountry().getPhoneCode() : null);
+        adminEmployee.setAutoGeneratedEmail(true);
+        adminEmployee.setEmailManuallyOverridden(false);
+        adminEmployee.setEmailGenerationSource(EmployeeEmailGenerator.SOURCE_COMPANY_APPROVAL_ADMIN);
         Employee savedAdminEmployee = employeeRepository.save(adminEmployee);
 
         request.setStatus(CompanyRegistrationRequestStatus.APPROVED);
@@ -237,6 +251,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         auditFacade.log("APPROVE", "COMPANY_REGISTRATION_REQUEST", savedRequest.getId(), savedRequest.getCompanyName(),
                 "Company registration request approved; companyId=" + savedCompany.getId()
                         + ", adminUserId=" + savedAdminUser.getId());
+        notifyCreatedCompanyAdminAboutApproval(savedRequest, savedAdminUser);
 
         return CompanyRegistrationRequestMapper.toResponse(savedRequest);
     }
@@ -256,7 +271,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         auditFacade.recordStatusChange("COMPANY_REGISTRATION_REQUEST", saved.getId(), saved.getCompanyName(),
                 "status", previousStatus, CompanyRegistrationRequestStatus.REJECTED);
         auditFacade.log("REJECT", "COMPANY_REGISTRATION_REQUEST", saved.getId(), saved.getCompanyName(),
-                "Company registration request rejected");
+                "Company registration request rejected: " + saved.getRejectionReason());
 
         return CompanyRegistrationRequestMapper.toResponse(saved);
     }
@@ -281,16 +296,31 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     }
 
     private void ensureSubmitted(CompanyRegistrationRequest request) {
-        if (request.getStatus() != CompanyRegistrationRequestStatus.SUBMITTED) {
-            throw new BadRequestException("Only submitted registration requests can be moved to review");
+        if (request.getStatus() != CompanyRegistrationRequestStatus.PENDING) {
+            throw new BadRequestException("Only pending registration requests can be moved to review");
         }
     }
 
     private void ensureReviewable(CompanyRegistrationRequest request) {
-        if (request.getStatus() != CompanyRegistrationRequestStatus.SUBMITTED
+        if (request.getStatus() != CompanyRegistrationRequestStatus.PENDING
                 && request.getStatus() != CompanyRegistrationRequestStatus.UNDER_REVIEW) {
-            throw new BadRequestException("Only submitted or under-review registration requests can be completed");
+            throw new BadRequestException("Only pending or under-review registration requests can be completed");
         }
+    }
+
+
+    private void notifyCreatedCompanyAdminAboutApproval(CompanyRegistrationRequest request, User adminUser) {
+        notificationService.createOperationalNotification(
+                adminUser.getId(),
+                "Company registration approved",
+                "Your company registration request for " + request.getCompanyName() + " has been approved. You can now sign in as company administrator.",
+                NotificationType.SUCCESS,
+                NotificationSeverity.SUCCESS,
+                NotificationCategory.SECURITY,
+                NotificationSourceType.USER,
+                adminUser.getId(),
+                "company-registration-request-approved-" + request.getId() + "-admin-" + adminUser.getId()
+        );
     }
 
     private void notifyOverlordsAboutNewRegistrationRequest(CompanyRegistrationRequest request) {
@@ -299,7 +329,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
             notificationService.createOperationalNotification(
                     overlord.getId(),
                     "New company registration request",
-                    request.getCompanyName() + " submitted a company registration request and is waiting for review.",
+                    request.getCompanyName() + " created a company registration request and is waiting for review.",
                     NotificationType.INFO,
                     NotificationSeverity.INFO,
                     NotificationCategory.SECURITY,
@@ -345,9 +375,6 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         if (hasText(request.getTaxNumber()) && companyRepository.existsByTaxNumberIgnoreCase(request.getTaxNumber())) {
             throw new ConflictException("Company with this tax number already exists");
         }
-        if (userRepository.existsByEmailIgnoreCase(request.getAdminEmail()) || employeeRepository.existsByEmailIgnoreCase(request.getAdminEmail())) {
-            throw new ConflictException("Admin email already exists");
-        }
     }
 
     private String generateCompanyContactEmail(String companyName, String countryCode) {
@@ -359,40 +386,19 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         return "contact@" + companySlug + "." + countrySlug;
     }
 
-    private String generateEmployeeUserEmail(String firstName, String lastName, String companyName, String roleName, String countryCode) {
-        String firstSlug = normalizeForEmailPart(firstName, false);
-        String lastSlug = normalizeForEmailPart(lastName, false);
-        String companySlug = normalizeForEmailPart(companyName, true);
-        String roleSlug = normalizeForEmailPart(roleName, true);
-        String countrySlug = normalizeForEmailPart(countryCode, true);
-
-        if (firstSlug.isBlank() || lastSlug.isBlank() || companySlug.isBlank() || roleSlug.isBlank() || countrySlug.isBlank()) {
-            throw new BadRequestException("Unable to generate administrator email");
-        }
-
-        String baseLocalPart = firstSlug + "." + lastSlug;
-        String domain = companySlug + "." + roleSlug + "." + countrySlug;
-        String candidate = baseLocalPart + "@" + domain;
-        int suffix = 1;
-
-        while (userRepository.existsByEmailIgnoreCase(candidate) || employeeRepository.existsByEmailIgnoreCase(candidate)) {
-            candidate = baseLocalPart + suffix + "@" + domain;
-            suffix++;
-        }
-
-        return candidate;
-    }
-
     private String normalizeForEmailPart(String value, boolean allowHyphen) {
         String normalized = Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
+                .replace("đ", "dj")
+                .replace("Đ", "dj")
                 .toLowerCase(Locale.ROOT);
-        normalized = normalized.replace("đ", "dj");
         normalized = allowHyphen
                 ? normalized.replaceAll("[^a-z0-9]+", "-")
-                : normalized.replaceAll("[^a-z0-9]+", "");
-        normalized = normalized.replaceAll("^-+|-+$", "");
-        return normalized.length() > 40 ? normalized.substring(0, 40).replaceAll("-+$", "") : normalized;
+                : normalized.replaceAll("[^a-z0-9]+", ".");
+        normalized = normalized
+                .replaceAll("[-.]{2,}", allowHyphen ? "-" : ".")
+                .replaceAll("^[-.]+|[-.]+$", "");
+        return normalized.length() > 40 ? normalized.substring(0, 40).replaceAll("[-.]+$", "") : normalized;
     }
 
     private User resolveCurrentUser() {

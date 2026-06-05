@@ -14,7 +14,9 @@ public record DriverDashboardResponse(
         Map<String, Long> transportTasksByStatus,
         DriverTransportOrderResponse nextTransportOrder,
         List<DriverTransportOrderResponse> activeTransportOrderList,
-        List<DriverTaskResponse> transportTasks
+        List<DriverTaskResponse> transportTasks,
+        List<DashboardChartResponse> charts,
+        List<DashboardAlertResponse> alerts
 ) {
     public record DriverTransportOrderResponse(
             Long id,

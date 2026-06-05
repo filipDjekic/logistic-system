@@ -36,7 +36,14 @@ public class NotificationMapper {
                 notification.getSourceType(),
                 notification.getSourceId(),
                 notification.getDedupKey(),
+                notification.getGroupKey(),
+                notification.getGroupCount(),
+                notification.getLastGroupedAt(),
                 notification.getEscalatedAt(),
+                notification.getAcknowledgedAt(),
+                notification.getResolvedAt(),
+                notification.getActionLabel(),
+                notification.getActionPath(),
                 notification.getUser().getId(),
                 notification.getCreatedAt()
         );

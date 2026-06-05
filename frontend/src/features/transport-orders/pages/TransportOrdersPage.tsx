@@ -14,6 +14,8 @@ import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
 import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
+import { EntityLookupField } from '../../lookup';
+import type { LookupOption } from '../../lookup';
 import { transportOrdersApi } from '../api/transportOrdersApi';
 import TransportOrdersTable from '../components/TransportOrdersTable';
 import { useTransportOrders } from '../hooks/useTransportOrders';
@@ -22,7 +24,7 @@ import type { SortState } from '../../../shared/types/common.types';
 import type { EmployeeOption, TransportOrderFiltersState, VehicleOption, WarehouseOption } from '../types/transportOrder.types';
 import { transportOrderPriorityOptions } from '../validation/transportOrderSchema';
 
-const statusOptions = ['ALL', 'DRAFT', 'CREATED', 'ASSIGNED', 'PICKING', 'PACKING', 'READY_FOR_LOADING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'RETURNING', 'RESCHEDULED', 'CANCELLED'] as const;
+const statusOptions = ['ALL', 'DRAFT', 'ASSIGNED', 'PICKING', 'PACKING', 'READY_FOR_LOADING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'RETURNING', 'RESCHEDULED', 'CANCELLED'] as const;
 
 export default function TransportOrdersPage() {
   const auth = useAuthStore();
@@ -38,11 +40,53 @@ export default function TransportOrdersPage() {
   const canChangeStatus = canManage || currentRole === ROLES.DRIVER;
 
   const [filters, setFilters] = useState<TransportOrderFiltersState>({ search: '', status: 'ALL', priority: 'ALL' });
+  const [sourceWarehouseFilter, setSourceWarehouseFilter] = useState<LookupOption | null>(null);
+  const [destinationWarehouseFilter, setDestinationWarehouseFilter] = useState<LookupOption | null>(null);
+  const [vehicleFilter, setVehicleFilter] = useState<LookupOption | null>(null);
+  const [driverFilter, setDriverFilter] = useState<LookupOption | null>(null);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [sort, setSort] = useState<SortState>({ field: 'createdAt', direction: 'desc' });
 
-  const transportOrdersQuery = useTransportOrders({ ...filters, page, size, sort: buildSortParam(sort) }, true);
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (!statusOptions.includes((status ?? 'ALL') as (typeof statusOptions)[number])) {
+      return;
+    }
+    setFilters((current) => {
+      const nextStatus = (status ?? 'ALL') as TransportOrderFiltersState['status'];
+      if (current.status === nextStatus) {
+        return current;
+      }
+      setPage(0);
+      return { ...current, status: nextStatus };
+    });
+  }, [searchParams]);
+
+  const transportOrderStatusCountParams = {
+    search: filters.search,
+    priority: filters.priority,
+    sourceWarehouseId: sourceWarehouseFilter?.id ?? null,
+    destinationWarehouseId: destinationWarehouseFilter?.id ?? null,
+    vehicleId: vehicleFilter?.id ?? null,
+    assignedEmployeeId: driverFilter?.id ?? null,
+  };
+  const transportOrdersQuery = useTransportOrders({
+    ...filters,
+    sourceWarehouseId: sourceWarehouseFilter?.id ?? null,
+    destinationWarehouseId: destinationWarehouseFilter?.id ?? null,
+    vehicleId: vehicleFilter?.id ?? null,
+    assignedEmployeeId: driverFilter?.id ?? null,
+    page,
+    size,
+    sort: buildSortParam(sort),
+  }, true);
+  const transportStatusCountsQuery = useQuery({
+    queryKey: queryKeys.transportOrders.statusCounts(transportOrderStatusCountParams),
+    queryFn: () => transportOrdersApi.getStatusCounts(transportOrderStatusCountParams),
+    enabled: canReadAll,
+    staleTime: 30_000,
+  });
   const warehousesQuery = useQuery({
     queryKey: queryKeys.transportOrders.warehouses(),
     queryFn: transportOrdersApi.getWarehouses,
@@ -90,8 +134,17 @@ export default function TransportOrdersPage() {
 
   const rows = transportOrdersQuery.data?.content ?? [];
   const statusOverviewItems = useMemo(
-    () => statusOptions.filter((status) => status !== 'ALL').map((status) => ({ value: status, count: rows.filter((row) => row.status === status).length })),
-    [rows],
+    () => {
+      const countsByStatus = new Map((transportStatusCountsQuery.data ?? []).map((item) => [item.status, item.count]));
+
+      return statusOptions
+        .filter((status) => status !== 'ALL')
+        .map((status) => ({
+          value: status,
+          count: countsByStatus.get(status) ?? rows.filter((row) => row.status === status).length,
+        }));
+    },
+    [rows, transportStatusCountsQuery.data],
   );
   const isLookupsLoading = (canResolveWarehouses && warehousesQuery.isLoading) || (canResolveVehicles && vehiclesQuery.isLoading) || (canResolveEmployees && employeesQuery.isLoading);
   const availableVehiclesCount = (vehiclesQuery.data ?? []).filter((vehicle) => vehicle.status === 'AVAILABLE').length;
@@ -121,10 +174,21 @@ export default function TransportOrdersPage() {
     if (canResolveEmployees) void employeesQuery.refetch();
   };
 
-  const hasActiveFilters = filters.search.trim().length > 0 || filters.status !== 'ALL' || filters.priority !== 'ALL';
+  const hasActiveFilters =
+    filters.search.trim().length > 0 ||
+    filters.status !== 'ALL' ||
+    filters.priority !== 'ALL' ||
+    sourceWarehouseFilter !== null ||
+    destinationWarehouseFilter !== null ||
+    vehicleFilter !== null ||
+    driverFilter !== null;
 
   const clearFilters = () => {
     setPage(0);
+    setSourceWarehouseFilter(null);
+    setDestinationWarehouseFilter(null);
+    setVehicleFilter(null);
+    setDriverFilter(null);
     setFilters({ search: '', status: 'ALL', priority: 'ALL' });
   };
 
@@ -163,10 +227,22 @@ export default function TransportOrdersPage() {
                 <MenuItem value="ALL">ALL</MenuItem>
                 {transportOrderPriorityOptions.map((priority) => <MenuItem key={priority} value={priority}>{priority}</MenuItem>)}
               </TextField>
+              {canResolveWarehouses ? (
+                <EntityLookupField label="Source warehouse" entityType="warehouses" value={sourceWarehouseFilter} onChange={(option) => { setPage(0); setSourceWarehouseFilter(option); }} placeholder="All" searchPlaceholder="Search warehouses..." />
+              ) : null}
+              {canResolveWarehouses ? (
+                <EntityLookupField label="Destination warehouse" entityType="warehouses" value={destinationWarehouseFilter} onChange={(option) => { setPage(0); setDestinationWarehouseFilter(option); }} placeholder="All" searchPlaceholder="Search warehouses..." />
+              ) : null}
+              {canResolveVehicles ? (
+                <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicleFilter} onChange={(option) => { setPage(0); setVehicleFilter(option); }} placeholder="All" searchPlaceholder="Search vehicles..." />
+              ) : null}
+              {canResolveEmployees ? (
+                <EntityLookupField label="Driver" entityType="employees" value={driverFilter} onChange={(option) => { setPage(0); setDriverFilter(option); }} placeholder="All" searchPlaceholder="Search drivers..." />
+              ) : null}
             </FilterPanel>
           </>
         }
-        summary={<StatusOverview items={statusOverviewItems} />}
+        summary={<StatusOverview items={statusOverviewItems} title="Filtered result status" />}
         table={
           <TransportOrdersTable
             rows={canReadAll ? rows : []}
@@ -185,7 +261,7 @@ export default function TransportOrdersPage() {
             updatingStatusId={updateTransportOrderStatusMutation.isPending ? updateTransportOrderStatusMutation.variables?.id ?? null : null}
             onStatusChange={(order, status) => {
               if (order.status === status || !canChangeTransportOrderStatus(currentRole, order)) return;
-              updateTransportOrderStatusMutation.mutate({ id: order.id, status });
+              updateTransportOrderStatusMutation.mutate({ id: order.id, status, expectedVersion: order.version });
             }}
             onEdit={(order) => {
               if (!canEditTransportOrder(currentRole, order)) return;

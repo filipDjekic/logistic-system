@@ -69,6 +69,9 @@ public class Warehouse {
     @Column(name = "active", nullable = false)
     private Boolean active;
 
+    @Column(name = "bin_tracking_enabled", nullable = false)
+    private Boolean binTrackingEnabled = false;
+
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
@@ -104,6 +107,7 @@ public class Warehouse {
         this.status = status;
         this.manager = manager;
         this.active = true;
+        this.binTrackingEnabled = false;
     }
 
     public boolean isOperational() {

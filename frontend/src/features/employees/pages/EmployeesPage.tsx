@@ -131,6 +131,37 @@ export default function EmployeesPage() {
     updateUserMutation.isPending;
 
   const rows = employeesQuery.data?.content ?? [];
+  const hasActiveFilters =
+    filters.search.trim().length > 0 ||
+    filters.position !== 'ALL' ||
+    filters.active !== 'ALL' ||
+    filters.linkedUser !== 'ALL';
+
+  const clearFilters = () => {
+    setPage(0);
+    setFilters({
+      search: '',
+      position: 'ALL',
+      active: 'ALL',
+      linkedUser: 'ALL',
+    });
+  };
+
+  const activeFilterChips = [
+    ...(filters.search.trim()
+      ? [{ key: 'search', label: `Search: ${filters.search.trim()}`, onDelete: () => setFilters((prev) => ({ ...prev, search: '' })) }]
+      : []),
+    ...(filters.position !== 'ALL'
+      ? [{ key: 'position', label: `Role: ${filters.position}`, onDelete: () => setFilters((prev) => ({ ...prev, position: 'ALL' })) }]
+      : []),
+    ...(filters.active !== 'ALL'
+      ? [{ key: 'active', label: `Status: ${filters.active}`, onDelete: () => setFilters((prev) => ({ ...prev, active: 'ALL' })) }]
+      : []),
+    ...(filters.linkedUser !== 'ALL'
+      ? [{ key: 'linkedUser', label: `Account: ${filters.linkedUser}`, onDelete: () => setFilters((prev) => ({ ...prev, linkedUser: 'ALL' })) }]
+      : []),
+  ];
+
 
   const employeeMetrics = useMemo(() => {
     const activeEmployees = rows.filter((employee) => employee.active).length;
@@ -188,11 +219,11 @@ export default function EmployeesPage() {
 
       createEmployeeMutation.mutate(
         {
-          firstName: values.firstName,
-          lastName: values.lastName,
-          jmbg: values.jmbg,
-          phoneNumber: values.phoneNumber,
-          email: values.email,
+          firstName: values.firstName.trim(),
+          lastName: values.lastName.trim(),
+          jmbg: values.jmbg.trim(),
+          phoneNumber: values.phoneNumber.trim(),
+          email: values.email.trim(),
           address: values.address?.trim() || null,
           cityId: values.cityId ? Number(values.cityId) : null,
           city: values.city?.trim() || null,
@@ -203,7 +234,7 @@ export default function EmployeesPage() {
           position: values.position,
           employmentDate: values.employmentDate,
           salary: Number(values.salary),
-          password: values.password,
+          password: values.password.trim(),
           roleId: matchedRole.id,
           status: values.status,
           companyId: values.companyId ? Number(values.companyId) : undefined,
@@ -226,15 +257,15 @@ export default function EmployeesPage() {
         {
           id: selectedEmployee.userId,
           data: {
-            firstName: values.firstName,
-            lastName: values.lastName,
-            email: values.email,
+            firstName: values.firstName.trim(),
+            lastName: values.lastName.trim(),
+            email: values.email.trim(),
             roleId: matchedRole.id,
             enabled: values.enabled,
             status: values.status,
             employee: {
-              jmbg: values.jmbg,
-              phoneNumber: values.phoneNumber,
+              jmbg: values.jmbg.trim(),
+              phoneNumber: values.phoneNumber.trim(),
               position: values.position,
               employmentDate: values.employmentDate,
               salary: Number(values.salary),
@@ -255,9 +286,9 @@ export default function EmployeesPage() {
       {
         id: selectedEmployee.id,
         data: {
-          firstName: values.firstName,
-          lastName: values.lastName,
-          jmbg: values.jmbg,
+          firstName: values.firstName.trim(),
+          lastName: values.lastName.trim(),
+          jmbg: values.jmbg.trim(),
           address: values.address?.trim() || null,
           cityId: values.cityId ? Number(values.cityId) : null,
           city: values.city?.trim() || null,
@@ -265,11 +296,12 @@ export default function EmployeesPage() {
           countryId: values.countryId ? Number(values.countryId) : null,
           timezoneId: values.timezoneId ? Number(values.timezoneId) : null,
           primaryWarehouseId: values.primaryWarehouseId ? Number(values.primaryWarehouseId) : null,
-          phoneNumber: values.phoneNumber,
-          email: values.email,
+          phoneNumber: values.phoneNumber.trim(),
+          email: values.email.trim(),
           position: values.position,
           employmentDate: values.employmentDate,
           salary: Number(values.salary),
+          applyGeneratedEmailSuggestion: values.applyGeneratedEmailSuggestion,
         },
       },
       {
@@ -310,7 +342,10 @@ export default function EmployeesPage() {
         toolbar={
           <TableToolbar
             searchValue={filters.search}
-            onSearchChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+            onSearchChange={(value) => {
+              setPage(0);
+              setFilters((prev) => ({ ...prev, search: value }));
+            }}
             searchPlaceholder="Search by name, email, JMBG, phone, role or status"
             onRefresh={() => {
               void Promise.all([
@@ -321,6 +356,9 @@ export default function EmployeesPage() {
               ]);
             }}
             refreshDisabled={employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching}
+            onClearFilters={clearFilters}
+            clearDisabled={employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching || !hasActiveFilters}
+            activeFilters={activeFilterChips}
           />
         }
         filters={
@@ -330,12 +368,13 @@ export default function EmployeesPage() {
               size="small"
               label="Role"
               value={filters.position}
-              onChange={(event) =>
+              onChange={(event) => {
+                setPage(0);
                 setFilters((prev) => ({
                   ...prev,
                   position: event.target.value as EmployeeFiltersState['position'],
-                }))
-              }
+                }));
+              }}
             >
               <MenuItem value="ALL">All</MenuItem>
               {employeePositionOptions.map((position) => (
@@ -347,12 +386,13 @@ export default function EmployeesPage() {
               size="small"
               label="Status"
               value={filters.active}
-              onChange={(event) =>
+              onChange={(event) => {
+                setPage(0);
                 setFilters((prev) => ({
                   ...prev,
                   active: event.target.value as EmployeeFiltersState['active'],
-                }))
-              }
+                }));
+              }}
             >
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="ACTIVE">Active</MenuItem>
@@ -363,12 +403,13 @@ export default function EmployeesPage() {
               size="small"
               label="Account"
               value={filters.linkedUser}
-              onChange={(event) =>
+              onChange={(event) => {
+                setPage(0);
                 setFilters((prev) => ({
                   ...prev,
                   linkedUser: event.target.value as EmployeeFiltersState['linkedUser'],
-                }))
-              }
+                }));
+              }}
             >
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="LINKED">Has account</MenuItem>
@@ -422,6 +463,7 @@ export default function EmployeesPage() {
         companyName={auth.user?.company?.name ?? null}
         isOverlord={isOverlord}
         loading={isSaving}
+        serverError={createEmployeeMutation.error ?? updateEmployeeMutation.error ?? updateUserMutation.error}
         canEdit={canEditEmployees}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}

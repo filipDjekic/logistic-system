@@ -61,6 +61,11 @@ public class StockMovementMapper {
                 stockMovement.getReferenceNumber(),
                 stockMovement.getReferenceNote(),
                 stockMovement.getTransferGroupId(),
+                stockMovement.getSourceType(),
+                stockMovement.getSourceId(),
+                stockMovement.getReferenceCode(),
+                stockMovement.getParentMovementId(),
+                stockMovement.getRootMovementId(),
                 stockMovement.getAdjustmentDirection(),
                 stockMovement.getQuantityBefore(),
                 stockMovement.getQuantityAfter(),
@@ -76,6 +81,12 @@ public class StockMovementMapper {
                 stockMovement.getProduct().getCompany() != null ? stockMovement.getProduct().getCompany().getId() : null,
                 stockMovement.getCreatedBy().getId(),
                 stockMovement.getTransportOrder() != null ? stockMovement.getTransportOrder().getId() : null,
+                stockMovement.getSourceBin() != null ? stockMovement.getSourceBin().getId() : null,
+                stockMovement.getSourceBin() != null ? stockMovement.getSourceBin().getCode() : null,
+                stockMovement.getSourceBin() != null && stockMovement.getSourceBin().getZone() != null ? stockMovement.getSourceBin().getZone().getId() : null,
+                stockMovement.getDestinationBin() != null ? stockMovement.getDestinationBin().getId() : null,
+                stockMovement.getDestinationBin() != null ? stockMovement.getDestinationBin().getCode() : null,
+                stockMovement.getDestinationBin() != null && stockMovement.getDestinationBin().getZone() != null ? stockMovement.getDestinationBin().getZone().getId() : null,
                 stockMovement.getCreatedAt()
         );
     }

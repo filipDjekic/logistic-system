@@ -16,8 +16,6 @@ import rs.logistics.logistics_system.enums.ProductUnit;
 @NoArgsConstructor
 public class ProductUpdate {
 
-    private Long id;
-
     @NotBlank
     @Size(min = 1, max = 100)
     private String name;
@@ -43,22 +41,4 @@ public class ProductUpdate {
     @Positive
     private BigDecimal weight;
 
-    public ProductUpdate(
-            Long id,
-            String name,
-                           String description,
-                           String sku,
-                           ProductUnit unit,
-                           BigDecimal price,
-                           Boolean fragile,
-                           BigDecimal weight) {
-        this.id = id;
-        this.name = name;
-        this.description = description;
-        this.sku = sku;
-        this.unit = unit;
-        this.price = price;
-        this.fragile = fragile;
-        this.weight = weight;
-    }
 }

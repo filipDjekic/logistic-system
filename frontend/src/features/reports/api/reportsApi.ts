@@ -1,5 +1,7 @@
 import { apiClient } from '../../../core/api/client';
 
+export type ReportExportFormat = 'CSV' | 'XLSX';
+
 export type TransportReportFilters = {
   fromDate?: string;
   toDate?: string;
@@ -216,19 +218,19 @@ export const reportsApi = {
       .then((response) => response.data);
   },
 
-  exportTransportReport(filters: TransportReportFilters) {
+  exportTransportReport(filters: TransportReportFilters, format: ReportExportFormat = 'CSV') {
     return apiClient
       .get<Blob>('/api/reports/transport/export', {
-        params: buildTransportReportParams(filters),
+        params: { ...buildTransportReportParams(filters), format },
         responseType: 'blob',
       })
       .then((response) => response.data);
   },
 
-  exportInventoryReport(filters: InventoryReportFilters) {
+  exportInventoryReport(filters: InventoryReportFilters, format: ReportExportFormat = 'CSV') {
     return apiClient
       .get<Blob>('/api/reports/inventory/export', {
-        params: buildInventoryReportParams(filters),
+        params: { ...buildInventoryReportParams(filters), format },
         responseType: 'blob',
       })
       .then((response) => response.data);
@@ -340,10 +342,10 @@ export const employeeTaskReportsApi = {
       .then((response) => response.data);
   },
 
-  exportEmployeeTaskReport(filters: EmployeeTaskReportFilters) {
+  exportEmployeeTaskReport(filters: EmployeeTaskReportFilters, format: ReportExportFormat = 'CSV') {
     return apiClient
       .get<Blob>('/api/reports/employee-tasks/export', {
-        params: buildEmployeeTaskReportParams(filters),
+        params: { ...buildEmployeeTaskReportParams(filters), format },
         responseType: 'blob',
       })
       .then((response) => response.data);

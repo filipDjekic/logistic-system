@@ -88,7 +88,10 @@ export default function StarterPage() {
               <Box component="img" src={logoMini} alt={`${appEnv.appName} logo`} sx={{ width: 36, height: 36, objectFit: 'contain' }} />
               <Box><Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1 }}>{appEnv.appName}</Typography><Typography variant="caption" color="text.secondary">Logistics management system</Typography></Box>
             </Stack>
-            <Button component={RouterLink} to="/login" variant="outlined">Login</Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+               <Button component={RouterLink} to="/login" variant="outlined">Login</Button>
+                <Button component={RouterLink} to="/register-company" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon />}>Register company</Button>
+            </Stack>
           </Stack>
 
           <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 4, md: 6 } }}>
@@ -101,7 +104,6 @@ export default function StarterPage() {
                   </Box>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
                     <Button component={RouterLink} to="/register-company" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon />}>Register company</Button>
-                    <Button component={RouterLink} to="/login" variant="outlined" size="large">Login</Button>
                   </Stack>
                 </Stack>
               </Grid>
@@ -156,8 +158,8 @@ export default function StarterPage() {
           <Box component="footer" sx={{ px: { xs: 2, md: 3 }, py: 3, borderTop: `1px solid ${theme.palette.divider}`, bgcolor: alpha(theme.palette.text.primary, 0.025) }}>
             <Grid container spacing={2} alignItems="center">
               <Grid size={{ xs: 12, md: 7 }}>
-                <Typography fontWeight={800}>NovaRoute Software Solutions d.o.o.</Typography>
-                <Typography variant="body2" color="text.secondary">Bulevar Logistike 24, 11000 Belgrade, Serbia · support@novaroute.local · +381 11 240 0000</Typography>
+                <Typography fontWeight={800}>Filip Software Solutions d.o.o.</Typography>
+                <Typography variant="body2" color="text.secondary">Kod kuce, 35000 Jagodina, Serbia · e14filipdjekic@gmail.com · +381 35 240 0000</Typography>
               </Grid>
               <Grid size={{ xs: 12, md: 5 }}>
                 <Typography variant="body2" color="text.secondary" textAlign={{ xs: 'left', md: 'right' }}>Platform owner for logistics workspace onboarding, access control and operational management.</Typography>

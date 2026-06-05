@@ -16,6 +16,7 @@ import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
 import { useLocation } from 'react-router-dom';
 import { authStore, useAuthStore } from '../../core/auth/authStore';
+import { clearQueryCache } from '../../core/query/queryClient';
 import { getRouteMetaByPath } from '../router/routeMeta';
 import NotificationBadge from '../../features/notifications/components/NotificationBadge';
 import { ColorModeContext } from '@/shared/theme/theme';
@@ -42,6 +43,7 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
   const currentRouteMeta = useMemo(() => getRouteMetaByPath(location.pathname), [location.pathname]);
 
   const handleSignOut = () => {
+    clearQueryCache();
     authStore.setUnauthenticated();
     setUserAnchorEl(null);
   };
@@ -63,8 +65,8 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
         alignItems="center"
         justifyContent="space-between"
         sx={{
-          minHeight: { xs: 56, sm: 64 },
-          px: { xs: 1.5, sm: 3, lg: 4 },
+          minHeight: { xs: 54, sm: 58 },
+          px: { xs: 1.25, sm: 2.25, lg: 3 },
           gap: { xs: 1, sm: 2 },
         }}
       >
@@ -101,7 +103,7 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
             onClick={(event) => setUserAnchorEl(event.currentTarget)}
             sx={{
               px: 1,
-              py: 0.5,
+              py: 0.35,
               borderRadius: 1.5,
               cursor: 'pointer',
               border: (theme) => `1px solid ${theme.palette.divider}`,
@@ -110,7 +112,7 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
               },
             }}
           >
-            <Avatar sx={{ width: 32, height: 32 }}>{userInitial}</Avatar>
+            <Avatar sx={{ width: 30, height: 30, fontSize: 14 }}>{userInitial}</Avatar>
 
             <Box sx={{ display: { xs: 'none', sm: 'block' }, maxWidth: 220 }}>
               <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>

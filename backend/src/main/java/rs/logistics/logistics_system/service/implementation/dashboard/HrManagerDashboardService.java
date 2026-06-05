@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -41,18 +42,29 @@ public class HrManagerDashboardService implements HrManagerDashboardServiceDefin
         LocalDateTime now = timeService.nowForCompany(company);
         LocalDate newEmployeeThreshold = timeService.todayForCompany(company).minusDays(30);
 
+        Map<String, Long> employeesByPosition = countEmployeesByPosition(companyId);
+        Map<String, Long> hrTasksByStatus = countHrTasksByStatus(companyId);
+        long employeesWithoutShift = employeeRepository.countActiveEmployeesWithoutActiveOrPlannedShift(companyId, now);
+
         return new HrManagerDashboardResponse(
                 employeeRepository.countByCompany_Id(companyId),
                 employeeRepository.countByCompany_IdAndActiveTrue(companyId),
                 employeeRepository.countByCompany_IdAndActiveFalse(companyId),
-                countEmployeesByPosition(companyId),
+                employeesByPosition,
                 shiftRepository.countActiveForCompany(companyId, now),
                 shiftRepository.countPlannedForCompany(companyId, now),
-                employeeRepository.countActiveEmployeesWithoutActiveOrPlannedShift(companyId, now),
+                employeesWithoutShift,
                 employeeRepository.countByCompany_IdAndEmploymentDateGreaterThanEqual(companyId, newEmployeeThreshold),
                 employeeRepository.countByCompany_IdAndActiveFalse(companyId),
                 taskRepository.countHrTasksByCompany(companyId),
-                countHrTasksByStatus(companyId)
+                hrTasksByStatus,
+                List.of(
+                        DashboardResponseFactory.barChart("employeesByPosition", "Employees by position", employeesByPosition),
+                        DashboardResponseFactory.statusChart("hrTasksByStatus", "HR tasks by status", hrTasksByStatus)
+                ),
+                List.of(
+                        DashboardResponseFactory.alert(employeesWithoutShift > 0 ? "WARNING" : "SUCCESS", "SHIFT_COVERAGE", "Shift coverage", employeesWithoutShift > 0 ? "Active employees have no active or planned shift." : "All active employees have shift coverage.", employeesWithoutShift)
+                )
         );
     }
 

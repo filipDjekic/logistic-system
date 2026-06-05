@@ -15,7 +15,8 @@ import java.time.LocalDateTime;
         name = "CHANGE_HISTORY",
         indexes = {
                 @Index(name = "idx_change_history_changed_by_date", columnList = "changed_by_user_id, changed_at"),
-                @Index(name = "idx_change_history_entity", columnList = "entity_name, entity_id")
+                @Index(name = "idx_change_history_entity", columnList = "entity_name, entity_id"),
+                @Index(name = "idx_change_history_entity_identifier", columnList = "entity_name, entity_identifier")
         }
 )
 @Getter

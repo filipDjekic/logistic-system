@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Stack,
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
 import FormTextField from '../../../shared/components/Form/Form';
@@ -18,8 +18,9 @@ import type {
   ShiftResponse,
 } from '../types/shift.types';
 import { timezonesApi } from '../../timezones/api/timezonesApi';
-import { useWarehouses } from '../../warehouses/hooks/useWarehouses';
-import { shiftSchema, shiftStatusOptions, type ShiftSchemaValues } from '../validation/shiftSchema';
+import { shiftSchema, type ShiftSchemaValues } from '../validation/shiftSchema';
+import { EntityLookupField } from '../../lookup';
+import type { LookupOption } from '../../lookup';
 
 type ShiftFormDialogProps = {
   open: boolean;
@@ -27,14 +28,19 @@ type ShiftFormDialogProps = {
   employees: ShiftEmployeeOption[];
   initialData?: ShiftResponse | null;
   loading?: boolean;
+  serverError?: unknown;
   onClose: () => void;
   onSubmit: (values: ShiftSchemaValues) => void;
 };
 
-const statusOptions = shiftStatusOptions.map((status) => ({
-  value: status,
-  label: status,
-}));
+const emptyValues: ShiftFormValues = {
+  startTime: '',
+  endTime: '',
+  notes: '',
+  timezoneId: '',
+  employeeId: '',
+  warehouseId: '',
+};
 
 export default function ShiftFormDialog({
   open,
@@ -42,20 +48,18 @@ export default function ShiftFormDialog({
   employees,
   initialData,
   loading = false,
+  serverError = null,
   onClose,
   onSubmit,
 }: ShiftFormDialogProps) {
+  const [selectedEmployee, setSelectedEmployee] = useState<LookupOption | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
+  const [timezones, setTimezones] = useState([] as { id: number; name: string; displayName: string }[]);
+
   const form = useForm<ShiftFormValues>({
-    resolver: zodResolver(shiftSchema),
-    defaultValues: {
-      startTime: '',
-      endTime: '',
-      status: 'PLANNED',
-      notes: '',
-      timezoneId: '',
-      employeeId: '',
-      warehouseId: '',
-    },
+    resolver: zodResolver(shiftSchema) as never,
+    defaultValues: emptyValues,
+    mode: 'onChange',
   });
 
   useEffect(() => {
@@ -67,54 +71,63 @@ export default function ShiftFormDialog({
       form.reset({
         startTime: initialData.startTime.slice(0, 16),
         endTime: initialData.endTime.slice(0, 16),
-        status: initialData.status,
-        notes: initialData.notes ?? '',
+        notes: (initialData.notes ?? '').trim(),
         timezoneId: initialData.timezoneId ?? '',
         employeeId: initialData.employeeId,
         warehouseId: initialData.warehouseId ?? '',
       });
 
+      const employee = employees.find((item) => item.id === initialData.employeeId);
+
+      setSelectedEmployee(
+        employee
+          ? {
+              id: employee.id,
+              label: `${employee.firstName} ${employee.lastName} (${employee.email})`,
+            }
+          : null,
+      );
+
+      setSelectedWarehouse(
+        initialData.warehouseId
+          ? {
+              id: Number(initialData.warehouseId),
+              label: initialData.warehouseName ?? `Warehouse #${initialData.warehouseId}`,
+            }
+          : null,
+      );
+
       return;
     }
 
-    form.reset({
-      startTime: '',
-      endTime: '',
-      status: 'PLANNED',
-      notes: '',
-      timezoneId: '',
-      employeeId: '',
-      warehouseId: '',
-    });
-  }, [form, initialData, mode, open]);
+    form.reset(emptyValues);
+    setSelectedEmployee(null);
+    setSelectedWarehouse(null);
+  }, [employees, form, initialData, mode, open]);
 
-  const [timezones, setTimezones] = useState([] as { id: number; name: string; displayName: string }[]);
-  const warehousesQuery = useWarehouses({ active: true, status: 'ACTIVE', size: 200 }, open);
+  useEffect(() => {
+    if (!open || !serverError) {
+      return;
+    }
+
+    applyServerFieldErrors(serverError, form.setError);
+  }, [form, open, serverError]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
+
     timezonesApi.getActive().then(setTimezones).catch(() => setTimezones([]));
   }, [open]);
 
   const timezoneOptions = useMemo(
     () => timezones.map((timezone) => ({
       value: timezone.id,
-      label: timezone.displayName + " (" + timezone.name + ")",
+      label: `${timezone.displayName} (${timezone.name})`,
     })),
     [timezones],
   );
-
-  const warehouseOptions = (warehousesQuery.data?.content ?? []).map((warehouse) => ({
-    value: warehouse.id,
-    label: warehouse.companyName ? `${warehouse.name} (${warehouse.companyName})` : warehouse.name,
-  }));
-
-  const employeeOptions = employees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.firstName} ${employee.lastName} (${employee.email})`,
-  }));
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="sm">
@@ -138,24 +151,24 @@ export default function ShiftFormDialog({
             required
           />
 
-          <FormSelect
-            name="status"
-            control={form.control}
-            label="Status"
-            options={statusOptions}
+          <EntityLookupField
+            label="Employee"
+            entityType="employees"
+            value={selectedEmployee}
+            onChange={(option) => {
+              setSelectedEmployee(option);
+              form.setValue('employeeId', option?.id ?? '', {
+                shouldValidate: true,
+                shouldDirty: true,
+              });
+            }}
             required
-            disabled={mode === 'create'}
+            error={Boolean(form.formState.errors.employeeId)}
+            helperText={form.formState.errors.employeeId?.message}
+            placeholder="Choose employee"
+            searchPlaceholder="Search employees..."
+            sort="lastName,asc"
           />
-
-          {mode === 'create' ? (
-            <FormSelect
-              name="employeeId"
-              control={form.control}
-              label="Employee"
-              options={employeeOptions}
-              required
-            />
-          ) : null}
 
           <FormSelect
             name="timezoneId"
@@ -165,12 +178,21 @@ export default function ShiftFormDialog({
             required
           />
 
-          <FormSelect
-            name="warehouseId"
-            control={form.control}
+          <EntityLookupField
             label="Warehouse"
-            options={[{ value: '', label: 'Use employee primary warehouse / no warehouse' }, ...warehouseOptions]}
+            entityType="warehouses"
+            value={selectedWarehouse}
+            onChange={(option) => {
+              setSelectedWarehouse(option);
+              form.setValue('warehouseId', option?.id ?? '', {
+                shouldValidate: true,
+                shouldDirty: true,
+              });
+            }}
+            placeholder="Use employee primary warehouse / no warehouse"
             helperText="Required for WORKER and WAREHOUSE_MANAGER shifts. Optional for driver/admin shifts."
+            searchPlaceholder="Search warehouses..."
+            sort="name,asc"
           />
 
           <FormTextField
@@ -183,18 +205,17 @@ export default function ShiftFormDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={form.handleSubmit((values) => onSubmit(values))}
-          disabled={loading}
-        >
-          {mode === 'create' ? 'Create' : 'Save changes'}
-        </Button>
-      </DialogActions>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel={mode === 'create' ? 'Create' : 'Save changes'}
+          submittingLabel={mode === 'create' ? 'Creating shift...' : 'Saving changes...'}
+          helperText="Start time, end time, employee and timezone must be valid before saving."
+          loading={loading}
+          submitDisabled={!form.formState.isValid}
+          onCancel={onClose}
+          onSubmit={form.handleSubmit((values) => onSubmit(values as ShiftSchemaValues))}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

@@ -33,6 +33,7 @@ public class StockMovementCreate {
     @NotNull
     private StockMovementReferenceType referenceType;
 
+    @Positive
     private Long referenceId;
 
     @Size(max = 100)

@@ -27,6 +27,7 @@ export const fuelTypeOptions = [
 
 export type VehicleBrandResponse = {
   id: number;
+  version: number;
   name: string;
 };
 
@@ -39,6 +40,7 @@ export type VehicleModelResponse = {
 
 export type VehicleResponse = {
   id: number;
+  version: number;
   registrationNumber: string;
   vehicleBrandId: number;
   brand: string;
@@ -73,7 +75,6 @@ export type VehicleCreateRequest = {
 };
 
 export type VehicleUpdateRequest = {
-  id?: number;
   registrationNumber: string;
   vehicleModelId: number;
   type: string;
@@ -117,4 +118,15 @@ export type VehicleFormValues = {
   yearOfProduction: number | '';
   status: VehicleStatus;
   companyId: string;
+};
+export type VehicleStatusUpdateRequest = {
+  status: VehicleStatus;
+  reason?: string;
+  expectedVersion?: number;
+};
+
+export type AllowedStatusTransitionsResponse<TStatus extends string> = {
+  currentStatus: TStatus;
+  allowedStatuses: TStatus[];
+  currentVersion?: number;
 };

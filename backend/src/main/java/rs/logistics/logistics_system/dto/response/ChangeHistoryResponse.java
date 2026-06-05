@@ -14,6 +14,7 @@ public class ChangeHistoryResponse {
 
     private String entityName;
     private Long entityId;
+    private String entityIdentifier;
     private ChangeType changeType;
     private String fieldName;
     private String oldValue;
@@ -21,10 +22,11 @@ public class ChangeHistoryResponse {
 
     private Long userId;
 
-    public ChangeHistoryResponse(Long id, String entityName, Long entityId, ChangeType changeType, String fieldName, String oldValue, String newValue, Long userId) {
+    public ChangeHistoryResponse(Long id, String entityName, Long entityId, String entityIdentifier, ChangeType changeType, String fieldName, String oldValue, String newValue, Long userId) {
         this.id = id;
         this.entityName = entityName;
         this.entityId = entityId;
+        this.entityIdentifier = entityIdentifier;
         this.changeType = changeType;
         this.fieldName = fieldName;
         this.oldValue = oldValue;

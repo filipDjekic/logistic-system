@@ -19,7 +19,9 @@ public record WarehouseManagerDashboardResponse(
         Map<String, Long> warehouseTasksByStatus,
         List<WarehouseInventorySummaryResponse> warehouseInventorySummaries,
         List<LowStockItemResponse> lowStockItems,
-        List<RecentStockMovementResponse> recentStockMovements
+        List<RecentStockMovementResponse> recentStockMovements,
+        List<DashboardChartResponse> charts,
+        List<DashboardAlertResponse> alerts
 ) {
     public record WarehouseInventorySummaryResponse(
             Long warehouseId,

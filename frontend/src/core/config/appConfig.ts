@@ -11,14 +11,16 @@ export const appConfig = {
   },
   statusTransitions: {
     task: {
-      NEW: ['IN_PROGRESS', 'CANCELLED'],
-      IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+      NEW: ['ASSIGNED', 'IN_PROGRESS', 'CANCELLED'],
+      OPEN: ['ASSIGNED', 'IN_PROGRESS', 'CANCELLED'],
+      ASSIGNED: ['IN_PROGRESS', 'BLOCKED', 'CANCELLED'],
+      IN_PROGRESS: ['BLOCKED', 'COMPLETED', 'CANCELLED'],
+      BLOCKED: ['ASSIGNED', 'IN_PROGRESS', 'CANCELLED'],
       COMPLETED: [],
       CANCELLED: [],
     } satisfies Record<TaskStatus, TaskStatus[]>,
     transportOrder: {
       DRAFT: ['ASSIGNED', 'CANCELLED'],
-      CREATED: ['ASSIGNED', 'CANCELLED'],
       ASSIGNED: ['PICKING', 'CANCELLED'],
       PICKING: ['PACKING', 'CANCELLED'],
       PACKING: ['READY_FOR_LOADING', 'CANCELLED'],

@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 import {
   Alert,
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Stack,
@@ -11,6 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
 import type { InventoryListRow } from '../types/inventory.types';
 
 type ReservationMode = 'reserve' | 'release';
@@ -105,21 +104,22 @@ export default function InventoryReservationDialog({
           />
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>Cancel</Button>
-        <Button
-          variant="contained"
-          disabled={loading || !formState.isValid || !row || maxQuantity <= 0}
-          onClick={handleSubmit((values) => {
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel={mode === 'reserve' ? 'Reserve' : 'Release'}
+          submittingLabel={mode === 'reserve' ? 'Reserving...' : 'Releasing...'}
+          helperText="Quantity must be greater than zero and cannot exceed the currently available/reserved stock."
+          loading={loading}
+          submitDisabled={!formState.isValid || !row || maxQuantity <= 0}
+          onCancel={onClose}
+          onSubmit={handleSubmit((values) => {
             if (values.quantity === '') {
               return;
             }
             onSubmit({ quantity: Number(values.quantity), note: values.note?.trim() || undefined });
           })}
-        >
-          {mode === 'reserve' ? 'Reserve' : 'Release'}
-        </Button>
-      </DialogActions>
+        />
+      </DialogContent>
     </Dialog>
   );
 }

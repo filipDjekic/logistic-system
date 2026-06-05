@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Button, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { DEFAULT_PAGE_SIZE } from '../../../core/api/pagination';
+import { getEntityDetailsPath } from '../../../core/utils/entityRoutes';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { useNotifications } from '../hooks/useNotifications';
 import { useMarkNotificationAsRead } from '../hooks/useMarkNotificationAsRead';
 import { useMarkAllNotificationsAsRead } from '../hooks/useMarkAllNotificationsAsRead';
+import { useAcknowledgeNotification } from '../hooks/useAcknowledgeNotification';
+import { useResolveNotification } from '../hooks/useResolveNotification';
 import NotificationsList from '../components/NotificationsList';
 import type { NotificationCategory, NotificationSeverity, NotificationStatus, NotificationType } from '../types/notification.types';
 
@@ -14,6 +18,8 @@ const statusOptions: Array<{ label: string; value: NotificationStatus | '' }> = 
   { label: 'All statuses', value: '' },
   { label: 'Unread', value: 'UNREAD' },
   { label: 'Read', value: 'READ' },
+  { label: 'Acknowledged', value: 'ACKNOWLEDGED' },
+  { label: 'Resolved', value: 'RESOLVED' },
 ];
 
 const severityOptions: Array<{ label: string; value: NotificationSeverity | '' }> = [
@@ -44,6 +50,7 @@ const typeOptions: Array<{ label: string; value: NotificationType | '' }> = [
 ];
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [status, setStatus] = useState<NotificationStatus | ''>('');
@@ -57,6 +64,8 @@ export default function NotificationsPage() {
 
   const notificationsQuery = useNotifications({ page, size, status, type, severity, category });
   const markAsReadMutation = useMarkNotificationAsRead();
+  const acknowledgeMutation = useAcknowledgeNotification();
+  const resolveMutation = useResolveNotification();
   const markAllAsReadMutation = useMarkAllNotificationsAsRead();
 
   const notifications = notificationsQuery.data?.items ?? [];
@@ -87,7 +96,7 @@ export default function NotificationsPage() {
       <PageHeader
         overline="Workspace"
         title="Notifications"
-        description="View your latest system notifications and mark unread items as read."
+        description="Review notification lifecycle: unread items require attention, acknowledged items are accepted for work, and resolved items are closed."
         actions={
           <Typography variant="body2" color="text.secondary">
             Unread: {unreadCount} · Critical: {criticalUnreadCount} · Warning: {warningUnreadCount}
@@ -95,9 +104,30 @@ export default function NotificationsPage() {
         }
       />
 
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <SectionCard title="Unread" contentSx={{ py: 2 }}>
+            <Typography variant="h4" fontWeight={900}>{unreadCount}</Typography>
+            <Typography variant="body2" color="text.secondary">Items waiting for review</Typography>
+          </SectionCard>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <SectionCard title="Critical" contentSx={{ py: 2 }}>
+            <Typography variant="h4" fontWeight={900}>{criticalUnreadCount}</Typography>
+            <Typography variant="body2" color="text.secondary">Critical unread notifications</Typography>
+          </SectionCard>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <SectionCard title="Warnings" contentSx={{ py: 2 }}>
+            <Typography variant="h4" fontWeight={900}>{warningUnreadCount}</Typography>
+            <Typography variant="body2" color="text.secondary">Warning unread notifications</Typography>
+          </SectionCard>
+        </Grid>
+      </Grid>
+
       <SectionCard
         title="My notifications"
-        description="Notifications are ordered by creation date descending."
+        description="Notifications are grouped by operational source when possible. Use acknowledge when you accept ownership, resolve when the issue is finished, and open the workflow action when the notification points to an entity."
         action={
           <Stack direction="row" spacing={1}>
             <Button
@@ -123,65 +153,21 @@ export default function NotificationsPage() {
         }
       >
         <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={status}
-              onChange={(event) => setStatus(event.target.value as NotificationStatus | '')}
-              sx={{ minWidth: { xs: '100%', sm: 180 } }}
-            >
-              {statusOptions.map((option) => (
-                <MenuItem key={option.label} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} flexWrap="wrap" useFlexGap>
+            <TextField select size="small" label="Status" value={status} onChange={(event) => setStatus(event.target.value as NotificationStatus | '')} sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+              {statusOptions.map((option) => <MenuItem key={option.label} value={option.value}>{option.label}</MenuItem>)}
             </TextField>
 
-            <TextField
-              select
-              size="small"
-              label="Type"
-              value={type}
-              onChange={(event) => setType(event.target.value as NotificationType | '')}
-              sx={{ minWidth: { xs: '100%', sm: 180 } }}
-            >
-              {typeOptions.map((option) => (
-                <MenuItem key={option.label} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
+            <TextField select size="small" label="Type" value={type} onChange={(event) => setType(event.target.value as NotificationType | '')} sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+              {typeOptions.map((option) => <MenuItem key={option.label} value={option.value}>{option.label}</MenuItem>)}
             </TextField>
 
-            <TextField
-              select
-              size="small"
-              label="Severity"
-              value={severity}
-              onChange={(event) => setSeverity(event.target.value as NotificationSeverity | '')}
-              sx={{ minWidth: { xs: '100%', sm: 180 } }}
-            >
-              {severityOptions.map((option) => (
-                <MenuItem key={option.label} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
+            <TextField select size="small" label="Severity" value={severity} onChange={(event) => setSeverity(event.target.value as NotificationSeverity | '')} sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+              {severityOptions.map((option) => <MenuItem key={option.label} value={option.value}>{option.label}</MenuItem>)}
             </TextField>
 
-            <TextField
-              select
-              size="small"
-              label="Category"
-              value={category}
-              onChange={(event) => setCategory(event.target.value as NotificationCategory | '')}
-              sx={{ minWidth: { xs: '100%', sm: 180 } }}
-            >
-              {categoryOptions.map((option) => (
-                <MenuItem key={option.label} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
+            <TextField select size="small" label="Category" value={category} onChange={(event) => setCategory(event.target.value as NotificationCategory | '')} sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+              {categoryOptions.map((option) => <MenuItem key={option.label} value={option.value}>{option.label}</MenuItem>)}
             </TextField>
           </Stack>
 
@@ -195,7 +181,27 @@ export default function NotificationsPage() {
             onMarkAsRead={(id) => {
               markAsReadMutation.mutate(id);
             }}
+            onAcknowledge={(id) => {
+              acknowledgeMutation.mutate(id);
+            }}
+            onResolve={(id) => {
+              resolveMutation.mutate(id);
+            }}
+            onOpenSource={(notification) => {
+              const path = notification.actionPath || getEntityDetailsPath({ sourceType: notification.sourceType, sourceId: notification.sourceId });
+              if (!path) {
+                return;
+              }
+
+              if (notification.status === 'UNREAD') {
+                markAsReadMutation.mutate(notification.id);
+              }
+
+              navigate(path);
+            }}
             markingNotificationId={markAsReadMutation.variables ?? null}
+            acknowledgingNotificationId={acknowledgeMutation.variables ?? null}
+            resolvingNotificationId={resolveMutation.variables ?? null}
           />
 
           <ServerTablePagination

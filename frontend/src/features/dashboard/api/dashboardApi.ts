@@ -1,5 +1,146 @@
 import { apiClient } from '../../../core/api/client';
 
+export type DashboardChartItemResponse = {
+  key: string;
+  label: string;
+  value: number | string;
+  secondaryValue: number | string | null;
+};
+
+export type DashboardChartResponse = {
+  key: string;
+  title: string;
+  type: string;
+  items: DashboardChartItemResponse[];
+};
+
+export type DashboardAlertResponse = {
+  severity: string;
+  key: string;
+  title: string;
+  message: string;
+  count: number;
+};
+
+
+export type OperationalWidgetResponse = {
+  key: string;
+  title: string;
+  description: string;
+  value: number;
+  severity: string;
+  route: string;
+  actionLabel: string;
+};
+
+export type OperationalFlowResponse = {
+  key: string;
+  title: string;
+  description: string;
+  entityType: string;
+  entityId: number | null;
+  route: string;
+  status: string;
+  severity: string;
+  dueAt: string | null;
+};
+
+export type OperationalNextActionResponse = {
+  key: string;
+  title: string;
+  description: string;
+  route: string;
+  actionLabel: string;
+  priority: string;
+};
+
+export type OperationalLiveAlertResponse = {
+  key: string;
+  title: string;
+  message: string;
+  severity: string;
+  route: string | null;
+  actionLabel: string | null;
+  detectedAt: string | null;
+};
+
+export type OperationalIncidentResponse = {
+  key: string;
+  title: string;
+  description: string;
+  count: number;
+  severity: string;
+  route: string | null;
+  actionLabel: string | null;
+};
+
+export type OperationalWorkloadResponse = {
+  key: string;
+  title: string;
+  description: string;
+  openCount: number;
+  blockedCount: number;
+  overdueCount: number;
+  severity: string;
+  route: string | null;
+};
+
+export type OperationalWarehouseCongestionResponse = {
+  warehouseId: number;
+  warehouseName: string;
+  inventoryRows: number;
+  capacityUsedPercent: string;
+  severity: string;
+  route: string | null;
+};
+
+export type OperationalSlaResponse = {
+  overdueTasks: number;
+  delayedTransports: number;
+  dueSoonTasks: number;
+  dueSoonTransports: number;
+  severity: string;
+};
+
+export type OperationalDashboardResponse = {
+  generatedAt: string;
+  title?: string;
+  description?: string;
+  emptyMessage?: string;
+  widgets: OperationalWidgetResponse[];
+  flows: OperationalFlowResponse[];
+  nextActions?: OperationalNextActionResponse[];
+  liveAlerts?: OperationalLiveAlertResponse[];
+  incidents?: OperationalIncidentResponse[];
+  workload?: OperationalWorkloadResponse[];
+  warehouseCongestion?: OperationalWarehouseCongestionResponse[];
+  sla?: OperationalSlaResponse | null;
+};
+
+export type LifecycleAlertResponse = {
+  severity: string;
+  key: string;
+  title: string;
+  message: string;
+  count: number;
+  entityType: string;
+  route: string | null;
+};
+
+export type LifecycleAnalyticsResponse = {
+  generatedAt: string;
+  alerts: LifecycleAlertResponse[];
+  tasksByStatus: Record<string, number>;
+  transportsByStatus: Record<string, number>;
+  vehiclesByStatus: Record<string, number>;
+  overdueTasks: number;
+  blockedTasks: number;
+  stuckTasks: number;
+  overdueTransports: number;
+  staleReservedVehicles: number;
+  activeOperationalFlows: number;
+};
+
 export type RecentActivityResponse = {
   id: number;
   action: string;
@@ -37,6 +178,8 @@ export type OverlordDashboardResponse = {
   activityLogsTotal: number;
   changeHistoryTotal: number;
   recentActivities: OverlordRecentActivityResponse[];
+  charts: DashboardChartResponse[];
+  alerts: DashboardAlertResponse[];
 };
 
 export type CompanyAdminDashboardResponse = {
@@ -60,6 +203,8 @@ export type CompanyAdminDashboardResponse = {
   activityLogsTotal: number;
   changeHistoryTotal: number;
   recentActivities: RecentActivityResponse[];
+  charts: DashboardChartResponse[];
+  alerts: DashboardAlertResponse[];
 };
 
 export type HrManagerDashboardResponse = {
@@ -74,6 +219,8 @@ export type HrManagerDashboardResponse = {
   deactivatedEmployees: number;
   hrTasksTotal: number;
   hrTasksByStatus: Record<string, number>;
+  charts: DashboardChartResponse[];
+  alerts: DashboardAlertResponse[];
 };
 
 export type WarehouseManagerInventorySummaryResponse = {
@@ -127,6 +274,8 @@ export type WarehouseManagerDashboardResponse = {
   warehouseInventorySummaries: WarehouseManagerInventorySummaryResponse[];
   lowStockItems: WarehouseManagerLowStockItemResponse[];
   recentStockMovements: WarehouseManagerRecentStockMovementResponse[];
+  charts: DashboardChartResponse[];
+  alerts: DashboardAlertResponse[];
 };
 
 export type DispatcherRecentTransportOrderResponse = {
@@ -183,6 +332,8 @@ export type DispatcherDashboardResponse = {
   recentTransportOrders: DispatcherRecentTransportOrderResponse[];
   availableVehicleCandidates: DispatcherAvailableVehicleResponse[];
   availableDriverCandidates: DispatcherAvailableDriverResponse[];
+  charts: DashboardChartResponse[];
+  alerts: DashboardAlertResponse[];
 };
 
 export type DriverTransportOrderResponse = {
@@ -227,6 +378,8 @@ export type DriverDashboardResponse = {
   nextTransportOrder: DriverTransportOrderResponse | null;
   activeTransportOrderList: DriverTransportOrderResponse[];
   transportTasks: DriverTaskResponse[];
+  charts: DashboardChartResponse[];
+  alerts: DashboardAlertResponse[];
 };
 
 export type WorkerTaskResponse = {
@@ -264,6 +417,8 @@ export type WorkerDashboardResponse = {
   nextShift: WorkerShiftResponse | null;
   openTasks: WorkerTaskResponse[];
   todayTasks: WorkerTaskResponse[];
+  charts: DashboardChartResponse[];
+  alerts: DashboardAlertResponse[];
 };
 
 export const dashboardApi = {
@@ -306,6 +461,18 @@ export const dashboardApi = {
   getWorkerDashboard() {
     return apiClient
       .get<WorkerDashboardResponse>('/api/dashboard/worker')
+      .then((response) => response.data);
+  },
+
+  getOperationalDashboard() {
+    return apiClient
+      .get<OperationalDashboardResponse>('/api/dashboard/operational')
+      .then((response) => response.data);
+  },
+
+  getLifecycleMonitoring() {
+    return apiClient
+      .get<LifecycleAnalyticsResponse>('/api/lifecycle-monitoring')
       .then((response) => response.data);
   },
 };

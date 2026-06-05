@@ -30,8 +30,8 @@ public class WarehouseLocationMapper {
         InternalWarehouseMovementResponse r = new InternalWarehouseMovementResponse();
         r.setId(m.getId()); r.setWarehouseId(m.getWarehouse().getId()); r.setWarehouseName(m.getWarehouse().getName());
         r.setProductId(m.getProduct().getId()); r.setProductName(m.getProduct().getName()); r.setSku(m.getProduct().getSku());
-        r.setSourceBinId(m.getSourceBin().getId()); r.setSourceBinCode(m.getSourceBin().getCode());
-        r.setDestinationBinId(m.getDestinationBin().getId()); r.setDestinationBinCode(m.getDestinationBin().getCode());
+        r.setSourceBinId(m.getSourceBin().getId()); r.setSourceBinCode(m.getSourceBin().getCode()); r.setSourceBinZoneId(m.getSourceBin().getZone().getId());
+        r.setDestinationBinId(m.getDestinationBin().getId()); r.setDestinationBinCode(m.getDestinationBin().getCode()); r.setDestinationBinZoneId(m.getDestinationBin().getZone().getId());
         r.setQuantity(m.getQuantity()); r.setStatus(m.getStatus()); r.setNote(m.getNote());
         r.setCreatedById(m.getCreatedBy() != null ? m.getCreatedBy().getId() : null); r.setCreatedByEmail(m.getCreatedBy() != null ? m.getCreatedBy().getEmail() : null);
         r.setCreatedAt(m.getCreatedAt()); return r;

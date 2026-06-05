@@ -12,7 +12,9 @@ public record WorkerDashboardResponse(
         WorkerShiftResponse currentShift,
         WorkerShiftResponse nextShift,
         List<WorkerTaskResponse> openTasks,
-        List<WorkerTaskResponse> todayTasks
+        List<WorkerTaskResponse> todayTasks,
+        List<DashboardChartResponse> charts,
+        List<DashboardAlertResponse> alerts
 ) {
     public record WorkerTaskResponse(
             Long id,

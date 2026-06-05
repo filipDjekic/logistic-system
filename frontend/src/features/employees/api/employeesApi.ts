@@ -52,6 +52,14 @@ export const employeesApi = {
       params.set('linkedUser', filters.linkedUser);
     }
 
+    if (filters.availableFrom) {
+      params.set('availableFrom', filters.availableFrom);
+    }
+
+    if (filters.availableTo) {
+      params.set('availableTo', filters.availableTo);
+    }
+
     if (filters.page != null) {
       params.set('page', String(filters.page));
     }
@@ -91,6 +99,14 @@ export const employeesApi = {
 
   terminate(id: number) {
     return apiClient.patch<void>(`/api/employees/terminate/${id}`).then((response) => response.data);
+  },
+
+  archive(id: number) {
+    return apiClient.patch<EmployeeResponse>(`/api/employees/${id}/archive`).then((response) => response.data);
+  },
+
+  restore(id: number) {
+    return apiClient.patch<EmployeeResponse>(`/api/employees/${id}/restore`).then((response) => response.data);
   },
 
   getTasksByEmployeeId(id: number) {

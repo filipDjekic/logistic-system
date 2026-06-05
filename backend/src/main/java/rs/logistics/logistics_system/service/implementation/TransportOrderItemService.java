@@ -181,6 +181,25 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     }
 
     @Override
+    public PageResponse<TransportOrderItemResponse> getByProductId(Long productId, Pageable pageable) {
+        if (productId == null || productId <= 0) {
+            throw new BadRequestException("Product ID must be a positive number");
+        }
+
+        getProductOrThrow(productId);
+
+        var items = authenticatedUserProvider.isOverlord()
+                ? _transportOrderItemRepository.findByProductId(productId, pageable)
+                : _transportOrderItemRepository.findByProductIdAndTransportOrder_CreatedBy_Company_Id(
+                        productId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                        pageable
+                );
+
+        return PageResponse.from(items.map(TransportOrderItemMapper::toResponse));
+    }
+
+    @Override
     @Transactional
     public void delete(Long id) {
         TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
@@ -340,8 +359,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     }
 
     private void validateTransportOrderEditable(TransportOrder transportOrder) {
-        if (transportOrder.getStatus() != TransportOrderStatus.CREATED && transportOrder.getStatus() != TransportOrderStatus.DRAFT) {
-            throw new BadRequestException("Items can only be modified while transport order is in DRAFT/CREATED status");
+        if (transportOrder.getStatus() != TransportOrderStatus.DRAFT) {
+            throw new BadRequestException("Items can only be modified while transport order is in DRAFT status");
         }
     }
 

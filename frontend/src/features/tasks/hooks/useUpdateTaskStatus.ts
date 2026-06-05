@@ -8,6 +8,8 @@ import type { TaskStatus } from '../types/task.types';
 type UpdateTaskStatusPayload = {
   id: number;
   status: TaskStatus;
+  reason?: string;
+  expectedVersion?: number;
 };
 
 export function useUpdateTaskStatus() {
@@ -15,8 +17,8 @@ export function useUpdateTaskStatus() {
   const { showSnackbar } = useAppSnackbar();
 
   return useMutation({
-    mutationFn: ({ id, status }: UpdateTaskStatusPayload) =>
-      tasksApi.updateStatus(id, status),
+    mutationFn: ({ id, status, reason, expectedVersion }: UpdateTaskStatusPayload) =>
+      tasksApi.updateStatus(id, status, reason, expectedVersion),
     onSuccess: async (_, variables) => {
       showSnackbar({
         message: `Task status updated to ${variables.status}.`,

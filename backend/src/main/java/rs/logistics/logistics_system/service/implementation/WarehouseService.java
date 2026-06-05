@@ -238,6 +238,19 @@ public class WarehouseService implements WarehouseServiceDefinition {
         return WarehouseMapper.toResponse(saved);
     }
 
+
+    @Override
+    @Transactional
+    public WarehouseResponse archiveWarehouse(Long id) {
+        return changeStatus(id, WarehouseStatus.INACTIVE);
+    }
+
+    @Override
+    @Transactional
+    public WarehouseResponse restoreWarehouse(Long id) {
+        return changeStatus(id, WarehouseStatus.ACTIVE);
+    }
+
     @Override
     public List<WarehouseInventoryResponse> getInventoryByWarehouse(Long warehouseId) {
         Warehouse warehouse = getWarehouseOrThrow(warehouseId);

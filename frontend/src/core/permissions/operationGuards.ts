@@ -8,11 +8,11 @@ export function canManageTransportOrders(role: Role | null | undefined) {
 }
 
 export function canEditTransportOrder(role: Role | null | undefined, order: TransportOrderResponse | null | undefined) {
-  return canManageTransportOrders(role) && order != null && (order.status === 'CREATED' || order.status === 'DRAFT');
+  return canManageTransportOrders(role) && order != null && order.status === 'DRAFT';
 }
 
 export function canMutateTransportOrderItems(role: Role | null | undefined, order: TransportOrderResponse | null | undefined) {
-  return canManageTransportOrders(role) && order != null && (order.status === 'CREATED' || order.status === 'DRAFT');
+  return canManageTransportOrders(role) && order != null && order.status === 'DRAFT';
 }
 
 export function getAllowedTransportOrderStatusTransitions(
@@ -98,9 +98,11 @@ export function getAllowedTaskStatusTransitions(
   }
 
   if (role === ROLES.WAREHOUSE_MANAGER && task.transportOrderId != null) {
-    return [];
+    const warehouseSideTaskTypes = ['PICKING', 'PACKING', 'LOADING', 'UNLOADING'];
+    if (!warehouseSideTaskTypes.includes(task.taskType)) {
+      return [];
+    }
   }
-
 
   if (role === ROLES.WORKER && task.stockMovementId == null && task.transportOrderId != null) {
     return [];

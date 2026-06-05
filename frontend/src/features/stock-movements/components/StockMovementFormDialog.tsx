@@ -1,8 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import {
-  Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
@@ -12,6 +10,9 @@ import {
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm, useWatch } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
+import { EntityLookupField } from '../../lookup';
 import type {
   StockMovementProductOption,
   StockMovementTransportOrderOption,
@@ -31,6 +32,7 @@ type StockMovementFormDialogProps = {
   products: StockMovementProductOption[];
   transportOrders: StockMovementTransportOrderOption[];
   loading?: boolean;
+  serverError?: unknown;
   onClose: () => void;
   onSubmit: (values: StockMovementSchemaValues) => void;
 };
@@ -55,12 +57,14 @@ export default function StockMovementFormDialog({
   products,
   transportOrders,
   loading = false,
+  serverError = null,
   onClose,
   onSubmit,
 }: StockMovementFormDialogProps) {
   const form = useForm<StockMovementSchemaValues>({
     resolver: zodResolver(stockMovementSchema),
     defaultValues,
+    mode: 'onChange',
   });
 
   const movementType = useWatch({
@@ -71,14 +75,18 @@ export default function StockMovementFormDialog({
   const isTransferMovement =
     movementType === 'TRANSFER_IN' || movementType === 'TRANSFER_OUT';
 
-  const transportOrderOptions = useMemo(
-    () =>
-      transportOrders.map((order) => ({
-        value: order.id,
-        label: `${order.orderNumber} (#${order.id})`,
-      })),
-    [transportOrders],
-  );
+
+  const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === form.watch('warehouseId'));
+  const selectedProduct = products.find((product) => product.id === form.watch('productId'));
+  const selectedTransportOrder = transportOrders.find((order) => order.id === form.watch('transportOrderId'));
+
+  useEffect(() => {
+    if (!open || !serverError) {
+      return;
+    }
+
+    applyServerFieldErrors(serverError, form.setError);
+  }, [form, open, serverError]);
 
   useEffect(() => {
     if (!open) {
@@ -144,24 +152,21 @@ export default function StockMovementFormDialog({
                 name="warehouseId"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <TextField
-                    select
-                    fullWidth
+                  <EntityLookupField
                     label="Warehouse"
-                    value={field.value ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      field.onChange(value === '' ? undefined : Number(value));
-                    }}
+                    entityType="warehouses"
+                    required
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedWarehouse?.name ?? `Warehouse #${field.value}`,
+                      subtitle: selectedWarehouse?.city ?? undefined,
+                      status: selectedWarehouse?.status ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? 0)}
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message}
-                  >
-                    {warehouses.map((warehouse) => (
-                      <MenuItem key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    searchPlaceholder="Search warehouses..."
+                  />
                 )}
               />
             </Grid>
@@ -171,24 +176,20 @@ export default function StockMovementFormDialog({
                 name="productId"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <TextField
-                    select
-                    fullWidth
+                  <EntityLookupField
                     label="Product"
-                    value={field.value ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      field.onChange(value === '' ? undefined : Number(value));
-                    }}
+                    entityType="products"
+                    required
+                    value={field.value ? {
+                      id: Number(field.value),
+                      label: selectedProduct?.name ?? `Product #${field.value}`,
+                      subtitle: selectedProduct?.sku ?? undefined,
+                    } : null}
+                    onChange={(option) => field.onChange(option?.id ?? 0)}
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message}
-                  >
-                    {products.map((product) => (
-                      <MenuItem key={product.id} value={product.id}>
-                        {product.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    searchPlaceholder="Search products..."
+                  />
                 )}
               />
             </Grid>
@@ -245,27 +246,20 @@ export default function StockMovementFormDialog({
                   name="transportOrderId"
                   control={form.control}
                   render={({ field, fieldState }) => (
-                    <TextField
-                      select
-                      fullWidth
+                    <EntityLookupField
                       label="Transport order"
-                      value={field.value ?? ''}
-                      onChange={(event) =>
-                        field.onChange(
-                          event.target.value === ''
-                            ? null
-                            : Number(event.target.value),
-                        )
-                      }
+                      entityType="transport-orders"
+                      required
+                      value={field.value ? {
+                        id: Number(field.value),
+                        label: selectedTransportOrder?.orderNumber ?? `Transport order #${field.value}`,
+                        status: selectedTransportOrder?.status ?? undefined,
+                      } : null}
+                      onChange={(option) => field.onChange(option?.id ?? null)}
                       error={Boolean(fieldState.error)}
                       helperText={fieldState.error?.message}
-                    >
-                      {transportOrderOptions.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                      searchPlaceholder="Search transport orders..."
+                    />
                   )}
                 />
               </Grid>
@@ -348,19 +342,22 @@ export default function StockMovementFormDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-
-        <Button
-          variant="contained"
-          onClick={form.handleSubmit((values) => onSubmit(values))}
-          disabled={loading}
-        >
-          Create
-        </Button>
-      </DialogActions>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel="Create"
+          submittingLabel="Creating movement..."
+          helperText="Product, warehouse and quantity rules must be valid before creating the movement."
+          loading={loading}
+          submitDisabled={!form.formState.isValid}
+          onCancel={onClose}
+          onSubmit={form.handleSubmit((values) => onSubmit({
+            ...values,
+            reasonDescription: values.reasonDescription?.trim() || undefined,
+            referenceNumber: values.referenceNumber?.trim() || undefined,
+            referenceNote: values.referenceNote?.trim() || undefined,
+          }))}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

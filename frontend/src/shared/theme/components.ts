@@ -44,11 +44,11 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
           paddingInline: 16,
         },
         sizeSmall: {
-          minHeight: 34,
+          minHeight: 36,
           paddingInline: 12,
         },
         sizeLarge: {
-          minHeight: 44,
+          minHeight: 48,
           paddingInline: 18,
         },
         outlined: ({ theme }) => ({

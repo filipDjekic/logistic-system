@@ -4,7 +4,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -12,10 +15,15 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.validation.BindException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.OptimisticLockException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 
@@ -84,6 +92,20 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message, request, fieldErrors);
     }
 
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<ErrorResponse> handleBindException(
+            BindException ex,
+            HttpServletRequest request
+    ) {
+        List<FieldErrorResponse> fieldErrors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(this::mapFieldError)
+                .toList();
+
+        return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Validation failed", request, fieldErrors);
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolationException(
             ConstraintViolationException ex,
@@ -106,6 +128,39 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT,
                 "DATA_INTEGRITY_VIOLATION",
                 "Request conflicts with existing data or database constraints",
+                request
+        );
+    }
+
+    @ExceptionHandler({
+            OptimisticLockException.class,
+            OptimisticLockingFailureException.class
+    })
+    public ResponseEntity<ErrorResponse> handleOptimisticLockException(
+            RuntimeException ex,
+            HttpServletRequest request
+    ) {
+        return build(
+                HttpStatus.CONFLICT,
+                "CONCURRENT_MODIFICATION",
+                "This record was changed by another operation. Reload the data and try again.",
+                request
+        );
+    }
+
+    @ExceptionHandler({
+            CannotAcquireLockException.class,
+            PessimisticLockingFailureException.class,
+            LockTimeoutException.class
+    })
+    public ResponseEntity<ErrorResponse> handleDatabaseLockException(
+            RuntimeException ex,
+            HttpServletRequest request
+    ) {
+        return build(
+                HttpStatus.CONFLICT,
+                "RESOURCE_LOCKED",
+                "The requested resource is currently being changed by another operation. Try again after reloading the data.",
                 request
         );
     }
@@ -133,6 +188,18 @@ public class GlobalExceptionHandler {
         );
 
         return build(HttpStatus.BAD_REQUEST, "MISSING_REQUEST_PARAMETER", "Required request parameter is missing", request, fieldErrors);
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestPartException(
+            MissingServletRequestPartException ex,
+            HttpServletRequest request
+    ) {
+        List<FieldErrorResponse> fieldErrors = List.of(
+                new FieldErrorResponse(ex.getRequestPartName(), "Required multipart request part is missing")
+        );
+
+        return build(HttpStatus.BAD_REQUEST, "MISSING_REQUEST_PART", "Required multipart request part is missing", request, fieldErrors);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -175,6 +242,15 @@ public class GlobalExceptionHandler {
                         request
                 );
         }
+
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "Uploaded file exceeds maximum allowed size", request);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
@@ -223,9 +299,21 @@ public class GlobalExceptionHandler {
 
     private FieldErrorResponse mapConstraintViolation(ConstraintViolation<?> violation) {
         return new FieldErrorResponse(
-                violation.getPropertyPath().toString(),
+                normalizeConstraintViolationField(violation),
                 violation.getMessage() == null || violation.getMessage().isBlank() ? "Invalid value" : violation.getMessage()
         );
+    }
+
+    private String normalizeConstraintViolationField(ConstraintViolation<?> violation) {
+        String propertyPath = violation.getPropertyPath() == null ? "request" : violation.getPropertyPath().toString();
+        if (propertyPath.isBlank()) {
+            return "request";
+        }
+
+        int lastDotIndex = propertyPath.lastIndexOf('.');
+        return lastDotIndex >= 0 && lastDotIndex + 1 < propertyPath.length()
+                ? propertyPath.substring(lastDotIndex + 1)
+                : propertyPath;
     }
 
     private String safeMessage(RuntimeException ex, String fallback) {

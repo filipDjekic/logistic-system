@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Button, MenuItem, Select, Stack, Typography } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
+import { MobileOperationalCard } from '../../../shared/components/Mobile';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { TaskResponse, TaskStatus } from '../types/task.types';
 import { canMutateManagedTask, getAllowedTaskStatusTransitions } from '../../../core/permissions/operationGuards';
@@ -44,6 +45,7 @@ export default function TasksTable({
   sort,
   onSortChange,
 }: Props) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<TaskResponse>[] = [
     {
       id: 'title',
@@ -169,6 +171,36 @@ export default function TasksTable({
       emptyTitle="No tasks found"
       emptyDescription="There are no tasks that match the current filters."
       minWidth={1120}
+      onRowClick={showLinks ? (row) => navigate(`/tasks/${row.id}`) : undefined}
+      rowClickLabel="Open task details"
+      renderMobileCard={(row) => (
+        <MobileOperationalCard
+          overline={`${row.priority} · ${row.taskType}`}
+          title={row.title}
+          status={<TaskStatusChip status={row.status} />}
+          meta={`${formatTemporalView(row.dueDateView, row.dueDate)} (${formatTemporalZone(row.dueDateView, row.dueDateTimezone)})`}
+          onClick={showLinks ? () => navigate(`/tasks/${row.id}`) : undefined}
+          actions={
+            <Stack direction="row" spacing={1}>
+              {showLinks ? (
+                <Button fullWidth variant="outlined" size="small" component={Link} to={`/tasks/${row.id}`}>
+                  Open
+                </Button>
+              ) : null}
+              {canMutate && canMutateManagedTask(role, row) ? (
+                <Button fullWidth variant="text" size="small" onClick={() => onEdit(row)}>
+                  Edit
+                </Button>
+              ) : null}
+            </Stack>
+          }
+        >
+          <Stack spacing={0.5}>
+            <Typography variant="body2" color="text.secondary">Employee: {row.assignedEmployeeId ?? '—'}</Typography>
+            <Typography variant="body2" color="text.secondary">Transport: {row.transportOrderId ?? '—'} · Stock movement: {row.stockMovementId ?? '—'}</Typography>
+          </Stack>
+        </MobileOperationalCard>
+      )}
     />
   );
 }

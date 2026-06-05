@@ -1,6 +1,6 @@
 import type { TemporalView } from '../../../core/utils/timezoneFormat';
 
-export type TaskStatus = 'NEW' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type TaskStatus = 'NEW' | 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'BLOCKED' | 'COMPLETED' | 'CANCELLED';
 
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
@@ -10,6 +10,7 @@ export type TaskLinkedProcessType = 'TRANSPORT_ORDER' | 'STOCK_MOVEMENT' | 'UNLI
 
 export type TaskResponse = {
   id: number;
+  version: number;
   title: string;
   description: string | null;
   dueDate: string;
@@ -42,7 +43,6 @@ export type TaskCreateRequest = {
 };
 
 export type TaskUpdateRequest = {
-  id?: number;
   title: string;
   description?: string;
   dueDate: string;
@@ -57,6 +57,14 @@ export type TaskUpdateRequest = {
 
 export type TaskStatusUpdateRequest = {
   status: TaskStatus;
+  reason?: string;
+  expectedVersion?: number;
+};
+
+export type AllowedStatusTransitionsResponse<TStatus extends string> = {
+  currentStatus: TStatus;
+  allowedStatuses: TStatus[];
+  currentVersion?: number;
 };
 
 export type TaskFiltersState = {

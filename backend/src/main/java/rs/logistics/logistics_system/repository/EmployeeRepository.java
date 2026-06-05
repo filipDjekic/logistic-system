@@ -81,6 +81,18 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
                 or (:linkedUser = 'UNLINKED' and e.user is null)
             )
             and (
+                :availableFrom is null
+                or :availableTo is null
+                or exists (
+                    select 1
+                    from Shift s
+                    where s.employee = e
+                    and s.status in (rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE)
+                    and s.startTime <= :availableFrom
+                    and s.endTime >= :availableTo
+                )
+            )
+            and (
                 :search is null
                 or lower(e.firstName) like lower(concat('%', :search, '%'))
                 or lower(e.lastName) like lower(concat('%', :search, '%'))
@@ -100,6 +112,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             @Param("position") EmployeePosition position,
             @Param("active") Boolean active,
             @Param("linkedUser") String linkedUser,
+            @Param("availableFrom") LocalDateTime availableFrom,
+            @Param("availableTo") LocalDateTime availableTo,
             Pageable pageable
     );
 
@@ -132,4 +146,25 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             )
             """)
     long countActiveEmployeesWithoutActiveOrPlannedShift(@Param("companyId") Long companyId, @Param("now") LocalDateTime now);
+
+    long countByCompany_IdAndPosition(Long companyId, EmployeePosition position);
+
+    long countByCompany_IdAndPositionAndActiveTrue(Long companyId, EmployeePosition position);
+
+    @Query("""
+            select e
+            from Employee e
+            where e.company.id = :companyId
+            and e.position = rs.logistics.logistics_system.enums.EmployeePosition.DRIVER
+            and e.active = true
+            and not exists (
+                select 1
+                from TransportOrder t
+                where t.assignedEmployee = e
+                and t.status in :busyStatuses
+            )
+            order by e.lastName asc, e.firstName asc
+            """)
+    List<Employee> findAvailableDriversByCompanyId(@Param("companyId") Long companyId, @Param("busyStatuses") java.util.Collection<rs.logistics.logistics_system.enums.TransportOrderStatus> busyStatuses, Pageable pageable);
+
 }

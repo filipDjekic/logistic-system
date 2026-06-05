@@ -55,6 +55,7 @@ public class TaskMapper {
                 task.getTransportOrder() != null ? task.getTransportOrder().getId() : null,
                 task.getStockMovement() != null ? task.getStockMovement().getId() : null
         );
+        taskResponse.setVersion(task.getVersion());
         taskResponse.setTaskType(task.getTaskType());
         taskResponse.setStartedAt(task.getStartedAt());
         taskResponse.setCompletedAt(task.getCompletedAt());

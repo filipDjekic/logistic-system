@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Button,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -12,14 +12,16 @@ import {
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
+import FormActions from '../../../shared/components/Form/FormActions';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import FormTextField from '../../../shared/components/Form/Form';
 import type { CompanyResponse } from '../../companies/types/company.types';
+import { EntityLookupField, type LookupOption } from '../../lookup';
 import { useCitiesByCountry } from '../../cities/hooks/useCities';
 import { useActiveCountries } from '../../countries/hooks/useCountries';
-import { useWarehouses } from '../../warehouses/hooks/useWarehouses';
 import type {
   EmployeeResponse,
   EmployeeRoleOption,
@@ -41,6 +43,7 @@ type EmployeeFormDialogProps = {
   companyName?: string | null;
   isOverlord?: boolean;
   loading?: boolean;
+  serverError?: unknown;
   canEdit?: boolean;
   onClose: () => void;
   onSubmit: (values: EmployeeFormValues) => void;
@@ -71,6 +74,7 @@ const defaultValues: EmployeeFormValues = {
   timezoneId: null,
   primaryWarehouseId: null,
   companyId: '',
+  applyGeneratedEmailSuggestion: false,
 };
 
 function normalizeForEmail(value: string, allowHyphen: boolean) {
@@ -128,20 +132,30 @@ export default function EmployeeFormDialog({
   companyName = null,
   isOverlord = false,
   loading = false,
+  serverError = null,
   canEdit = true,
   onClose,
   onSubmit,
 }: EmployeeFormDialogProps) {
+  const [selectedPrimaryWarehouse, setSelectedPrimaryWarehouse] = useState<LookupOption | null>(null);
   const hasLinkedUser = mode === 'edit' && Boolean(linkedUser);
   const countriesQuery = useActiveCountries(open);
   const previousCountryIdRef = useRef<number | null>(null);
   const requireCompany = mode === 'create' && isOverlord;
 
   const form = useForm<EmployeeFormValues>({
-    resolver: zodResolver(getEmployeeFormSchema(mode, hasLinkedUser, requireCompany)),
+    resolver: zodResolver(getEmployeeFormSchema(mode, hasLinkedUser, requireCompany)) as never,
     defaultValues,
     mode: 'onChange',
   });
+
+  useEffect(() => {
+    if (!open || !serverError) {
+      return;
+    }
+
+    applyServerFieldErrors(serverError, form.setError);
+  }, [form, open, serverError]);
 
   const firstName = useWatch({ control: form.control, name: 'firstName' });
   const lastName = useWatch({ control: form.control, name: 'lastName' });
@@ -150,7 +164,6 @@ export default function EmployeeFormDialog({
   const selectedCountryId = useWatch({ control: form.control, name: 'countryId' });
   const selectedCityId = useWatch({ control: form.control, name: 'cityId' });
   const citiesQuery = useCitiesByCountry(Number(selectedCountryId) || null, open && Boolean(selectedCountryId));
-  const warehousesQuery = useWarehouses({ active: true, status: 'ACTIVE', size: 200 }, open);
 
   const positionOptions = useMemo(
     () =>
@@ -203,16 +216,6 @@ export default function EmployeeFormDialog({
       })),
     [companies],
   );
-
-  const warehouseOptions = useMemo(() => {
-    const selectedCompany = Number(selectedCompanyId) || initialData?.companyId || null;
-    return (warehousesQuery.data?.content ?? [])
-      .filter((warehouse) => !selectedCompany || warehouse.companyId === selectedCompany)
-      .map((warehouse) => ({
-        value: warehouse.id,
-        label: warehouse.companyName ? `${warehouse.name} (${warehouse.companyName})` : warehouse.name,
-      }));
-  }, [initialData?.companyId, selectedCompanyId, warehousesQuery.data?.content]);
 
   const selectedCompanyName = useMemo(() => {
     if (mode !== 'create') {
@@ -272,11 +275,21 @@ export default function EmployeeFormDialog({
         status: linkedUser?.status ?? 'ACTIVE',
         enabled: linkedUser?.enabled ?? true,
         companyId: initialData.companyId != null ? String(initialData.companyId) : '',
+        applyGeneratedEmailSuggestion: false,
       });
+      setSelectedPrimaryWarehouse(
+        initialData.primaryWarehouseId
+          ? {
+              id: initialData.primaryWarehouseId,
+              label: initialData.primaryWarehouseName ?? `Warehouse #${initialData.primaryWarehouseId}`,
+            }
+          : null,
+      );
       return;
     }
 
     form.reset(defaultValues);
+    setSelectedPrimaryWarehouse(null);
   }, [form, initialData, linkedUser, mode, open]);
 
   useEffect(() => {
@@ -320,6 +333,10 @@ export default function EmployeeFormDialog({
       return;
     }
 
+    if (form.getValues('applyGeneratedEmailSuggestion')) {
+      return;
+    }
+
     const nextEmail = buildEmail(
       firstName ?? '',
       lastName ?? '',
@@ -329,6 +346,12 @@ export default function EmployeeFormDialog({
     );
     form.setValue('email', nextEmail, { shouldDirty: true, shouldValidate: true });
   }, [firstName, form, lastName, mode, selectedCompanyCountryCode, selectedCompanyName, selectedPosition]);
+
+  const suggestedGeneratedEmail = mode === 'edit' ? initialData?.suggestedGeneratedEmail ?? null : null;
+  const showGeneratedEmailSuggestion = mode === 'edit'
+    && canEdit
+    && Boolean(suggestedGeneratedEmail)
+    && suggestedGeneratedEmail?.toLowerCase() !== form.getValues('email').toLowerCase();
 
   const disableSubmit = loading || !form.formState.isValid || (mode === 'edit' && !canEdit);
 
@@ -469,14 +492,25 @@ export default function EmployeeFormDialog({
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
-                name="primaryWarehouseId"
-                control={form.control}
+              <EntityLookupField
                 label="Primary warehouse"
-                options={warehouseOptions}
+                entityType="warehouses"
+                value={selectedPrimaryWarehouse}
+                onChange={(option) => {
+                  setSelectedPrimaryWarehouse(option);
+                  form.setValue('primaryWarehouseId', option?.id ?? null, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
                 required={selectedPosition === 'WORKER'}
-                disabled={warehousesQuery.isLoading || warehouseOptions.length === 0 || (mode === 'edit' && !canEdit)}
-                helperText={selectedPosition === 'WORKER' ? 'Required for WORKER operational scope' : 'Optional base/operational warehouse'}
+                disabled={mode === 'edit' && !canEdit}
+                error={Boolean(form.formState.errors.primaryWarehouseId)}
+                helperText={form.formState.errors.primaryWarehouseId?.message ?? (selectedPosition === 'WORKER' ? 'Required for WORKER operational scope' : 'Optional base/operational warehouse')}
+                placeholder="Choose primary warehouse"
+                searchPlaceholder="Search warehouses..."
+                sort="name,asc"
+                activeOnly
               />
             </Grid>
 
@@ -495,6 +529,7 @@ export default function EmployeeFormDialog({
                 control={form.control}
                 label="Email"
                 required
+                helperText={initialData?.emailGenerationSource ? `Source: ${initialData.emailGenerationSource}` : 'Generated from employee and company data'}
                 slotProps={{
                   input: {
                     readOnly: true,
@@ -502,6 +537,27 @@ export default function EmployeeFormDialog({
                 }}
               />
             </Grid>
+
+            {showGeneratedEmailSuggestion ? (
+              <Grid size={{ xs: 12 }}>
+                <Alert
+                  severity="info"
+                  action={
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        form.setValue('email', suggestedGeneratedEmail ?? '', { shouldDirty: true, shouldValidate: true });
+                        form.setValue('applyGeneratedEmailSuggestion', true, { shouldDirty: true, shouldValidate: true });
+                      }}
+                    >
+                      Update generated email
+                    </Button>
+                  }
+                >
+                  Suggested generated email: {suggestedGeneratedEmail}
+                </Alert>
+              </Grid>
+            ) : null}
 
             {mode === 'create' && isOverlord ? (
               <Grid size={{ xs: 12, md: 6 }}>
@@ -548,14 +604,17 @@ export default function EmployeeFormDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="contained" disabled={disableSubmit} onClick={form.handleSubmit(onSubmit)}>
-          {mode === 'create' ? 'Create employee' : 'Save changes'}
-        </Button>
-      </DialogActions>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel={mode === 'create' ? 'Create employee' : 'Save changes'}
+          submittingLabel={mode === 'create' ? 'Creating employee...' : 'Saving changes...'}
+          helperText="Employee and account fields must be valid before saving."
+          loading={loading}
+          submitDisabled={disableSubmit && !loading}
+          onCancel={onClose}
+          onSubmit={form.handleSubmit(onSubmit)}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

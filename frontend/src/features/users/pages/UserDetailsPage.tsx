@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import PageHeader from '../../../shared/components/PageHeader/PageHeader';
+import { EntityDetailsLayout } from '../../../shared/components/EntityDetails';
+import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
@@ -63,6 +64,7 @@ export default function UserDetailsPage() {
   const { showSnackbar } = useAppSnackbar();
 
   const [editOpen, setEditOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'linkedEmployee' | 'changeHistory'>('overview');
 
   const userId = Number(params.id);
 
@@ -115,20 +117,15 @@ export default function UserDetailsPage() {
 
   if (userQuery.isLoading) {
     return (
-      <Stack spacing={3}>
-        <PageHeader
-          overline="Access control"
-          title="User details"
-          actions={
-            <Button variant="outlined" onClick={() => navigate('/users')}>
-              Back to list
-            </Button>
-          }
-        />
+      <EntityDetailsLayout
+        overline="Access control"
+        title="User details"
+        actions={<Button variant="outlined" onClick={() => navigate('/users')}>Back to list</Button>}
+      >
         <SectionCard>
           <Typography color="text.secondary">Loading user details...</Typography>
         </SectionCard>
-      </Stack>
+      </EntityDetailsLayout>
     );
   }
 
@@ -146,53 +143,51 @@ export default function UserDetailsPage() {
 
   const user = userQuery.data;
 
+  const tabs = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'linkedEmployee', label: 'Linked employee' },
+    { value: 'changeHistory', label: 'Change history' },
+  ];
+
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        overline="Access control"
-        title={`${user.firstName} ${user.lastName}`}
-        description={`User #${user.id}`}
-        actions={
-          <Stack direction="row" spacing={1}>
-            <Button component={RouterLink} to="/users" variant="outlined">
-              Back to list
-            </Button>
+    <EntityDetailsLayout
+      overline="Access control"
+      title={`${user.firstName} ${user.lastName}`}
+      description={`User #${user.id}`}
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(value) => setActiveTab(value as 'overview' | 'linkedEmployee' | 'changeHistory')}
+      actions={
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Button component={RouterLink} to="/users" variant="outlined">
+            Back to list
+          </Button>
 
+          {canEdit && (
+            <Button variant="outlined" onClick={() => setEditOpen(true)}>
+              Edit user
+            </Button>
+          )}
+
+          {canToggle && (
             <Button
-              variant="outlined"
-              component={RouterLink}
-              to={`/change-history?entityName=USER&entityId=${user.id}`}
+              variant="contained"
+              color={user.enabled ? 'warning' : 'success'}
+              disabled={enableDisableMutation.isPending}
+              onClick={() => enableDisableMutation.mutate(user.enabled)}
             >
-              View history
+              {user.enabled ? 'Disable user' : 'Enable user'}
             </Button>
-
-            {canEdit && (
-              <Button variant="outlined" onClick={() => setEditOpen(true)}>
-                Edit user
-              </Button>
-            )}
-
-            {canToggle && (
-              <Button
-                variant="contained"
-                color={user.enabled ? 'warning' : 'success'}
-                disabled={enableDisableMutation.isPending}
-                onClick={() => enableDisableMutation.mutate(user.enabled)}
-              >
-                {user.enabled ? 'Disable user' : 'Enable user'}
-              </Button>
-            )}
-          </Stack>
-        }
-      />
-
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, lg: 8 }}>
-          <SectionCard
+          )}
+        </Stack>
+      }
+    >
+      {activeTab === 'overview' ? (
+        <SectionCard
             title="User overview"
             description="User, company and linked employee fields returned by the backend."
           >
-            <Grid container spacing={3}>
+          <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <InfoRow label="First name" value={user.firstName} />
               </Grid>
@@ -237,14 +232,14 @@ export default function UserDetailsPage() {
               </Grid>
             </Grid>
           </SectionCard>
-        </Grid>
+      ) : null}
 
-        <Grid size={{ xs: 12, lg: 4 }}>
-          <SectionCard
-            title="Linked employee"
-            description="Employee profile created together with the user."
-          >
-            <Grid container spacing={3}>
+      {activeTab === 'linkedEmployee' ? (
+        <SectionCard
+          title="Linked employee"
+          description="Employee profile created together with the user."
+        >
+          <Grid container spacing={3}>
               <Grid size={{ xs: 12 }}>
                 <InfoRow label="JMBG" value={user.employee?.jmbg ?? '—'} />
               </Grid>
@@ -280,10 +275,18 @@ export default function UserDetailsPage() {
                   }
                 />
               </Grid>
-            </Grid>
-          </SectionCard>
-        </Grid>
-      </Grid>
+          </Grid>
+        </SectionCard>
+      ) : null}
+
+      {activeTab === 'changeHistory' ? (
+        <ChangeHistoryPanel
+          entityName="USER"
+          entityId={user.id}
+          title="User change history"
+          description="Audit trail for account, role and linked employee changes."
+        />
+      ) : null}
 
       {canEdit && (
         <UserFormDialog
@@ -326,6 +329,6 @@ export default function UserDetailsPage() {
           }}
         />
       )}
-    </Stack>
+    </EntityDetailsLayout>
   );
 }

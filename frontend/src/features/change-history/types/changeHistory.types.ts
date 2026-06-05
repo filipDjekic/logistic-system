@@ -4,6 +4,7 @@ export type ChangeHistoryResponse = {
   id: number;
   entityName: string;
   entityId: number;
+  entityIdentifier: string | null;
   changeType: ChangeType;
   fieldName: string | null;
   oldValue: string | null;

@@ -10,7 +10,7 @@ export default function NotificationBadge() {
 
   const unreadCount = unreadCountQuery.data ?? 0;
 
-  useNotificationLiveUpdates(unreadCountQuery.data);
+  useNotificationLiveUpdates();
 
   return (
     <Tooltip title="Notifications">

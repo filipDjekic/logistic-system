@@ -56,11 +56,18 @@ public class TransportOrderItemController {
     @GetMapping
     public ResponseEntity<PageResponse<TransportOrderItemResponse>> getAllTransportOrderItems(
             @RequestParam(required = false) Long transportOrderId,
+            @RequestParam(required = false) Long productId,
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        PageResponse<TransportOrderItemResponse> response = transportOrderId == null
-                ? transportOrderItemService.getAll(pageable)
-                : transportOrderItemService.getByTransportOrderId(transportOrderId, pageable);
+        PageResponse<TransportOrderItemResponse> response;
+
+        if (transportOrderId != null) {
+            response = transportOrderItemService.getByTransportOrderId(transportOrderId, pageable);
+        } else if (productId != null) {
+            response = transportOrderItemService.getByProductId(productId, pageable);
+        } else {
+            response = transportOrderItemService.getAll(pageable);
+        }
 
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

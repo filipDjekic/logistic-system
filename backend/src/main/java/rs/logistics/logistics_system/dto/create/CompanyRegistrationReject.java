@@ -11,6 +11,6 @@ import lombok.Setter;
 @NoArgsConstructor
 public class CompanyRegistrationReject {
     @NotBlank
-    @Size(max = 500)
+    @Size(min = 10, max = 500)
     private String rejectionReason;
 }

@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.controller;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -22,8 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.VehicleCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.dto.response.StatusCountResponse;
 import rs.logistics.logistics_system.dto.response.VehicleResponse;
+import rs.logistics.logistics_system.dto.statusUpdate.VehicleStatusUpdate;
 import rs.logistics.logistics_system.dto.update.VehicleUpdate;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
@@ -53,6 +57,19 @@ public class VehicleController {
         return new ResponseEntity<>(vehicleService.getById(id), HttpStatus.OK);
     }
 
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
+    @GetMapping("/status-counts")
+    public ResponseEntity<List<StatusCountResponse>> countByStatus(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) BigDecimal capacityFrom,
+            @RequestParam(required = false) BigDecimal capacityTo
+    ) {
+        return ResponseEntity.ok(vehicleService.countByStatus(search, type, available, capacityFrom, capacityTo));
+    }
+
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping
     public ResponseEntity<PageResponse<VehicleResponse>> getAllVehicles(
@@ -70,6 +87,19 @@ public class VehicleController {
         );
     }
 
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PatchMapping("/{id}/archive")
+    public ResponseEntity<VehicleResponse> archiveVehicle(@PathVariable Long id) {
+        return ResponseEntity.ok(vehicleService.archiveVehicle(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<VehicleResponse> restoreVehicle(@PathVariable Long id) {
+        return ResponseEntity.ok(vehicleService.restoreVehicle(id));
+    }
+
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
@@ -78,8 +108,14 @@ public class VehicleController {
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @GetMapping("/{id}/status-transitions")
+    public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
+        return ResponseEntity.ok(vehicleService.allowedStatusTransitions(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping("/{id}/status")
-    public ResponseEntity<VehicleResponse> changeStatus(@PathVariable Long id, @RequestParam VehicleStatus status) {
-        return ResponseEntity.ok(vehicleService.changeStatus(id, status));
+    public ResponseEntity<VehicleResponse> changeStatus(@PathVariable Long id, @Valid @RequestBody VehicleStatusUpdate dto) {
+        return ResponseEntity.ok(vehicleService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion()));
     }
 }

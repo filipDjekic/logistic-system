@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { InventoryListRow } from '../types/inventory.types';
@@ -34,6 +35,7 @@ export default function InventoryTable({
   sort,
   onSortChange,
 }: Props) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<InventoryListRow>[] = [
     {
       id: 'warehouseName',
@@ -137,6 +139,8 @@ export default function InventoryTable({
       emptyTitle="No inventory records found"
       emptyDescription="There are no inventory records that match the current filters."
       minWidth={1180}
+      onRowClick={(row) => navigate(`/inventory/${row.warehouseId}/${row.productId}`)}
+      rowClickLabel="Open inventory details"
     />
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Button,
   Grid,
@@ -8,23 +8,40 @@ import {
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
+import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
+import {
+  AttachmentsPanel,
+  ChangeHistoryPanel,
+  CommentsPanel,
+  DomainEventsPanel,
+} from '../../../shared/components/OperationalPanels';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { canChangeTransportOrderStatus, canEditTransportOrder, canManageTransportOrders, canMutateTransportOrderItems, getAllowedTransportOrderStatusTransitions } from '../../../core/permissions/operationGuards';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
+import { StickyMobileActions } from '../../../shared/components/Mobile';
+import { ForbiddenTransitionHint, LifecycleHistoryTimeline, LifecycleStatusGraph, LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import EmptyState from '../../../shared/components/EmptyState/EmptyState';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import OperationalTimeline from '../../../shared/components/OperationalTimeline/OperationalTimeline';
-import FormSelect from '../../../shared/components/Form/FormSelect';
+import { EntityLookupField } from '../../lookup';
 import FormTextField from '../../../shared/components/Form/Form';
+import FormActions from '../../../shared/components/Form/FormActions';
+import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
+import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { invalidateTransportOrderState } from '../../../core/utils/invalidateAppState';
 import { transportOrdersApi } from '../api/transportOrdersApi';
+import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
+import StockMovementsTable from '../../stock-movements/components/StockMovementsTable';
+import TasksTable from '../../tasks/components/TasksTable';
+import { useTasks } from '../../tasks/hooks/useTasks';
 import TransportOrderItemsTable from '../components/TransportOrderItemsTable';
 import TransportOrderStatusChip from '../components/TransportOrderStatusChip';
 import TransportOrderFormDialog from '../components/TransportOrderFormDialog';
@@ -81,6 +98,17 @@ function getStatusActionLabel(status: TransportOrderStatus) {
   }
 }
 
+
+type TransportOrderDetailsTab =
+  | 'overview'
+  | 'lifecycle'
+  | 'items'
+  | 'relatedStockMovements'
+  | 'tasks'
+  | 'commentsAttachments'
+  | 'domainEvents'
+  | 'changeHistory';
+
 const itemDefaultValues: TransportOrderItemSchemaValues = {
   productId: 0,
   quantity: 0,
@@ -125,6 +153,8 @@ export default function TransportOrderDetailsPage() {
 
   const [selectedItem, setSelectedItem] = useState<TransportOrderItemResponse | null>(null);
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TransportOrderDetailsTab>('overview');
+  const [transitionTarget, setTransitionTarget] = useState<TransportOrderStatus | null>(null);
 
   const transportOrderQuery = useTransportOrder(
     isValidTransportOrderId ? transportOrderId : null,
@@ -134,11 +164,29 @@ export default function TransportOrderDetailsPage() {
     queryKey: queryKeys.transportOrders.items(transportOrderId),
     queryFn: () => transportOrdersApi.getItemsByTransportOrderId(transportOrderId),
     enabled: isValidTransportOrderId && canReadItems,
-    staleTime: 30_000,
-    refetchInterval: 45_000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
+
+  const relatedStockMovementsQuery = useQuery({
+    queryKey: queryKeys.stockMovements.list({ transportOrderId, page: 0, size: 20, sort: 'createdAt,desc' }),
+    queryFn: () => stockMovementsApi.getAll({ transportOrderId, page: 0, size: 20, sort: 'createdAt,desc' }),
+    enabled: isValidTransportOrderId && canReadItems,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const relatedTasksQuery = useTasks(
+    isValidTransportOrderId
+      ? {
+          transportOrderId,
+          page: 0,
+          size: 20,
+          sort: 'dueDate,desc',
+        }
+      : undefined,
+    isValidTransportOrderId && canReadItems,
+  );
 
   const warehousesQuery = useQuery({
     queryKey: queryKeys.transportOrders.warehouses(),
@@ -294,7 +342,31 @@ export default function TransportOrderDetailsPage() {
     });
   }, [itemForm, selectedItem]);
 
+  useEffect(() => {
+    const error = createItemMutation.error ?? updateItemMutation.error;
+    if (!error) {
+      return;
+    }
+
+    applyServerFieldErrors(error, itemForm.setError);
+  }, [createItemMutation.error, itemForm, updateItemMutation.error]);
+
   const transportOrder = transportOrderQuery.data;
+
+  useEffect(() => {
+    if (!transportOrder || ['DELIVERED', 'FAILED', 'CANCELLED'].includes(transportOrder.status)) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void transportOrderQuery.refetch();
+      void relatedTasksQuery.refetch();
+      void relatedStockMovementsQuery.refetch();
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [transportOrder, transportOrderQuery, relatedTasksQuery, relatedStockMovementsQuery]);
+
   const nextStatuses = transportOrder?.allowedNextStatuses?.length ? transportOrder.allowedNextStatuses.filter((status) => getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status).includes(status)) : transportOrder ? getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status) : [];
   const isEditableItems = canMutateTransportOrderItems(currentRole, transportOrder);
   const isEditableOrder = canEditTransportOrder(currentRole, transportOrder);
@@ -354,26 +426,84 @@ export default function TransportOrderDetailsPage() {
   const vehicle = vehiclesById[transportOrder.vehicleId];
   const employee = employeesById[transportOrder.assignedEmployeeId];
 
-  const selectableProducts = (productsQuery.data ?? []).filter(
-    (product) => typeof product.weight === 'number' && product.weight > 0,
-  );
-
-  const productOptions = selectableProducts.map((product) => ({
-    value: product.id,
-    label: `${product.name} (${product.sku})`,
-  }));
-
   const isItemMutationLoading =
     createItemMutation.isPending || updateItemMutation.isPending;
 
+  const transportItemCount = itemsQuery.data?.length ?? 0;
+  const transportRecommendedStep = (() => {
+    const terminal = ['DELIVERED', 'FAILED', 'CANCELLED'].includes(transportOrder.status);
+
+    if (terminal) {
+      return {
+        title: 'Review final outcome and audit trail.',
+        description: 'This transport order is terminal. Use the timeline, linked stock movements and change history to verify the completed business process.',
+        severity: 'success' as const,
+        actions: [
+          { label: 'Open lifecycle', onClick: () => setActiveTab('lifecycle'), variant: 'outlined' as const },
+          { label: 'Open stock movements', onClick: () => setActiveTab('relatedStockMovements'), variant: 'outlined' as const },
+        ],
+      };
+    }
+
+    if (canReadItems && transportItemCount === 0 && transportOrder.status === 'DRAFT') {
+      return {
+        title: 'Add transport items before moving the order forward.',
+        description: 'The order has no products connected to it yet. Add at least one item so warehouse execution, reservation and later stock movement tracing have a clear source.',
+        severity: 'warning' as const,
+        actions: [{ label: 'Add items', onClick: () => setActiveTab('items') }],
+      };
+    }
+
+    if (relatedTasksQuery.data && relatedTasksQuery.data.totalElements === 0 && canManageOrder && !transportOrder.status === 'DRAFT') {
+      return {
+        title: 'Create operational tasks for this order.',
+        description: 'The order has moved into the operational lifecycle, but there are no linked tasks yet. Create picking, loading, transport or unloading tasks so execution can be tracked by role.',
+        severity: 'warning' as const,
+        actions: [{ label: 'Create task', to: `/tasks/create?transportOrderId=${transportOrder.id}` }],
+      };
+    }
+
+    if (nextStatuses.length > 0 && canChangeTransportOrderStatus(currentRole, transportOrder)) {
+      return {
+        title: `Continue lifecycle from ${transportOrder.status}.`,
+        description: `Available next status: ${nextStatuses.join(', ')}. Use a lifecycle action only when the real operational work for the current stage is complete.`,
+        severity: 'info' as const,
+        actions: [{ label: 'Open status actions', onClick: () => setActiveTab('overview') }],
+      };
+    }
+
+    return {
+      title: 'Review linked operational context.',
+      description: 'No direct action is available for your role or the current state. Review tasks, stock movements and lifecycle history to understand the order context.',
+      severity: 'info' as const,
+      actions: [
+        { label: 'Open tasks', onClick: () => setActiveTab('tasks'), variant: 'outlined' as const },
+        { label: 'Open lifecycle', onClick: () => setActiveTab('lifecycle'), variant: 'outlined' as const },
+      ],
+    };
+  })();
+
+  const tabs = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'lifecycle', label: 'Lifecycle' },
+    { value: 'items', label: 'Items', disabled: !canReadItems },
+    { value: 'relatedStockMovements', label: 'Related stock movements', disabled: !canReadItems },
+    { value: 'tasks', label: 'Tasks', disabled: !canReadItems },
+    { value: 'commentsAttachments', label: 'Comments & attachments' },
+    { value: 'domainEvents', label: 'Domain events' },
+    { value: 'changeHistory', label: 'Change history', disabled: !canViewHistory },
+  ];
+
   return (
-    <Stack spacing={3}>
-      <PageHeader
-        overline="Operations"
-        title={`Transport Order ${transportOrder.orderNumber}`}
-        description={transportOrder.description}
-        actions={
-          <Stack direction="row" spacing={1}>
+    <EntityDetailsLayout
+      overline="Operations"
+      title={`Transport Order ${transportOrder.orderNumber}`}
+      description={transportOrder.description}
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(value) => setActiveTab(value as TransportOrderDetailsTab)}
+      actions={
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             {isEditableOrder ? (
               <Button
                 variant="contained"
@@ -395,7 +525,7 @@ export default function TransportOrderDetailsPage() {
             {canViewHistory ? (
               <Button
                 variant="outlined"
-                onClick={() => navigate(`/change-history?entityName=TRANSPORT_ORDER&entityId=${transportOrder.id}`)}
+                onClick={() => setActiveTab('changeHistory')}
               >
                 View history
               </Button>
@@ -405,9 +535,11 @@ export default function TransportOrderDetailsPage() {
               Back to list
             </Button>
           </Stack>
-        }
-      />
+      }
+    >
+      <RecommendedNextStep {...transportRecommendedStep} />
 
+      {activeTab === 'overview' ? (
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, lg: 8 }}>
           <SectionCard title="Overview" description="Core transport order data confirmed by backend DTOs.">
@@ -434,9 +566,9 @@ export default function TransportOrderDetailsPage() {
                 <Typography variant="caption" color="text.secondary">
                   Source warehouse
                 </Typography>
-                <Typography variant="body1">
+                <Button component={RouterLink} to={`/warehouses/${transportOrder.sourceWarehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
                   {sourceWarehouse?.name ?? `Warehouse #${transportOrder.sourceWarehouseId}`}
-                </Typography>
+                </Button>
                 <Typography variant="body2" color="text.secondary">
                   {sourceWarehouse ? `${sourceWarehouse.address}, ${sourceWarehouse.city}` : '—'}
                 </Typography>
@@ -446,9 +578,9 @@ export default function TransportOrderDetailsPage() {
                 <Typography variant="caption" color="text.secondary">
                   Destination warehouse
                 </Typography>
-                <Typography variant="body1">
+                <Button component={RouterLink} to={`/warehouses/${transportOrder.destinationWarehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
                   {destinationWarehouse?.name ?? `Warehouse #${transportOrder.destinationWarehouseId}`}
-                </Typography>
+                </Button>
                 <Typography variant="body2" color="text.secondary">
                   {destinationWarehouse
                     ? `${destinationWarehouse.address}, ${destinationWarehouse.city}`
@@ -460,9 +592,9 @@ export default function TransportOrderDetailsPage() {
                 <Typography variant="caption" color="text.secondary">
                   Vehicle
                 </Typography>
-                <Typography variant="body1">
+                <Button component={RouterLink} to={`/vehicles/${transportOrder.vehicleId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
                   {vehicle ? `${vehicle.brand} ${vehicle.model}` : `Vehicle #${transportOrder.vehicleId}`}
-                </Typography>
+                </Button>
                 <Typography variant="body2" color="text.secondary">
                   {vehicle ? `${vehicle.registrationNumber} · ${vehicle.status}` : '—'}
                 </Typography>
@@ -472,11 +604,11 @@ export default function TransportOrderDetailsPage() {
                 <Typography variant="caption" color="text.secondary">
                   Driver
                 </Typography>
-                <Typography variant="body1">
+                <Button component={RouterLink} to={`/employees/${transportOrder.assignedEmployeeId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
                   {employee
                     ? `${employee.firstName} ${employee.lastName}`
                     : `Employee #${transportOrder.assignedEmployeeId}`}
-                </Typography>
+                </Button>
                 <Typography variant="body2" color="text.secondary">
                   {employee?.email ?? '—'}
                 </Typography>
@@ -541,15 +673,21 @@ export default function TransportOrderDetailsPage() {
         <Grid size={{ xs: 12, lg: 4 }}>
           <SectionCard title="Status actions" description="Allowed transitions follow backend service rules.">
             {!canChangeTransportOrderStatus(currentRole, transportOrder) ? (
-              <EmptyState
-                title="No status actions available"
-                description="Your role can review the order but cannot change its status."
-              />
+              <>
+                <EmptyState
+                  title="No status actions available"
+                  description="Your role can review the order but cannot change its status."
+                />
+                <ForbiddenTransitionHint visible message="Your role is not allowed to transition this transport order." />
+              </>
             ) : nextStatuses.length === 0 ? (
-              <EmptyState
-                title="No more status actions"
-                description="This transport order is already in a terminal state."
-              />
+              <>
+                <EmptyState
+                  title="No more status actions"
+                  description="This transport order is already in a terminal state."
+                />
+                <ForbiddenTransitionHint visible message="No next transition is allowed from the current transport order status." />
+              </>
             ) : (
               <Stack spacing={1.5}>
                 {nextStatuses.map((status) => (
@@ -562,10 +700,7 @@ export default function TransportOrderDetailsPage() {
                         return;
                       }
 
-                      updateStatusMutation.mutate({
-                        id: transportOrder.id,
-                        status,
-                      });
+                      setTransitionTarget(status);
                     }}
                   >
                     {getStatusActionLabel(status)}
@@ -592,7 +727,7 @@ export default function TransportOrderDetailsPage() {
 
           <SectionCard
             title="Item rules"
-            description="Item create, edit and remove is allowed only while status is DRAFT/CREATED."
+            description="Item create, edit and remove is allowed only while status is DRAFT."
           >
             <Typography variant="body2" color="text.secondary">
               Current status: {transportOrder.status}
@@ -606,7 +741,43 @@ export default function TransportOrderDetailsPage() {
           </SectionCard>
         </Grid>
       </Grid>
+      ) : null}
 
+
+      {activeTab === 'lifecycle' ? (
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12 }}>
+            <SectionCard title="Lifecycle graph" description="Visual operational flow for dispatch, warehouse execution and delivery.">
+              <LifecycleStatusGraph
+                statuses={['DRAFT', 'ASSIGNED', 'PICKING', 'PACKING', 'READY_FOR_LOADING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'RETURNING', 'RESCHEDULED', 'CANCELLED'] as const}
+                currentStatus={transportOrder.status}
+                allowedNextStatuses={nextStatuses}
+                terminalStatuses={['DELIVERED', 'FAILED', 'CANCELLED'] as const}
+              />
+            </SectionCard>
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <SectionCard title="Live workflow state" description="This panel refreshes active transport context every 30 seconds while the order is not terminal.">
+              <OperationalTimeline
+                items={(transportOrder.timeline ?? []).map((entry) => ({
+                  id: `${entry.status}-${entry.label}`,
+                  status: entry.status,
+                  title: entry.label,
+                  description: entry.description,
+                  timestamp: formatTemporalView(entry.timestampView, entry.timestamp),
+                  completed: entry.completed,
+                  current: entry.current,
+                }))}
+              />
+            </SectionCard>
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <LifecycleHistoryTimeline entityName="TRANSPORT_ORDER" entityId={transportOrder.id} />
+          </Grid>
+        </Grid>
+      ) : null}
+
+      {activeTab === 'items' ? (
       <SectionCard
         title="Transport order items"
         description="Items are loaded from the transport order item API and filtered by transport order ID."
@@ -649,12 +820,33 @@ export default function TransportOrderDetailsPage() {
             >
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <FormSelect
+                  <Controller
                     name="productId"
                     control={itemForm.control}
-                    label="Product"
-                    options={productOptions}
-                    required
+                    render={({ field, fieldState }) => {
+                      const selectedProduct = productsById[Number(field.value)];
+                      const disabledProductIds = (itemsQuery.data ?? [])
+                        .filter((item) => !selectedItem || item.id !== selectedItem.id)
+                        .map((item) => item.productId);
+
+                      return (
+                        <EntityLookupField
+                          label="Product"
+                          entityType="products"
+                          value={field.value ? {
+                            id: Number(field.value),
+                            label: selectedProduct ? `${selectedProduct.name} (${selectedProduct.sku})` : `Product #${field.value}`,
+                            subtitle: selectedProduct ? `${selectedProduct.unit} · ${formatWeight(selectedProduct.weight)}` : null,
+                          } : null}
+                          onChange={(option) => field.onChange(option?.id ?? 0)}
+                          required
+                          error={Boolean(fieldState.error)}
+                          helperText={fieldState.error?.message ?? 'Products are dynamic records, so use lookup instead of a fixed dropdown.'}
+                          searchPlaceholder="Search products by name or SKU..."
+                          disabledOptionIds={disabledProductIds}
+                        />
+                      );
+                    }}
                   />
                 </Grid>
 
@@ -682,32 +874,21 @@ export default function TransportOrderDetailsPage() {
                   />
                 </Grid>
 
-                {productOptions.length === 0 ? (
-                  <EmptyState
-                    title="No valid products available"
-                    description="Transport order items require products with a defined weight greater than zero."
-                  />
-                ) : null}
-
                 <Grid size={{ xs: 12 }}>
-                  <Stack direction="row" justifyContent="flex-end" spacing={1}>
-                    {selectedItem ? (
-                      <Button
-                        variant="outlined"
-                        disabled={isItemMutationLoading}
-                        onClick={() => {
-                          setSelectedItem(null);
-                          itemForm.reset(itemDefaultValues);
-                        }}
-                      >
-                        Cancel edit
-                      </Button>
-                    ) : null}
-
-                    <Button
-                      variant="contained"
-                      disabled={isItemMutationLoading || productOptions.length === 0}
-                      onClick={itemForm.handleSubmit((values) => {
+                  <Stack spacing={1.5}>
+                    <FormGlobalError error={createItemMutation.error ?? updateItemMutation.error} />
+                    <FormActions
+                      cancelLabel={selectedItem ? 'Cancel edit' : 'Clear item form'}
+                      submitLabel={selectedItem ? 'Save item changes' : 'Add item'}
+                      submittingLabel={selectedItem ? 'Saving item...' : 'Adding item...'}
+                      helperText="Product and quantity must be valid before saving transport item."
+                      loading={isItemMutationLoading}
+                      submitDisabled={!itemForm.formState.isValid}
+                      onCancel={() => {
+                        setSelectedItem(null);
+                        itemForm.reset(itemDefaultValues);
+                      }}
+                      onSubmit={itemForm.handleSubmit((values) => {
                         const payload = {
                           productId: values.productId,
                           quantity: values.quantity,
@@ -737,9 +918,7 @@ export default function TransportOrderDetailsPage() {
                           },
                         });
                       })}
-                    >
-                      {selectedItem ? 'Save item changes' : 'Add item'}
-                    </Button>
+                    />
                   </Stack>
                 </Grid>
               </Grid>
@@ -747,6 +926,108 @@ export default function TransportOrderDetailsPage() {
           ) : null}
         </Stack>
       </SectionCard>
+      ) : null}
+
+      {activeTab === 'relatedStockMovements' ? (
+        <RelatedDataSection
+          title="Related stock movements"
+          description="Inventory movements generated from or linked to this transport order."
+          loading={relatedStockMovementsQuery.isLoading}
+          error={relatedStockMovementsQuery.isError}
+          onRetry={() => { void relatedStockMovementsQuery.refetch(); }}
+          empty={!relatedStockMovementsQuery.isLoading && !relatedStockMovementsQuery.isError && (relatedStockMovementsQuery.data?.content ?? []).length === 0}
+          emptyTitle="No related stock movements"
+          emptyDescription="No stock movement is currently linked with this transport order."
+        >
+          <StockMovementsTable
+            rows={relatedStockMovementsQuery.data?.content ?? []}
+            loading={relatedStockMovementsQuery.isLoading}
+            error={relatedStockMovementsQuery.isError}
+            onRetry={() => { void relatedStockMovementsQuery.refetch(); }}
+          />
+        </RelatedDataSection>
+      ) : null}
+
+      {activeTab === 'tasks' ? (
+        <RelatedDataSection
+          title="Related tasks"
+          description="Operational tasks assigned for this transport order."
+          loading={relatedTasksQuery.isLoading}
+          error={relatedTasksQuery.isError}
+          onRetry={() => { void relatedTasksQuery.refetch(); }}
+          empty={!relatedTasksQuery.isLoading && !relatedTasksQuery.isError && (relatedTasksQuery.data?.content ?? []).length === 0}
+          emptyTitle="No related tasks"
+          emptyDescription="No task is currently linked with this transport order."
+        >
+          <TasksTable
+            rows={relatedTasksQuery.data?.content ?? []}
+            loading={relatedTasksQuery.isLoading}
+            error={relatedTasksQuery.isError}
+            onRetry={() => { void relatedTasksQuery.refetch(); }}
+            role={currentRole}
+            canMutate={false}
+            onEdit={() => undefined}
+            onDelete={() => undefined}
+            showLinks
+          />
+        </RelatedDataSection>
+      ) : null}
+
+      {activeTab === 'commentsAttachments' ? (
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <CommentsPanel entityType="TRANSPORT_ORDER" entityId={transportOrder.id} allowCreate={canManageOrder} />
+          </Grid>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <AttachmentsPanel entityType="TRANSPORT_ORDER" entityId={transportOrder.id} allowCreate={canManageOrder} />
+          </Grid>
+        </Grid>
+      ) : null}
+
+      {activeTab === 'domainEvents' ? (
+        <DomainEventsPanel entityType="TRANSPORT_ORDER" entityId={transportOrder.id} />
+      ) : null}
+
+      {activeTab === 'changeHistory' ? (
+        <ChangeHistoryPanel
+          entityName="TRANSPORT_ORDER"
+          entityId={transportOrder.id}
+          title="Transport order change history"
+          description="Audit trail for status, item and assignment changes made to this transport order."
+        />
+      ) : null}
+
+
+      <StickyMobileActions
+        title="Transport quick actions"
+        description="Use on phone/tablet while moving the order through execution."
+        actions={[
+          ...nextStatuses.slice(0, 2).map((status) => ({
+            label: getStatusActionLabel(status),
+            onClick: () => setTransitionTarget(status),
+            disabled: updateStatusMutation.isPending,
+          })),
+          { label: 'Back', to: '/transport-orders', variant: 'outlined' as const },
+        ]}
+      />
+
+      <LifecycleTransitionDialog
+        open={transitionTarget != null}
+        entityLabel={`transport order ${transportOrder.orderNumber}`}
+        fromStatus={transportOrder.status}
+        toStatus={transitionTarget}
+        optimisticVersion={transportOrder.version}
+        loading={updateStatusMutation.isPending}
+        onClose={() => setTransitionTarget(null)}
+        onConfirm={(reason) => {
+          if (!transitionTarget) return;
+          updateStatusMutation.mutate(
+            { id: transportOrder.id, status: transitionTarget, reason, expectedVersion: transportOrder.version },
+            { onSettled: () => setTransitionTarget(null) },
+          );
+        }}
+      />
+
       <TransportOrderFormDialog
         open={orderDialogOpen}
         initialData={transportOrder}
@@ -759,6 +1040,7 @@ export default function TransportOrderDetailsPage() {
           (canResolveVehicles && vehiclesQuery.isLoading) ||
           (canResolveEmployees && employeesQuery.isLoading)
         }
+        serverError={updateTransportOrderMutation.error}
         onClose={() => setOrderDialogOpen(false)}
         onSubmit={(values) => {
           updateTransportOrderMutation.mutate(
@@ -786,6 +1068,6 @@ export default function TransportOrderDetailsPage() {
           );
         }}
       />
-    </Stack>
+    </EntityDetailsLayout>
   );
 }

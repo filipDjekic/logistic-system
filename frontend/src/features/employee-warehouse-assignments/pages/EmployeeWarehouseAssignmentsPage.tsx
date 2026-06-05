@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Button,
@@ -13,8 +13,8 @@ import {
 } from '@mui/material';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import { useEmployees } from '../../employees/hooks/useEmployees';
-import { useWarehouses } from '../../warehouses/hooks/useWarehouses';
+import { EntityLookupField } from '../../lookup';
+import type { LookupOption } from '../../lookup';
 import {
   useCreateEmployeeWarehouseAssignment,
   useDeleteEmployeeWarehouseAssignment,
@@ -27,8 +27,8 @@ import type { EmployeeWarehouseAccessType } from '../types/employeeWarehouseAssi
 const accessTypes: EmployeeWarehouseAccessType[] = ['PRIMARY', 'WORKER', 'MANAGER', 'DISPATCH', 'VIEW_ONLY'];
 
 type FormState = {
-  employeeId: number | '';
-  warehouseId: number | '';
+  employee: LookupOption | null;
+  warehouse: LookupOption | null;
   accessType: EmployeeWarehouseAccessType;
   validFrom: string;
   validTo: string;
@@ -36,8 +36,8 @@ type FormState = {
 };
 
 const initialForm: FormState = {
-  employeeId: '',
-  warehouseId: '',
+  employee: null,
+  warehouse: null,
   accessType: 'WORKER',
   validFrom: '',
   validTo: '',
@@ -46,65 +46,52 @@ const initialForm: FormState = {
 
 export default function EmployeeWarehouseAssignmentsPage() {
   const [mode, setMode] = useState<'employee' | 'warehouse'>('employee');
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
-  const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<LookupOption | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
 
-  const employeesQuery = useEmployees({ active: true, size: 300 });
-  const warehousesQuery = useWarehouses({ active: true, status: 'ACTIVE', size: 300 });
-  const byEmployeeQuery = useEmployeeWarehouseAssignmentsByEmployee(mode === 'employee' ? selectedEmployeeId : null);
-  const byWarehouseQuery = useEmployeeWarehouseAssignmentsByWarehouse(mode === 'warehouse' ? selectedWarehouseId : null);
+  const byEmployeeQuery = useEmployeeWarehouseAssignmentsByEmployee(mode === 'employee' ? selectedEmployee?.id ?? null : null);
+  const byWarehouseQuery = useEmployeeWarehouseAssignmentsByWarehouse(mode === 'warehouse' ? selectedWarehouse?.id ?? null : null);
   const createMutation = useCreateEmployeeWarehouseAssignment();
   const updateMutation = useUpdateEmployeeWarehouseAssignment();
   const deleteMutation = useDeleteEmployeeWarehouseAssignment();
 
-  const employees = employeesQuery.data?.content ?? [];
-  const warehouses = warehousesQuery.data?.content ?? [];
   const assignments = mode === 'employee' ? byEmployeeQuery.data ?? [] : byWarehouseQuery.data ?? [];
-
-  const employeeOptions = useMemo(
-    () => employees.map((employee) => ({ value: employee.id, label: `${employee.firstName} ${employee.lastName} · ${employee.position}` })),
-    [employees],
-  );
-
-  const warehouseOptions = useMemo(
-    () => warehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.companyName ? `${warehouse.name} · ${warehouse.companyName}` : warehouse.name })),
-    [warehouses],
-  );
-
-  const canSubmit = Boolean(form.employeeId && form.warehouseId && form.accessType);
+  const canSubmit = Boolean(form.employee?.id && form.warehouse?.id && form.accessType);
 
   return (
     <Stack spacing={3}>
       <PageHeader
         overline="People / Warehouse scope"
         title="Employee warehouse assignments"
-        description="Assign workers, managers and dispatchers to one or more warehouses without changing their primary warehouse."
+        description="Assign workers, managers and dispatchers to one or more warehouses without loading all employees and warehouses up front."
       />
 
       <Grid container spacing={2}>
-        <Grid item xs={12} md={5}>
-          <SectionCard title="Create assignment" description="Multi-warehouse access layer for operational scope.">
+        <Grid size={{ xs: 12, md: 5 }}>
+          <SectionCard title="Create assignment" description="Lookup-driven access assignment for large employee and warehouse datasets.">
             <Stack spacing={2}>
-              <TextField
-                select
+              <EntityLookupField
                 label="Employee"
-                value={form.employeeId}
-                onChange={(event) => setForm((current) => ({ ...current, employeeId: Number(event.target.value) }))}
-                fullWidth
-              >
-                {employeeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-              </TextField>
+                entityType="employees"
+                value={form.employee}
+                onChange={(option) => setForm((current) => ({ ...current, employee: option }))}
+                required
+                placeholder="Choose employee"
+                searchPlaceholder="Search employees by name, email or position..."
+                sort="lastName,asc"
+              />
 
-              <TextField
-                select
+              <EntityLookupField
                 label="Warehouse"
-                value={form.warehouseId}
-                onChange={(event) => setForm((current) => ({ ...current, warehouseId: Number(event.target.value) }))}
-                fullWidth
-              >
-                {warehouseOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-              </TextField>
+                entityType="warehouses"
+                value={form.warehouse}
+                onChange={(option) => setForm((current) => ({ ...current, warehouse: option }))}
+                required
+                placeholder="Choose warehouse"
+                searchPlaceholder="Search warehouses by name, city or company..."
+                sort="name,asc"
+              />
 
               <TextField
                 select
@@ -117,7 +104,7 @@ export default function EmployeeWarehouseAssignmentsPage() {
               </TextField>
 
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     label="Valid from"
                     type="date"
@@ -127,7 +114,7 @@ export default function EmployeeWarehouseAssignmentsPage() {
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     label="Valid to"
                     type="date"
@@ -152,10 +139,10 @@ export default function EmployeeWarehouseAssignmentsPage() {
                 variant="contained"
                 disabled={!canSubmit || createMutation.isPending}
                 onClick={() => {
-                  if (!form.employeeId || !form.warehouseId) return;
+                  if (!form.employee?.id || !form.warehouse?.id) return;
                   createMutation.mutate({
-                    employeeId: Number(form.employeeId),
-                    warehouseId: Number(form.warehouseId),
+                    employeeId: form.employee.id,
+                    warehouseId: form.warehouse.id,
                     accessType: form.accessType,
                     validFrom: form.validFrom || null,
                     validTo: form.validTo || null,
@@ -172,8 +159,8 @@ export default function EmployeeWarehouseAssignmentsPage() {
           </SectionCard>
         </Grid>
 
-        <Grid item xs={12} md={7}>
-          <SectionCard title="Assignments" description="Review access by employee or by warehouse.">
+        <Grid size={{ xs: 12, md: 7 }}>
+          <SectionCard title="Assignments" description="Review access by employee or by warehouse using lookup instead of bulk dropdowns.">
             <Stack spacing={2}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <TextField
@@ -188,25 +175,25 @@ export default function EmployeeWarehouseAssignmentsPage() {
                 </TextField>
 
                 {mode === 'employee' ? (
-                  <TextField
-                    select
+                  <EntityLookupField
                     label="Employee"
-                    value={selectedEmployeeId ?? ''}
-                    onChange={(event) => setSelectedEmployeeId(Number(event.target.value))}
-                    fullWidth
-                  >
-                    {employeeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                  </TextField>
+                    entityType="employees"
+                    value={selectedEmployee}
+                    onChange={setSelectedEmployee}
+                    placeholder="Choose employee"
+                    searchPlaceholder="Search employees..."
+                    sort="lastName,asc"
+                  />
                 ) : (
-                  <TextField
-                    select
+                  <EntityLookupField
                     label="Warehouse"
-                    value={selectedWarehouseId ?? ''}
-                    onChange={(event) => setSelectedWarehouseId(Number(event.target.value))}
-                    fullWidth
-                  >
-                    {warehouseOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                  </TextField>
+                    entityType="warehouses"
+                    value={selectedWarehouse}
+                    onChange={setSelectedWarehouse}
+                    placeholder="Choose warehouse"
+                    searchPlaceholder="Search warehouses..."
+                    sort="name,asc"
+                  />
                 )}
               </Stack>
 

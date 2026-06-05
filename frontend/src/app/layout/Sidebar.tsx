@@ -15,7 +15,7 @@ import { useAuthStore } from '../../core/auth/authStore';
 import { canAccess } from '../../core/permissions/canAccess';
 import { getNavigationSectionsForRole } from '../../core/config/navigation';
 
-export const SIDEBAR_WIDTH = 280;
+export const SIDEBAR_WIDTH = 260;
 
 type SidebarProps = {
   mobileOpen: boolean;
@@ -39,7 +39,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ minHeight: '64px !important', px: 2.25 }}>
+      <Toolbar sx={{ minHeight: '56px !important', px: 2 }}>
         <Box>
           <Typography variant="subtitle1" sx={{ lineHeight: 1.2, fontWeight: 800 }}>
             Logistics System
@@ -56,7 +56,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         sx={{
           flex: 1,
           overflowY: 'auto',
-          px: 1.25,
+          px: 1,
           py: 1.5,
         }}
       >
@@ -68,7 +68,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 color="text.secondary"
                 sx={{
                   display: 'block',
-                  px: 1.25,
+                  px: 1,
                   pb: 0.75,
                   fontWeight: 800,
                   letterSpacing: '0.08em',
@@ -91,8 +91,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                       sx={{
                         borderRadius: 1.5,
                         mb: 0.25,
-                        minHeight: 42,
-                        px: 1.25,
+                        minHeight: 38,
+                        px: 1,
                         '&.active': {
                           backgroundColor: 'action.selected',
                         },
@@ -107,7 +107,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                       <ListItemText
                         primary={item.label}
                         primaryTypographyProps={{
-                          fontSize: 14,
+                          fontSize: 13.5,
                           fontWeight: 650,
                         }}
                       />

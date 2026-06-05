@@ -34,7 +34,6 @@ const transportOrderColumns: SearchSelectColumn<TransportOrderResponse>[] = [
 
 const statusOptions: SearchSelectFilterOption<'ALL' | TransportOrderStatus>[] = [
   { value: 'ALL', label: 'All' },
-  { value: 'CREATED', label: 'Created' },
   { value: 'ASSIGNED', label: 'Assigned' },
   { value: 'IN_TRANSIT', label: 'In transit' },
   { value: 'DELIVERED', label: 'Delivered' },

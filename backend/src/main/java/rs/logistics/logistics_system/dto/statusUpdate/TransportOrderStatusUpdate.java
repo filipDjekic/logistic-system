@@ -15,4 +15,8 @@ public class TransportOrderStatusUpdate {
 
     @NotNull
     private TransportOrderStatus status;
+
+    private String reason;
+
+    private Long expectedVersion;
 }

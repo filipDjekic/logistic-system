@@ -11,6 +11,7 @@ import rs.logistics.logistics_system.dto.response.dashboard.DispatcherDashboardR
 import rs.logistics.logistics_system.dto.response.dashboard.DriverDashboardResponse;
 import rs.logistics.logistics_system.dto.response.dashboard.HrManagerDashboardResponse;
 import rs.logistics.logistics_system.dto.response.dashboard.OverlordDashboardResponse;
+import rs.logistics.logistics_system.dto.response.dashboard.OperationalDashboardResponse;
 import rs.logistics.logistics_system.dto.response.dashboard.WarehouseManagerDashboardResponse;
 import rs.logistics.logistics_system.dto.response.dashboard.WorkerDashboardResponse;
 import rs.logistics.logistics_system.service.definition.dashboard.CompanyAdminDashboardServiceDefinition;
@@ -18,6 +19,7 @@ import rs.logistics.logistics_system.service.definition.dashboard.DispatcherDash
 import rs.logistics.logistics_system.service.definition.dashboard.DriverDashboardServiceDefinition;
 import rs.logistics.logistics_system.service.definition.dashboard.HrManagerDashboardServiceDefinition;
 import rs.logistics.logistics_system.service.definition.dashboard.OverlordDashboardServiceDefinition;
+import rs.logistics.logistics_system.service.definition.dashboard.OperationalDashboardServiceDefinition;
 import rs.logistics.logistics_system.service.definition.dashboard.WarehouseManagerDashboardServiceDefinition;
 import rs.logistics.logistics_system.service.definition.dashboard.WorkerDashboardServiceDefinition;
 
@@ -33,6 +35,7 @@ public class DashboardController {
     private final DispatcherDashboardServiceDefinition dispatcherDashboardService;
     private final DriverDashboardServiceDefinition driverDashboardService;
     private final WorkerDashboardServiceDefinition workerDashboardService;
+    private final OperationalDashboardServiceDefinition operationalDashboardService;
 
     @PreAuthorize("hasRole('OVERLORD')")
     @GetMapping("/overlord")
@@ -75,4 +78,10 @@ public class DashboardController {
     public ResponseEntity<WorkerDashboardResponse> getWorkerDashboard() {
         return ResponseEntity.ok(workerDashboardService.getOverview());
     }
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
+    @GetMapping("/operational")
+    public ResponseEntity<OperationalDashboardResponse> getOperationalDashboard() {
+        return ResponseEntity.ok(operationalDashboardService.getOverview());
+    }
+
 }

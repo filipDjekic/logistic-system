@@ -15,6 +15,7 @@ import rs.logistics.logistics_system.repository.OperationalAttachmentRepository;
 import rs.logistics.logistics_system.repository.OperationalCommentRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.ActivityTimelineServiceDefinition;
+import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -29,9 +30,11 @@ public class ActivityTimelineService implements ActivityTimelineServiceDefinitio
     private final OperationalAttachmentRepository attachmentRepository;
     private final DomainEventRepository domainEventRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final OperationalEntityAccessValidator operationalEntityAccessValidator;
 
     @Override
     public List<ActivityTimelineItemResponse> getForEntity(OperationalEntityType entityType, Long entityId) {
+        operationalEntityAccessValidator.ensureCanAccess(entityType, entityId);
         Long companyId = authenticatedUserProvider.isOverlord() ? null : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
         List<ActivityTimelineItemResponse> timeline = new ArrayList<>();
 

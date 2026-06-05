@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button, Chip, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { EmployeeResponse, EmployeeUserOption } from '../types/employee.types';
@@ -42,6 +42,7 @@ export default function EmployeesTable({
   sort,
   onSortChange,
 }: EmployeesTableProps) {
+  const navigate = useNavigate();
   const columns: DataTableColumn<EmployeeResponse>[] = [
     {
       id: 'employee',
@@ -160,6 +161,8 @@ export default function EmployeesTable({
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}
+      onRowClick={(row) => navigate(`/employees/${row.id}`)}
+      rowClickLabel="Open details"
     />
   );
 }
