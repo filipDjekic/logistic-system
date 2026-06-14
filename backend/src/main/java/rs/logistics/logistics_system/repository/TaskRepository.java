@@ -87,6 +87,33 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             """)
     List<Task> findOverdueOpenTasks(@Param("now") LocalDateTime now, @Param("openStatuses") java.util.Collection<TaskStatus> openStatuses);
 
+
+    @Query("""
+            select distinct t
+            from Task t
+            join fetch t.assignedEmployee assignedEmployee
+            left join fetch assignedEmployee.user assignedUser
+            left join fetch assignedEmployee.company company
+            where (:companyId is null or company.id = :companyId)
+            and t.status = rs.logistics.logistics_system.enums.TaskStatus.BLOCKED
+            """)
+    List<Task> findBlockedTasksForMonitoring(@Param("companyId") Long companyId);
+
+    @Query("""
+            select distinct t
+            from Task t
+            join fetch t.assignedEmployee assignedEmployee
+            left join fetch assignedEmployee.user assignedUser
+            left join fetch assignedEmployee.company company
+            where (:companyId is null or company.id = :companyId)
+            and t.status in :statuses
+            and (
+                (t.updatedAt is not null and t.updatedAt < :threshold)
+                or (t.updatedAt is null and t.createdAt is not null and t.createdAt < :threshold)
+            )
+            """)
+    List<Task> findStuckTasksForMonitoring(@Param("companyId") Long companyId, @Param("statuses") Collection<TaskStatus> statuses, @Param("threshold") LocalDateTime threshold);
+
     List<Task> findByDueDateAfter(LocalDateTime date);
 
     List<Task> findByDueDateAfterAndAssignedEmployee_Company_Id(LocalDateTime date, Long companyId);

@@ -44,7 +44,7 @@ export const warehousesApi = {
   },
 
   delete(id: number) {
-    return apiClient.delete(`/api/warehouses/${id}`);
+    return apiClient.delete<void>(`/api/warehouses/${id}`).then((response) => response.data);
   },
 
   changeStatus(id: number, status: WarehouseStatus) {

@@ -130,7 +130,7 @@ public class NotificationController {
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN') or @notificationSecurity.isOwner(#id)")
-    @PatchMapping("/{id}/mark_as_read")
+    @PatchMapping({"/{id}/mark_as_read", "/{id}/mark-as-read"})
     public ResponseEntity<NotificationResponse> markAsRead(@PathVariable Long id) {
         NotificationResponse response = notificationService.markAsRead(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
@@ -151,14 +151,14 @@ public class NotificationController {
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
-    @PatchMapping("/user/{id}/mark_all_as_read")
+    @PatchMapping({"/user/{id}/mark_all_as_read", "/user/{id}/mark-all-as-read"})
     public ResponseEntity<Void> markAllAsRead(@PathVariable Long id) {
         notificationService.markAllAsRead(id);
         return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
-    @PatchMapping("/my/mark_all_as_read")
+    @PatchMapping({"/my/mark_all_as_read", "/my/mark-all-as-read"})
     public ResponseEntity<Void> markAllMyAsRead() {
         Long userId = authenticatedUserProvider.getAuthenticatedUserId();
         notificationService.markAllAsRead(userId);

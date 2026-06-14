@@ -40,7 +40,7 @@ function buildStockMovementParams(filters?: Partial<StockMovementFiltersState> &
 export const stockMovementsApi = {
   getAll(filters?: Partial<StockMovementFiltersState> & PageParams) {
     return apiClient
-      .get<PageResponse<StockMovementResponse>>('/api/stock_movements', {
+      .get<PageResponse<StockMovementResponse>>('/api/stock-movements', {
         params: buildStockMovementParams(filters),
       })
       .then((response) => response.data);
@@ -48,49 +48,49 @@ export const stockMovementsApi = {
 
   getById(id: number) {
     return apiClient
-      .get<StockMovementResponse>(`/api/stock_movements/${id}`)
+      .get<StockMovementResponse>(`/api/stock-movements/${id}`)
       .then((response) => response.data);
   },
 
   trace(id: number) {
     return apiClient
-      .get<StockMovementTraceResponse>(`/api/stock_movements/${id}/trace`)
+      .get<StockMovementTraceResponse>(`/api/stock-movements/${id}/trace`)
       .then((response) => response.data);
   },
 
   inbound(payload: StockInboundRequest) {
     return apiClient
-      .post<StockMovementResponse>('/api/stock_movements/inbound', payload)
+      .post<StockMovementResponse>('/api/stock-movements/inbound', payload)
       .then((response) => response.data);
   },
 
   outbound(payload: StockOutboundRequest) {
     return apiClient
-      .post<StockMovementResponse>('/api/stock_movements/outbound', payload)
+      .post<StockMovementResponse>('/api/stock-movements/outbound', payload)
       .then((response) => response.data);
   },
 
   transfer(payload: StockTransferRequest) {
     return apiClient
-      .post<StockMovementResponse[]>('/api/stock_movements/transfer', payload)
+      .post<StockMovementResponse[]>('/api/stock-movements/transfer', payload)
       .then((response) => response.data);
   },
 
   adjustment(payload: StockAdjustmentRequest) {
     return apiClient
-      .post<StockMovementResponse>('/api/stock_movements/adjustment', payload)
+      .post<StockMovementResponse>('/api/stock-movements/adjustment', payload)
       .then((response) => response.data);
   },
 
   writeOff(payload: StockWriteOffRequest) {
     return apiClient
-      .post<StockMovementResponse>('/api/stock_movements/write-off', payload)
+      .post<StockMovementResponse>('/api/stock-movements/write-off', payload)
       .then((response) => response.data);
   },
 
   returnStock(payload: StockReturnRequest) {
     return apiClient
-      .post<StockMovementResponse>('/api/stock_movements/return', payload)
+      .post<StockMovementResponse>('/api/stock-movements/return', payload)
       .then((response) => response.data);
   },
 
@@ -112,7 +112,7 @@ export const stockMovementsApi = {
 
   getTransportOrders(search?: string) {
     return apiClient
-      .get<StockMovementTransportOrderOption[] | PageResponse<StockMovementTransportOrderOption>>('/api/transport_orders', {
+      .get<StockMovementTransportOrderOption[] | PageResponse<StockMovementTransportOrderOption>>('/api/transport-orders', {
         params: compactParams({ search: trimSearch(search), size: 25, sort: 'createdAt,desc' }),
       })
       .then((response) => unwrapPageContent(response.data));

@@ -191,6 +191,21 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     long countByPlannedArrivalTimeBeforeAndStatusIn(LocalDateTime now, Collection<TransportOrderStatus> statuses);
 
+
+    @Query("""
+            select distinct t
+            from TransportOrder t
+            join fetch t.createdBy createdBy
+            left join fetch createdBy.company company
+            left join fetch t.assignedEmployee assignedEmployee
+            left join fetch assignedEmployee.user assignedUser
+            where (:companyId is null or company.id = :companyId)
+            and t.status in :statuses
+            and t.plannedArrivalTime is not null
+            and t.plannedArrivalTime < :now
+            """)
+    List<TransportOrder> findOverdueActiveTransportsForMonitoring(@Param("companyId") Long companyId, @Param("statuses") Collection<TransportOrderStatus> statuses, @Param("now") LocalDateTime now);
+
     long countByCreatedBy_Company_IdAndPlannedArrivalTimeBeforeAndStatusIn(Long companyId, LocalDateTime now, Collection<TransportOrderStatus> statuses);
 
 

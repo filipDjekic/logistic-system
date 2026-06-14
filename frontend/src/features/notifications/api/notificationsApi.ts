@@ -29,7 +29,7 @@ export const notificationsApi = {
 
   markAsRead(id: number) {
     return apiClient
-      .patch<NotificationResponse>(`/api/notifications/${id}/mark_as_read`)
+      .patch<NotificationResponse>(`/api/notifications/${id}/mark-as-read`)
       .then((response) => response.data);
   },
 
@@ -47,7 +47,7 @@ export const notificationsApi = {
 
   markAllMyAsRead() {
     return apiClient
-      .patch<void>('/api/notifications/my/mark_all_as_read')
+      .patch<void>('/api/notifications/my/mark-all-as-read')
       .then((response) => response.data);
   },
 };

@@ -128,9 +128,9 @@ export default function TaskDetailsPage() {
   }
 
   const task = taskQuery.data;
-  const roleAllowedStatuses = getAllowedTaskStatusTransitions(auth.user?.role, task);
-  const backendAllowedStatuses = allowedTransitionsQuery.data?.allowedStatuses ?? roleAllowedStatuses;
-  const statusActions = backendAllowedStatuses.filter((status) => roleAllowedStatuses.includes(status)).map((status) => ({
+  const fallbackAllowedStatuses = getAllowedTaskStatusTransitions(auth.user?.role, task);
+  const allowedStatuses = allowedTransitionsQuery.data?.allowedStatuses ?? fallbackAllowedStatuses;
+  const statusActions = allowedStatuses.map((status) => ({
     label: status === 'ASSIGNED' ? 'Assign lifecycle state' : status === 'IN_PROGRESS' ? 'Start task' : status === 'BLOCKED' ? 'Block task' : status === 'COMPLETED' ? 'Complete task' : status === 'CANCELLED' ? 'Cancel task' : `Set status to ${status}`,
     status,
   }));
@@ -145,7 +145,7 @@ export default function TaskDetailsPage() {
       };
     }
 
-    if (task.status === 'ASSIGNED' && backendAllowedStatuses.includes('IN_PROGRESS')) {
+    if (task.status === 'ASSIGNED' && allowedStatuses.includes('IN_PROGRESS')) {
       return {
         title: 'Start execution when the assigned employee begins work.',
         description: 'The task is assigned but not in progress. Move it to IN_PROGRESS only when the operational work actually starts.',
@@ -160,8 +160,8 @@ export default function TaskDetailsPage() {
         description: 'The task is active. Complete it when the work is done, or block it if execution cannot continue without intervention.',
         severity: 'warning' as const,
         actions: [
-          ...(backendAllowedStatuses.includes('COMPLETED') ? [{ label: 'Complete task', onClick: () => setTransitionTarget('COMPLETED') }] : []),
-          ...(backendAllowedStatuses.includes('BLOCKED') ? [{ label: 'Block task', onClick: () => setTransitionTarget('BLOCKED'), variant: 'outlined' as const }] : []),
+          ...(allowedStatuses.includes('COMPLETED') ? [{ label: 'Complete task', onClick: () => setTransitionTarget('COMPLETED') }] : []),
+          ...(allowedStatuses.includes('BLOCKED') ? [{ label: 'Block task', onClick: () => setTransitionTarget('BLOCKED'), variant: 'outlined' as const }] : []),
         ],
       };
     }
@@ -173,7 +173,7 @@ export default function TaskDetailsPage() {
         severity: 'error' as const,
         actions: [
           { label: 'Open linked process', onClick: () => setActiveTab('linkedProcess'), variant: 'outlined' as const },
-          ...(backendAllowedStatuses.includes('IN_PROGRESS') ? [{ label: 'Resume task', onClick: () => setTransitionTarget('IN_PROGRESS') }] : []),
+          ...(allowedStatuses.includes('IN_PROGRESS') ? [{ label: 'Resume task', onClick: () => setTransitionTarget('IN_PROGRESS') }] : []),
         ],
       };
     }

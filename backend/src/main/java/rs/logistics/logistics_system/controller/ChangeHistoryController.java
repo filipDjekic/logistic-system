@@ -36,21 +36,21 @@ public class ChangeHistoryController {
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
-    @GetMapping("/entity_name/{name}")
+    @GetMapping({"/entity_name/{name}", "/entity-name/{name}"})
     public ResponseEntity<List<ChangeHistoryResponse>> getByEntityName(@PathVariable String name) {
         List<ChangeHistoryResponse> responses = changeHistoryService.getByEntityName(name);
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
-    @GetMapping("/entity_id/{id}")
+    @GetMapping({"/entity_id/{id}", "/entity-id/{id}"})
     public ResponseEntity<List<ChangeHistoryResponse>> getByEntityId(@PathVariable Long id) {
         List<ChangeHistoryResponse> responses = changeHistoryService.getByEntityId(id);
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
     @PreAuthorize("hasRole('OVERLORD')")
-    @GetMapping("/user_id/{id}")
+    @GetMapping({"/user_id/{id}", "/user-id/{id}"})
     public ResponseEntity<List<ChangeHistoryResponse>> getByUserId(@PathVariable Long id) {
         List<ChangeHistoryResponse> responses = changeHistoryService.getByUserId(id);
         return new ResponseEntity<>(responses, HttpStatus.OK);

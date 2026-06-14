@@ -40,7 +40,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -108,7 +107,7 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
         notifyBlockedTasks(snapshot.blockedTasks());
         notifyStuckTasks(snapshot.stuckTasks(), now);
         notifyOverdueTransports(snapshot.overdueTransports(), now);
-        notifyStaleReservedVehicles(snapshot.staleReservedVehicles(), snapshot.activeTransports(), now);
+        notifyStaleReservedVehicles(snapshot.staleReservedVehicles(), now);
     }
 
     private LifecycleAnalyticsResponse buildAnalytics(RoleProfile profile, Long companyId, Long userId, Set<Long> managedWarehouseIds, LocalDateTime now) {
@@ -279,46 +278,23 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
     }
 
     private LifecycleSnapshot snapshot(Long companyId, LocalDateTime now) {
-        List<Task> tasks = companyId == null ? taskRepository.findAll() : taskRepository.findAllByAssignedEmployee_Company_Id(companyId);
-        List<TransportOrder> transports = companyId == null ? transportOrderRepository.findAll() : transportOrderRepository.findAllByCreatedBy_Company_Id(companyId);
-        List<Vehicle> vehicles = companyId == null ? vehicleRepository.findAll() : vehicleRepository.findAllByCompany_Id(companyId);
-
         LocalDateTime stuckTaskThreshold = now.minus(TASK_STUCK_AFTER);
         LocalDateTime staleVehicleThreshold = now.minus(VEHICLE_RESERVED_STALE_AFTER);
 
-        List<Task> activeTasks = tasks.stream()
-                .filter(task -> task.getStatus() != null && ACTIVE_TASK_STATUSES.contains(task.getStatus()))
-                .toList();
+        List<Task> blockedTasks = taskRepository.findBlockedTasksForMonitoring(companyId);
+        List<Task> stuckTasks = taskRepository.findStuckTasksForMonitoring(companyId, ACTIVE_TASK_STATUSES, stuckTaskThreshold);
+        List<TransportOrder> overdueTransports = transportOrderRepository.findOverdueActiveTransportsForMonitoring(
+                companyId,
+                ACTIVE_TRANSPORT_STATUSES,
+                now
+        );
+        List<Vehicle> staleReservedVehicles = vehicleRepository.findStaleReservedVehiclesWithoutActiveTransportForMonitoring(
+                companyId,
+                staleVehicleThreshold,
+                ACTIVE_TRANSPORT_STATUSES
+        );
 
-        List<Task> blockedTasks = tasks.stream()
-                .filter(task -> task.getStatus() == TaskStatus.BLOCKED)
-                .toList();
-
-        List<Task> stuckTasks = activeTasks.stream()
-                .filter(task -> lastTouched(task.getUpdatedAt(), task.getCreatedAt()).isBefore(stuckTaskThreshold))
-                .toList();
-
-        List<TransportOrder> activeTransports = transports.stream()
-                .filter(order -> order.getStatus() != null && ACTIVE_TRANSPORT_STATUSES.contains(order.getStatus()))
-                .toList();
-
-        List<TransportOrder> overdueTransports = activeTransports.stream()
-                .filter(order -> order.getPlannedArrivalTime() != null && order.getPlannedArrivalTime().isBefore(now))
-                .toList();
-
-        Set<Long> vehiclesWithActiveTransports = activeTransports.stream()
-                .map(TransportOrder::getVehicle)
-                .filter(Objects::nonNull)
-                .map(Vehicle::getId)
-                .collect(Collectors.toSet());
-
-        List<Vehicle> staleReservedVehicles = vehicles.stream()
-                .filter(vehicle -> vehicle.getStatus() == VehicleStatus.RESERVED)
-                .filter(vehicle -> !vehiclesWithActiveTransports.contains(vehicle.getId()))
-                .filter(vehicle -> lastTouched(vehicle.getUpdatedAt(), null).isBefore(staleVehicleThreshold))
-                .toList();
-
-        return new LifecycleSnapshot(activeTransports, blockedTasks, stuckTasks, overdueTransports, staleReservedVehicles);
+        return new LifecycleSnapshot(blockedTasks, stuckTasks, overdueTransports, staleReservedVehicles);
     }
 
     private void notifyBlockedTasks(List<Task> blockedTasks) {
@@ -380,13 +356,7 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
         }
     }
 
-    private void notifyStaleReservedVehicles(List<Vehicle> staleReservedVehicles, List<TransportOrder> activeTransports, LocalDateTime now) {
-        Set<Long> activeVehicleIds = activeTransports.stream()
-                .map(TransportOrder::getVehicle)
-                .filter(Objects::nonNull)
-                .map(Vehicle::getId)
-                .collect(Collectors.toSet());
-
+    private void notifyStaleReservedVehicles(List<Vehicle> staleReservedVehicles, LocalDateTime now) {
         for (Vehicle vehicle : staleReservedVehicles) {
             long hours = Duration.between(lastTouched(vehicle.getUpdatedAt(), null), now).toHours();
             Set<User> targets = new LinkedHashSet<>(companyAdmins(vehicle.getCompany()));
@@ -394,7 +364,7 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
                 notificationService.createOperationalNotification(
                         target.getId(),
                         "Stale vehicle reservation",
-                        "Vehicle " + vehicle.getRegistrationNumber() + " is RESERVED for about " + hours + " hours" + (activeVehicleIds.contains(vehicle.getId()) ? " while linked transport is stuck." : " without an active transport."),
+                        "Vehicle " + vehicle.getRegistrationNumber() + " is RESERVED for about " + hours + " hours without an active transport.",
                         NotificationType.WARNING,
                         NotificationSeverity.WARNING,
                         NotificationCategory.TRANSPORT,
@@ -513,7 +483,6 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
     }
 
     private record LifecycleSnapshot(
-            List<TransportOrder> activeTransports,
             List<Task> blockedTasks,
             List<Task> stuckTasks,
             List<TransportOrder> overdueTransports,

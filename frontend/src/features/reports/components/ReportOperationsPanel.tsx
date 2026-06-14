@@ -9,7 +9,7 @@ import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 
 export type ReportExportFormat = 'CSV' | 'XLSX';
 
-export type ReportPreset<TState> = {
+export type ReportPreset = {
   id: string;
   label: string;
   description: string;
@@ -35,7 +35,7 @@ type ReportOperationsPanelProps<TState> = {
   storageKey: string;
   currentState: TState;
   currentSummary: string;
-  presets: ReportPreset<TState>[];
+  presets: ReportPreset[];
   snapshots: ReportSnapshot[];
   exportFormat: ReportExportFormat;
   onExportFormatChange: (format: ReportExportFormat) => void;

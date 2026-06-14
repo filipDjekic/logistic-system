@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local developer overrides with real credentials
+src/main/resources/application-local.properties

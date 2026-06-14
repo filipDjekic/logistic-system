@@ -15,7 +15,7 @@ import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
 import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
-import { EntityLookupField } from '../../lookup';
+import { EmployeeSearchSelect, VehicleSearchSelect, WarehouseSearchSelect } from '../../search-select';
 import FormTextField from '../../../shared/components/Form/Form';
 import BusinessRuleWarnings, { type BusinessRuleWarning } from '../../../shared/components/BusinessRuleWarnings';
 import type {
@@ -130,6 +130,8 @@ export default function TransportOrderFormDialog({
   const sourceWarehouseId = useWatch({ control: form.control, name: 'sourceWarehouseId' });
   const destinationWarehouseId = useWatch({ control: form.control, name: 'destinationWarehouseId' });
   const vehicleId = useWatch({ control: form.control, name: 'vehicleId' });
+  const departureTime = useWatch({ control: form.control, name: 'departureTime' });
+  const plannedArrivalTime = useWatch({ control: form.control, name: 'plannedArrivalTime' });
   const assignedEmployeeId = useWatch({ control: form.control, name: 'assignedEmployeeId' });
 
   const selectedSourceWarehouse = warehouses.find((warehouse) => warehouse.id === Number(sourceWarehouseId));
@@ -276,21 +278,13 @@ export default function TransportOrderFormDialog({
                 name="sourceWarehouseId"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <EntityLookupField
-                    label="Source warehouse"
-                    entityType="warehouses"
-                    required
-                    value={field.value ? {
-                      id: Number(field.value),
-                      label: selectedSourceWarehouse?.name ?? `Warehouse #${field.value}`,
-                      subtitle: selectedSourceWarehouse?.city ?? undefined,
-                      status: selectedSourceWarehouse?.status ?? undefined,
-                    } : null}
-                    onChange={(option) => field.onChange(option?.id ?? 0)}
-                    error={Boolean(fieldState.error)}
-                    helperText={fieldState.error?.message}
-                    searchPlaceholder="Search warehouses..."
-                    disabledOptionIds={destinationWarehouseId ? [Number(destinationWarehouseId)] : []}
+                  <WarehouseSearchSelect
+                    title="Source warehouse"
+                    value={field.value ? Number(field.value) : null}
+                    onSelect={(warehouse) => field.onChange(warehouse.id)}
+                    active
+                    disabledWarehouseIds={destinationWarehouseId ? [Number(destinationWarehouseId)] : []}
+                    helperText={fieldState.error?.message ?? 'Search and select the warehouse where the transport starts.'}
                   />
                 )}
               />
@@ -301,21 +295,13 @@ export default function TransportOrderFormDialog({
                 name="destinationWarehouseId"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <EntityLookupField
-                    label="Destination warehouse"
-                    entityType="warehouses"
-                    required
-                    value={field.value ? {
-                      id: Number(field.value),
-                      label: selectedDestinationWarehouse?.name ?? `Warehouse #${field.value}`,
-                      subtitle: selectedDestinationWarehouse?.city ?? undefined,
-                      status: selectedDestinationWarehouse?.status ?? undefined,
-                    } : null}
-                    onChange={(option) => field.onChange(option?.id ?? 0)}
-                    error={Boolean(fieldState.error)}
-                    helperText={fieldState.error?.message}
-                    searchPlaceholder="Search warehouses..."
-                    disabledOptionIds={sourceWarehouseId ? [Number(sourceWarehouseId)] : []}
+                  <WarehouseSearchSelect
+                    title="Destination warehouse"
+                    value={field.value ? Number(field.value) : null}
+                    onSelect={(warehouse) => field.onChange(warehouse.id)}
+                    active
+                    disabledWarehouseIds={sourceWarehouseId ? [Number(sourceWarehouseId)] : []}
+                    helperText={fieldState.error?.message ?? 'Search and select the warehouse where the transport ends.'}
                   />
                 )}
               />
@@ -326,20 +312,12 @@ export default function TransportOrderFormDialog({
                 name="vehicleId"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <EntityLookupField
-                    label="Vehicle"
-                    entityType="vehicles"
-                    required
-                    value={field.value ? {
-                      id: Number(field.value),
-                      label: selectedVehicle?.registrationNumber ?? `Vehicle #${field.value}`,
-                      subtitle: selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model}` : undefined,
-                      status: selectedVehicle?.status ?? undefined,
-                    } : null}
-                    onChange={(option) => field.onChange(option?.id ?? 0)}
-                    error={Boolean(fieldState.error)}
-                    helperText={fieldState.error?.message}
-                    searchPlaceholder="Search vehicles..."
+                  <VehicleSearchSelect
+                    title="Vehicle"
+                    value={field.value ? Number(field.value) : null}
+                    onSelect={(vehicle) => field.onChange(vehicle.id)}
+                    availableOnly={!isEditMode}
+                    helperText={fieldState.error?.message ?? (isEditMode ? 'Search and select the assigned vehicle.' : 'Only available vehicles are shown for new transport orders.')}
                   />
                 )}
               />
@@ -350,19 +328,21 @@ export default function TransportOrderFormDialog({
                 name="assignedEmployeeId"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <EntityLookupField
-                    label="Driver"
-                    entityType="employees"
-                    required
-                    value={field.value ? {
-                      id: Number(field.value),
-                      label: selectedDriver ? `${selectedDriver.firstName} ${selectedDriver.lastName}` : `Employee #${field.value}`,
-                      subtitle: selectedDriver?.email ?? undefined,
-                    } : null}
-                    onChange={(option) => field.onChange(option?.id ?? 0)}
-                    error={Boolean(fieldState.error)}
-                    helperText={fieldState.error?.message}
-                    searchPlaceholder="Search drivers..."
+                  <EmployeeSearchSelect
+                    title="Driver"
+                    value={field.value ? Number(field.value) : null}
+                    onSelect={(employee) => field.onChange(employee.id)}
+                    position="DRIVER"
+                    active
+                    disabled={!departureTime || !plannedArrivalTime}
+                    availableFrom={departureTime || undefined}
+                    availableTo={plannedArrivalTime || undefined}
+                    helperText={
+                      fieldState.error?.message ??
+                      (departureTime && plannedArrivalTime
+                        ? 'Only scheduled active drivers are shown for the selected transport interval.'
+                        : 'Select departure and planned arrival time before choosing a driver.')
+                    }
                   />
                 )}
               />

@@ -95,9 +95,6 @@ export const queryKeys = {
     list: (params: unknown) => ['stock-movements', 'list', params] as const,
     detail: (id: number) => ['stock-movements', 'details', id] as const,
     trace: (id: number) => ['stock-movements', 'trace', id] as const,
-    operationWarehouseSearch: (search: string) => ['stock-operation', 'warehouse-search', search] as const,
-    operationProductSearch: (search: string) => ['stock-operation', 'product-search', search] as const,
-    operationTransportOrderSearch: (search: string) => ['stock-operation', 'transport-order-search', search] as const,
     operationWarehouseInventory: (warehouseId: number | null | undefined) => ['stock-operation-warehouse-inventory', warehouseId ?? null] as const,
   },
 

@@ -26,7 +26,7 @@ import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefini
 
 @PreAuthorize("hasRole('OVERLORD')")
 @RestController
-@RequestMapping("/api/activity_logs")
+@RequestMapping({"/api/activity_logs", "/api/activity-logs"})
 @RequiredArgsConstructor
 public class ActivityLogController {
 

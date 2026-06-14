@@ -5,7 +5,7 @@ import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
 import TodayRoundedIcon from '@mui/icons-material/TodayRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import StatCard from '../../../shared/components/StatCard/StatCrad';
+import StatCard from '../../../shared/components/StatCard/StatCard';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
 import DashboardAlerts from './DashboardAlerts';
 import DashboardCharts from './DashboardCharts';

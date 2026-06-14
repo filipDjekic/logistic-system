@@ -1,6 +1,6 @@
 export type ApiListResponse<T> = T[];
 
-export type ApiPageResponse<T> = {
+export type ItemsPageResponse<T> = {
   items: T[];
   page: number;
   size: number;

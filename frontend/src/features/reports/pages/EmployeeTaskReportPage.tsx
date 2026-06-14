@@ -6,13 +6,12 @@ import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/materi
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { downloadFile } from '../../../core/utils/downloadFile';
-import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
-import InlineLoader from '../../../shared/components/Loader/InlineLoader';
+import QueryStateBoundary from '../../../shared/components/QueryStateBoundary';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import { EntityLookupField, type LookupOption } from '../../lookup';
-import StatCard from '../../../shared/components/StatCard/StatCrad';
+import StatCard from '../../../shared/components/StatCard/StatCard';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import { ChartCard, recordToChartData } from '../../../shared/components/Charts';
 import type { DataTableColumn } from '../../../shared/types/common.types';
@@ -26,6 +25,7 @@ import {
 } from '../api/reportsApi';
 import ReportDataTable from '../components/ReportDataTable';
 import ReportOperationsPanel, { type ReportExportFormat } from '../components/ReportOperationsPanel';
+import { formatDate, formatNumber, toDateTimeEndParam, toDateTimeStartParam } from '../utils/reportFormatters';
 
 const positionOptions = ['ALL', 'OVERLORD', 'COMPANY_ADMIN', 'HR_MANAGER', 'DISPATCHER', 'DRIVER', 'WAREHOUSE_MANAGER', 'WORKER'] as const;
 const taskStatusOptions = ['ALL', 'NEW', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
@@ -40,22 +40,6 @@ type EmployeeTaskReportSavedState = {
   taskPriority: (typeof taskPriorityOptions)[number];
 };
 
-function toDateTimeStartParam(value: string) {
-  return value ? `${value}T00:00:00` : undefined;
-}
-
-function toDateTimeEndParam(value: string) {
-  return value ? `${value}T23:59:59` : undefined;
-}
-
-function formatNumber(value: number | string | null | undefined) {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric.toLocaleString() : '0';
-}
-
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : '—';
-}
 
 export default function EmployeeTaskReportPage() {
   const [fromDate, setFromDate] = useState('');
@@ -228,10 +212,18 @@ export default function EmployeeTaskReportPage() {
         onApplySavedFilter={applySavedState}
       />
 
-      {reportQuery.isLoading ? <InlineLoader message="Loading employee/task report..." size={22} /> : null}
-      {reportQuery.isError ? <ErrorState title="Employee/task report could not be loaded" description="Backend report endpoint failed to return data." onRetry={() => void reportQuery.refetch()} /> : null}
-
-      {report ? (
+      <QueryStateBoundary
+        isLoading={reportQuery.isLoading}
+        isError={reportQuery.isError}
+        isEmpty={!report}
+        loadingMessage="Loading employee/task report..."
+        errorTitle="Employee/task report could not be loaded"
+        errorDescription="Backend report endpoint failed to return data."
+        emptyTitle="No employee/task report data"
+        emptyDescription="Adjust filters or retry after backend data is available."
+        onRetry={() => void reportQuery.refetch()}
+      >
+        {report ? (
         <Stack spacing={2}>
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' } }}>
             <StatCard title="Employees" value={formatNumber(report.employeesTotal)} subtitle={`${formatNumber(report.activeEmployees)} active`} icon={<GroupsRoundedIcon fontSize="small" />} accent="primary" />
@@ -268,6 +260,7 @@ export default function EmployeeTaskReportPage() {
           <TableLayout title="Shift rows" description="Raw shift rows included in the report." table={<ReportDataTable title="shift rows" rows={report.shiftRows} columns={shiftColumns} getRowId={(row) => row.shiftId} minWidth={1060} />} />
         </Stack>
       ) : null}
+      </QueryStateBoundary>
     </Stack>
   );
 }

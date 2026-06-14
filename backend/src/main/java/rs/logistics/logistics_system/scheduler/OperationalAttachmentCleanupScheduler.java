@@ -1,19 +1,20 @@
 package rs.logistics.logistics_system.scheduler;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.entity.OperationalAttachment;
-import rs.logistics.logistics_system.repository.OperationalAttachmentRepository;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.stream.Stream;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
+import rs.logistics.logistics_system.entity.OperationalAttachment;
+import rs.logistics.logistics_system.repository.OperationalAttachmentRepository;
 
 @Component
 @RequiredArgsConstructor
@@ -60,7 +61,7 @@ public class OperationalAttachmentCleanupScheduler {
                             || attachmentRepository.findById(attachmentIdFromStoredFile(path.getFileName().toString())).isEmpty())
                     .forEach(this::deleteQuietly);
         } catch (IOException ignored) {
-            // Cleanup is best-effort. Runtime flow must not fail because local storage maintenance failed.
+
         }
     }
 
@@ -95,7 +96,6 @@ public class OperationalAttachmentCleanupScheduler {
         try {
             Files.deleteIfExists(path);
         } catch (IOException ignored) {
-            // best-effort cleanup
         }
     }
 }

@@ -3,6 +3,8 @@ package rs.logistics.logistics_system.repository;
 import jakarta.persistence.LockModeType;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -98,6 +100,27 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             and (v.updatedAt is null or v.updatedAt < :threshold)
             """)
     long countStaleReservedVehicles(@Param("companyId") Long companyId, @Param("threshold") java.time.LocalDateTime threshold);
+
+
+    @Query("""
+            select distinct v
+            from Vehicle v
+            join fetch v.company company
+            where (:companyId is null or company.id = :companyId)
+            and v.status = rs.logistics.logistics_system.enums.VehicleStatus.RESERVED
+            and (v.updatedAt is null or v.updatedAt < :threshold)
+            and not exists (
+                select 1
+                from TransportOrder t
+                where t.vehicle.id = v.id
+                and t.status in :activeTransportStatuses
+            )
+            """)
+    List<Vehicle> findStaleReservedVehiclesWithoutActiveTransportForMonitoring(
+            @Param("companyId") Long companyId,
+            @Param("threshold") LocalDateTime threshold,
+            @Param("activeTransportStatuses") Collection<rs.logistics.logistics_system.enums.TransportOrderStatus> activeTransportStatuses
+    );
 
     @Query("select v.status, count(v) from Vehicle v where v.company.id = :companyId group by v.status")
     List<Object[]> countGroupedByStatusAndCompanyId(@Param("companyId") Long companyId);

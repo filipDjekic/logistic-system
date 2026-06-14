@@ -7,13 +7,13 @@ export type AuditExportFormat = 'CSV' | 'XLSX';
 export const activityLogsApi = {
   getAll(params?: ActivityLogQueryParams & PageParams) {
     return apiClient
-      .get<PageResponse<ActivityLogResponse>>('/api/activity_logs', { params })
+      .get<PageResponse<ActivityLogResponse>>('/api/activity-logs', { params })
       .then((response) => response.data);
   },
 
   exportAuditLogs(params?: ActivityLogQueryParams & { format?: AuditExportFormat }) {
     return apiClient
-      .get<Blob>('/api/activity_logs/export', {
+      .get<Blob>('/api/activity-logs/export', {
         params,
         responseType: 'blob',
       })
@@ -22,33 +22,33 @@ export const activityLogsApi = {
 
   getById(id: number) {
     return apiClient
-      .get<ActivityLogResponse>(`/api/activity_logs/${id}`)
+      .get<ActivityLogResponse>(`/api/activity-logs/${id}`)
       .then((response) => response.data);
   },
 
   getByUserId(userId: number) {
     return apiClient
-      .get<ActivityLogResponse[]>(`/api/activity_logs/user/${userId}`)
+      .get<ActivityLogResponse[]>(`/api/activity-logs/user/${userId}`)
       .then((response) => response.data);
   },
 
   getByUserIdAndAction(userId: number, action: string) {
     return apiClient
-      .get<ActivityLogResponse[]>(`/api/activity_logs/user/${userId}/action/${encodeURIComponent(action)}`)
+      .get<ActivityLogResponse[]>(`/api/activity-logs/user/${userId}/action/${encodeURIComponent(action)}`)
       .then((response) => response.data);
   },
 
   getByUserIdAndEntityName(userId: number, entityName: string) {
     return apiClient
       .get<ActivityLogResponse[]>(
-        `/api/activity_logs/user/${userId}/entity/${encodeURIComponent(entityName)}`,
+        `/api/activity-logs/user/${userId}/entity/${encodeURIComponent(entityName)}`,
       )
       .then((response) => response.data);
   },
 
   getByUserIdBefore(userId: number, date: string) {
     return apiClient
-      .get<ActivityLogResponse[]>(`/api/activity_logs/user/${userId}/before`, {
+      .get<ActivityLogResponse[]>(`/api/activity-logs/user/${userId}/before`, {
         params: { date },
       })
       .then((response) => response.data);
@@ -56,7 +56,7 @@ export const activityLogsApi = {
 
   getByUserIdAfter(userId: number, date: string) {
     return apiClient
-      .get<ActivityLogResponse[]>(`/api/activity_logs/user/${userId}/after`, {
+      .get<ActivityLogResponse[]>(`/api/activity-logs/user/${userId}/after`, {
         params: { date },
       })
       .then((response) => response.data);
@@ -64,7 +64,7 @@ export const activityLogsApi = {
 
   getByUserIdBetween(userId: number, start: string, end: string) {
     return apiClient
-      .get<ActivityLogResponse[]>(`/api/activity_logs/user/${userId}/between`, {
+      .get<ActivityLogResponse[]>(`/api/activity-logs/user/${userId}/between`, {
         params: { start, end },
       })
       .then((response) => response.data);

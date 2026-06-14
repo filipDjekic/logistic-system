@@ -12,6 +12,7 @@ export type WarehouseSearchSelectProps = {
   onSelect: (warehouse: WarehouseResponse) => void;
   active?: boolean;
   disabledWarehouseIds?: number[];
+  helperText?: string;
 };
 
 const warehouseColumns: SearchSelectColumn<WarehouseResponse>[] = [
@@ -48,6 +49,7 @@ export function WarehouseSearchSelect({
   onSelect,
   active = true,
   disabledWarehouseIds = [],
+  helperText,
 }: WarehouseSearchSelectProps) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'ALL' | WarehouseStatus>('ALL');
@@ -65,8 +67,9 @@ export function WarehouseSearchSelect({
   const selectedLabel = useMemo(() => rows.find((warehouse) => warehouse.id === value)?.name ?? null, [rows, value]);
 
   return (
-    <SearchSelectPanel
-      title={title}
+    <Stack spacing={1}>
+      <SearchSelectPanel
+        title={title}
       searchValue={search}
       onSearchChange={setSearch}
       searchPlaceholder="Search by name, city, address or manager..."
@@ -82,7 +85,13 @@ export function WarehouseSearchSelect({
       getSelectDisabled={(warehouse) => disabledWarehouseIds.includes(warehouse.id)}
       loading={warehousesQuery.isFetching}
       error={warehousesQuery.error ? getErrorMessage(warehousesQuery.error) : null}
-      emptyMessage="No warehouses found."
-    />
+        emptyMessage="No warehouses found."
+      />
+      {helperText ? (
+        <Typography variant="caption" color="text.secondary">
+          {helperText}
+        </Typography>
+      ) : null}
+    </Stack>
   );
 }

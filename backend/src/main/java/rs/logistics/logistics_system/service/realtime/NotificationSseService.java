@@ -129,7 +129,6 @@ public class NotificationSseService {
         try {
             connection.emitter().complete();
         } catch (IllegalStateException ignored) {
-            // Emitter is already closed.
         }
 
         if (connections.isEmpty()) {

@@ -31,6 +31,6 @@ export const employeeWarehouseAssignmentsApi = {
   },
 
   delete(id: number) {
-    return apiClient.delete<void>(`/api/employee-warehouse-assignments/${id}`);
+    return apiClient.delete<void>(`/api/employee-warehouse-assignments/${id}`).then((response) => response.data);
   },
 };

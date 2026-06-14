@@ -35,14 +35,14 @@ export const productsApi = {
   },
 
   getStockMovements: async (productId: number, params: Partial<StockMovementFiltersState> & PageParams = {}) => {
-    const res = await apiClient.get<PageResponse<StockMovementResponse>>('/api/stock_movements', {
+    const res = await apiClient.get<PageResponse<StockMovementResponse>>('/api/stock-movements', {
       params: { ...params, productId },
     });
     return res.data;
   },
 
   getTransportUsage: async (productId: number) => {
-    const res = await apiClient.get<PageResponse<TransportOrderItemResponse>>('/api/transport_order_items', {
+    const res = await apiClient.get<PageResponse<TransportOrderItemResponse>>('/api/transport-order-items', {
       params: { productId, page: 0, size: 100, sort: 'id,desc' },
     });
     return res.data;

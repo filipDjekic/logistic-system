@@ -25,16 +25,18 @@ export function useCreateShift() {
   const { showSnackbar } = useAppSnackbar();
 
   return useMutation({
-    mutationFn: (payload: SaveShiftPayload) => {
+    mutationFn: async (payload: SaveShiftPayload): Promise<void> => {
       if (payload.mode === 'create') {
-        return shiftsApi.create(payload.data);
+        await shiftsApi.create(payload.data);
+        return;
       }
 
       if (payload.mode === 'cancel') {
-        return shiftsApi.cancel(payload.id);
+        await shiftsApi.cancel(payload.id);
+        return;
       }
 
-      return shiftsApi.update(payload.id, payload.data);
+      await shiftsApi.update(payload.id, payload.data);
     },
     onSuccess: async (_, variables) => {
       showSnackbar({

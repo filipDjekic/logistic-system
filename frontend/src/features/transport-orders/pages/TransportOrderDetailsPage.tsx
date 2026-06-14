@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Button,
   Grid,
@@ -19,15 +19,12 @@ import {
 } from '../../../shared/components/OperationalPanels';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
-import { canChangeTransportOrderStatus, canEditTransportOrder, canManageTransportOrders, canMutateTransportOrderItems, getAllowedTransportOrderStatusTransitions } from '../../../core/permissions/operationGuards';
+import { canEditTransportOrder, canManageTransportOrders, canMutateTransportOrderItems, getAllowedTransportOrderStatusTransitions } from '../../../core/permissions/operationGuards';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
 import { StickyMobileActions } from '../../../shared/components/Mobile';
-import { ForbiddenTransitionHint, LifecycleHistoryTimeline, LifecycleStatusGraph, LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
+import { LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
-import EmptyState from '../../../shared/components/EmptyState/EmptyState';
-import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-import OperationalTimeline from '../../../shared/components/OperationalTimeline/OperationalTimeline';
 import { EntityLookupField } from '../../lookup';
 import FormTextField from '../../../shared/components/Form/Form';
 import FormActions from '../../../shared/components/Form/FormActions';
@@ -43,13 +40,14 @@ import StockMovementsTable from '../../stock-movements/components/StockMovements
 import TasksTable from '../../tasks/components/TasksTable';
 import { useTasks } from '../../tasks/hooks/useTasks';
 import TransportOrderItemsTable from '../components/TransportOrderItemsTable';
-import TransportOrderStatusChip from '../components/TransportOrderStatusChip';
 import TransportOrderFormDialog from '../components/TransportOrderFormDialog';
+import TransportOrderOverviewTab from '../components/details/TransportOrderOverviewTab';
+import TransportOrderLifecycleTab from '../components/details/TransportOrderLifecycleTab';
+import { formatWeight, getStatusActionLabel } from '../components/details/transportOrderDetailsUtils';
 import { useUpdateTransportOrder } from '../hooks/useUpdateTransportOrder';
 import { useTransportOrder } from '../hooks/useTransportOrder';
 import { useUpdateTransportOrderStatus } from '../hooks/useUpdateTransportOrderStatus';
 import { normalizeApiError } from '../../../core/api/apiError';
-import { formatTemporalView, formatTemporalZone } from '../../../core/utils/timezoneFormat';
 import type {
   EmployeeOption,
   ProductOption,
@@ -63,40 +61,6 @@ import {
   type TransportOrderItemSchemaValues,
 } from '../validation/transportOrderSchema';
 
-function formatWeight(value: number | null) {
-  if (value == null) {
-    return '—';
-  }
-
-  return `${value} kg`;
-}
-
-function getStatusActionLabel(status: TransportOrderStatus) {
-  switch (status) {
-    case 'ASSIGNED':
-      return 'Assign resources';
-    case 'PICKING':
-      return 'Start picking';
-    case 'PACKING':
-      return 'Start packing';
-    case 'READY_FOR_LOADING':
-      return 'Mark ready for loading';
-    case 'LOADING':
-      return 'Start loading';
-    case 'IN_TRANSIT':
-      return 'Start transport';
-    case 'RETURNING':
-      return 'Start return flow';
-    case 'DELIVERED':
-      return 'Complete transport';
-    case 'FAILED':
-      return 'Mark as failed';
-    case 'CANCELLED':
-      return 'Cancel transport';
-    default:
-      return `Set status to ${status}`;
-  }
-}
 
 
 type TransportOrderDetailsTab =
@@ -187,6 +151,14 @@ export default function TransportOrderDetailsPage() {
       : undefined,
     isValidTransportOrderId && canReadItems,
   );
+
+  const allowedTransitionsQuery = useQuery({
+    queryKey: ['transport-orders', transportOrderId, 'status-transitions'],
+    queryFn: () => transportOrdersApi.getAllowedStatusTransitions(transportOrderId),
+    enabled: isValidTransportOrderId && transportOrderQuery.data != null,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
 
   const warehousesQuery = useQuery({
     queryKey: queryKeys.transportOrders.warehouses(),
@@ -367,7 +339,13 @@ export default function TransportOrderDetailsPage() {
     return () => window.clearInterval(intervalId);
   }, [transportOrder, transportOrderQuery, relatedTasksQuery, relatedStockMovementsQuery]);
 
-  const nextStatuses = transportOrder?.allowedNextStatuses?.length ? transportOrder.allowedNextStatuses.filter((status) => getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status).includes(status)) : transportOrder ? getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status) : [];
+  const fallbackNextStatuses = transportOrder?.allowedNextStatuses?.length
+    ? transportOrder.allowedNextStatuses
+    : transportOrder
+      ? getAllowedTransportOrderStatusTransitions(currentRole, transportOrder.status)
+      : [];
+  const nextStatuses = allowedTransitionsQuery.data?.allowedStatuses ?? fallbackNextStatuses;
+  const canChangeStatus = transportOrder != null && nextStatuses.length > 0;
   const isEditableItems = canMutateTransportOrderItems(currentRole, transportOrder);
   const isEditableOrder = canEditTransportOrder(currentRole, transportOrder);
 
@@ -454,7 +432,7 @@ export default function TransportOrderDetailsPage() {
       };
     }
 
-    if (relatedTasksQuery.data && relatedTasksQuery.data.totalElements === 0 && canManageOrder && !transportOrder.status === 'DRAFT') {
+    if (relatedTasksQuery.data && relatedTasksQuery.data.totalElements === 0 && canManageOrder && transportOrder.status !== 'DRAFT') {
       return {
         title: 'Create operational tasks for this order.',
         description: 'The order has moved into the operational lifecycle, but there are no linked tasks yet. Create picking, loading, transport or unloading tasks so execution can be tracked by role.',
@@ -463,7 +441,7 @@ export default function TransportOrderDetailsPage() {
       };
     }
 
-    if (nextStatuses.length > 0 && canChangeTransportOrderStatus(currentRole, transportOrder)) {
+    if (nextStatuses.length > 0 && canChangeStatus) {
       return {
         title: `Continue lifecycle from ${transportOrder.status}.`,
         description: `Available next status: ${nextStatuses.join(', ')}. Use a lifecycle action only when the real operational work for the current stage is complete.`,
@@ -540,241 +518,27 @@ export default function TransportOrderDetailsPage() {
       <RecommendedNextStep {...transportRecommendedStep} />
 
       {activeTab === 'overview' ? (
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, lg: 8 }}>
-          <SectionCard title="Overview" description="Core transport order data confirmed by backend DTOs.">
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Status
-                  </Typography>
-                  <TransportOrderStatusChip status={transportOrder.status} />
-                </Stack>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Priority
-                  </Typography>
-                  <StatusChip value={transportOrder.priority} />
-                </Stack>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Source warehouse
-                </Typography>
-                <Button component={RouterLink} to={`/warehouses/${transportOrder.sourceWarehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
-                  {sourceWarehouse?.name ?? `Warehouse #${transportOrder.sourceWarehouseId}`}
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                  {sourceWarehouse ? `${sourceWarehouse.address}, ${sourceWarehouse.city}` : '—'}
-                </Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Destination warehouse
-                </Typography>
-                <Button component={RouterLink} to={`/warehouses/${transportOrder.destinationWarehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
-                  {destinationWarehouse?.name ?? `Warehouse #${transportOrder.destinationWarehouseId}`}
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                  {destinationWarehouse
-                    ? `${destinationWarehouse.address}, ${destinationWarehouse.city}`
-                    : '—'}
-                </Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Vehicle
-                </Typography>
-                <Button component={RouterLink} to={`/vehicles/${transportOrder.vehicleId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
-                  {vehicle ? `${vehicle.brand} ${vehicle.model}` : `Vehicle #${transportOrder.vehicleId}`}
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                  {vehicle ? `${vehicle.registrationNumber} · ${vehicle.status}` : '—'}
-                </Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Driver
-                </Typography>
-                <Button component={RouterLink} to={`/employees/${transportOrder.assignedEmployeeId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
-                  {employee
-                    ? `${employee.firstName} ${employee.lastName}`
-                    : `Employee #${transportOrder.assignedEmployeeId}`}
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                  {employee?.email ?? '—'}
-                </Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Order date
-                </Typography>
-                <Typography variant="body1">{formatTemporalView(transportOrder.orderDateView, transportOrder.orderDate)}</Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Departure time
-                </Typography>
-                <Typography variant="body1">{formatTemporalView(transportOrder.departureTimeView, transportOrder.departureTime)} · {formatTemporalZone(transportOrder.departureTimeView, transportOrder.sourceTimezone)}</Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Planned arrival
-                </Typography>
-                <Typography variant="body1">
-                  {formatTemporalView(transportOrder.plannedArrivalTimeView, transportOrder.plannedArrivalTime)} · {formatTemporalZone(transportOrder.plannedArrivalTimeView, transportOrder.destinationTimezone)}
-                </Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Actual arrival
-                </Typography>
-                <Typography variant="body1">
-                  {formatTemporalView(transportOrder.actualArrivalTimeView, transportOrder.actualArrivalTime)} · {formatTemporalZone(transportOrder.actualArrivalTimeView, transportOrder.destinationTimezone)}
-                </Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Total weight
-                </Typography>
-                <Typography variant="body1">{formatWeight(transportOrder.totalWeight)}</Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Created by user ID
-                </Typography>
-                <Typography variant="body1">{transportOrder.createdById}</Typography>
-              </Grid>
-
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Notes
-                </Typography>
-                <Typography variant="body1">{transportOrder.notes?.trim() || '—'}</Typography>
-              </Grid>
-            </Grid>
-          </SectionCard>
-        </Grid>
-
-        <Grid size={{ xs: 12, lg: 4 }}>
-          <SectionCard title="Status actions" description="Allowed transitions follow backend service rules.">
-            {!canChangeTransportOrderStatus(currentRole, transportOrder) ? (
-              <>
-                <EmptyState
-                  title="No status actions available"
-                  description="Your role can review the order but cannot change its status."
-                />
-                <ForbiddenTransitionHint visible message="Your role is not allowed to transition this transport order." />
-              </>
-            ) : nextStatuses.length === 0 ? (
-              <>
-                <EmptyState
-                  title="No more status actions"
-                  description="This transport order is already in a terminal state."
-                />
-                <ForbiddenTransitionHint visible message="No next transition is allowed from the current transport order status." />
-              </>
-            ) : (
-              <Stack spacing={1.5}>
-                {nextStatuses.map((status) => (
-                  <Button
-                    key={status}
-                    variant="contained"
-                    disabled={updateStatusMutation.isPending}
-                    onClick={() => {
-                      if (!canChangeTransportOrderStatus(currentRole, transportOrder)) {
-                        return;
-                      }
-
-                      setTransitionTarget(status);
-                    }}
-                  >
-                    {getStatusActionLabel(status)}
-                  </Button>
-                ))}
-              </Stack>
-            )}
-          </SectionCard>
-
-
-          <SectionCard title="Transport lifecycle" description="Operational status path from draft to delivery/failure.">
-            <OperationalTimeline
-              items={(transportOrder.timeline ?? []).map((entry) => ({
-                id: `${entry.status}-${entry.label}`,
-                status: entry.status,
-                title: entry.label,
-                description: entry.description,
-                timestamp: formatTemporalView(entry.timestampView, entry.timestamp),
-                completed: entry.completed,
-                current: entry.current,
-              }))}
-            />
-          </SectionCard>
-
-          <SectionCard
-            title="Item rules"
-            description="Item create, edit and remove is allowed only while status is DRAFT."
-          >
-            <Typography variant="body2" color="text.secondary">
-              Current status: {transportOrder.status}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Order editing enabled: {isEditableOrder ? 'Yes' : 'No'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Item editing enabled: {isEditableItems ? 'Yes' : 'No'}
-            </Typography>
-          </SectionCard>
-        </Grid>
-      </Grid>
+        <TransportOrderOverviewTab
+          transportOrder={transportOrder}
+          sourceWarehouse={sourceWarehouse}
+          destinationWarehouse={destinationWarehouse}
+          vehicle={vehicle}
+          employee={employee}
+          canChangeStatus={canChangeStatus}
+          nextStatuses={nextStatuses}
+          statusMutationPending={updateStatusMutation.isPending}
+          isEditableOrder={isEditableOrder}
+          isEditableItems={isEditableItems}
+          onSelectTransition={setTransitionTarget}
+        />
       ) : null}
 
 
       {activeTab === 'lifecycle' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12 }}>
-            <SectionCard title="Lifecycle graph" description="Visual operational flow for dispatch, warehouse execution and delivery.">
-              <LifecycleStatusGraph
-                statuses={['DRAFT', 'ASSIGNED', 'PICKING', 'PACKING', 'READY_FOR_LOADING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'RETURNING', 'RESCHEDULED', 'CANCELLED'] as const}
-                currentStatus={transportOrder.status}
-                allowedNextStatuses={nextStatuses}
-                terminalStatuses={['DELIVERED', 'FAILED', 'CANCELLED'] as const}
-              />
-            </SectionCard>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <SectionCard title="Live workflow state" description="This panel refreshes active transport context every 30 seconds while the order is not terminal.">
-              <OperationalTimeline
-                items={(transportOrder.timeline ?? []).map((entry) => ({
-                  id: `${entry.status}-${entry.label}`,
-                  status: entry.status,
-                  title: entry.label,
-                  description: entry.description,
-                  timestamp: formatTemporalView(entry.timestampView, entry.timestamp),
-                  completed: entry.completed,
-                  current: entry.current,
-                }))}
-              />
-            </SectionCard>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <LifecycleHistoryTimeline entityName="TRANSPORT_ORDER" entityId={transportOrder.id} />
-          </Grid>
-        </Grid>
+        <TransportOrderLifecycleTab
+          transportOrder={transportOrder}
+          nextStatuses={nextStatuses}
+        />
       ) : null}
 
       {activeTab === 'items' ? (

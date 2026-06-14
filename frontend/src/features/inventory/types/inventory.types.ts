@@ -43,6 +43,7 @@ export type InventoryWarehouseOption = {
   city: string;
   capacity: number;
   status: WarehouseStatus;
+  binTrackingEnabled?: boolean;
   employeeId: number | null;
 };
 

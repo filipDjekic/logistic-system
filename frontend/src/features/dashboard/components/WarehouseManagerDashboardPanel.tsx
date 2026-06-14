@@ -5,7 +5,7 @@ import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import StatCard from '../../../shared/components/StatCard/StatCrad';
+import StatCard from '../../../shared/components/StatCard/StatCard';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
 import DashboardAlerts from './DashboardAlerts';
 import DashboardCharts from './DashboardCharts';

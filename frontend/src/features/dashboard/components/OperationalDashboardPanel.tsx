@@ -7,6 +7,9 @@ import PendingActionsRoundedIcon from '@mui/icons-material/PendingActionsRounded
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
 import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
 import { alpha, Alert, Box, Button, Chip, LinearProgress, Stack, Typography } from '@mui/material';
+import EmptyState from '../../../shared/components/EmptyState/EmptyState';
+import ErrorState from '../../../shared/components/ErrorState/ErrorState';
+import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -15,6 +18,8 @@ import type { OperationalDashboardResponse, OperationalIncidentResponse, Operati
 type Props = {
   data?: OperationalDashboardResponse;
   loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
 };
 
 const iconByKey: Record<string, ReactNode> = {
@@ -28,7 +33,7 @@ const iconByKey: Record<string, ReactNode> = {
   warehouseCongestion: <WarehouseRoundedIcon fontSize="small" />,
 };
 
-const colorBySeverity: Record<string, 'default' | 'primary' | 'success' | 'warning' | 'error' | 'info'> = {
+const colorBySeverity: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
   neutral: 'default',
   success: 'success',
   warning: 'warning',
@@ -307,7 +312,7 @@ function WarehouseCongestionCard({ item }: { item: OperationalWarehouseCongestio
   );
 }
 
-export default function OperationalDashboardPanel({ data, loading }: Props) {
+export default function OperationalDashboardPanel({ data, loading, error = false, onRetry }: Props) {
   const navigate = useNavigate();
   const title = data?.title ?? 'Operational command board';
   const description = data?.description ?? 'Actionable operational widgets for the current role.';
@@ -316,15 +321,32 @@ export default function OperationalDashboardPanel({ data, loading }: Props) {
   if (loading && !data) {
     return (
       <SectionCard title="Operational command board" description="Loading operational workflow widgets.">
-        <Typography variant="body2" color="text.secondary">
-          Loading operational data...
-        </Typography>
+        <InlineLoader message="Loading operational data..." lines={4} />
+      </SectionCard>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <SectionCard title="Operational command board" description="Actionable operational widgets for the current role.">
+        <ErrorState
+          title="Operational dashboard could not be loaded"
+          description="Operational widgets, alerts and workflow queues failed to load."
+          onRetry={onRetry}
+        />
       </SectionCard>
     );
   }
 
   if (!data) {
-    return null;
+    return (
+      <SectionCard title="Operational command board" description="Actionable operational widgets for the current role.">
+        <EmptyState
+          title="No operational dashboard data"
+          description="There is no role-specific operational data available for the current context."
+        />
+      </SectionCard>
+    );
   }
 
   const nextActions = data.nextActions ?? [];
@@ -408,9 +430,7 @@ export default function OperationalDashboardPanel({ data, loading }: Props) {
 
       <SectionCard title={title} description={description}>
         {data.widgets.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {emptyMessage}
-          </Typography>
+          <EmptyState title="No operational widgets" description={emptyMessage} />
         ) : (
           <Box
             sx={{
@@ -433,9 +453,7 @@ export default function OperationalDashboardPanel({ data, loading }: Props) {
       <SectionCard title="Workflow attention queue" description="Click any row to open the exact workflow/details screen.">
         <Stack spacing={1.25}>
           {data.flows.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {emptyMessage}
-            </Typography>
+            <EmptyState title="No workflow items" description={emptyMessage} />
           ) : (
             data.flows.map((flow) => (
               <Box

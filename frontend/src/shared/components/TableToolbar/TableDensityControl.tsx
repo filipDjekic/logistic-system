@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useState } from 'react';
 import ViewComfyIcon from '@mui/icons-material/ViewComfy';
 import ViewCompactIcon from '@mui/icons-material/ViewCompact';

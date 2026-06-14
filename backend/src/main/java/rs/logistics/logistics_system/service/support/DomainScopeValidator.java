@@ -1,16 +1,17 @@
 package rs.logistics.logistics_system.service.support;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
-import rs.logistics.logistics_system.repository.EmployeeWarehouseAssignmentRepository;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
+import rs.logistics.logistics_system.repository.EmployeeWarehouseAssignmentRepository;
 
 @Component
 @RequiredArgsConstructor
@@ -60,8 +61,6 @@ public class DomainScopeValidator {
         if (employee.getCompany() == null || warehouse.getCompany() == null || !employee.getCompany().getId().equals(warehouse.getCompany().getId())) {
             throw new ForbiddenException("Warehouse manager must belong to warehouse company");
         }
-        // Multi-warehouse managers are allowed. primaryWarehouse remains a default/home warehouse,
-        // while EmployeeWarehouseAssignment defines additional managed/access warehouses.
     }
 
     public void ensureOperationalWarehouseForAssignment(Warehouse warehouse, String message) {

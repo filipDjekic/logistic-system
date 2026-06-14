@@ -114,11 +114,4 @@ public class ShiftController {
         shiftService.cancelShift(id);
         return ResponseEntity.noContent().build();
     }
-
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
-    @PatchMapping("/cancel-shift")
-    public ResponseEntity<Void> cancelShiftLegacy(@RequestParam Long id) {
-        shiftService.cancelShift(id);
-        return ResponseEntity.noContent().build();
-    }
 }

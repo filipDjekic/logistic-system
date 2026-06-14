@@ -11,7 +11,7 @@ export const appConfig = {
   },
   statusTransitions: {
     task: {
-      NEW: ['ASSIGNED', 'IN_PROGRESS', 'CANCELLED'],
+      NEW: ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'CANCELLED'],
       OPEN: ['ASSIGNED', 'IN_PROGRESS', 'CANCELLED'],
       ASSIGNED: ['IN_PROGRESS', 'BLOCKED', 'CANCELLED'],
       IN_PROGRESS: ['BLOCKED', 'COMPLETED', 'CANCELLED'],

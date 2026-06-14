@@ -6,12 +6,11 @@ import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/materi
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { downloadFile } from '../../../core/utils/downloadFile';
-import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
-import InlineLoader from '../../../shared/components/Loader/InlineLoader';
+import QueryStateBoundary from '../../../shared/components/QueryStateBoundary';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import StatCard from '../../../shared/components/StatCard/StatCrad';
+import StatCard from '../../../shared/components/StatCard/StatCard';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import { ChartCard, recordToChartData } from '../../../shared/components/Charts';
 import { EntityLookupField } from '../../lookup';
@@ -27,6 +26,7 @@ import {
 } from '../api/reportsApi';
 import ReportDataTable from '../components/ReportDataTable';
 import ReportOperationsPanel, { type ReportExportFormat } from '../components/ReportOperationsPanel';
+import { formatDate, formatNumber, toDateTimeEndParam, toDateTimeStartParam } from '../utils/reportFormatters';
 
 const statusOptions = ['ALL', 'DRAFT', 'ASSIGNED', 'PICKING', 'PACKING', 'READY_FOR_LOADING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'RETURNING', 'RESCHEDULED', 'CANCELLED'] as const;
 const priorityOptions = ['ALL', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
@@ -42,22 +42,6 @@ type TransportReportSavedState = {
   driver: LookupOption | null;
 };
 
-function toDateTimeStartParam(value: string) {
-  return value ? `${value}T00:00:00` : undefined;
-}
-
-function toDateTimeEndParam(value: string) {
-  return value ? `${value}T23:59:59` : undefined;
-}
-
-function formatNumber(value: number | string | null | undefined) {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric.toLocaleString() : '0';
-}
-
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : '—';
-}
 
 export default function TransportReportPage() {
   const [fromDate, setFromDate] = useState('');
@@ -232,10 +216,18 @@ export default function TransportReportPage() {
         onApplySavedFilter={applySavedState}
       />
 
-      {reportQuery.isLoading ? <InlineLoader message="Loading transport report..." size={22} /> : null}
-      {reportQuery.isError ? <ErrorState title="Transport report could not be loaded" description="Backend report endpoint failed to return data." onRetry={() => void reportQuery.refetch()} /> : null}
-
-      {report ? (
+      <QueryStateBoundary
+        isLoading={reportQuery.isLoading}
+        isError={reportQuery.isError}
+        isEmpty={!report}
+        loadingMessage="Loading transport report..."
+        errorTitle="Transport report could not be loaded"
+        errorDescription="Backend report endpoint failed to return data."
+        emptyTitle="No transport report data"
+        emptyDescription="Adjust filters or retry after backend data is available."
+        onRetry={() => void reportQuery.refetch()}
+      >
+        {report ? (
         <Stack spacing={2}>
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' } }}>
             <StatCard title="Total transports" value={formatNumber(report.totalTransports)} subtitle={`${formatNumber(report.activeTransports)} active`} icon={<LocalShippingRoundedIcon fontSize="small" />} accent="primary" />
@@ -273,6 +265,7 @@ export default function TransportReportPage() {
           <TableLayout title="Transport rows" description="Raw transport rows included in this report." table={<ReportDataTable title="transport rows" rows={report.rows} columns={transportColumns} getRowId={(row) => row.id} minWidth={1510} />} />
         </Stack>
       ) : null}
+      </QueryStateBoundary>
     </Stack>
   );
 }

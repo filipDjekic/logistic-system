@@ -338,6 +338,8 @@ export default function DashboardPage() {
         <OperationalDashboardPanel
           data={operationalDashboardQuery.data}
           loading={operationalDashboardQuery.isLoading || operationalDashboardQuery.isFetching}
+          error={operationalDashboardQuery.isError}
+          onRetry={() => void operationalDashboardQuery.refetch()}
         />
       ) : null}
 

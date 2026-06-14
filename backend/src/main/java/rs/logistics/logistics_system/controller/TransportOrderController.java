@@ -35,7 +35,7 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
 
 @RestController
-@RequestMapping("/api/transport_orders")
+@RequestMapping({"/api/transport_orders", "/api/transport-orders"})
 @RequiredArgsConstructor
 public class TransportOrderController {
 

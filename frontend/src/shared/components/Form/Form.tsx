@@ -15,7 +15,7 @@ type FormTextFieldProps<
   'name' | 'value' | 'defaultValue' | 'onChange' | 'error' | 'helperText'
 > & {
   name: TName;
-  control: Control<TFieldValues>;
+  control: Control<TFieldValues, unknown, FieldValues>;
   rules?: RegisterOptions<TFieldValues, TName>;
   helperText?: TextFieldProps['helperText'];
 };

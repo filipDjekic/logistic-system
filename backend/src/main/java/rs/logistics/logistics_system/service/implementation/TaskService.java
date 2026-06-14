@@ -197,33 +197,30 @@ public class TaskService implements TaskServiceDefinition {
                 List.of(TaskStatus.NEW, TaskStatus.OPEN, TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED)
         );
 
+        int changedTasks = 0;
         for (Task task : tasks) {
-            TaskStatus oldStatus = task.getStatus();
-            LifecycleTransitionContext<TaskStatus> lifecycleContext = lifecycleTransitionEngine.validate(
-                    LifecycleEntityType.TASK,
-                    task.getId(),
-                    TaskStatus.class,
-                    oldStatus,
+            if (task.isFinalStatus() || task.getStatus() == status) {
+                continue;
+            }
+
+            if (status == TaskStatus.COMPLETED && task.getStatus() != TaskStatus.IN_PROGRESS) {
+                moveTransportTaskBySystem(
+                        task,
+                        TaskStatus.IN_PROGRESS,
+                        "Automatically started before completion because transport order " + transportOrderId + " was delivered",
+                        "TASK_AUTO_STARTED"
+                );
+            }
+
+            Task saved = moveTransportTaskBySystem(
+                    task,
                     status,
                     "Automatically closed because transport order " + transportOrderId + " was closed",
-                    null,
-                    task.getVersion()
+                    "TASK_AUTO_CLOSED"
             );
+            changedTasks++;
 
-            applyTaskStatusTransitionTimestamps(task, status);
-            Task saved = _taskRepository.save(task);
-
-            auditFacade.recordStatusChange("TASK", saved.getId(), "status", oldStatus, saved.getStatus());
-            auditFacade.log(
-                    "TASK_AUTO_CLOSED",
-                    "TASK",
-                    saved.getId(),
-                    "TASK " + saved.getId() + " automatically changed from " + oldStatus + " to " + saved.getStatus() + " because transport order " + transportOrderId + " was closed"
-            );
-
-            lifecycleTransitionEngine.afterTransition(lifecycleContext, TaskStatus.class);
-
-        if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
+            if (saved.getAssignedEmployee() != null && saved.getAssignedEmployee().getUser() != null) {
                 NotificationType type = status == TaskStatus.CANCELLED ? NotificationType.WARNING : NotificationType.INFO;
                 notificationService.createSystemNotification(
                         saved.getAssignedEmployee().getUser().getId(),
@@ -234,7 +231,7 @@ public class TaskService implements TaskServiceDefinition {
             }
         }
 
-        return tasks.size();
+        return changedTasks;
     }
 
 
@@ -255,6 +252,34 @@ public class TaskService implements TaskServiceDefinition {
         }
         return " with reason: " + reason.trim();
     }
+
+    private Task moveTransportTaskBySystem(Task task, TaskStatus targetStatus, String reason, String auditAction) {
+        TaskStatus oldStatus = task.getStatus();
+        LifecycleTransitionContext<TaskStatus> lifecycleContext = lifecycleTransitionEngine.validateSystem(
+                LifecycleEntityType.TASK,
+                task.getId(),
+                TaskStatus.class,
+                oldStatus,
+                targetStatus,
+                reason,
+                task.getVersion()
+        );
+
+        applyTaskStatusTransitionTimestamps(task, targetStatus);
+        Task saved = _taskRepository.save(task);
+
+        auditFacade.recordStatusChange("TASK", saved.getId(), "status", oldStatus, saved.getStatus());
+        auditFacade.log(
+                auditAction,
+                "TASK",
+                saved.getId(),
+                "TASK " + saved.getId() + " automatically changed from " + oldStatus + " to " + saved.getStatus() + transitionReasonSuffix(reason)
+        );
+
+        lifecycleTransitionEngine.afterTransition(lifecycleContext, TaskStatus.class);
+        return saved;
+    }
+
 
     private void normalizeTaskType(TaskCreate dto) {
         if (dto.getTaskType() == null) {
@@ -735,7 +760,7 @@ public class TaskService implements TaskServiceDefinition {
     private void createFollowUpTaskForTransportStatus(TransportOrder transportOrder, TransportOrderStatus status) {
         TaskType nextTaskType = switch (status) {
             case PACKING -> TaskType.PACKING;
-            case READY_FOR_LOADING, LOADING -> TaskType.LOADING;
+            case READY_FOR_LOADING -> TaskType.LOADING;
             default -> null;
         };
 

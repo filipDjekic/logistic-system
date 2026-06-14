@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { alpha, Box, Stack, Typography } from '@mui/material';
+import { alpha, Box, Stack, Typography, type Theme } from '@mui/material';
 
 type Tone = 'default' | 'info' | 'success' | 'warning' | 'error';
 
@@ -13,7 +13,7 @@ type Props = {
   items: DashboardSummaryItem[];
 };
 
-function getToneColor(tone: Tone, theme: any) {
+function getToneColor(tone: Tone, theme: Theme) {
   if (tone === 'info') return theme.palette.info.main;
   if (tone === 'success') return theme.palette.success.main;
   if (tone === 'warning') return theme.palette.warning.main;

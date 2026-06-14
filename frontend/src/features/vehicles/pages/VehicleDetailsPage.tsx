@@ -109,7 +109,7 @@ export default function VehicleDetailsPage() {
 
   const nextStatuses = useMemo(() => {
     if (!vehicle) return [];
-    return allowedTransitionsQuery.data?.allowedStatuses?.length ? allowedTransitionsQuery.data.allowedStatuses : getAllowedNextStatuses(vehicle.status);
+    return allowedTransitionsQuery.data?.allowedStatuses ?? getAllowedNextStatuses(vehicle.status);
   }, [allowedTransitionsQuery.data, vehicle]);
 
   const archiveMutation = useMutation({

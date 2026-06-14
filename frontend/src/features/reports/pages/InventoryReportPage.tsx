@@ -6,13 +6,12 @@ import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/materi
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { downloadFile } from '../../../core/utils/downloadFile';
-import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
-import InlineLoader from '../../../shared/components/Loader/InlineLoader';
+import QueryStateBoundary from '../../../shared/components/QueryStateBoundary';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import { EntityLookupField, type LookupOption } from '../../lookup';
-import StatCard from '../../../shared/components/StatCard/StatCrad';
+import StatCard from '../../../shared/components/StatCard/StatCard';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import { ChartCard, recordToChartData } from '../../../shared/components/Charts';
 import type { DataTableColumn } from '../../../shared/types/common.types';
@@ -26,6 +25,7 @@ import {
 } from '../api/reportsApi';
 import ReportDataTable from '../components/ReportDataTable';
 import ReportOperationsPanel, { type ReportExportFormat } from '../components/ReportOperationsPanel';
+import { formatDate, formatNumber, toDateTimeEndParam, toDateTimeStartParam } from '../utils/reportFormatters';
 
 const movementTypeOptions = ['ALL', 'INBOUND', 'OUTBOUND', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT', 'WRITE_OFF', 'RETURN_IN', 'RETURN_OUT', 'RESERVATION', 'RESERVATION_RELEASE'] as const;
 
@@ -37,22 +37,6 @@ type InventoryReportSavedState = {
   movementType: (typeof movementTypeOptions)[number];
 };
 
-function toDateTimeStartParam(value: string) {
-  return value ? `${value}T00:00:00` : undefined;
-}
-
-function toDateTimeEndParam(value: string) {
-  return value ? `${value}T23:59:59` : undefined;
-}
-
-function formatNumber(value: number | string | null | undefined) {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric.toLocaleString() : '0';
-}
-
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : '—';
-}
 
 export default function InventoryReportPage() {
   const [fromDate, setFromDate] = useState('');
@@ -218,10 +202,18 @@ export default function InventoryReportPage() {
         onApplySavedFilter={applySavedState}
       />
 
-      {reportQuery.isLoading ? <InlineLoader message="Loading inventory report..." size={22} /> : null}
-      {reportQuery.isError ? <ErrorState title="Inventory report could not be loaded" description="Backend report endpoint failed to return data." onRetry={() => void reportQuery.refetch()} /> : null}
-
-      {report ? (
+      <QueryStateBoundary
+        isLoading={reportQuery.isLoading}
+        isError={reportQuery.isError}
+        isEmpty={!report}
+        loadingMessage="Loading inventory report..."
+        errorTitle="Inventory report could not be loaded"
+        errorDescription="Backend report endpoint failed to return data."
+        emptyTitle="No inventory report data"
+        emptyDescription="Adjust filters or retry after backend data is available."
+        onRetry={() => void reportQuery.refetch()}
+      >
+        {report ? (
         <Stack spacing={2}>
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' } }}>
             <StatCard title="Inventory quantity" value={formatNumber(report.totalInventoryQuantity)} subtitle={`${formatNumber(report.totalAvailableQuantity)} available`} icon={<Inventory2RoundedIcon fontSize="small" />} accent="primary" />
@@ -248,6 +240,7 @@ export default function InventoryReportPage() {
           <TableLayout title="Stock movement rows" description="Raw stock movements included in this report date range." table={<ReportDataTable title="stock movement rows" rows={report.movementRows} columns={movementColumns} getRowId={(row) => row.id} minWidth={1220} />} />
         </Stack>
       ) : null}
+      </QueryStateBoundary>
     </Stack>
   );
 }

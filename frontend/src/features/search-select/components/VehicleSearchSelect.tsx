@@ -12,6 +12,7 @@ export type VehicleSearchSelectProps = {
   onSelect: (vehicle: VehicleResponse) => void;
   availableOnly?: boolean;
   disabledVehicleIds?: number[];
+  helperText?: string;
 };
 
 const vehicleColumns: SearchSelectColumn<VehicleResponse>[] = [
@@ -48,6 +49,7 @@ export function VehicleSearchSelect({
   onSelect,
   availableOnly = false,
   disabledVehicleIds = [],
+  helperText,
 }: VehicleSearchSelectProps) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'ALL' | VehicleStatus>(availableOnly ? 'AVAILABLE' : 'ALL');
@@ -65,8 +67,9 @@ export function VehicleSearchSelect({
   const selectedLabel = useMemo(() => rows.find((vehicle) => vehicle.id === value)?.registrationNumber ?? null, [rows, value]);
 
   return (
-    <SearchSelectPanel
-      title={title}
+    <Stack spacing={1}>
+      <SearchSelectPanel
+        title={title}
       searchValue={search}
       onSearchChange={setSearch}
       searchPlaceholder="Search by registration, brand, model or type..."
@@ -82,7 +85,13 @@ export function VehicleSearchSelect({
       getSelectDisabled={(vehicle) => disabledVehicleIds.includes(vehicle.id)}
       loading={vehiclesQuery.isFetching}
       error={vehiclesQuery.error ? getErrorMessage(vehiclesQuery.error) : null}
-      emptyMessage="No vehicles found."
-    />
+        emptyMessage="No vehicles found."
+      />
+      {helperText ? (
+        <Typography variant="caption" color="text.secondary">
+          {helperText}
+        </Typography>
+      ) : null}
+    </Stack>
   );
 }

@@ -20,19 +20,19 @@ export const changeHistoryApi = {
 
   getByEntityName(entityName: string) {
     return apiClient
-      .get<ChangeHistoryResponse[]>(`/api/history/entity_name/${encodeURIComponent(entityName)}`)
+      .get<ChangeHistoryResponse[]>(`/api/history/entity-name/${encodeURIComponent(entityName)}`)
       .then((response) => response.data);
   },
 
   getByEntityId(entityId: number) {
     return apiClient
-      .get<ChangeHistoryResponse[]>(`/api/history/entity_id/${entityId}`)
+      .get<ChangeHistoryResponse[]>(`/api/history/entity-id/${entityId}`)
       .then((response) => response.data);
   },
 
   getByUserId(userId: number) {
     return apiClient
-      .get<ChangeHistoryResponse[]>(`/api/history/user_id/${userId}`)
+      .get<ChangeHistoryResponse[]>(`/api/history/user-id/${userId}`)
       .then((response) => response.data);
   },
 

@@ -82,7 +82,7 @@ export const inventoryApi = {
   },
 
   deleteInventoryRecord(warehouseId: number, productId: number) {
-    return apiClient.delete(`/api/warehouse-inventory/${warehouseId}/${productId}`);
+    return apiClient.delete<void>(`/api/warehouse-inventory/${warehouseId}/${productId}`).then((response) => response.data);
   },
 
   reserveStock(data: StockReservationRequest) {

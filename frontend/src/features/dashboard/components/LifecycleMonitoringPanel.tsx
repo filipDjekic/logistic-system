@@ -94,7 +94,7 @@ export default function LifecycleMonitoringPanel({ data, loading = false, onRefr
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Chip size="small" color={severity(alert)} label={Number(alert.count ?? 0).toLocaleString()} />
                     {alert.route ? (
-                      <Button size="small" color="inherit" onClick={() => navigate(alert.route)}>
+                      <Button size="small" color="inherit" onClick={() => { if (alert.route) navigate(alert.route); }}>
                         Open
                       </Button>
                     ) : null}

@@ -58,7 +58,7 @@ export const vehiclesApi = {
   },
 
   delete(id: number) {
-    return apiClient.delete(`/api/vehicles/${id}`);
+    return apiClient.delete<void>(`/api/vehicles/${id}`).then((response) => response.data);
   },
 
   getAllowedStatusTransitions(id: number) {

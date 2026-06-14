@@ -1,15 +1,35 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import rs.logistics.logistics_system.dto.create.*;
-import rs.logistics.logistics_system.dto.response.*;
-import rs.logistics.logistics_system.dto.update.*;
-import rs.logistics.logistics_system.entity.*;
+
+import lombok.RequiredArgsConstructor;
+import rs.logistics.logistics_system.dto.create.BinInventoryCreate;
+import rs.logistics.logistics_system.dto.create.BinLocationCreate;
+import rs.logistics.logistics_system.dto.create.InternalWarehouseMovementCreate;
+import rs.logistics.logistics_system.dto.create.WarehouseZoneCreate;
+import rs.logistics.logistics_system.dto.response.BinInventoryResponse;
+import rs.logistics.logistics_system.dto.response.BinLocationResponse;
+import rs.logistics.logistics_system.dto.response.InternalWarehouseMovementResponse;
+import rs.logistics.logistics_system.dto.response.PageResponse;
+import rs.logistics.logistics_system.dto.response.WarehouseZoneResponse;
+import rs.logistics.logistics_system.dto.update.BinLocationUpdate;
+import rs.logistics.logistics_system.dto.update.WarehouseZoneUpdate;
+import rs.logistics.logistics_system.entity.BinInventory;
+import rs.logistics.logistics_system.entity.BinLocation;
+import rs.logistics.logistics_system.entity.InternalWarehouseMovement;
+import rs.logistics.logistics_system.entity.Product;
+import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.entity.WarehouseInventory;
+import rs.logistics.logistics_system.entity.WarehouseZone;
 import rs.logistics.logistics_system.enums.DomainEventType;
 import rs.logistics.logistics_system.enums.InternalWarehouseMovementStatus;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
@@ -18,20 +38,20 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.WarehouseLocationMapper;
-import rs.logistics.logistics_system.repository.*;
+import rs.logistics.logistics_system.repository.BinInventoryRepository;
+import rs.logistics.logistics_system.repository.BinLocationRepository;
+import rs.logistics.logistics_system.repository.InternalWarehouseMovementRepository;
+import rs.logistics.logistics_system.repository.ProductRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
+import rs.logistics.logistics_system.repository.WarehouseZoneRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseLocationServiceDefinition;
-import rs.logistics.logistics_system.service.support.BinIntegrityValidator;
-import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
-import rs.logistics.logistics_system.service.support.PageableSortMapper;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import rs.logistics.logistics_system.service.support.BinIntegrityValidator;
+import rs.logistics.logistics_system.service.support.PageableSortMapper;
+import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 
 @Service
 @RequiredArgsConstructor
@@ -212,8 +232,6 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
         ensureSameCompany(source.getWarehouse(), product);
         BigDecimal quantity = binIntegrityValidator.requirePositive(dto.getQuantity(), "Movement quantity must be greater than zero");
 
-        // Lock warehouse row first. Internal movement must not change warehouse inventory,
-        // but this keeps the lock order aligned with bin inventory maintenance operations.
         WarehouseInventory warehouseInventory = binIntegrityValidator.lockWarehouseInventory(source.getWarehouse(), product);
 
         BinInventory sourceInventory;
@@ -240,7 +258,6 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
         BigDecimal sourceAfter = sourceInventory.getSafeQuantity();
         BigDecimal destinationAfter = destinationInventory.getSafeQuantity();
 
-        // Warehouse inventory is intentionally unchanged because stock remains inside the same warehouse.
         binIntegrityValidator.ensureInternalMovementDoesNotExceedWarehouseInventory(
                 source,
                 destination,

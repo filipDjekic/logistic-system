@@ -596,6 +596,29 @@ export default function WarehouseDetailsPage() {
     },
   });
 
+
+  const archiveMutation = useMutation({
+    mutationFn: (id: number) => warehousesApi.archive(id),
+    onSuccess: async (updated) => {
+      showSnackbar({ message: 'Warehouse archived successfully.', severity: 'success' });
+      await invalidateWarehouseState(queryClient, updated.id);
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: number) => warehousesApi.restore(id),
+    onSuccess: async (updated) => {
+      showSnackbar({ message: 'Warehouse restored successfully.', severity: 'success' });
+      await invalidateWarehouseState(queryClient, updated.id);
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
   if (!Number.isFinite(warehouseId)) {
     return (
       <ErrorState

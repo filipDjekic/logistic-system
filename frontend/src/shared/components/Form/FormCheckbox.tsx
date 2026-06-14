@@ -19,7 +19,7 @@ type FormCheckboxProps<
   TName extends FieldPath<TFieldValues>,
 > = Omit<CheckboxProps, 'name' | 'checked' | 'defaultChecked' | 'onChange'> & {
   name: TName;
-  control: Control<TFieldValues>;
+  control: Control<TFieldValues, unknown, FieldValues>;
   label: string;
   rules?: RegisterOptions<TFieldValues, TName>;
   helperText?: string;

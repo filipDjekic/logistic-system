@@ -95,7 +95,7 @@ function buildTransportOrderParams(filters?: TransportOrderListFilters & PagePar
 export const transportOrdersApi = {
   getAll(filters?: TransportOrderListFilters & PageParams) {
     return apiClient
-      .get<PageResponse<TransportOrderResponse>>('/api/transport_orders', {
+      .get<PageResponse<TransportOrderResponse>>('/api/transport-orders', {
         params: buildTransportOrderParams(filters),
       })
       .then((response) => response.data);
@@ -104,7 +104,7 @@ export const transportOrdersApi = {
 
   getStatusCounts(filters?: Omit<TransportOrderListFilters, 'status'>) {
     return apiClient
-      .get<StatusCountResponse[]>('/api/transport_orders/status-counts', {
+      .get<StatusCountResponse[]>('/api/transport-orders/status-counts', {
         params: buildTransportOrderParams(filters as TransportOrderListFilters & PageParams | undefined),
       })
       .then((response) => response.data);
@@ -112,37 +112,37 @@ export const transportOrdersApi = {
 
   getById(id: number) {
     return apiClient
-      .get<TransportOrderResponse>(`/api/transport_orders/${id}`)
+      .get<TransportOrderResponse>(`/api/transport-orders/${id}`)
       .then((response) => response.data);
   },
 
   create(payload: TransportOrderCreateRequest) {
     return apiClient
-      .post<TransportOrderResponse>('/api/transport_orders', payload)
+      .post<TransportOrderResponse>('/api/transport-orders', payload)
       .then((response) => response.data);
   },
 
   update(id: number, payload: TransportOrderUpdateRequest) {
     return apiClient
-      .put<TransportOrderResponse>(`/api/transport_orders/${id}`, payload)
+      .put<TransportOrderResponse>(`/api/transport-orders/${id}`, payload)
       .then((response) => response.data);
   },
 
   getAllowedStatusTransitions(id: number) {
     return apiClient
-      .get<AllowedStatusTransitionsResponse<TransportOrderStatus>>(`/api/transport_orders/${id}/status-transitions`)
+      .get<AllowedStatusTransitionsResponse<TransportOrderStatus>>(`/api/transport-orders/${id}/status-transitions`)
       .then((response) => response.data);
   },
 
   updateStatus(id: number, status: TransportOrderStatus, reason?: string, expectedVersion?: number) {
     return apiClient
-      .patch<TransportOrderResponse>(`/api/transport_orders/${id}/status`, { status, reason, expectedVersion })
+      .patch<TransportOrderResponse>(`/api/transport-orders/${id}/status`, { status, reason, expectedVersion })
       .then((response) => response.data);
   },
 
   getItemsByTransportOrderId(transportOrderId: number) {
     return apiClient
-      .get<PageResponse<TransportOrderItemResponse>>('/api/transport_order_items', {
+      .get<PageResponse<TransportOrderItemResponse>>('/api/transport-order-items', {
         params: { transportOrderId, page: 0, size: 100, sort: 'id,asc' },
       })
       .then((response) => response.data.content);
@@ -150,18 +150,18 @@ export const transportOrdersApi = {
 
   createItem(payload: TransportOrderItemCreateRequest) {
     return apiClient
-      .post<TransportOrderItemResponse>('/api/transport_order_items', payload)
+      .post<TransportOrderItemResponse>('/api/transport-order-items', payload)
       .then((response) => response.data);
   },
 
   updateItem(id: number, payload: TransportOrderItemUpdateRequest) {
     return apiClient
-      .put<TransportOrderItemResponse>(`/api/transport_order_items/${id}`, payload)
+      .put<TransportOrderItemResponse>(`/api/transport-order-items/${id}`, payload)
       .then((response) => response.data);
   },
 
   deleteItem(id: number) {
-    return apiClient.delete(`/api/transport_order_items/${id}`).then((response) => response.data);
+    return apiClient.delete(`/api/transport-order-items/${id}`).then((response) => response.data);
   },
 
   getWarehouses() {

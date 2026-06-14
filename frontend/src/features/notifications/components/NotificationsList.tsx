@@ -1,8 +1,6 @@
 import { memo } from 'react';
 import { Stack } from '@mui/material';
-import EmptyState from '../../../shared/components/EmptyState/EmptyState';
-import ErrorState from '../../../shared/components/ErrorState/ErrorState';
-import InlineLoader from '../../../shared/components/Loader/InlineLoader';
+import QueryStateBoundary from '../../../shared/components/QueryStateBoundary';
 import type { NotificationResponse } from '../types/notification.types';
 import NotificationItem from './NotificationItem';
 
@@ -33,45 +31,34 @@ function NotificationsList({
   acknowledgingNotificationId = null,
   resolvingNotificationId = null,
 }: NotificationsListProps) {
-  if (isLoading) {
-    return <InlineLoader message="Loading notifications..." />;
-  }
-
-  if (isError) {
-    return (
-      <ErrorState
-        title="Notifications could not be loaded"
-        description="An error occurred while loading your notifications."
-        onRetry={onRetry}
-      />
-    );
-  }
-
-  if (notifications.length === 0) {
-    return (
-      <EmptyState
-        title="No notifications"
-        description="You currently do not have any notifications."
-      />
-    );
-  }
-
   return (
-    <Stack spacing={1.5}>
-      {notifications.map((notification) => (
-        <NotificationItem
-          key={notification.id}
-          notification={notification}
-          onMarkAsRead={onMarkAsRead}
-          onAcknowledge={onAcknowledge}
-          onResolve={onResolve}
-          onOpenSource={onOpenSource}
-          isMarking={markingNotificationId === notification.id}
-          isAcknowledging={acknowledgingNotificationId === notification.id}
-          isResolving={resolvingNotificationId === notification.id}
-        />
-      ))}
-    </Stack>
+    <QueryStateBoundary
+      isLoading={isLoading}
+      isError={isError}
+      isEmpty={notifications.length === 0}
+      loadingMessage="Loading notifications..."
+      errorTitle="Notifications could not be loaded"
+      errorDescription="An error occurred while loading your notifications."
+      emptyTitle="No notifications"
+      emptyDescription="You currently do not have any notifications."
+      onRetry={onRetry}
+    >
+      <Stack spacing={1.5}>
+        {notifications.map((notification) => (
+          <NotificationItem
+            key={notification.id}
+            notification={notification}
+            onMarkAsRead={onMarkAsRead}
+            onAcknowledge={onAcknowledge}
+            onResolve={onResolve}
+            onOpenSource={onOpenSource}
+            isMarking={markingNotificationId === notification.id}
+            isAcknowledging={acknowledgingNotificationId === notification.id}
+            isResolving={resolvingNotificationId === notification.id}
+          />
+        ))}
+      </Stack>
+    </QueryStateBoundary>
   );
 }
 

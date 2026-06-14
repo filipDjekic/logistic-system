@@ -25,7 +25,7 @@ import rs.logistics.logistics_system.dto.update.TransportOrderItemUpdate;
 import rs.logistics.logistics_system.service.definition.TransportOrderItemServiceDefinition;
 
 @RestController
-@RequestMapping("/api/transport_order_items")
+@RequestMapping({"/api/transport_order_items", "/api/transport-order-items"})
 @RequiredArgsConstructor
 public class TransportOrderItemController {
 

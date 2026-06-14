@@ -1,4 +1,4 @@
-import type { ApiPageResponse } from '../../../shared/types/api.types';
+import type { ItemsPageResponse } from '../../../shared/types/api.types';
 
 export type NotificationStatus = 'UNREAD' | 'READ' | 'ACKNOWLEDGED' | 'RESOLVED';
 
@@ -33,7 +33,7 @@ export type NotificationResponse = {
   userId: number;
 };
 
-export type NotificationPageResponse = ApiPageResponse<NotificationResponse> & {
+export type NotificationPageResponse = ItemsPageResponse<NotificationResponse> & {
   unreadCount: number;
   criticalUnreadCount: number;
   warningUnreadCount: number;

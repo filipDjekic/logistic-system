@@ -84,7 +84,7 @@ export default function WarehousesPage() {
       ? [{ key: 'status', label: `Status: ${filters.status}`, onDelete: () => setFilters((prev) => ({ ...prev, status: 'ALL' })) }]
       : []),
     ...(filters.active !== 'ALL'
-      ? [{ key: 'active', label: filters.active === 'true' ? 'Active only' : 'Inactive only', onDelete: () => setFilters((prev) => ({ ...prev, active: 'ALL' })) }]
+      ? [{ key: 'active', label: filters.active === true ? 'Active only' : 'Inactive only', onDelete: () => setFilters((prev) => ({ ...prev, active: 'ALL' })) }]
       : []),
   ];
 

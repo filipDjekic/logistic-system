@@ -25,7 +25,7 @@ type FormSelectProps<
   TName extends FieldPath<TFieldValues>,
 > = Omit<SelectProps, 'name' | 'value' | 'defaultValue' | 'onChange' | 'error'> & {
   name: TName;
-  control: Control<TFieldValues>;
+  control: Control<TFieldValues, unknown, FieldValues>;
   label: string;
   options: readonly FormSelectOption[];
   rules?: RegisterOptions<TFieldValues, TName>;
