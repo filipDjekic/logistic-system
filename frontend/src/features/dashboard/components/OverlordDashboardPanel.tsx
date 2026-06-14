@@ -1,13 +1,12 @@
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
-import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
-import { Box, Stack, Typography } from '@mui/material';
+import SecurityRoundedIcon from '@mui/icons-material/SecurityRounded';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import { Box, Chip, Divider, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCard';
-import DashboardSummaryStrip from './DashboardSummaryStrip';
 import DashboardAlerts from './DashboardAlerts';
-import DashboardCharts from './DashboardCharts';
 import type { OverlordDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -19,49 +18,58 @@ function formatNumber(value: number | string | null | undefined) {
   return Number.isFinite(numeric) ? numeric.toLocaleString() : '0';
 }
 
+function getStatusCount(statuses: Record<string, number>, ...keys: string[]) {
+  return keys.reduce((total, key) => total + Number(statuses[key] ?? 0), 0);
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return '-';
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
+}
+
 export default function OverlordDashboardPanel({ data }: Props) {
+  const activeUsers = getStatusCount(data.usersByStatus, 'ACTIVE');
+  const inactiveUsers = Math.max(Number(data.usersTotal ?? 0) - activeUsers, 0);
+  const systemAlerts = Number(data.alerts?.length ?? 0);
+
   const cards = [
     {
       key: 'companies',
       title: 'Companies',
       value: formatNumber(data.companiesTotal),
-      subtitle: `${formatNumber(data.activeCompanies)} active`,
+      subtitle: `${formatNumber(data.activeCompanies)} active companies`,
       icon: <BusinessRoundedIcon fontSize="small" />,
       accent: 'primary' as const,
     },
     {
       key: 'users',
-      title: 'Users',
+      title: 'User access',
       value: formatNumber(data.usersTotal),
-      subtitle: `${formatNumber(data.usersByStatus.ACTIVE ?? 0)} active`,
+      subtitle: `${formatNumber(activeUsers)} active · ${formatNumber(inactiveUsers)} inactive`,
       icon: <GroupsRoundedIcon fontSize="small" />,
-      accent: 'info' as const,
-    },
-    {
-      key: 'employees',
-      title: 'Employees',
-      value: formatNumber(data.employeesTotal),
-      subtitle: `${formatNumber(data.activeEmployees)} active`,
-      icon: <GroupsRoundedIcon fontSize="small" />,
-      accent: 'success' as const,
-    },
-    {
-      key: 'stockMovements',
-      title: 'Stock movements',
-      value: formatNumber(data.stockMovementsTotal),
-      subtitle: `${formatNumber(data.lowStockRowsTotal)} low-stock rows`,
-      icon: <Inventory2RoundedIcon fontSize="small" />,
-      accent: 'warning' as const,
+      accent: inactiveUsers > 0 ? ('warning' as const) : ('success' as const),
     },
     {
       key: 'audit',
-      title: 'Audit events',
+      title: 'Audit trail',
       value: formatNumber(data.changeHistoryTotal),
       subtitle: `${formatNumber(data.activityLogsTotal)} activity logs`,
       icon: <HistoryRoundedIcon fontSize="small" />,
-      accent: 'error' as const,
+      accent: 'info' as const,
+    },
+    {
+      key: 'alerts',
+      title: 'System alerts',
+      value: formatNumber(systemAlerts),
+      subtitle: systemAlerts > 0 ? 'Requires review' : 'No active dashboard alerts',
+      icon: <WarningAmberRoundedIcon fontSize="small" />,
+      accent: systemAlerts > 0 ? ('error' as const) : ('success' as const),
     },
   ];
+
+  const latestActivity = data.recentActivities[0];
 
   return (
     <Stack spacing={2}>
@@ -72,7 +80,7 @@ export default function OverlordDashboardPanel({ data }: Props) {
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
-            xl: 'repeat(5, minmax(0, 1fr))',
+            xl: 'repeat(4, minmax(0, 1fr))',
           },
         }}
       >
@@ -88,81 +96,113 @@ export default function OverlordDashboardPanel({ data }: Props) {
         ))}
       </Box>
 
-      <DashboardSummaryStrip
-        items={[
-          { label: 'Active transports', value: formatNumber((data.transportOrdersByStatus.ASSIGNED ?? 0) + (data.transportOrdersByStatus.IN_TRANSIT ?? 0)), tone: 'info' },
-          { label: 'Open tasks', value: formatNumber((data.tasksByStatus.NEW ?? 0) + (data.tasksByStatus.IN_PROGRESS ?? 0)), tone: 'warning' },
-          { label: 'Low stock rows', value: formatNumber(data.lowStockRowsTotal), tone: data.lowStockRowsTotal > 0 ? 'error' : 'success' },
-          { label: 'Available quantity', value: formatNumber(data.inventoryAvailableQuantityTotal), tone: 'success' },
-        ]}
-      />
-
       <DashboardAlerts alerts={data.alerts} />
-
-      <DashboardCharts charts={data.charts} />
 
       <Box
         sx={{
           display: 'grid',
           gap: 2,
-          gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) minmax(0, 1fr)' },
+          gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 0.9fr) minmax(0, 1.1fr)' },
         }}
       >
-        <SectionCard title="Global operations" description="System-wide transport, task and fleet totals.">
-          <Stack spacing={1.25}>
-            <Typography variant="body2">
-              Transport orders: {formatNumber(data.transportOrdersTotal)}
-            </Typography>
-            <Typography variant="body2">
-              Active transports:{' '}
-              {formatNumber(
-                (data.transportOrdersByStatus.ASSIGNED ?? 0) +
-                  (data.transportOrdersByStatus.IN_TRANSIT ?? 0),
-              )}
-            </Typography>
-            <Typography variant="body2">Tasks: {formatNumber(data.tasksTotal)}</Typography>
-            <Typography variant="body2">
-              Open tasks:{' '}
-              {formatNumber(
-                (data.tasksByStatus.NEW ?? 0) +
-                  (data.tasksByStatus.IN_PROGRESS ?? 0),
-              )}
-            </Typography>
-            <Typography variant="body2">Vehicles: {formatNumber(data.vehiclesTotal)}</Typography>
-            <Typography variant="body2">
-              Vehicles in use: {formatNumber(data.vehiclesByStatus.IN_USE ?? 0)}
-            </Typography>
+        <SectionCard
+          title="System governance"
+          description="Overlord dashboard is limited to platform ownership, access control and audit health. Operational warehouse and transport metrics remain inside role-specific workspaces."
+        >
+          <Stack spacing={1.5}>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip label={`${formatNumber(data.companiesTotal)} companies`} variant="outlined" />
+              <Chip label={`${formatNumber(data.activeCompanies)} active`} color="success" variant="outlined" />
+              <Chip label={`${formatNumber(data.usersTotal)} users`} variant="outlined" />
+              <Chip
+                label={`${formatNumber(inactiveUsers)} inactive users`}
+                color={inactiveUsers > 0 ? 'warning' : 'success'}
+                variant="outlined"
+              />
+            </Stack>
+
+            <Divider />
+
+            <Stack spacing={1}>
+              <Typography variant="body2">
+                Companies are the primary Overlord scope. Use this dashboard to detect platform-level setup, access and audit issues.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Inventory, transport, fleet and warehouse totals are intentionally not repeated here because they belong to company and operational roles.
+              </Typography>
+            </Stack>
           </Stack>
         </SectionCard>
 
-        <SectionCard title="Global inventory" description="System-wide storage and inventory volume.">
-          <Stack spacing={1.25}>
-            <Typography variant="body2">Warehouses: {formatNumber(data.warehousesTotal)}</Typography>
-            <Typography variant="body2">Products: {formatNumber(data.productsTotal)}</Typography>
-            <Typography variant="body2">
-              Inventory records: {formatNumber(data.inventoryRowsTotal)}
-            </Typography>
-            <Typography variant="body2">
-              Low-stock records: {formatNumber(data.lowStockRowsTotal)}
-            </Typography>
-            <Typography variant="body2">
-              Total quantity: {formatNumber(data.inventoryQuantityTotal)}
-            </Typography>
-            <Typography variant="body2">
-              Available quantity: {formatNumber(data.inventoryAvailableQuantityTotal)}
-            </Typography>
+        <SectionCard
+          title="Access and audit snapshot"
+          description="Compact control view for users, activity logs and entity change history."
+        >
+          <Stack spacing={1.5}>
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 1.25,
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+              }}
+            >
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 800 }}>
+                  Active users
+                </Typography>
+                <Typography variant="h6">{formatNumber(activeUsers)}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 800 }}>
+                  Activity logs
+                </Typography>
+                <Typography variant="h6">{formatNumber(data.activityLogsTotal)}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 800 }}>
+                  Change history
+                </Typography>
+                <Typography variant="h6">{formatNumber(data.changeHistoryTotal)}</Typography>
+              </Box>
+            </Box>
+
+            <Divider />
+
+            <Stack direction="row" spacing={1.25} alignItems="flex-start">
+              <SecurityRoundedIcon color="primary" fontSize="small" />
+              <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle2">Latest audited activity</Typography>
+                {latestActivity ? (
+                  <>
+                    <Typography variant="body2">
+                      {latestActivity.action} · {latestActivity.entityName} #{latestActivity.entityId ?? '-'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {latestActivity.description ?? latestActivity.entityIdentifier ?? 'No description'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {latestActivity.userEmail ?? 'system'} · {formatDateTime(latestActivity.createdAt)}
+                    </Typography>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No recent activity.
+                  </Typography>
+                )}
+              </Stack>
+            </Stack>
           </Stack>
         </SectionCard>
       </Box>
 
-      <SectionCard title="Recent system activity" description="Last audit activity log entries.">
+      <SectionCard title="Recent system activity" description="Last platform audit entries for Overlord review.">
         <Stack spacing={1.25}>
           {data.recentActivities.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
               No recent activity.
             </Typography>
           ) : (
-            data.recentActivities.map((activity) => (
+            data.recentActivities.slice(0, 5).map((activity) => (
               <Box
                 key={activity.id}
                 sx={{
@@ -171,16 +211,23 @@ export default function OverlordDashboardPanel({ data }: Props) {
                   border: (theme) => `1px solid ${theme.palette.divider}`,
                 }}
               >
-                <Typography variant="subtitle2">
-                  {activity.action} · {activity.entityName} #{activity.entityId ?? '-'}
-                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+                  <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                    <Typography variant="subtitle2">
+                      {activity.action} · {activity.entityName} #{activity.entityId ?? '-'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {activity.description ?? activity.entityIdentifier ?? 'No description'}
+                    </Typography>
+                  </Stack>
 
-                <Typography variant="body2" color="text.secondary">
-                  {activity.description ?? activity.entityIdentifier ?? 'No description'}
-                </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                    {formatDateTime(activity.createdAt)}
+                  </Typography>
+                </Stack>
 
                 <Typography variant="caption" color="text.secondary">
-                  {activity.userEmail ?? 'system'} · {new Date(activity.createdAt).toLocaleString()}
+                  {activity.userEmail ?? 'system'}
                 </Typography>
               </Box>
             ))

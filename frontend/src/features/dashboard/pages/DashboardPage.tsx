@@ -20,7 +20,6 @@ import OverlordDashboardPanel from '../components/OverlordDashboardPanel';
 import WarehouseManagerDashboardPanel from '../components/WarehouseManagerDashboardPanel';
 import WorkerDashboardPanel from '../components/WorkerDashboardPanel';
 import LifecycleMonitoringPanel from '../components/LifecycleMonitoringPanel';
-import OperationalDashboardPanel from '../components/OperationalDashboardPanel';
 
 type DashboardAction = {
   label: string;
@@ -34,7 +33,7 @@ function getDashboardActions(role: string): DashboardAction[] {
     case ROLES.OVERLORD:
       return [
         { label: 'Create company', to: '/companies?create=1', variant: 'contained', icon: 'add' },
-        { label: 'Open employees', to: '/employees', icon: 'list' },
+        { label: 'Open users', to: '/users', icon: 'list' },
         { label: 'Open audit logs', to: '/activity-logs', icon: 'list' },
       ];
     case ROLES.COMPANY_ADMIN:
@@ -51,9 +50,9 @@ function getDashboardActions(role: string): DashboardAction[] {
       ];
     case ROLES.WAREHOUSE_MANAGER:
       return [
-        { label: 'Create inventory record', to: '/inventory?create=1', variant: 'contained', icon: 'add' },
-        { label: 'Create stock movement', to: '/stock-movements/create', icon: 'add' },
-        { label: 'Create warehouse task', to: '/tasks?create=1', icon: 'add' },
+        { label: 'Create stock movement', to: '/stock-movements/create', variant: 'contained', icon: 'add' },
+        { label: 'Open inventory', to: '/inventory', icon: 'list' },
+        { label: 'Open warehouse tasks', to: '/tasks', icon: 'list' },
       ];
     case ROLES.DISPATCHER:
       return [
@@ -81,11 +80,11 @@ function getDashboardActions(role: string): DashboardAction[] {
 const roleDashboardCopy: Record<string, { title: string; description: string }> = {
   [ROLES.OVERLORD]: {
     title: 'System control center',
-    description: 'Global health, audit and operational totals across all companies.',
+    description: 'Platform governance, access control, audit activity and system health.'
   },
   [ROLES.COMPANY_ADMIN]: {
     title: 'Company control center',
-    description: 'Company people, transport, fleet and warehouse overview.',
+    description: 'Company-level action view for transports, tasks, stock risks and fleet capacity.',
   },
   [ROLES.HR_MANAGER]: {
     title: 'HR workspace',
@@ -120,8 +119,7 @@ export default function DashboardPage() {
   const isDispatcher = role === ROLES.DISPATCHER;
   const isDriver = role === ROLES.DRIVER;
   const isWorker = role === ROLES.WORKER;
-  const canViewLifecycleMonitoring = isOverlord || isCompanyAdmin || isHrManager || isWarehouseManager || isDispatcher || isDriver || isWorker;
-  const canViewOperationalDashboard = isOverlord || isCompanyAdmin || isHrManager || isWarehouseManager || isDispatcher || isDriver || isWorker;
+  const canViewLifecycleMonitoring = isOverlord;
 
   const overlordDashboardQuery = useQuery({
     queryKey: queryKeys.dashboard.role('overlord'),
@@ -171,14 +169,6 @@ export default function DashboardPage() {
     enabled: isWorker,
     staleTime: cacheTimes.volatile,
   });
-
-  const operationalDashboardQuery = useQuery({
-    queryKey: queryKeys.dashboard.operational(role),
-    queryFn: dashboardApi.getOperationalDashboard,
-    enabled: canViewOperationalDashboard,
-    staleTime: cacheTimes.volatile,
-  });
-
 
   const lifecycleMonitoringQuery = useQuery({
     queryKey: queryKeys.dashboard.lifecycleMonitoring(),
@@ -291,9 +281,6 @@ export default function DashboardPage() {
               startIcon={<RefreshRoundedIcon />}
               onClick={() => {
                 void activeQuery?.refetch();
-                if (canViewOperationalDashboard) {
-                  void operationalDashboardQuery.refetch();
-                }
                 if (canViewLifecycleMonitoring) {
                   void lifecycleMonitoringQuery.refetch();
                 }
@@ -334,14 +321,6 @@ export default function DashboardPage() {
         </Box>
       ) : null}
 
-      {canViewOperationalDashboard ? (
-        <OperationalDashboardPanel
-          data={operationalDashboardQuery.data}
-          loading={operationalDashboardQuery.isLoading || operationalDashboardQuery.isFetching}
-          error={operationalDashboardQuery.isError}
-          onRetry={() => void operationalDashboardQuery.refetch()}
-        />
-      ) : null}
 
       {canViewLifecycleMonitoring ? (
         <LifecycleMonitoringPanel

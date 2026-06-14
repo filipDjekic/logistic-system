@@ -1,14 +1,10 @@
 import AssignmentTurnedInRoundedIcon from '@mui/icons-material/AssignmentTurnedInRounded';
 import EventAvailableRoundedIcon from '@mui/icons-material/EventAvailableRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
-import PersonOffRoundedIcon from '@mui/icons-material/PersonOffRounded';
-import WorkRoundedIcon from '@mui/icons-material/WorkRounded';
 import { Box, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCard';
-import DashboardSummaryStrip from './DashboardSummaryStrip';
 import DashboardAlerts from './DashboardAlerts';
-import DashboardCharts from './DashboardCharts';
 import type { HrManagerDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -33,23 +29,15 @@ export default function HrManagerDashboardPanel({ data }: Props) {
       accent: 'primary' as const,
     },
     {
-      key: 'newEmployees',
-      title: 'New employees',
-      value: formatNumber(data.newEmployeesLast30Days),
-      subtitle: 'last 30 days',
-      icon: <WorkRoundedIcon fontSize="small" />,
-      accent: 'success' as const,
+      key: 'withoutShift',
+      title: 'Without shift',
+      value: formatNumber(data.employeesWithoutActiveOrPlannedShift),
+      subtitle: 'Need schedule coverage',
+      icon: <EventAvailableRoundedIcon fontSize="small" />,
+      accent: data.employeesWithoutActiveOrPlannedShift > 0 ? 'warning' as const : 'success' as const,
     },
     {
-      key: 'inactiveEmployees',
-      title: 'Inactive employees',
-      value: formatNumber(data.deactivatedEmployees),
-      subtitle: 'deactivated records',
-      icon: <PersonOffRoundedIcon fontSize="small" />,
-      accent: 'error' as const,
-    },
-    {
-      key: 'shifts',
+      key: 'activeShifts',
       title: 'Active shifts',
       value: formatNumber(data.activeShifts),
       subtitle: `${formatNumber(data.plannedShifts)} planned`,
@@ -58,11 +46,11 @@ export default function HrManagerDashboardPanel({ data }: Props) {
     },
     {
       key: 'hrTasks',
-      title: 'HR tasks',
-      value: formatNumber(data.hrTasksTotal),
-      subtitle: `${formatNumber(openHrTasks)} open`,
+      title: 'Open HR tasks',
+      value: formatNumber(openHrTasks),
+      subtitle: `${formatNumber(data.hrTasksTotal)} total`,
       icon: <AssignmentTurnedInRoundedIcon fontSize="small" />,
-      accent: 'warning' as const,
+      accent: openHrTasks > 0 ? 'warning' as const : 'success' as const,
     },
   ];
 
@@ -75,7 +63,7 @@ export default function HrManagerDashboardPanel({ data }: Props) {
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
-            xl: 'repeat(5, minmax(0, 1fr))',
+            xl: 'repeat(4, minmax(0, 1fr))',
           },
         }}
       >
@@ -91,18 +79,7 @@ export default function HrManagerDashboardPanel({ data }: Props) {
         ))}
       </Box>
 
-      <DashboardSummaryStrip
-        items={[
-          { label: 'Active employees', value: formatNumber(data.activeEmployees), tone: 'success' },
-          { label: 'Planned shifts', value: formatNumber(data.plannedShifts), tone: 'info' },
-          { label: 'Without shift', value: formatNumber(data.employeesWithoutActiveOrPlannedShift), tone: data.employeesWithoutActiveOrPlannedShift > 0 ? 'warning' : 'success' },
-          { label: 'New employees 30d', value: formatNumber(data.newEmployeesLast30Days), tone: 'info' },
-        ]}
-      />
-
       <DashboardAlerts alerts={data.alerts} />
-
-      <DashboardCharts charts={data.charts} />
 
       <Box
         sx={{
@@ -111,17 +88,7 @@ export default function HrManagerDashboardPanel({ data }: Props) {
           gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) minmax(0, 1fr)' },
         }}
       >
-        <SectionCard title="Employees by position" description="Current company employee distribution.">
-          <Stack spacing={1.25}>
-            {Object.entries(data.employeesByPosition).map(([position, count]) => (
-              <Typography key={position} variant="body2">
-                {position}: {formatNumber(count)}
-              </Typography>
-            ))}
-          </Stack>
-        </SectionCard>
-
-        <SectionCard title="Shift coverage" description="Current HR coverage indicators.">
+        <SectionCard title="Shift coverage" description="Employees that need scheduling attention.">
           <Stack spacing={1.25}>
             <Typography variant="body2">Active shifts: {formatNumber(data.activeShifts)}</Typography>
             <Typography variant="body2">Planned shifts: {formatNumber(data.plannedShifts)}</Typography>
@@ -131,17 +98,52 @@ export default function HrManagerDashboardPanel({ data }: Props) {
             </Typography>
           </Stack>
         </SectionCard>
+
+        <SectionCard title="Employee status" description="Current company employee state.">
+          <Stack spacing={1.25}>
+            <Typography variant="body2">Active employees: {formatNumber(data.activeEmployees)}</Typography>
+            <Typography variant="body2">Inactive employees: {formatNumber(data.inactiveEmployees)}</Typography>
+            <Typography variant="body2">New employees last 30 days: {formatNumber(data.newEmployeesLast30Days)}</Typography>
+            <Typography variant="body2">Deactivated records: {formatNumber(data.deactivatedEmployees)}</Typography>
+          </Stack>
+        </SectionCard>
       </Box>
 
-      <SectionCard title="HR task status" description="Tasks assigned to HR managers in this company.">
-        <Stack spacing={1.25}>
-          {Object.entries(data.hrTasksByStatus).map(([status, count]) => (
-            <Typography key={status} variant="body2">
-              {status}: {formatNumber(count)}
-            </Typography>
-          ))}
-        </Stack>
-      </SectionCard>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) minmax(0, 1fr)' },
+        }}
+      >
+        <SectionCard title="HR task status" description="Only task counts HR needs for daily work.">
+          <Stack spacing={1.25}>
+            {Object.keys(data.hrTasksByStatus).length === 0 ? (
+              <Typography variant="body2" color="text.secondary">No HR tasks.</Typography>
+            ) : (
+              Object.entries(data.hrTasksByStatus).map(([status, count]) => (
+                <Typography key={status} variant="body2">
+                  {status}: {formatNumber(count)}
+                </Typography>
+              ))
+            )}
+          </Stack>
+        </SectionCard>
+
+        <SectionCard title="Employees by position" description="Compact HR distribution view.">
+          <Stack spacing={1.25}>
+            {Object.keys(data.employeesByPosition).length === 0 ? (
+              <Typography variant="body2" color="text.secondary">No position data.</Typography>
+            ) : (
+              Object.entries(data.employeesByPosition).map(([position, count]) => (
+                <Typography key={position} variant="body2">
+                  {position}: {formatNumber(count)}
+                </Typography>
+              ))
+            )}
+          </Stack>
+        </SectionCard>
+      </Box>
     </Stack>
   );
 }

@@ -3,12 +3,13 @@ import DirectionsCarRoundedIcon from '@mui/icons-material/DirectionsCarRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import LocalShippingRoundedIcon from '@mui/icons-material/LocalShippingRounded';
-import { Box, Stack, Typography } from '@mui/material';
+import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
+import { Box, Button, Divider, Stack, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCard';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
 import DashboardAlerts from './DashboardAlerts';
-import DashboardCharts from './DashboardCharts';
 import type { CompanyAdminDashboardResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -20,49 +21,57 @@ function formatNumber(value: number | string | null | undefined) {
   return Number.isFinite(numeric) ? numeric.toLocaleString() : '0';
 }
 
+function getOpenTransportCount(data: CompanyAdminDashboardResponse) {
+  return (
+    (data.transportOrdersByStatus.CREATED ?? 0) +
+    (data.transportOrdersByStatus.ASSIGNED ?? 0) +
+    (data.transportOrdersByStatus.IN_TRANSIT ?? 0) +
+    (data.transportOrdersByStatus.LOADING ?? 0) +
+    (data.transportOrdersByStatus.UNLOADING ?? 0)
+  );
+}
+
 export default function CompanyAdminDashboardPanel({ data }: Props) {
-  const completedTasks = data.tasksByStatus.COMPLETED ?? 0;
+  const navigate = useNavigate();
+  const availableVehicles = data.vehiclesByStatus.AVAILABLE ?? 0;
+  const vehiclesInUse = data.vehiclesByStatus.IN_USE ?? 0;
+  const outOfServiceVehicles = data.vehiclesByStatus.OUT_OF_SERVICE ?? 0;
+  const newTasks = data.tasksByStatus.NEW ?? 0;
+  const inProgressTasks = data.tasksByStatus.IN_PROGRESS ?? 0;
+  const activeTransports = data.activeTransportOrders || getOpenTransportCount(data);
 
   const cards = [
     {
-      key: 'employees',
-      title: 'Employees',
-      value: formatNumber(data.employeesTotal),
-      subtitle: `${formatNumber(data.activeEmployees)} active`,
-      icon: <GroupsRoundedIcon fontSize="small" />,
-      accent: 'primary' as const,
-    },
-    {
       key: 'activeTransportOrders',
       title: 'Active transports',
-      value: formatNumber(data.activeTransportOrders),
-      subtitle: `${formatNumber(data.transportOrdersTotal)} total`,
+      value: formatNumber(activeTransports),
+      subtitle: `${formatNumber(data.transportOrdersTotal)} company transports total`,
       icon: <LocalShippingRoundedIcon fontSize="small" />,
       accent: 'info' as const,
     },
     {
-      key: 'tasks',
+      key: 'openTasks',
       title: 'Open tasks',
       value: formatNumber(data.openTasksTotal),
-      subtitle: `${formatNumber(completedTasks)} completed`,
+      subtitle: `${formatNumber(newTasks)} new · ${formatNumber(inProgressTasks)} in progress`,
       icon: <AssignmentTurnedInRoundedIcon fontSize="small" />,
-      accent: 'success' as const,
+      accent: data.openTasksTotal > 0 ? 'warning' as const : 'success' as const,
     },
     {
-      key: 'inventory',
-      title: 'Inventory rows',
-      value: formatNumber(data.inventoryRowsTotal),
-      subtitle: `${formatNumber(data.lowStockRowsTotal)} critical`,
+      key: 'lowStock',
+      title: 'Low stock',
+      value: formatNumber(data.lowStockRowsTotal),
+      subtitle: `${formatNumber(data.inventoryRowsTotal)} inventory records watched`,
       icon: <Inventory2RoundedIcon fontSize="small" />,
-      accent: 'warning' as const,
+      accent: data.lowStockRowsTotal > 0 ? 'error' as const : 'success' as const,
     },
     {
-      key: 'vehicles',
-      title: 'Vehicles',
-      value: formatNumber(data.vehiclesTotal),
-      subtitle: `${formatNumber(data.vehiclesByStatus.AVAILABLE ?? 0)} available`,
+      key: 'availableVehicles',
+      title: 'Available vehicles',
+      value: formatNumber(availableVehicles),
+      subtitle: `${formatNumber(vehiclesInUse)} in use · ${formatNumber(outOfServiceVehicles)} out of service`,
       icon: <DirectionsCarRoundedIcon fontSize="small" />,
-      accent: 'error' as const,
+      accent: availableVehicles > 0 ? 'success' as const : 'warning' as const,
     },
   ];
 
@@ -75,7 +84,7 @@ export default function CompanyAdminDashboardPanel({ data }: Props) {
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
-            xl: 'repeat(5, minmax(0, 1fr))',
+            xl: 'repeat(4, minmax(0, 1fr))',
           },
         }}
       >
@@ -91,18 +100,16 @@ export default function CompanyAdminDashboardPanel({ data }: Props) {
         ))}
       </Box>
 
-      <DashboardSummaryStrip
-        items={[
-          { label: 'Active transports', value: formatNumber(data.activeTransportOrders), tone: 'info' },
-          { label: 'Open tasks', value: formatNumber(data.openTasksTotal), tone: 'warning' },
-          { label: 'Low stock rows', value: formatNumber(data.lowStockRowsTotal), tone: data.lowStockRowsTotal > 0 ? 'error' : 'success' },
-          { label: 'Available vehicles', value: formatNumber(data.vehiclesByStatus.AVAILABLE ?? 0), tone: 'success' },
-        ]}
-      />
-
       <DashboardAlerts alerts={data.alerts} />
 
-      <DashboardCharts charts={data.charts} />
+      <DashboardSummaryStrip
+        items={[
+          { label: 'Employees', value: `${formatNumber(data.activeEmployees)} active / ${formatNumber(data.employeesTotal)} total`, tone: 'info' },
+          { label: 'Warehouses', value: formatNumber(data.warehousesTotal), tone: 'default' },
+          { label: 'Products', value: formatNumber(data.productsTotal), tone: 'default' },
+          { label: 'Stock movements', value: formatNumber(data.stockMovementsTotal), tone: 'default' },
+        ]}
+      />
 
       <Box
         sx={{
@@ -111,88 +118,92 @@ export default function CompanyAdminDashboardPanel({ data }: Props) {
           gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) minmax(0, 1fr)' },
         }}
       >
-        <SectionCard title="Company operations" description="Transport, task and fleet overview for this company.">
-          <Stack spacing={1.25}>
-            <Typography variant="body2">
-              Transport orders: {formatNumber(data.transportOrdersTotal)}
-            </Typography>
-            <Typography variant="body2">
-            </Typography>
-            <Typography variant="body2">
-              Assigned: {formatNumber(data.transportOrdersByStatus.ASSIGNED ?? 0)}
-            </Typography>
-            <Typography variant="body2">
-              In transit: {formatNumber(data.transportOrdersByStatus.IN_TRANSIT ?? 0)}
-            </Typography>
-            <Typography variant="body2">
-              Delivered: {formatNumber(data.transportOrdersByStatus.DELIVERED ?? 0)}
-            </Typography>
-            <Typography variant="body2">Tasks: {formatNumber(data.tasksTotal)}</Typography>
-            <Typography variant="body2">New tasks: {formatNumber(data.tasksByStatus.NEW ?? 0)}</Typography>
-            <Typography variant="body2">
-              In-progress tasks: {formatNumber(data.tasksByStatus.IN_PROGRESS ?? 0)}
-            </Typography>
+        <SectionCard
+          title="Company command queue"
+          description="Only the counters that require company-level attention."
+          action={
+            <>
+              <Button size="small" variant="contained" onClick={() => navigate('/transport-orders')}>
+                Open transports
+              </Button>
+              <Button size="small" variant="outlined" onClick={() => navigate('/tasks')}>
+                Open tasks
+              </Button>
+            </>
+          }
+        >
+          <Stack spacing={1.5}>
+            <Stack direction="row" justifyContent="space-between" spacing={2}>
+              <Typography variant="body2" color="text.secondary">Assigned transports</Typography>
+              <Typography variant="body2" fontWeight={700}>{formatNumber(data.transportOrdersByStatus.ASSIGNED ?? 0)}</Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" justifyContent="space-between" spacing={2}>
+              <Typography variant="body2" color="text.secondary">In-transit transports</Typography>
+              <Typography variant="body2" fontWeight={700}>{formatNumber(data.transportOrdersByStatus.IN_TRANSIT ?? 0)}</Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" justifyContent="space-between" spacing={2}>
+              <Typography variant="body2" color="text.secondary">Open operational tasks</Typography>
+              <Typography variant="body2" fontWeight={700}>{formatNumber(data.openTasksTotal)}</Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" justifyContent="space-between" spacing={2}>
+              <Typography variant="body2" color="text.secondary">New tasks waiting assignment</Typography>
+              <Typography variant="body2" fontWeight={700}>{formatNumber(newTasks)}</Typography>
+            </Stack>
           </Stack>
         </SectionCard>
 
-        <SectionCard title="Company resources" description="Storage, stock and vehicle status for this company.">
-          <Stack spacing={1.25}>
-            <Typography variant="body2">Warehouses: {formatNumber(data.warehousesTotal)}</Typography>
-            <Typography variant="body2">Products: {formatNumber(data.productsTotal)}</Typography>
-            <Typography variant="body2">
-              Total quantity: {formatNumber(data.inventoryQuantityTotal)}
-            </Typography>
-            <Typography variant="body2">
-              Available quantity: {formatNumber(data.inventoryAvailableQuantityTotal)}
-            </Typography>
-            <Typography variant="body2">
-              Low-stock records: {formatNumber(data.lowStockRowsTotal)}
-            </Typography>
-            <Typography variant="body2">
-              Vehicles available: {formatNumber(data.vehiclesByStatus.AVAILABLE ?? 0)}
-            </Typography>
-            <Typography variant="body2">
-              Vehicles in use: {formatNumber(data.vehiclesByStatus.IN_USE ?? 0)}
-            </Typography>
-            <Typography variant="body2">
-              Vehicles out of service: {formatNumber(data.vehiclesByStatus.OUT_OF_SERVICE ?? 0)}
-            </Typography>
+        <SectionCard
+          title="Company capacity"
+          description="People, fleet and stock signals without operational noise."
+          action={
+            <>
+              <Button size="small" variant="contained" onClick={() => navigate('/employees')}>
+                Open employees
+              </Button>
+              <Button size="small" variant="outlined" onClick={() => navigate('/warehouses')}>
+                Open warehouses
+              </Button>
+            </>
+          }
+        >
+          <Stack spacing={1.5}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <GroupsRoundedIcon fontSize="small" color="primary" />
+                <Typography variant="body2" color="text.secondary">Active employees</Typography>
+              </Stack>
+              <Typography variant="body2" fontWeight={700}>{formatNumber(data.activeEmployees)}</Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <WarehouseRoundedIcon fontSize="small" color="primary" />
+                <Typography variant="body2" color="text.secondary">Warehouses</Typography>
+              </Stack>
+              <Typography variant="body2" fontWeight={700}>{formatNumber(data.warehousesTotal)}</Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Inventory2RoundedIcon fontSize="small" color={data.lowStockRowsTotal > 0 ? 'error' : 'success'} />
+                <Typography variant="body2" color="text.secondary">Low-stock records</Typography>
+              </Stack>
+              <Typography variant="body2" fontWeight={700}>{formatNumber(data.lowStockRowsTotal)}</Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <DirectionsCarRoundedIcon fontSize="small" color={outOfServiceVehicles > 0 ? 'warning' : 'success'} />
+                <Typography variant="body2" color="text.secondary">Fleet issue count</Typography>
+              </Stack>
+              <Typography variant="body2" fontWeight={700}>{formatNumber(outOfServiceVehicles)}</Typography>
+            </Stack>
           </Stack>
         </SectionCard>
       </Box>
-
-      <SectionCard title="Recent company activity" description="Last activity log entries for this company.">
-        <Stack spacing={1.25}>
-          {data.recentActivities.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No recent activity.
-            </Typography>
-          ) : (
-            data.recentActivities.map((activity) => (
-              <Box
-                key={activity.id}
-                sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  border: (theme) => `1px solid ${theme.palette.divider}`,
-                }}
-              >
-                <Typography variant="subtitle2">
-                  {activity.action} · {activity.entityName} #{activity.entityId ?? '-'}
-                </Typography>
-
-                <Typography variant="body2" color="text.secondary">
-                  {activity.description ?? activity.entityIdentifier ?? 'No description'}
-                </Typography>
-
-                <Typography variant="caption" color="text.secondary">
-                  {activity.userEmail ?? 'system'} · {new Date(activity.createdAt).toLocaleString()}
-                </Typography>
-              </Box>
-            ))
-          )}
-        </Stack>
-      </SectionCard>
     </Stack>
   );
 }

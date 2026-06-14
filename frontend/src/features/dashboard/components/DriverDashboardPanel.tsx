@@ -8,7 +8,6 @@ import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCard';
 import DashboardSummaryStrip from './DashboardSummaryStrip';
 import DashboardAlerts from './DashboardAlerts';
-import DashboardCharts from './DashboardCharts';
 import type { DriverDashboardResponse, DriverTransportOrderResponse } from '../api/dashboardApi';
 
 type Props = {
@@ -110,7 +109,6 @@ export default function DriverDashboardPanel({ data }: Props) {
 
       <DashboardAlerts alerts={data.alerts} />
 
-      <DashboardCharts charts={data.charts} />
 
       <Box
         sx={{
