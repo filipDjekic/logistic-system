@@ -35,6 +35,14 @@ export const warehousesApi = {
       .then((response) => response.data);
   },
 
+  assignManager(warehouseId: number, employeeId: number) {
+    return apiClient
+      .patch<WarehouseResponse>('/api/warehouses/manager/assign', null, {
+        params: { warehouseId, employeeId },
+      })
+      .then((response) => response.data);
+  },
+
   archive(id: number) {
     return apiClient.patch<WarehouseResponse>(`/api/warehouses/${id}/archive`).then((response) => response.data);
   },

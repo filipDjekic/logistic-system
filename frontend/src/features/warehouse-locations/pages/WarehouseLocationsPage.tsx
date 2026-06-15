@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Alert,
@@ -144,6 +144,78 @@ function CreateZoneDialog({
       </DialogContent>
     </Dialog>
   );
+
+}
+
+function EditZoneDialog({
+  zone,
+  open,
+  onClose,
+  onSubmit,
+  loading,
+}: {
+  zone: WarehouseZoneResponse | null;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (id: number, payload: { code: string; name: string; type: WarehouseZoneType; capacity?: number | null; active: boolean; description?: string | null }) => void;
+  loading: boolean;
+}) {
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [type, setType] = useState<WarehouseZoneType>('STORAGE');
+  const [capacity, setCapacity] = useState('');
+  const [active, setActive] = useState('true');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (!zone) return;
+    setCode(zone.code);
+    setName(zone.name);
+    setType(zone.type);
+    setCapacity(zone.capacity == null ? '' : String(zone.capacity));
+    setActive(zone.active ? 'true' : 'false');
+    setDescription(zone.description ?? '');
+  }, [zone]);
+
+  return (
+    <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Edit warehouse location / zone</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <TextField label="Warehouse" value={zone ? `${zone.warehouseName} (#${zone.warehouseId})` : ''} fullWidth disabled />
+          <TextField label="Code" value={code} onChange={(event) => setCode(event.target.value)} required fullWidth />
+          <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} required fullWidth />
+          <TextField select label="Type" value={type} onChange={(event) => setType(event.target.value as WarehouseZoneType)} fullWidth>
+            {zoneTypes.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+          </TextField>
+          <TextField label="Capacity" value={capacity} onChange={(event) => setCapacity(event.target.value)} type="number" fullWidth />
+          <TextField select label="Active" value={active} onChange={(event) => setActive(event.target.value)} fullWidth>
+            <MenuItem value="true">Active</MenuItem>
+            <MenuItem value="false">Inactive</MenuItem>
+          </TextField>
+          <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} multiline minRows={2} fullWidth />
+        </Stack>
+      </DialogContent>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel="Save"
+          submittingLabel="Saving zone..."
+          helperText="Code, name, type and active status are required. Capacity is optional."
+          loading={loading}
+          submitDisabled={!zone || code.trim().length === 0 || name.trim().length === 0}
+          onCancel={onClose}
+          onSubmit={() => zone && onSubmit(zone.id, {
+            code: code.trim(),
+            name: name.trim(),
+            type,
+            capacity: toNullableNumber(capacity),
+            active: active === 'true',
+            description: description.trim() || null,
+          })}
+        />
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function CreateBinDialog({
@@ -202,6 +274,83 @@ function CreateBinDialog({
             code: code.trim(),
             name: name.trim(),
             capacity: toNullableNumber(capacity),
+            description: description.trim() || null,
+          })}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+
+}
+
+function EditBinDialog({
+  bin,
+  zones,
+  open,
+  onClose,
+  onSubmit,
+  loading,
+}: {
+  bin: BinLocationResponse | null;
+  zones: WarehouseZoneResponse[];
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (id: number, payload: { zoneId: number; code: string; name: string; capacity?: number | null; active: boolean; description?: string | null }) => void;
+  loading: boolean;
+}) {
+  const [zoneId, setZoneId] = useState('');
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [active, setActive] = useState('true');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (!bin) return;
+    setZoneId(String(bin.zoneId));
+    setCode(bin.code);
+    setName(bin.name);
+    setCapacity(bin.capacity == null ? '' : String(bin.capacity));
+    setActive(bin.active ? 'true' : 'false');
+    setDescription(bin.description ?? '');
+  }, [bin]);
+
+  const selectedZoneRow = zones.find((zone) => String(zone.id) === zoneId);
+
+  return (
+    <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Edit bin</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <TextField label="Warehouse" value={bin ? `${bin.warehouseName} (#${bin.warehouseId})` : ''} fullWidth disabled />
+          <TextField select label="Zone" value={zoneId} onChange={(event) => setZoneId(event.target.value)} fullWidth required>
+            {zones.map((zone) => <MenuItem key={zone.id} value={String(zone.id)}>{zone.code} · {zone.name}</MenuItem>)}
+          </TextField>
+          {!selectedZoneRow ? <Alert severity="warning">The bin zone must be loaded in the current warehouse context before saving.</Alert> : null}
+          <TextField label="Code" value={code} onChange={(event) => setCode(event.target.value)} required fullWidth />
+          <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} required fullWidth />
+          <TextField label="Capacity" value={capacity} onChange={(event) => setCapacity(event.target.value)} type="number" fullWidth />
+          <TextField select label="Active" value={active} onChange={(event) => setActive(event.target.value)} fullWidth>
+            <MenuItem value="true">Active</MenuItem>
+            <MenuItem value="false">Inactive</MenuItem>
+          </TextField>
+          <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} multiline minRows={2} fullWidth />
+        </Stack>
+      </DialogContent>
+      <DialogContent sx={{ pt: 2 }}>
+        <FormActions
+          submitLabel="Save"
+          submittingLabel="Saving bin..."
+          helperText="Zone, code, name and active status are required. Capacity is optional."
+          loading={loading}
+          submitDisabled={!bin || !selectedZoneRow || code.trim().length === 0 || name.trim().length === 0}
+          onCancel={onClose}
+          onSubmit={() => bin && selectedZoneRow && onSubmit(bin.id, {
+            zoneId: selectedZoneRow.id,
+            code: code.trim(),
+            name: name.trim(),
+            capacity: toNullableNumber(capacity),
+            active: active === 'true',
             description: description.trim() || null,
           })}
         />
@@ -301,6 +450,8 @@ export default function WarehouseLocationsPage() {
   const [zoneDialogOpen, setZoneDialogOpen] = useState(false);
   const [binDialogOpen, setBinDialogOpen] = useState(false);
   const [binInventoryDialogOpen, setBinInventoryDialogOpen] = useState(false);
+  const [editingZone, setEditingZone] = useState<WarehouseZoneResponse | null>(null);
+  const [editingBin, setEditingBin] = useState<BinLocationResponse | null>(null);
 
   const zoneActiveParam = zoneStatusFilter === 'all' ? undefined : zoneStatusFilter === 'active';
   const binActiveParam = binStatusFilter === 'all' ? undefined : binStatusFilter === 'active';
@@ -447,6 +598,28 @@ export default function WarehouseLocationsPage() {
     onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
   });
 
+  const zoneUpdateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof warehouseLocationsApi.updateZone>[1] }) => warehouseLocationsApi.updateZone(id, payload),
+    onSuccess: async (updatedZone) => {
+      showSnackbar({ message: 'Zone updated.', severity: 'success' });
+      setEditingZone(null);
+      setSelectedZone((current) => current?.id === updatedZone.id ? updatedZone : current);
+      await invalidateAll();
+    },
+    onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
+  });
+
+  const binUpdateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof warehouseLocationsApi.updateBin>[1] }) => warehouseLocationsApi.updateBin(id, payload),
+    onSuccess: async (updatedBin) => {
+      showSnackbar({ message: 'Bin updated.', severity: 'success' });
+      setEditingBin(null);
+      setSelectedBin((current) => current?.id === updatedBin.id ? updatedBin : current);
+      await invalidateAll();
+    },
+    onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
+  });
+
   const binInventoryMutation = useMutation({
     mutationFn: warehouseLocationsApi.setBinInventory,
     onSuccess: async () => {
@@ -464,6 +637,17 @@ export default function WarehouseLocationsPage() {
     { id: 'type', header: 'Type', sortField: 'type', render: (row) => <Chip size="small" label={row.type} /> },
     { id: 'capacity', header: 'Capacity', sortField: 'capacity', align: 'right', render: (row) => row.capacity ?? '—' },
     { id: 'active', header: 'Active', render: (row) => row.active ? 'Yes' : 'No' },
+    {
+      id: 'actions',
+      header: 'Actions',
+      sticky: 'right',
+      align: 'right',
+      render: (row) => (
+        <Button size="small" variant="text" onClick={() => setEditingZone(row)}>
+          Edit
+        </Button>
+      ),
+    },
   ];
 
   const binColumns: DataTableColumn<BinLocationResponse>[] = [
@@ -473,6 +657,17 @@ export default function WarehouseLocationsPage() {
     { id: 'warehouse', header: 'Warehouse', sortField: 'warehouseName', render: (row) => row.warehouseName },
     { id: 'capacity', header: 'Capacity', sortField: 'capacity', align: 'right', render: (row) => row.capacity ?? '—' },
     { id: 'active', header: 'Active', render: (row) => row.active ? 'Yes' : 'No' },
+    {
+      id: 'actions',
+      header: 'Actions',
+      sticky: 'right',
+      align: 'right',
+      render: (row) => (
+        <Button size="small" variant="text" onClick={() => setEditingBin(row)}>
+          Edit
+        </Button>
+      ),
+    },
   ];
 
   const inventoryColumns: DataTableColumn<BinInventoryResponse>[] = [
@@ -716,6 +911,21 @@ export default function WarehouseLocationsPage() {
         onClose={() => setBinDialogOpen(false)}
         loading={binMutation.isPending}
         onSubmit={(payload) => binMutation.mutate(payload)}
+      />
+      <EditZoneDialog
+        open={Boolean(editingZone)}
+        zone={editingZone}
+        onClose={() => setEditingZone(null)}
+        loading={zoneUpdateMutation.isPending}
+        onSubmit={(id, payload) => zoneUpdateMutation.mutate({ id, payload })}
+      />
+      <EditBinDialog
+        open={Boolean(editingBin)}
+        bin={editingBin}
+        zones={zones}
+        onClose={() => setEditingBin(null)}
+        loading={binUpdateMutation.isPending}
+        onSubmit={(id, payload) => binUpdateMutation.mutate({ id, payload })}
       />
       <SetBinInventoryDialog
         open={binInventoryDialogOpen}

@@ -25,12 +25,30 @@ export type WarehouseZoneCreate = {
   description?: string | null;
 };
 
+export type WarehouseZoneUpdate = {
+  code: string;
+  name: string;
+  type: WarehouseZoneType;
+  capacity?: number | null;
+  active: boolean;
+  description?: string | null;
+};
+
 export type BinLocationCreate = {
   warehouseId: number;
   zoneId: number;
   code: string;
   name: string;
   capacity?: number | null;
+  description?: string | null;
+};
+
+export type BinLocationUpdate = {
+  zoneId: number;
+  code: string;
+  name: string;
+  capacity?: number | null;
+  active: boolean;
   description?: string | null;
 };
 

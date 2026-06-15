@@ -78,6 +78,30 @@ export function useUpdateWarehouse() {
   });
 }
 
+export function useAssignWarehouseManager() {
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
+
+  return useMutation({
+    mutationFn: ({ warehouseId, employeeId }: { warehouseId: number; employeeId: number }) =>
+      warehousesApi.assignManager(warehouseId, employeeId),
+    onSuccess: async (_, variables) => {
+      showSnackbar({
+        message: 'Warehouse manager updated successfully.',
+        severity: 'success',
+      });
+
+      await invalidateWarehouseState(queryClient, variables.warehouseId);
+    },
+    onError: (error) => {
+      showSnackbar({
+        message: getErrorMessage(error),
+        severity: 'error',
+      });
+    },
+  });
+}
+
 export function useDeleteWarehouse() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();

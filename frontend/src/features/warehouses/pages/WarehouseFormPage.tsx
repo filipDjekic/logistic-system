@@ -17,7 +17,7 @@ import { useCompanies } from '../../companies/hooks/useCompanies';
 import { useCitiesByCountry } from '../../cities/hooks/useCities';
 import { useActiveCountries } from '../../countries/hooks/useCountries';
 import { EmployeeSearchSelect } from '../../search-select';
-import { useCreateWarehouse, useUpdateWarehouse } from '../hooks/useWarehouses';
+import { useAssignWarehouseManager, useCreateWarehouse, useUpdateWarehouse } from '../hooks/useWarehouses';
 import { useWarehouse } from '../hooks/useWarehouse';
 import type { WarehouseFormValues } from '../types/warehouse.types';
 import { warehouseSchema } from '../validation/warehouseSchema';
@@ -60,6 +60,7 @@ export default function WarehouseFormPage({ mode }: Props) {
   const previousCountryIdRef = useRef<number | null>(null);
   const createWarehouse = useCreateWarehouse();
   const updateWarehouse = useUpdateWarehouse();
+  const assignWarehouseManager = useAssignWarehouseManager();
 
   const { control, handleSubmit, reset, setValue, setError, formState } = useForm<WarehouseFormValues>({
     resolver: zodResolver(warehouseSchema),
@@ -136,7 +137,7 @@ export default function WarehouseFormPage({ mode }: Props) {
 
   const selectedEmployeeId = employeeId === '' ? null : Number(employeeId);
   const selectedCompanyId = companyId ? Number(companyId) : undefined;
-  const isSaving = createWarehouse.isPending || updateWarehouse.isPending;
+  const isSaving = createWarehouse.isPending || updateWarehouse.isPending || assignWarehouseManager.isPending;
 
   const canSubmit = useMemo(() => {
     if (!formState.isValid || employeeId === '') {
@@ -288,7 +289,20 @@ export default function WarehouseFormPage({ mode }: Props) {
                 id: warehouseId,
                 data: basePayload,
               }, {
-                onSuccess: (updated) => navigate(`/warehouses/${updated.id}`),
+                onSuccess: (updated) => {
+                  const currentManagerId = warehouseQuery.data?.employeeId ?? null;
+                  const nextManagerId = Number(values.employeeId);
+
+                  if (currentManagerId !== nextManagerId) {
+                    assignWarehouseManager.mutate({ warehouseId: updated.id, employeeId: nextManagerId }, {
+                      onSuccess: () => navigate(`/warehouses/${updated.id}`),
+                      onError: (error) => { applyServerFieldErrors(error, setError); },
+                    });
+                    return;
+                  }
+
+                  navigate(`/warehouses/${updated.id}`);
+                },
                 onError: (error) => { applyServerFieldErrors(error, setError); },
               });
             })}

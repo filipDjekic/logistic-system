@@ -4,11 +4,13 @@ import type {
   BinInventoryResponse,
   BinLocationCreate,
   BinLocationResponse,
+  BinLocationUpdate,
   InternalWarehouseMovementCreate,
   InternalWarehouseMovementResponse,
   PageResponse,
   WarehouseZoneCreate,
   WarehouseZoneResponse,
+  WarehouseZoneUpdate,
 } from '../types/warehouseLocation.types';
 
 export const warehouseLocationsApi = {
@@ -18,6 +20,9 @@ export const warehouseLocationsApi = {
   createZone(payload: WarehouseZoneCreate) {
     return apiClient.post<WarehouseZoneResponse>('/api/warehouse-locations/zones', payload).then((r) => r.data);
   },
+  updateZone(id: number, payload: WarehouseZoneUpdate) {
+    return apiClient.put<WarehouseZoneResponse>(`/api/warehouse-locations/zones/${id}`, payload).then((r) => r.data);
+  },
   getZone(id: number) {
     return apiClient.get<WarehouseZoneResponse>(`/api/warehouse-locations/zones/${id}`).then((r) => r.data);
   },
@@ -26,6 +31,9 @@ export const warehouseLocationsApi = {
   },
   createBin(payload: BinLocationCreate) {
     return apiClient.post<BinLocationResponse>('/api/warehouse-locations/bins', payload).then((r) => r.data);
+  },
+  updateBin(id: number, payload: BinLocationUpdate) {
+    return apiClient.put<BinLocationResponse>(`/api/warehouse-locations/bins/${id}`, payload).then((r) => r.data);
   },
   getBin(id: number) {
     return apiClient.get<BinLocationResponse>(`/api/warehouse-locations/bins/${id}`).then((r) => r.data);

@@ -3,11 +3,17 @@ import {
   Alert,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
+  FormControlLabel,
   Grid,
   MenuItem,
   Paper,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
@@ -22,7 +28,10 @@ import {
   useEmployeeWarehouseAssignmentsByWarehouse,
   useUpdateEmployeeWarehouseAssignment,
 } from '../hooks/useEmployeeWarehouseAssignments';
-import type { EmployeeWarehouseAccessType } from '../types/employeeWarehouseAssignment.types';
+import type {
+  EmployeeWarehouseAccessType,
+  EmployeeWarehouseAssignmentResponse,
+} from '../types/employeeWarehouseAssignment.types';
 
 const accessTypes: EmployeeWarehouseAccessType[] = ['PRIMARY', 'WORKER', 'MANAGER', 'DISPATCH', 'VIEW_ONLY'];
 
@@ -30,6 +39,15 @@ type FormState = {
   employee: LookupOption | null;
   warehouse: LookupOption | null;
   accessType: EmployeeWarehouseAccessType;
+  validFrom: string;
+  validTo: string;
+  notes: string;
+};
+
+type EditFormState = {
+  id: number;
+  accessType: EmployeeWarehouseAccessType;
+  active: boolean;
   validFrom: string;
   validTo: string;
   notes: string;
@@ -44,11 +62,23 @@ const initialForm: FormState = {
   notes: '',
 };
 
+function toEditForm(assignment: EmployeeWarehouseAssignmentResponse): EditFormState {
+  return {
+    id: assignment.id,
+    accessType: assignment.accessType,
+    active: assignment.active,
+    validFrom: assignment.validFrom ?? '',
+    validTo: assignment.validTo ?? '',
+    notes: assignment.notes ?? '',
+  };
+}
+
 export default function EmployeeWarehouseAssignmentsPage() {
   const [mode, setMode] = useState<'employee' | 'warehouse'>('employee');
   const [selectedEmployee, setSelectedEmployee] = useState<LookupOption | null>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
+  const [editForm, setEditForm] = useState<EditFormState | null>(null);
 
   const byEmployeeQuery = useEmployeeWarehouseAssignmentsByEmployee(mode === 'employee' ? selectedEmployee?.id ?? null : null);
   const byWarehouseQuery = useEmployeeWarehouseAssignmentsByWarehouse(mode === 'warehouse' ? selectedWarehouse?.id ?? null : null);
@@ -58,6 +88,7 @@ export default function EmployeeWarehouseAssignmentsPage() {
 
   const assignments = mode === 'employee' ? byEmployeeQuery.data ?? [] : byWarehouseQuery.data ?? [];
   const canSubmit = Boolean(form.employee?.id && form.warehouse?.id && form.accessType);
+  const canSaveEdit = Boolean(editForm?.accessType);
 
   return (
     <Stack spacing={3}>
@@ -219,6 +250,13 @@ export default function EmployeeWarehouseAssignmentsPage() {
                           <Button
                             size="small"
                             variant="outlined"
+                            onClick={() => setEditForm(toEditForm(assignment))}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
                             onClick={() => updateMutation.mutate({ id: assignment.id, payload: { active: !assignment.active } })}
                           >
                             {assignment.active ? 'Deactivate' : 'Activate'}
@@ -244,6 +282,91 @@ export default function EmployeeWarehouseAssignmentsPage() {
           </SectionCard>
         </Grid>
       </Grid>
+
+      <Dialog open={Boolean(editForm)} onClose={updateMutation.isPending ? undefined : () => setEditForm(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Edit warehouse access</DialogTitle>
+        <DialogContent dividers>
+          {editForm ? (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <TextField
+                select
+                label="Access type"
+                value={editForm.accessType}
+                onChange={(event) => setEditForm((current) => current ? { ...current, accessType: event.target.value as EmployeeWarehouseAccessType } : current)}
+                fullWidth
+              >
+                {accessTypes.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}
+              </TextField>
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={editForm.active}
+                    onChange={(event) => setEditForm((current) => current ? { ...current, active: event.target.checked } : current)}
+                  />
+                }
+                label="Active assignment"
+              />
+
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Valid from"
+                    type="date"
+                    value={editForm.validFrom}
+                    onChange={(event) => setEditForm((current) => current ? { ...current, validFrom: event.target.value } : current)}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Valid to"
+                    type="date"
+                    value={editForm.validTo}
+                    onChange={(event) => setEditForm((current) => current ? { ...current, validTo: event.target.value } : current)}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              </Grid>
+
+              <TextField
+                label="Notes"
+                value={editForm.notes}
+                onChange={(event) => setEditForm((current) => current ? { ...current, notes: event.target.value } : current)}
+                fullWidth
+                multiline
+                minRows={3}
+              />
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditForm(null)} disabled={updateMutation.isPending}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!editForm || !canSaveEdit || updateMutation.isPending}
+            onClick={() => {
+              if (!editForm) return;
+              updateMutation.mutate({
+                id: editForm.id,
+                payload: {
+                  accessType: editForm.accessType,
+                  active: editForm.active,
+                  validFrom: editForm.validFrom || null,
+                  validTo: editForm.validTo || null,
+                  notes: editForm.notes || null,
+                },
+              }, {
+                onSuccess: () => setEditForm(null),
+              });
+            }}
+          >
+            Save changes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
