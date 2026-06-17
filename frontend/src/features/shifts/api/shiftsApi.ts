@@ -5,6 +5,7 @@ import type {
   ShiftEmployeeOption,
   ShiftResponse,
   ShiftUpdateRequest,
+  ShiftImportPreviewResponse,
 } from '../types/shift.types';
 
 type EmployeeResponse = {
@@ -67,6 +68,25 @@ export const shiftsApi = {
 
   cancel(id: number) {
     return apiClient.patch<void>(`/api/shifts/${id}/cancel`).then((response) => response.data);
+  },
+
+
+  previewImport(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return apiClient
+      .post<ShiftImportPreviewResponse>('/api/shifts/import/preview', formData)
+      .then((response) => response.data);
+  },
+
+  confirmImport(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return apiClient
+      .post<ShiftImportPreviewResponse>('/api/shifts/import/confirm', formData)
+      .then((response) => response.data);
   },
 
   getEmployees() {

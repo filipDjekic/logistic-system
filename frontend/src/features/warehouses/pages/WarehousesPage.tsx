@@ -1,8 +1,14 @@
 import { useMemo, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { queryKeys } from '../../../core/constants/queryKeys';
+import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import CsvImportDialog from '../../data-exchange/components/CsvImportDialog';
+import { dataExchangeApi } from '../../data-exchange/api/dataExchangeApi';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
@@ -27,6 +33,8 @@ const warehouseStatusOptions = ['ACTIVE', 'INACTIVE', 'FULL', 'UNDER_MAINTENANCE
 export default function WarehousesPage() {
   const auth = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
 
   const canCreate =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
@@ -41,6 +49,7 @@ export default function WarehousesPage() {
   });
 
   const [deleteTarget, setDeleteTarget] = useState<WarehouseResponse | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -67,6 +76,16 @@ export default function WarehousesPage() {
 
   const warehousesQuery = useWarehouses({ ...queryFilters, page, size, sort: buildSortParam(sort) }, true);
   const deleteWarehouseMutation = useDeleteWarehouse();
+  const importMutation = useMutation({
+    mutationFn: (file: File) => dataExchangeApi.importCsv('warehouses', file),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.root() });
+      showSnackbar({
+        message: result.failedRows > 0 ? 'Warehouse CSV import finished with row errors.' : 'Warehouses imported successfully.',
+        severity: result.failedRows > 0 ? 'warning' : 'success',
+      });
+    },
+  });
 
   const rows = warehousesQuery.data?.content ?? [];
   const hasActiveFilters = filters.search.trim().length > 0 || filters.status !== 'ALL' || filters.active !== 'ALL';
@@ -127,13 +146,27 @@ export default function WarehousesPage() {
         title="Warehouses"
         description="Manage warehouse records, managers and capacity overview."
         actions={
-          canCreate ? (
-            <Button
-              variant="contained"
-              onClick={() => navigate('/warehouses/create')}
-            >
-              Create warehouse
-            </Button>
+          canManage ? (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadRoundedIcon />}
+                onClick={() => {
+                  importMutation.reset();
+                  setImportDialogOpen(true);
+                }}
+              >
+                Import CSV
+              </Button>
+              {canCreate ? (
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/warehouses/create')}
+                >
+                  Create warehouse
+                </Button>
+              ) : null}
+            </Stack>
           ) : null
         }
       />
@@ -219,6 +252,20 @@ export default function WarehousesPage() {
           />
         }
       />
+
+      {canManage ? (
+        <CsvImportDialog
+          open={importDialogOpen}
+          type="warehouses"
+          title="Import warehouses from CSV"
+          description="Use this import for warehouse master data. OVERLORD imports must include companyId."
+          loading={importMutation.isPending}
+          result={importMutation.data ?? null}
+          error={importMutation.error}
+          onClose={() => setImportDialogOpen(false)}
+          onImport={(file) => importMutation.mutate(file)}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={deleteTarget !== null}

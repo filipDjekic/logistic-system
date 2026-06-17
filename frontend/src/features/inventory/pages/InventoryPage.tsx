@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Stack } from '@mui/material';
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import CsvImportDialog from '../../data-exchange/components/CsvImportDialog';
+import { dataExchangeApi } from '../../data-exchange/api/dataExchangeApi';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -30,6 +34,8 @@ import type { InventoryFiltersState, InventoryListRow } from '../types/inventory
 export default function InventoryPage() {
   const auth = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const canManage =
@@ -48,6 +54,7 @@ export default function InventoryPage() {
   const [deleteTarget, setDeleteTarget] = useState<InventoryListRow | null>(null);
   const [reservationTarget, setReservationTarget] = useState<InventoryListRow | null>(null);
   const [reservationMode, setReservationMode] = useState<'reserve' | 'release'>('reserve');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const warehousesQuery = useQuery({
     queryKey: queryKeys.inventory.warehouses(),
@@ -79,6 +86,16 @@ export default function InventoryPage() {
   const deleteInventoryMutation = useDeleteInventoryRecord();
   const reserveInventoryMutation = useReserveInventoryStock();
   const releaseReservationMutation = useReleaseInventoryReservation();
+  const importMutation = useMutation({
+    mutationFn: (file: File) => dataExchangeApi.importCsv('warehouse-inventory', file),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.inventory.root() });
+      showSnackbar({
+        message: result.failedRows > 0 ? 'Inventory CSV import finished with row errors.' : 'Inventory records imported successfully.',
+        severity: result.failedRows > 0 ? 'warning' : 'success',
+      });
+    },
+  });
 
   const isLoadingLookups = warehousesQuery.isLoading || productsQuery.isLoading;
   const hasLookupError = warehousesQuery.isError || productsQuery.isError;
@@ -202,13 +219,26 @@ export default function InventoryPage() {
         description="Company admin has read-only visibility here. Inventory manipulation remains an operational warehouse responsibility."
         actions={
           canManage ? (
-            <Button
-              variant="contained"
-              disabled={hasSetupBlockers}
-              onClick={() => navigate('/inventory/create')}
-            >
-              Create inventory record
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadRoundedIcon />}
+                disabled={hasSetupBlockers}
+                onClick={() => {
+                  importMutation.reset();
+                  setImportDialogOpen(true);
+                }}
+              >
+                Import CSV
+              </Button>
+              <Button
+                variant="contained"
+                disabled={hasSetupBlockers}
+                onClick={() => navigate('/inventory/create')}
+              >
+                Create inventory record
+              </Button>
+            </Stack>
           ) : null
         }
       />
@@ -315,6 +345,20 @@ export default function InventoryPage() {
           });
         }}
       />
+
+      {canManage ? (
+        <CsvImportDialog
+          open={importDialogOpen}
+          type="warehouse-inventory"
+          title="Import warehouse inventory from CSV"
+          description="Use this import for initial stock levels or bulk stock setup. Rows must reference existing warehouseId and productId."
+          loading={importMutation.isPending}
+          result={importMutation.data ?? null}
+          error={importMutation.error}
+          onClose={() => setImportDialogOpen(false)}
+          onImport={(file) => importMutation.mutate(file)}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={deleteTarget !== null}

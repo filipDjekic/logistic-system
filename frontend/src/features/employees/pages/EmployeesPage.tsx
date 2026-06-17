@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
+import { queryKeys } from '../../../core/constants/queryKeys';
+import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import CsvImportDialog from '../../data-exchange/components/CsvImportDialog';
+import { dataExchangeApi } from '../../data-exchange/api/dataExchangeApi';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
@@ -30,6 +35,8 @@ import { employeePositionOptions, type EmployeeFormValues } from '../validation/
 
 export default function EmployeesPage() {
   const auth = useAuthStore();
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
   const [searchParams, setSearchParams] = useSearchParams();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
@@ -66,6 +73,7 @@ export default function EmployeesPage() {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const employeeListFilters = useMemo(
     () => ({
@@ -104,6 +112,16 @@ export default function EmployeesPage() {
   const createEmployeeMutation = useCreateEmployee();
   const updateEmployeeMutation = useUpdateEmployee();
   const updateUserMutation = useUpdateUser();
+  const importMutation = useMutation({
+    mutationFn: (file: File) => dataExchangeApi.importCsv('employees', file),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.employees.root() });
+      showSnackbar({
+        message: result.failedRows > 0 ? 'Employee CSV import finished with row errors.' : 'Employees imported successfully.',
+        severity: result.failedRows > 0 ? 'warning' : 'success',
+      });
+    },
+  });
 
   const users = useMemo<EmployeeUserOption[]>(() => usersQuery.data ?? [], [usersQuery.data]);
   const roles = useMemo<EmployeeRoleOption[]>(() => rolesQuery.data ?? [], [rolesQuery.data]);
@@ -320,17 +338,29 @@ export default function EmployeesPage() {
         description="HR manager handles employee onboarding, updates, role-to-position alignment and lifecycle changes."
         actions={
           canCreateEmployees ? (
-            <Button
-              variant="contained"
-              disabled={rolesQuery.isLoading || rolesQuery.isError}
-              onClick={() => {
-                setDialogMode('create');
-                setSelectedEmployee(null);
-                setDialogOpen(true);
-              }}
-            >
-              Create employee
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadRoundedIcon />}
+                onClick={() => {
+                  importMutation.reset();
+                  setImportDialogOpen(true);
+                }}
+              >
+                Import CSV
+              </Button>
+              <Button
+                variant="contained"
+                disabled={rolesQuery.isLoading || rolesQuery.isError}
+                onClick={() => {
+                  setDialogMode('create');
+                  setSelectedEmployee(null);
+                  setDialogOpen(true);
+                }}
+              >
+                Create employee
+              </Button>
+            </Stack>
           ) : null
         }
       />
@@ -452,6 +482,20 @@ export default function EmployeesPage() {
           />
         }
       />
+
+      {canCreateEmployees ? (
+        <CsvImportDialog
+          open={importDialogOpen}
+          type="employees"
+          title="Import employees from CSV"
+          description="Use this import for employee onboarding from HR spreadsheets. OVERLORD imports must include companyId."
+          loading={importMutation.isPending}
+          result={importMutation.data ?? null}
+          error={importMutation.error}
+          onClose={() => setImportDialogOpen(false)}
+          onImport={(file) => importMutation.mutate(file)}
+        />
+      ) : null}
 
       <EmployeeFormDialog
         open={dialogOpen}

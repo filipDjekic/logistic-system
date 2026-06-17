@@ -81,7 +81,7 @@ export default function StarterPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 }, backgroundColor: 'background.default' }}>
-      <Box sx={{ maxWidth: 1180, mx: 'auto' }}>
+      <Box sx={{ maxWidth: 1380, mx: 'auto' }}>
         <Paper elevation={0} sx={{ overflow: 'hidden', borderRadius: { xs: 2, md: 2.5 }, border: `1px solid ${theme.palette.divider}`, backgroundColor: 'background.paper', boxShadow: theme.shadows[2] }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: { xs: 2, md: 3 }, py: 1.75, borderBottom: `1px solid ${theme.palette.divider}` }}>
             <Stack direction="row" spacing={1.5} alignItems="center">
@@ -90,7 +90,7 @@ export default function StarterPage() {
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
                <Button component={RouterLink} to="/login" variant="outlined">Login</Button>
-                <Button component={RouterLink} to="/register-company" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon />}>Register company</Button>
+                <Button component={RouterLink} to="/register-company" variant="contained" endIcon={<ArrowForwardRoundedIcon />}>Register company</Button>
             </Stack>
           </Stack>
 
@@ -103,7 +103,7 @@ export default function StarterPage() {
                     <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 560 }}>Manage vehicles, warehouses, inventory, employees, tasks, and transport operations from a single secured platform.</Typography>
                   </Box>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                    <Button component={RouterLink} to="/register-company" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon />}>Register company</Button>
+                    <Button component={RouterLink} to="/register-company" variant="contained" endIcon={<ArrowForwardRoundedIcon />}>Register company</Button>
                   </Stack>
                 </Stack>
               </Grid>
@@ -158,7 +158,7 @@ export default function StarterPage() {
           <Box component="footer" sx={{ px: { xs: 2, md: 3 }, py: 3, borderTop: `1px solid ${theme.palette.divider}`, bgcolor: alpha(theme.palette.text.primary, 0.025) }}>
             <Grid container spacing={2} alignItems="center">
               <Grid size={{ xs: 12, md: 7 }}>
-                <Typography fontWeight={800}>Filip Software Solutions d.o.o.</Typography>
+                <Typography fontWeight={800}>Software Solutions d.o.o.</Typography>
                 <Typography variant="body2" color="text.secondary">Kod kuce, 35000 Jagodina, Serbia · e14filipdjekic@gmail.com · +381 35 240 0000</Typography>
               </Grid>
               <Grid size={{ xs: 12, md: 5 }}>

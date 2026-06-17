@@ -1,12 +1,20 @@
 package rs.logistics.logistics_system.service.implementation;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
@@ -15,6 +23,8 @@ import rs.logistics.logistics_system.dto.create.ShiftCreate;
 import org.springframework.data.domain.Pageable;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
+import rs.logistics.logistics_system.dto.response.shiftimport.ShiftImportPreviewResponse;
+import rs.logistics.logistics_system.dto.response.shiftimport.ShiftImportRowPreview;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Shift;
@@ -89,6 +99,245 @@ public class ShiftService implements ShiftServiceDefinition {
         );
 
         return ShiftMapper.toResponse(saved, timeService);
+    }
+
+
+    @Override
+    public ShiftImportPreviewResponse previewImport(MultipartFile file) {
+        return buildImportPreview(file, false);
+    }
+
+    @Override
+    @Transactional
+    public ShiftImportPreviewResponse confirmImport(MultipartFile file) {
+        return buildImportPreview(file, true);
+    }
+
+    private ShiftImportPreviewResponse buildImportPreview(MultipartFile file, boolean persist) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("CSV file is required.");
+        }
+
+        List<ShiftImportRowPreview> rows = parseShiftImportRows(file);
+        Map<Long, List<ShiftImportRowPreview>> validRowsByEmployee = new HashMap<>();
+
+        for (ShiftImportRowPreview row : rows) {
+            validateImportRow(row);
+            if (row.getErrors().isEmpty()) {
+                row.setValid(true);
+                validRowsByEmployee.computeIfAbsent(row.getEmployeeId(), ignored -> new ArrayList<>()).add(row);
+            }
+        }
+
+        validateImportInternalOverlaps(validRowsByEmployee);
+
+        int validRows = (int) rows.stream().filter(ShiftImportRowPreview::isValid).count();
+        int invalidRows = rows.size() - validRows;
+
+        if (persist) {
+            if (rows.isEmpty()) {
+                throw new BadRequestException("CSV file does not contain shift rows.");
+            }
+            if (invalidRows > 0) {
+                throw new BadRequestException("CSV import contains invalid rows. Fix errors before confirming import.");
+            }
+            for (ShiftImportRowPreview row : rows) {
+                create(toShiftCreate(row));
+            }
+        }
+
+        return new ShiftImportPreviewResponse(
+                rows.size(),
+                validRows,
+                invalidRows,
+                !rows.isEmpty() && invalidRows == 0,
+                persist ? validRows : null,
+                rows
+        );
+    }
+
+    private List<ShiftImportRowPreview> parseShiftImportRows(MultipartFile file) {
+        List<ShiftImportRowPreview> rows = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String header = reader.readLine();
+            if (header == null || header.isBlank()) {
+                throw new BadRequestException("CSV header is required.");
+            }
+
+            Map<String, Integer> headerIndexes = resolveCsvHeader(header);
+            requireCsvColumn(headerIndexes, "employeeId");
+            requireCsvColumn(headerIndexes, "startTime");
+            requireCsvColumn(headerIndexes, "endTime");
+            requireCsvColumn(headerIndexes, "timezoneId");
+
+            String line;
+            int rowNumber = 1;
+            while ((line = reader.readLine()) != null) {
+                rowNumber++;
+                if (line.isBlank()) {
+                    continue;
+                }
+
+                List<String> values = splitCsvLine(line);
+                ShiftImportRowPreview row = new ShiftImportRowPreview(rowNumber);
+                row.setEmployeeId(parseLongCell(values, headerIndexes, "employeeId", row));
+                row.setStartTime(parseDateTimeCell(values, headerIndexes, "startTime", row));
+                row.setEndTime(parseDateTimeCell(values, headerIndexes, "endTime", row));
+                row.setTimezoneId(parseLongCell(values, headerIndexes, "timezoneId", row));
+                row.setWarehouseId(parseOptionalLongCell(values, headerIndexes, "warehouseId", row));
+                row.setNotes(readOptionalCell(values, headerIndexes, "notes"));
+                rows.add(row);
+            }
+        } catch (IOException ex) {
+            throw new BadRequestException("CSV file could not be read.");
+        }
+
+        return rows;
+    }
+
+    private void validateImportRow(ShiftImportRowPreview row) {
+        if (!row.getErrors().isEmpty()) {
+            return;
+        }
+
+        try {
+            Employee employee = getAccessibleEmployee(row.getEmployeeId());
+            row.setEmployeeLabel(employee.getFirstName() + " " + employee.getLastName() + " (ID: " + employee.getId() + ")");
+            validateEmployeeCanBeAssignedToShift(employee);
+            Warehouse warehouse = resolveShiftWarehouse(row.getWarehouseId(), employee);
+            Timezone timezone = resolveShiftTimezone(row.getTimezoneId(), employee, warehouse);
+            row.setTimezoneId(timezone.getId());
+            row.setWarehouseId(warehouse != null ? warehouse.getId() : null);
+            validateShiftTime(row.getStartTime(), row.getEndTime());
+            validateShiftOverlap(employee.getId(), row.getStartTime(), row.getEndTime());
+            validateEmployeeWarehouseCompatibility(employee, warehouse);
+        } catch (RuntimeException ex) {
+            row.addError(ex.getMessage() != null ? ex.getMessage() : "Invalid shift row.");
+        }
+    }
+
+    private void validateImportInternalOverlaps(Map<Long, List<ShiftImportRowPreview>> rowsByEmployee) {
+        for (List<ShiftImportRowPreview> employeeRows : rowsByEmployee.values()) {
+            for (int i = 0; i < employeeRows.size(); i++) {
+                ShiftImportRowPreview current = employeeRows.get(i);
+                for (int j = i + 1; j < employeeRows.size(); j++) {
+                    ShiftImportRowPreview other = employeeRows.get(j);
+                    if (current.getStartTime().isBefore(other.getEndTime()) && current.getEndTime().isAfter(other.getStartTime())) {
+                        current.addError("Overlaps with CSV row " + other.getRowNumber() + ".");
+                        other.addError("Overlaps with CSV row " + current.getRowNumber() + ".");
+                    }
+                }
+            }
+        }
+    }
+
+    private ShiftCreate toShiftCreate(ShiftImportRowPreview row) {
+        ShiftCreate dto = new ShiftCreate();
+        dto.setEmployeeId(row.getEmployeeId());
+        dto.setStartTime(row.getStartTime());
+        dto.setEndTime(row.getEndTime());
+        dto.setTimezoneId(row.getTimezoneId());
+        dto.setWarehouseId(row.getWarehouseId());
+        dto.setNotes(row.getNotes());
+        return dto;
+    }
+
+    private Map<String, Integer> resolveCsvHeader(String headerLine) {
+        List<String> columns = splitCsvLine(headerLine);
+        Map<String, Integer> indexes = new HashMap<>();
+        for (int i = 0; i < columns.size(); i++) {
+            indexes.put(columns.get(i).trim(), i);
+        }
+        return indexes;
+    }
+
+    private void requireCsvColumn(Map<String, Integer> indexes, String column) {
+        if (!indexes.containsKey(column)) {
+            throw new BadRequestException("CSV column is required: " + column);
+        }
+    }
+
+    private Long parseLongCell(List<String> values, Map<String, Integer> indexes, String column, ShiftImportRowPreview row) {
+        String value = readRequiredCell(values, indexes, column, row);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            row.addError("Column " + column + " must be a number.");
+            return null;
+        }
+    }
+
+    private Long parseOptionalLongCell(List<String> values, Map<String, Integer> indexes, String column, ShiftImportRowPreview row) {
+        String value = readOptionalCell(values, indexes, column);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            row.addError("Column " + column + " must be a number.");
+            return null;
+        }
+    }
+
+    private LocalDateTime parseDateTimeCell(List<String> values, Map<String, Integer> indexes, String column, ShiftImportRowPreview row) {
+        String value = readRequiredCell(values, indexes, column, row);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value.length() == 16 ? value + ":00" : value);
+        } catch (RuntimeException ex) {
+            row.addError("Column " + column + " must be ISO local datetime, for example 2026-06-01T06:00.");
+            return null;
+        }
+    }
+
+    private String readRequiredCell(List<String> values, Map<String, Integer> indexes, String column, ShiftImportRowPreview row) {
+        String value = readOptionalCell(values, indexes, column);
+        if (value == null || value.isBlank()) {
+            row.addError("Column " + column + " is required.");
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String readOptionalCell(List<String> values, Map<String, Integer> indexes, String column) {
+        Integer index = indexes.get(column);
+        if (index == null || index >= values.size()) {
+            return null;
+        }
+        String value = values.get(index);
+        return value != null ? value.trim() : null;
+    }
+
+    private List<String> splitCsvLine(String line) {
+        List<String> values = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') {
+                if (quoted && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++;
+                } else {
+                    quoted = !quoted;
+                }
+            } else if (c == ',' && !quoted) {
+                values.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        values.add(current.toString());
+        return values;
     }
 
     @Override

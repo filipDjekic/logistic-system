@@ -69,3 +69,26 @@ export type ShiftFormValues = {
   employeeId: number | '';
   warehouseId?: number | '';
 };
+
+
+export type ShiftImportRowPreview = {
+  rowNumber: number;
+  valid: boolean;
+  employeeId?: number | null;
+  employeeLabel?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  timezoneId?: number | null;
+  warehouseId?: number | null;
+  notes?: string | null;
+  errors: string[];
+};
+
+export type ShiftImportPreviewResponse = {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  importable: boolean;
+  importedRows?: number | null;
+  rows: ShiftImportRowPreview[];
+};

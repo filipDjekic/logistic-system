@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useCompanies } from '../../companies/hooks/useCompanies';
+import CsvImportDialog from '../../data-exchange/components/CsvImportDialog';
+import { dataExchangeApi } from '../../data-exchange/api/dataExchangeApi';
+import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
@@ -55,6 +59,8 @@ const emptyFilters: VehicleFiltersState = {
 
 export default function VehiclesPage() {
   const auth = useAuthStore();
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
   const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
@@ -65,6 +71,7 @@ export default function VehiclesPage() {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<VehicleResponse | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleSizeChange = (nextSize: number) => {
@@ -127,6 +134,16 @@ export default function VehiclesPage() {
   const updateVehicleMutation = useUpdateVehicle();
   const deleteVehicleMutation = useDeleteVehicle();
   const isSaving = createVehicleMutation.isPending || updateVehicleMutation.isPending;
+  const importMutation = useMutation({
+    mutationFn: (file: File) => dataExchangeApi.importCsv('vehicles', file),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.root() });
+      showSnackbar({
+        message: result.failedRows > 0 ? 'Vehicle CSV import finished with row errors.' : 'Vehicles imported successfully.',
+        severity: result.failedRows > 0 ? 'warning' : 'success',
+      });
+    },
+  });
 
   return (
     <Stack spacing={3}>
@@ -136,16 +153,28 @@ export default function VehiclesPage() {
         description="Manage fleet records and review vehicle availability."
         actions={
           canManage ? (
-            <Button
-              variant="contained"
-              onClick={() => {
-                setDialogMode('create');
-                setSelectedVehicle(null);
-                setDialogOpen(true);
-              }}
-            >
-              Create vehicle
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadRoundedIcon />}
+                onClick={() => {
+                  importMutation.reset();
+                  setImportDialogOpen(true);
+                }}
+              >
+                Import CSV
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setDialogMode('create');
+                  setSelectedVehicle(null);
+                  setDialogOpen(true);
+                }}
+              >
+                Create vehicle
+              </Button>
+            </Stack>
           ) : null
         }
       />
@@ -267,6 +296,20 @@ export default function VehiclesPage() {
               },
             });
           }}
+        />
+      ) : null}
+
+      {canManage ? (
+        <CsvImportDialog
+          open={importDialogOpen}
+          type="vehicles"
+          title="Import vehicles from CSV"
+          description="Use this import for fleet records prepared outside the system. OVERLORD imports must include companyId."
+          loading={importMutation.isPending}
+          result={importMutation.data ?? null}
+          error={importMutation.error}
+          onClose={() => setImportDialogOpen(false)}
+          onImport={(file) => importMutation.mutate(file)}
         />
       ) : null}
 

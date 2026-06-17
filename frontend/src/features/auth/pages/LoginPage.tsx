@@ -123,13 +123,12 @@ export default function LoginPage() {
             <Button
               type="submit"
               variant="contained"
-              size="large"
               disabled={isSubmitting || loginMutation.isPending}
             >
               {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
             </Button>
 
-            <Button component={RouterLink} to="/register-company" variant="text">
+            <Button component={RouterLink} to="/register-company" variant="outlined">
               Register a company
             </Button>
           </Stack>

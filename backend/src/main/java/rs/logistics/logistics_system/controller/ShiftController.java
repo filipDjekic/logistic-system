@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.create.ShiftCreate;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
+import rs.logistics.logistics_system.dto.response.shiftimport.ShiftImportPreviewResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.exception.BadRequestException;
@@ -48,6 +50,18 @@ public class ShiftController {
     public ResponseEntity<ShiftResponse> createShift(@Valid @RequestBody ShiftCreate dto) {
         ShiftResponse shiftResponse = shiftService.create(dto);
         return new ResponseEntity<>(shiftResponse, HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PostMapping(value = "/import/preview", consumes = "multipart/form-data")
+    public ResponseEntity<ShiftImportPreviewResponse> previewShiftImport(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(shiftService.previewImport(file));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PostMapping(value = "/import/confirm", consumes = "multipart/form-data")
+    public ResponseEntity<ShiftImportPreviewResponse> confirmShiftImport(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(shiftService.confirmImport(file));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
@@ -9,8 +10,12 @@ import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { shiftsApi } from '../api/shiftsApi';
 import ShiftFormDialog from '../components/ShiftFormDialog';
+import ShiftImportDialog from '../components/ShiftImportDialog';
 import ShiftsTable from '../components/ShiftsTable';
 import { useCreateShift } from '../hooks/useCreateShift';
+import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { invalidateShiftState } from '../../../core/utils/invalidateAppState';
 import { useShifts } from '../hooks/useShifts';
 import type { SortState } from '../../../shared/types/common.types';
 import type {
@@ -32,6 +37,11 @@ export default function ShiftsPage() {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedShift, setSelectedShift] = useState<ShiftResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
 
   const shiftsQuery = useShifts({ page, size, sort: buildSortParam(sort) }, true);
   const employeesQuery = useQuery({
@@ -42,6 +52,25 @@ export default function ShiftsPage() {
   });
 
   const saveShiftMutation = useCreateShift();
+  const previewImportMutation = useMutation({
+    mutationFn: shiftsApi.previewImport,
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+  const confirmImportMutation = useMutation({
+    mutationFn: shiftsApi.confirmImport,
+    onSuccess: async (response) => {
+      showSnackbar({ message: `${response.importedRows ?? response.validRows} shifts imported successfully.`, severity: 'success' });
+      setImportDialogOpen(false);
+      setImportFile(null);
+      previewImportMutation.reset();
+      await invalidateShiftState(queryClient);
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
 
   const employeesById = useMemo(
     () =>
@@ -77,16 +106,27 @@ export default function ShiftsPage() {
         title="Shifts"
         description="Plan and review employee shifts."
         actions={
-          <Button
-            variant="contained"
-            onClick={() => {
-              setDialogMode('create');
-              setSelectedShift(null);
-              setDialogOpen(true);
-            }}
-          >
-            Create shift
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<CloudUploadRoundedIcon />}
+              onClick={() => {
+                setImportDialogOpen(true);
+              }}
+            >
+              Import CSV
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setDialogMode('create');
+                setSelectedShift(null);
+                setDialogOpen(true);
+              }}
+            >
+              Create shift
+            </Button>
+          </Stack>
         }
       />
 
@@ -144,6 +184,28 @@ export default function ShiftsPage() {
             />
           </>
         }
+      />
+
+      <ShiftImportDialog
+        open={importDialogOpen}
+        preview={previewImportMutation.data}
+        loading={previewImportMutation.isPending || confirmImportMutation.isPending}
+        error={previewImportMutation.error ? getErrorMessage(previewImportMutation.error) : confirmImportMutation.error ? getErrorMessage(confirmImportMutation.error) : null}
+        onClose={() => {
+          setImportDialogOpen(false);
+          setImportFile(null);
+          previewImportMutation.reset();
+          confirmImportMutation.reset();
+        }}
+        onPreview={(file) => {
+          setImportFile(file);
+          previewImportMutation.mutate(file);
+        }}
+        onConfirm={() => {
+          if (importFile) {
+            confirmImportMutation.mutate(importFile);
+          }
+        }}
       />
 
       <ShiftFormDialog

@@ -274,7 +274,7 @@ export default function CompanyRegistrationPage() {
 
               <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
                 <Typography variant="body2" color="text.secondary">Already have an account?</Typography>
-                <Button component={RouterLink} to="/login" variant="text">Sign in</Button>
+                <Button component={RouterLink} to="/login" variant="outlined">Sign in</Button>
               </Stack>
             </Stack>
           </Box>
@@ -282,8 +282,8 @@ export default function CompanyRegistrationPage() {
 
         {activeStep === 0 ? <Divider /> : null}
 
-        <Stack spacing={3.5} component="form" onSubmit={submit} noValidate sx={{ p: { xs: 2.5, md: 4 } }}>
-          <Stepper activeStep={activeStep} alternativeLabel sx={{ display: { xs: 'none', md: 'flex' }, maxWidth: 760, mx: 'auto', width: '100%' }}>
+        <Stack spacing={3.5} component="form" onSubmit={submit} noValidate sx={{ p: { xs: 2.5, md: 4 }}}>
+          <Stepper activeStep={activeStep} alternativeLabel sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center', maxWidth: 760, mx: 'auto', width: '100%'}}>
             {steps.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
           </Stepper>
           <LinearProgress variant="determinate" value={((activeStep + 1) / steps.length) * 100} sx={{ display: { md: 'none' } }} />

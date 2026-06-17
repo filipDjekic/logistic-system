@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import CsvImportDialog from '../../data-exchange/components/CsvImportDialog';
+import { dataExchangeApi } from '../../data-exchange/api/dataExchangeApi';
+import { queryKeys } from '../../../core/constants/queryKeys';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
@@ -48,6 +53,7 @@ export default function ProductsPage() {
   const auth = useAuthStore();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
   const { showSnackbar } = useAppSnackbar();
+  const queryClient = useQueryClient();
 
   const canManage =
     auth.user?.role === ROLES.OVERLORD ||
@@ -74,6 +80,7 @@ export default function ProductsPage() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<ProductResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductResponse | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const productSearchParams = useMemo<ProductSearchParams>(() => {
     return {
@@ -109,6 +116,16 @@ export default function ProductsPage() {
   const create = useCreateProduct();
   const update = useUpdateProduct();
   const remove = useDeleteProduct();
+  const importMutation = useMutation({
+    mutationFn: (file: File) => dataExchangeApi.importCsv('products', file),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.products.root() });
+      showSnackbar({
+        message: result.failedRows > 0 ? 'Product CSV import finished with row errors.' : 'Products imported successfully.',
+        severity: result.failedRows > 0 ? 'warning' : 'success',
+      });
+    },
+  });
 
   return (
     <Stack spacing={3}>
@@ -117,15 +134,27 @@ export default function ProductsPage() {
         title="Products"
         actions={
           canManage ? (
-            <Button
-              variant="contained"
-              onClick={() => {
-                setSelected(null);
-                setOpen(true);
-              }}
-            >
-              Create product
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadRoundedIcon />}
+                onClick={() => {
+                  importMutation.reset();
+                  setImportDialogOpen(true);
+                }}
+              >
+                Import CSV
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setSelected(null);
+                  setOpen(true);
+                }}
+              >
+                Create product
+              </Button>
+            </Stack>
           ) : null
         }
       />
@@ -191,6 +220,20 @@ export default function ProductsPage() {
           />
         }
       />
+
+      {canManage ? (
+        <CsvImportDialog
+          open={importDialogOpen}
+          type="products"
+          title="Import products from CSV"
+          description="Use this import when product catalog records are prepared outside the system. OVERLORD imports must include companyId."
+          loading={importMutation.isPending}
+          result={importMutation.data ?? null}
+          error={importMutation.error}
+          onClose={() => setImportDialogOpen(false)}
+          onImport={(file) => importMutation.mutate(file)}
+        />
+      ) : null}
 
       {canManage ? (
         <ProductFormDialog

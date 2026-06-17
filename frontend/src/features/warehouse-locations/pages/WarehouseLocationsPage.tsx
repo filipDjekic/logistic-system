@@ -19,7 +19,6 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import WarehouseStorageFlowGuide from '../components/WarehouseStorageFlowGuide';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import FormActions from '../../../shared/components/Form/FormActions';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
@@ -405,6 +404,23 @@ function SetBinInventoryDialog({
   );
 }
 
+
+function StatCard({ label, value, helper }: { label: string; value: number | string; helper?: string }) {
+  return (
+    <SectionCard contentSx={{ py: 2 }}>
+      <Stack spacing={0.25}>
+        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: '0.08em', lineHeight: 1.2 }}>
+          {label}
+        </Typography>
+        <Typography variant="h5" sx={{ fontWeight: 900, lineHeight: 1.2 }}>
+          {value}
+        </Typography>
+        {helper ? <Typography variant="caption" color="text.secondary">{helper}</Typography> : null}
+      </Stack>
+    </SectionCard>
+  );
+}
+
 export default function WarehouseLocationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -692,19 +708,33 @@ export default function WarehouseLocationsPage() {
     { id: 'created', header: 'Created', render: (row) => new Date(row.createdAt).toLocaleString() },
   ];
 
-  const visibleTabs = isWarehouseFlow
-    ? tabs.filter((tab) => tab.value === 'zones' || (zoneId && tab.value === 'bins') || (binLocationId && tab.value === 'bin-inventory'))
-    : tabs;
+  const visibleTabs = tabs;
 
   const commonToolbar = (
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
-      {isWarehouseFlow ? null : <EntityLookupField label="Warehouse filter" entityType="warehouses" value={warehouse} onChange={setWarehouseFilter} />}
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-        {visibleTabs.map((tab) => (
-          <Button key={tab.value} variant={activeTab === tab.value ? 'contained' : 'outlined'} onClick={() => setTab(tab.value)}>
-            {tab.label}
-          </Button>
-        ))}
+    <Stack spacing={2}>
+      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} alignItems={{ xs: 'stretch', lg: 'center' }} justifyContent="space-between">
+        {isWarehouseFlow ? (
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {warehouseId ? <Chip label={`Warehouse #${warehouseId}`} /> : null}
+            {currentZone ? <Chip label={`Zone ${currentZone.code}`} variant="outlined" /> : null}
+            {currentBin ? <Chip label={`Bin ${currentBin.code}`} variant="outlined" /> : null}
+          </Stack>
+        ) : (
+          <EntityLookupField label="Warehouse filter" entityType="warehouses" value={warehouse} onChange={setWarehouseFilter} />
+        )}
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {visibleTabs.map((tab) => {
+            const disabled = isWarehouseFlow && (
+              (tab.value === 'bins' && !zoneId) ||
+              (tab.value === 'bin-inventory' && !binLocationId)
+            );
+            return (
+              <Button key={tab.value} variant={activeTab === tab.value ? 'contained' : 'outlined'} disabled={disabled} onClick={() => setTab(tab.value)}>
+                {tab.label}
+              </Button>
+            );
+          })}
+        </Stack>
       </Stack>
     </Stack>
   );
@@ -724,23 +754,42 @@ export default function WarehouseLocationsPage() {
 
       <PageHeader
         overline="Warehouse operations"
-        title={binLocationId ? 'Bin details' : zoneId ? 'Zone details' : 'Warehouse zones'}
-        description={binLocationId ? 'Bin inventory is shown from the selected bin details page.' : zoneId ? 'Click a bin row to open bin details and its inventory.' : 'Click a zone row to open zone details and its bins.'}
+        title={binLocationId ? 'Bin details' : zoneId ? 'Zone details' : 'Warehouse locations'}
+        description={binLocationId ? 'Inventory assigned to the selected physical bin.' : zoneId ? 'Bins inside the selected warehouse location.' : 'Manage warehouse locations, bins, physical stock placement and internal movements.'}
         actions={
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button variant="outlined" onClick={() => setZoneDialogOpen(true)}>New location</Button>
             <Button variant="outlined" onClick={() => setBinDialogOpen(true)}>New bin</Button>
-            <Button variant="contained" disabled={!selectedBin && !binLocationId} onClick={() => setBinInventoryDialogOpen(true)}>Set bin inventory</Button>
+            <Button variant="contained" disabled={!currentBin && !binLocationId} onClick={() => setBinInventoryDialogOpen(true)}>Set bin inventory</Button>
           </Stack>
         }
       />
 
-      <WarehouseStorageFlowGuide warehouseId={warehouseId} zoneId={zoneId} binId={binLocationId} />
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <StatCard label="Locations" value={zoneQuery.data?.totalElements ?? 0} helper="warehouse zones" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <StatCard label="Bins" value={binQuery.data?.totalElements ?? 0} helper="physical positions" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <StatCard label="Bin inventory" value={inventoryQuery.data?.totalElements ?? 0} helper="stock placement rows" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <StatCard label="Internal movements" value={movementQuery.data?.totalElements ?? 0} helper="latest filtered records" />
+        </Grid>
+      </Grid>
 
-      <SectionCard>{commonToolbar}</SectionCard>
+      <SectionCard title="Warehouse workspace" description="Select the warehouse context and switch between locations, bins, inventory and internal movements.">{commonToolbar}</SectionCard>
 
-      {currentZone ? <Alert severity="info">Selected location: {currentZone.code} · {currentZone.name}. Bins are filtered by this location.</Alert> : null}
-      {currentBin || binLocationId ? <Alert severity="info">Selected bin: {currentBin ? `${currentBin.code} · ${currentBin.name}` : `#${binLocationId}`}. Bin inventory is filtered by this bin.</Alert> : null}
+      {currentZone || currentBin || binLocationId ? (
+        <SectionCard contentSx={{ py: 1.5 }}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {currentZone ? <Chip label={`Selected location: ${currentZone.code} · ${currentZone.name}`} /> : null}
+            {currentBin || binLocationId ? <Chip label={`Selected bin: ${currentBin ? `${currentBin.code} · ${currentBin.name}` : `#${binLocationId}`}`} /> : null}
+          </Stack>
+        </SectionCard>
+      ) : null}
 
       {activeTab === 'zones' ? (
         <SectionCard title="Locations / zones" description="Search and paginate warehouse locations. Clicking a location drills into its bins.">
@@ -882,19 +931,6 @@ export default function WarehouseLocationsPage() {
           </Stack>
         </SectionCard>
       ) : null}
-
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Alert severity="info">
-            Dodavanje lokacije: izabere se warehouse, unesu se code/name/type/capacity. Dodavanje bin-a: prvo mora da postoji lokacija/zone u istom warehouse-u. Dodavanje bin inventory-ja: bira se bin + product + quantity; backend odbija negativno stanje i količinu veću od warehouse inventory-ja.
-          </Alert>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Alert severity="warning">
-            Initial stock nije isto što i bin inventory. Initial stock ostaje deo stock movement/inventory toka; bin inventory samo raspoređuje već postojeću warehouse količinu po binovima.
-          </Alert>
-        </Grid>
-      </Grid>
 
       <CreateZoneDialog
         open={zoneDialogOpen}

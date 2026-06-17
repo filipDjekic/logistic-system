@@ -4,15 +4,22 @@ import rs.logistics.logistics_system.dto.create.ShiftCreate;
 import org.springframework.data.domain.Pageable;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
+import rs.logistics.logistics_system.dto.response.shiftimport.ShiftImportPreviewResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.web.multipart.MultipartFile;
+
 public interface ShiftServiceDefinition {
 
     ShiftResponse create(ShiftCreate dto);
+
+    ShiftImportPreviewResponse previewImport(MultipartFile file);
+
+    ShiftImportPreviewResponse confirmImport(MultipartFile file);
 
     ShiftResponse update(Long id, ShiftUpdate dto);
 
