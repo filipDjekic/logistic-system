@@ -55,11 +55,10 @@ import type {
 import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { invalidateWarehouseState } from '../../../core/utils/invalidateAppState';
-import { useWarehouseZones } from '../../warehouse-locations/hooks/useWarehouseLocations';
-import WarehouseStorageFlowGuide from '../../warehouse-locations/components/WarehouseStorageFlowGuide';
+import { useInternalWarehouseMovements, useWarehouseZones } from '../../warehouse-locations/hooks/useWarehouseLocations';
 import { warehousesApi } from '../api/warehousesApi';
 import { useWarehouse } from '../hooks/useWarehouse';
-import type { WarehouseZoneResponse } from '../../warehouse-locations/types/warehouseLocation.types';
+import type { InternalWarehouseMovementResponse, WarehouseZoneResponse } from '../../warehouse-locations/types/warehouseLocation.types';
 import type { WarehouseStatus } from '../types/warehouse.types';
 import { useInventory } from '../../inventory/hooks/useInventory';
 import type { InventoryListRow } from '../../inventory/types/inventory.types';
@@ -283,6 +282,52 @@ function StockMovementsTable({ rows, onOpenMovement }: { rows: StockMovementResp
     </TableContainer>
   );
 }
+
+function InternalMovementsTable({ rows, onOpenProduct }: { rows: InternalWarehouseMovementResponse[]; onOpenProduct: (row: InternalWarehouseMovementResponse) => void }) {
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>ID</TableCell>
+            <TableCell>Product</TableCell>
+            <TableCell>Source bin</TableCell>
+            <TableCell>Destination bin</TableCell>
+            <TableCell align="right">Quantity</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Created</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.id} hover onClick={() => onOpenProduct(row)} sx={{ cursor: 'pointer' }}>
+              <TableCell>#{row.id}</TableCell>
+              <TableCell>
+                <Button size="small" component={RouterLink} to={`/products/${row.productId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                  {row.productName} {row.sku ? `(${row.sku})` : ''}
+                </Button>
+              </TableCell>
+              <TableCell>
+                <Button size="small" component={RouterLink} to={`/warehouses/${row.warehouseId}/zones/${row.sourceBinZoneId}/bins/${row.sourceBinId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                  {row.sourceBinCode ?? `#${row.sourceBinId}`}
+                </Button>
+              </TableCell>
+              <TableCell>
+                <Button size="small" component={RouterLink} to={`/warehouses/${row.warehouseId}/zones/${row.destinationBinZoneId}/bins/${row.destinationBinId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                  {row.destinationBinCode ?? `#${row.destinationBinId}`}
+                </Button>
+              </TableCell>
+              <TableCell align="right">{row.quantity}</TableCell>
+              <TableCell><Chip size="small" variant="outlined" label={row.status} /></TableCell>
+              <TableCell>{formatDate(row.createdAt)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
 
 const warehouseAccessTypes: EmployeeWarehouseAccessType[] = ['PRIMARY', 'WORKER', 'MANAGER', 'DISPATCH', 'VIEW_ONLY'];
 
@@ -548,6 +593,7 @@ export default function WarehouseDetailsPage() {
   const zonePage = usePagedState();
   const inventoryPage = usePagedState();
   const stockMovementPage = usePagedState();
+  const internalMovementPage = usePagedState();
 
   const canManage =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
@@ -563,10 +609,12 @@ export default function WarehouseDetailsPage() {
   const zoneQuery = useWarehouseZones({ warehouseId: scopedWarehouseId, page: zonePage.page, size: zonePage.size, sort: 'code,asc' }, Boolean(validWarehouseId) && activeTab === 'zones');
   const inventoryQuery = useInventory({ search: '', warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', status: 'ALL', page: inventoryPage.page, size: inventoryPage.size, sort: 'product.name,asc' }, { warehouses: [], products: [] });
   const stockMovementQuery = useStockMovements({ search: '', movementType: 'ALL', warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', transportOrderId: 'ALL', fromDate: '', toDate: '', page: stockMovementPage.page, size: stockMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'stockMovements');
+  const internalMovementQuery = useInternalWarehouseMovements({ warehouseId: scopedWarehouseId, page: internalMovementPage.page, size: internalMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'stockMovements');
 
   const zones = zoneQuery.data?.content ?? [];
   const inventory = activeTab === 'inventory' ? inventoryQuery.data?.content ?? [] : [];
   const stockMovements = stockMovementQuery.data?.content ?? [];
+  const internalMovements = internalMovementQuery.data?.content ?? [];
 
   const nextStatuses = useMemo(
     () => (warehouse ? getAllowedNextStatuses(warehouse.status) : []),
@@ -696,7 +744,7 @@ export default function WarehouseDetailsPage() {
     { value: 'overview', label: 'Overview' },
     { value: 'zones', label: `Zones${zoneQuery.data ? ` (${zoneQuery.data.totalElements})` : ''}` },
     { value: 'inventory', label: `Inventory${inventoryQuery.data ? ` (${inventoryQuery.data.totalElements})` : ''}` },
-    { value: 'stockMovements', label: `Stock movements${stockMovementQuery.data ? ` (${stockMovementQuery.data.totalElements})` : ''}` },
+    { value: 'stockMovements', label: `Movements${stockMovementQuery.data || internalMovementQuery.data ? ` (${(stockMovementQuery.data?.totalElements ?? 0) + (internalMovementQuery.data?.totalElements ?? 0)})` : ''}` },
     ...(canManageAccess ? [{ value: 'access' as WarehouseDetailsTab, label: 'Access' }] : []),
     { value: 'commentsAttachments', label: 'Comments & attachments' },
     { value: 'domainEvents', label: 'Domain events' },
@@ -751,8 +799,6 @@ export default function WarehouseDetailsPage() {
 
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
-          <WarehouseStorageFlowGuide warehouseId={warehouse.id} />
-
           <SectionCard title="Warehouse overview">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 4 }}>
@@ -848,14 +894,9 @@ export default function WarehouseDetailsPage() {
           title="Warehouse zones"
           description="Logical warehouse areas used for receiving, storage, picking, dispatch and exception handling."
           action={
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Button variant="outlined" onClick={() => navigate(`/warehouses/${warehouse.id}/zones`)}>
-                Open zones
-              </Button>
-              <Button variant="outlined" onClick={() => navigate(`/warehouse-locations?warehouseId=${warehouse.id}&tab=internal-movements`)}>
-                Internal movements
-              </Button>
-            </Stack>
+            <Button variant="outlined" onClick={() => navigate(`/warehouses/${warehouse.id}/zones`)}>
+              Open zones
+            </Button>
           }
           loading={zoneQuery.isLoading}
           error={zoneQuery.isError}
@@ -891,24 +932,45 @@ export default function WarehouseDetailsPage() {
       ) : null}
 
       {activeTab === 'stockMovements' ? (
-        <RelatedDataSection
-          title="Warehouse stock movements"
-          description="Inbound, outbound, transfer, adjustment, write-off, return and reservation records scoped to this warehouse."
-          action={
-            <Button variant="outlined" onClick={() => navigate(`/stock-movements?warehouseId=${warehouse.id}`)}>
-              Open stock movements
-            </Button>
-          }
-          loading={stockMovementQuery.isLoading}
-          error={stockMovementQuery.isError}
-          onRetry={() => void stockMovementQuery.refetch()}
-          empty={!stockMovementQuery.isLoading && !stockMovementQuery.isError && stockMovements.length === 0}
-          emptyTitle="No stock movements"
-          emptyDescription="No stock movements have been recorded for this warehouse yet."
-        >
-          <StockMovementsTable rows={stockMovements} onOpenMovement={(movement) => navigate(`/stock-movements/${movement.id}`)} />
-          {stockMovementPage.pagination(stockMovementQuery.data)}
-        </RelatedDataSection>
+        <Stack spacing={3}>
+          <RelatedDataSection
+            title="Warehouse stock movements"
+            description="Inbound, outbound, transfer, adjustment, write-off, return and reservation records scoped to this warehouse."
+            action={
+              <Button variant="outlined" onClick={() => navigate(`/stock-movements?warehouseId=${warehouse.id}`)}>
+                Open stock movements
+              </Button>
+            }
+            loading={stockMovementQuery.isLoading}
+            error={stockMovementQuery.isError}
+            onRetry={() => void stockMovementQuery.refetch()}
+            empty={!stockMovementQuery.isLoading && !stockMovementQuery.isError && stockMovements.length === 0}
+            emptyTitle="No stock movements"
+            emptyDescription="No stock movements have been recorded for this warehouse yet."
+          >
+            <StockMovementsTable rows={stockMovements} onOpenMovement={(movement) => navigate(`/stock-movements/${movement.id}`)} />
+            {stockMovementPage.pagination(stockMovementQuery.data)}
+          </RelatedDataSection>
+
+          <RelatedDataSection
+            title="Internal movements"
+            description="Bin-to-bin relocations scoped to this warehouse. These do not change warehouse-level total stock."
+            action={
+              <Button variant="outlined" onClick={() => navigate(`/stock-movements?warehouseId=${warehouse.id}&tab=internal`)}>
+                Open internal movements
+              </Button>
+            }
+            loading={internalMovementQuery.isLoading}
+            error={internalMovementQuery.isError}
+            onRetry={() => void internalMovementQuery.refetch()}
+            empty={!internalMovementQuery.isLoading && !internalMovementQuery.isError && internalMovements.length === 0}
+            emptyTitle="No internal movements"
+            emptyDescription="No bin-to-bin movements have been recorded for this warehouse yet."
+          >
+            <InternalMovementsTable rows={internalMovements} onOpenProduct={(movement) => navigate(`/products/${movement.productId}`)} />
+            {internalMovementPage.pagination(internalMovementQuery.data)}
+          </RelatedDataSection>
+        </Stack>
       ) : null}
 
       {activeTab === 'access' && canManageAccess ? (

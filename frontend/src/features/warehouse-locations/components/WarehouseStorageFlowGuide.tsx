@@ -60,8 +60,8 @@ export default function WarehouseStorageFlowGuide({ warehouseId, zoneId, binId, 
     ? `/warehouses/${warehouseId}/zones/${zoneId}/bins/${binId}`
     : '/warehouse-locations?tab=bin-inventory';
   const internalMovementsPath = warehouseId
-    ? `/warehouse-locations?warehouseId=${warehouseId}&tab=internal-movements`
-    : '/warehouse-locations?tab=internal-movements';
+    ? `/stock-movements?warehouseId=${warehouseId}&tab=internal`
+    : '/stock-movements?tab=internal';
   const inventoryPath = warehouseId ? `/inventory?warehouseId=${warehouseId}` : '/inventory';
   const stockMovementsPath = warehouseId ? `/stock-movements?warehouseId=${warehouseId}` : '/stock-movements';
 
