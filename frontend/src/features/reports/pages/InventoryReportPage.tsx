@@ -1,4 +1,5 @@
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import PaidRoundedIcon from '@mui/icons-material/PaidRounded';
 import ReportProblemRoundedIcon from '@mui/icons-material/ReportProblemRounded';
 import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
@@ -103,6 +104,9 @@ export default function InventoryReportPage() {
     { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 130, render: (row) => formatNumber(row.quantity) },
     { id: 'availableQuantity', header: 'Available', align: 'right', minWidth: 130, render: (row) => formatNumber(row.availableQuantity) },
     { id: 'reservedQuantity', header: 'Reserved', align: 'right', minWidth: 130, render: (row) => formatNumber(row.reservedQuantity) },
+    { id: 'totalValue', header: 'Value', align: 'right', minWidth: 130, render: (row) => formatNumber(row.totalValue) },
+    { id: 'averageUnitCost', header: 'Avg cost', align: 'right', minWidth: 130, render: (row) => formatNumber(row.averageUnitCost) },
+    { id: 'currency', header: 'Currency', minWidth: 110, render: (row) => row.currency ?? '—' },
     { id: 'stockMovements', header: 'Movements', align: 'right', minWidth: 130, render: (row) => formatNumber(row.stockMovements) },
   ], []);
 
@@ -115,6 +119,9 @@ export default function InventoryReportPage() {
     { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 130, render: (row) => formatNumber(row.quantity) },
     { id: 'availableQuantity', header: 'Available', align: 'right', minWidth: 130, render: (row) => formatNumber(row.availableQuantity) },
     { id: 'reservedQuantity', header: 'Reserved', align: 'right', minWidth: 130, render: (row) => formatNumber(row.reservedQuantity) },
+    { id: 'totalValue', header: 'Value', align: 'right', minWidth: 130, render: (row) => formatNumber(row.totalValue) },
+    { id: 'averageUnitCost', header: 'Avg cost', align: 'right', minWidth: 130, render: (row) => formatNumber(row.averageUnitCost) },
+    { id: 'currency', header: 'Currency', minWidth: 110, render: (row) => row.currency ?? '—' },
     { id: 'stockMovements', header: 'Movements', align: 'right', minWidth: 130, render: (row) => formatNumber(row.stockMovements) },
   ], []);
 
@@ -125,6 +132,9 @@ export default function InventoryReportPage() {
     { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 130, render: (row) => formatNumber(row.quantity) },
     { id: 'availableQuantity', header: 'Available', align: 'right', minWidth: 130, render: (row) => formatNumber(row.availableQuantity) },
     { id: 'reservedQuantity', header: 'Reserved', align: 'right', minWidth: 130, render: (row) => formatNumber(row.reservedQuantity) },
+    { id: 'totalValue', header: 'Value', align: 'right', minWidth: 130, render: (row) => formatNumber(row.totalValue) },
+    { id: 'averageUnitCost', header: 'Avg cost', align: 'right', minWidth: 130, render: (row) => formatNumber(row.averageUnitCost) },
+    { id: 'currency', header: 'Currency', minWidth: 110, render: (row) => row.currency ?? '—' },
     { id: 'minStockLevel', header: 'Min stock', align: 'right', minWidth: 130, render: (row) => row.minStockLevel == null ? '—' : formatNumber(row.minStockLevel) },
     { id: 'state', header: 'State', minWidth: 150, render: (row) => row.lowStock ? 'LOW_STOCK' : 'SUFFICIENT' },
   ], []);
@@ -136,6 +146,9 @@ export default function InventoryReportPage() {
     { id: 'productName', header: 'Product', minWidth: 240, render: (row) => `${row.productName ?? '—'}${row.sku ? ` · ${row.sku}` : ''}` },
     { id: 'reference', header: 'Reference', minWidth: 180, render: (row) => row.referenceNumber ?? row.referenceId ?? '—' },
     { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 130, render: (row) => formatNumber(row.quantity) },
+    { id: 'unitCost', header: 'Unit cost', align: 'right', minWidth: 130, render: (row) => formatNumber(row.unitCost) },
+    { id: 'totalCost', header: 'Total cost', align: 'right', minWidth: 130, render: (row) => formatNumber(row.totalCost) },
+    { id: 'currency', header: 'Currency', minWidth: 110, render: (row) => row.currency ?? '—' },
     { id: 'createdAt', header: 'Created', minWidth: 190, nowrap: true, render: (row) => formatDate(row.createdAt) },
   ], []);
 
@@ -196,6 +209,7 @@ export default function InventoryReportPage() {
           { label: 'Low stock', value: formatNumber(report.lowStockRowsTotal), severity: report.lowStockRowsTotal > 0 ? 'warning' : 'success' },
           { label: 'Availability', value: `${formatNumber(report.stockAvailabilityRate)}%`, severity: 'success' },
           { label: 'Movements', value: formatNumber(report.stockMovementsTotal), severity: 'default' },
+          { label: 'Inventory value', value: `${formatNumber(report.totalInventoryValue)} ${report.valuationCurrency ?? ''}`.trim(), severity: 'success' },
         ] : []}
         exportFormat={exportFormat}
         onExportFormatChange={setExportFormat}
@@ -215,16 +229,17 @@ export default function InventoryReportPage() {
       >
         {report ? (
         <Stack spacing={2}>
-          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' } }}>
+          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' } }}>
             <StatCard title="Inventory quantity" value={formatNumber(report.totalInventoryQuantity)} subtitle={`${formatNumber(report.totalAvailableQuantity)} available`} icon={<Inventory2RoundedIcon fontSize="small" />} accent="primary" />
             <StatCard title="Reserved quantity" value={formatNumber(report.totalReservedQuantity)} subtitle={`${formatNumber(report.inventoryRowsTotal)} inventory rows`} icon={<WarehouseRoundedIcon fontSize="small" />} accent="info" />
+            <StatCard title="Inventory value" value={formatNumber(report.totalInventoryValue)} subtitle={`${report.valuationCurrency ?? 'No currency'} · avg ${formatNumber(report.averageUnitCost)}`} icon={<PaidRoundedIcon fontSize="small" />} accent="success" />
             <StatCard title="Low stock rows" value={formatNumber(report.lowStockRowsTotal)} subtitle="Rows at or below min stock" icon={<ReportProblemRoundedIcon fontSize="small" />} accent="warning" />
             <StatCard title="Stock movements" value={formatNumber(report.stockMovementsTotal)} subtitle={`${formatNumber(report.transferQuantity)} transferred`} icon={<SwapHorizRoundedIcon fontSize="small" />} accent="success" />
           </Box>
 
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' } }}>
-            <ChartCard title="Inventory quantity by product" description="Top products by total quantity in the selected report scope." data={report.perProduct.slice(0, 10).map((item) => ({ key: String(item.productId), label: item.productName, value: item.quantity }))} kind="bar" />
-            <ChartCard title="Inventory by warehouse" description="Warehouse-level available stock distribution." data={report.perWarehouse.slice(0, 10).map((item) => ({ key: String(item.warehouseId), label: item.warehouseName, value: item.availableQuantity, secondaryValue: item.reservedQuantity }))} kind="bar" />
+            <ChartCard title="Inventory value by product" description="Top products by total inventory value in the selected report scope." data={report.perProduct.slice(0, 10).map((item) => ({ key: String(item.productId), label: item.productName, value: item.totalValue }))} kind="bar" />
+            <ChartCard title="Inventory value by warehouse" description="Warehouse-level valuation distribution." data={report.perWarehouse.slice(0, 10).map((item) => ({ key: String(item.warehouseId), label: item.warehouseName, value: item.totalValue, secondaryValue: item.availableQuantity }))} kind="bar" />
             <ChartCard title="Low stock distribution" description="Low-stock rows grouped by warehouse." data={report.perWarehouse.filter((item) => item.lowStockRows > 0).slice(0, 10).map((item) => ({ key: String(item.warehouseId), label: item.warehouseName, value: item.lowStockRows }))} kind="donut" />
             <ChartCard title="Stock movements by type" description="Inbound, outbound, transfer, reservation and adjustment movement mix." data={recordToChartData(report.movementsByType)} kind="donut" />
           </Box>

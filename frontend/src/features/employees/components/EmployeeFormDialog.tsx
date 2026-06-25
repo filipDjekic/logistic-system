@@ -7,6 +7,7 @@ import {
   DialogTitle,
   Divider,
   Grid,
+  InputAdornment,
   Stack,
   Typography,
 } from '@mui/material';
@@ -20,6 +21,7 @@ import { applyServerFieldErrors } from '../../../shared/components/Form/applySer
 import FormTextField from '../../../shared/components/Form/Form';
 import type { CompanyResponse } from '../../companies/types/company.types';
 import { EntityLookupField, type LookupOption } from '../../lookup';
+import { getSalaryCurrencyCode } from '../../../core/utils/formatSalary';
 import { useCitiesByCountry } from '../../cities/hooks/useCities';
 import { useActiveCountries } from '../../countries/hooks/useCountries';
 import type {
@@ -248,6 +250,25 @@ export default function EmployeeFormDialog({
 
     return selectedCompany?.countryCode ?? selectedCountry?.iso2Code ?? null;
   }, [companies, initialData?.countryCode, isOverlord, mode, selectedCompanyId, selectedCountry?.iso2Code]);
+
+  const salaryCurrencyCode = useMemo(() => {
+    if (selectedCountry?.currencyCode) {
+      return getSalaryCurrencyCode(selectedCountry.currencyCode);
+    }
+
+    if (mode !== 'create' && initialData?.salaryCurrencyCode) {
+      return getSalaryCurrencyCode(initialData.salaryCurrencyCode);
+    }
+
+    if (isOverlord) {
+      const selectedCompany = companies.find(
+        (company) => String(company.id) === String(selectedCompanyId),
+      );
+      return getSalaryCurrencyCode(selectedCompany?.effectiveCurrencyCode ?? selectedCompany?.currencyCode);
+    }
+
+    return getSalaryCurrencyCode(null);
+  }, [companies, initialData?.salaryCurrencyCode, isOverlord, mode, selectedCompanyId, selectedCountry?.currencyCode]);
 
   useEffect(() => {
     if (!open) {
@@ -482,7 +503,11 @@ export default function EmployeeFormDialog({
                 type="number"
                 required
                 disabled={mode === 'edit' && !canEdit}
+                helperText={`Currency: ${salaryCurrencyCode}`}
                 slotProps={{
+                  input: {
+                    endAdornment: <InputAdornment position="end">{salaryCurrencyCode}</InputAdornment>,
+                  },
                   htmlInput: {
                     min: 0,
                     step: '0.01',

@@ -14,9 +14,8 @@ import {
   DomainEventsPanel,
 } from '../../../shared/components/OperationalPanels';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
 import { StickyMobileActions } from '../../../shared/components/Mobile';
-import { ForbiddenTransitionHint, LifecycleHistoryTimeline, LifecycleStatusGraph, LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
+import { ForbiddenTransitionHint, LifecycleHistoryTimeline, LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import EmptyState from '../../../shared/components/EmptyState/EmptyState';
 import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
@@ -135,57 +134,6 @@ export default function TaskDetailsPage() {
     status,
   }));
 
-  const taskRecommendedStep = (() => {
-    if (task.status === 'COMPLETED' || task.status === 'CANCELLED') {
-      return {
-        title: 'Review the completed task outcome.',
-        description: 'This task is terminal. Verify the linked transport or stock movement and use change history if the execution path needs review.',
-        severity: task.status === 'COMPLETED' ? 'success' as const : 'warning' as const,
-        actions: [{ label: 'Open linked process', onClick: () => setActiveTab('linkedProcess'), variant: 'outlined' as const }],
-      };
-    }
-
-    if (task.status === 'ASSIGNED' && allowedStatuses.includes('IN_PROGRESS')) {
-      return {
-        title: 'Start execution when the assigned employee begins work.',
-        description: 'The task is assigned but not in progress. Move it to IN_PROGRESS only when the operational work actually starts.',
-        severity: 'info' as const,
-        actions: [{ label: 'Start task', onClick: () => setTransitionTarget('IN_PROGRESS') }],
-      };
-    }
-
-    if (task.status === 'IN_PROGRESS') {
-      return {
-        title: 'Complete or block the task based on execution result.',
-        description: 'The task is active. Complete it when the work is done, or block it if execution cannot continue without intervention.',
-        severity: 'warning' as const,
-        actions: [
-          ...(allowedStatuses.includes('COMPLETED') ? [{ label: 'Complete task', onClick: () => setTransitionTarget('COMPLETED') }] : []),
-          ...(allowedStatuses.includes('BLOCKED') ? [{ label: 'Block task', onClick: () => setTransitionTarget('BLOCKED'), variant: 'outlined' as const }] : []),
-        ],
-      };
-    }
-
-    if (task.status === 'BLOCKED') {
-      return {
-        title: 'Resolve the blocker before continuing.',
-        description: 'Open the linked transport or stock movement context, then move the task back into progress when the blocker is removed.',
-        severity: 'error' as const,
-        actions: [
-          { label: 'Open linked process', onClick: () => setActiveTab('linkedProcess'), variant: 'outlined' as const },
-          ...(allowedStatuses.includes('IN_PROGRESS') ? [{ label: 'Resume task', onClick: () => setTransitionTarget('IN_PROGRESS') }] : []),
-        ],
-      };
-    }
-
-    return {
-      title: 'Review assignment and linked process.',
-      description: 'Use the overview and linked process tabs to confirm who owns this task and which operational record it moves forward.',
-      severity: 'info' as const,
-      actions: [{ label: 'Open linked process', onClick: () => setActiveTab('linkedProcess'), variant: 'outlined' as const }],
-    };
-  })();
-
   const tabs = [
     { value: 'overview', label: 'Overview' },
     { value: 'lifecycle', label: 'Lifecycle' },
@@ -205,12 +153,10 @@ export default function TaskDetailsPage() {
       onTabChange={(value) => setActiveTab(value as TaskDetailsTab)}
       actions={
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {canViewHistory ? <Button variant="outlined" onClick={() => setActiveTab('changeHistory')}>View history</Button> : null}
           <Button variant="outlined" onClick={() => navigate('/tasks')}>Back to list</Button>
         </Stack>
       }
     >
-      <RecommendedNextStep {...taskRecommendedStep} />
 
       {activeTab === 'overview' ? (
         <Grid container spacing={3}>
@@ -279,16 +225,6 @@ export default function TaskDetailsPage() {
       {activeTab === 'lifecycle' ? (
         <Grid container spacing={3}>
           <Grid size={{ xs: 12 }}>
-            <SectionCard title="Lifecycle graph" description="Visual status flow with current state and role-allowed next transitions.">
-              <LifecycleStatusGraph
-                statuses={['NEW', 'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'CANCELLED'] as const}
-                currentStatus={task.status}
-                allowedNextStatuses={statusActions.map((action) => action.status)}
-                terminalStatuses={['COMPLETED', 'CANCELLED'] as const}
-              />
-            </SectionCard>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
             <LifecycleHistoryTimeline entityName="TASK" entityId={task.id} />
           </Grid>
         </Grid>
@@ -314,8 +250,8 @@ export default function TaskDetailsPage() {
 
       {activeTab === 'commentsAttachments' ? (
         <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 6 }}><CommentsPanel entityType="TASK" entityId={task.id} /></Grid>
-          <Grid size={{ xs: 12, lg: 6 }}><AttachmentsPanel entityType="TASK" entityId={task.id} /></Grid>
+          <Grid size={{ xs: 12, lg: 6 }}><CommentsPanel entityType="TASK" entityId={task.id} allowCreate={auth.user?.role !== ROLES.DRIVER} /></Grid>
+          <Grid size={{ xs: 12, lg: 6 }}><AttachmentsPanel entityType="TASK" entityId={task.id} allowCreate={auth.user?.role !== ROLES.DRIVER} /></Grid>
         </Grid>
       ) : null}
 

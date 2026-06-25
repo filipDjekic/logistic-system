@@ -51,14 +51,14 @@ public class VehicleController {
         return new ResponseEntity<>(vehicleService.update(id, dto), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
     @GetMapping("/{id}")
     public ResponseEntity<VehicleResponse> getVehicle(@PathVariable Long id) {
         return new ResponseEntity<>(vehicleService.getById(id), HttpStatus.OK);
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
     @GetMapping("/status-counts")
     public ResponseEntity<List<StatusCountResponse>> countByStatus(
             @RequestParam(required = false) String search,
@@ -70,7 +70,7 @@ public class VehicleController {
         return ResponseEntity.ok(vehicleService.countByStatus(search, type, available, capacityFrom, capacityTo));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
     @GetMapping
     public ResponseEntity<PageResponse<VehicleResponse>> getAllVehicles(
             @RequestParam(required = false) String search,

@@ -16,6 +16,7 @@ import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.BinLocationRepository;
 import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
@@ -75,7 +76,7 @@ public class LookupService implements LookupServiceDefinition {
     @Override
     public PageResponse<LookupOptionResponse> vehicles(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "registrationNumber"));
-        Page<Vehicle> page = vehicleRepository.searchVehicles(currentCompanyScope(), normalize(search), null, null, true, null, null, safePageable);
+        Page<Vehicle> page = vehicleRepository.searchVehicles(currentCompanyScope(), null, normalize(search), null, null, true, null, null, safePageable);
         return PageResponse.fromContent(page.getContent().stream().map(this::vehicleOption).toList(), page);
     }
 
@@ -90,9 +91,11 @@ public class LookupService implements LookupServiceDefinition {
     public PageResponse<LookupOptionResponse> transportOrders(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.DESC, "id"));
         Long driverUserId = authenticatedUserProvider.hasRole("DRIVER") ? authenticatedUserProvider.getAuthenticatedUserId() : null;
+        Long workerEmployeeId = authenticatedUserProvider.hasRole("WORKER") ? currentEmployeeIdOrNotFound() : null;
         Page<TransportOrder> page = transportOrderRepository.searchTransportOrders(
                 currentCompanyScope(),
                 driverUserId,
+                workerEmployeeId,
                 null,
                 null,
                 null,
@@ -111,16 +114,15 @@ public class LookupService implements LookupServiceDefinition {
     @Override
     public PageResponse<LookupOptionResponse> stockMovements(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.DESC, "id"));
-        List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
         Page<StockMovement> page;
-        if (warehouseIds != null) {
-            page = warehouseIds.isEmpty()
-                    ? Page.empty(safePageable)
-                    : stockMovementRepository.searchMovementsForWarehouseIds(
+        if (authenticatedUserProvider.hasRole("WORKER")) {
+            page = stockMovementRepository.searchMovementsAssignedToEmployee(
                     currentCompanyScope(),
-                    warehouseIds,
+                    currentEmployeeIdOrNotFound(),
                     normalize(search),
                     parseSearchId(search),
+                    null,
+                    null,
                     null,
                     null,
                     null,
@@ -131,19 +133,43 @@ public class LookupService implements LookupServiceDefinition {
                     safePageable
             );
         } else {
-            page = stockMovementRepository.searchMovements(
-                    currentCompanyScope(),
-                    normalize(search),
-                    parseSearchId(search),
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    safePageable
-            );
+            List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            if (warehouseIds != null) {
+                page = warehouseIds.isEmpty()
+                        ? Page.empty(safePageable)
+                        : stockMovementRepository.searchMovementsForWarehouseIds(
+                        currentCompanyScope(),
+                        warehouseIds,
+                        normalize(search),
+                        parseSearchId(search),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        safePageable
+                );
+            } else {
+                page = stockMovementRepository.searchMovements(
+                        currentCompanyScope(),
+                        normalize(search),
+                        parseSearchId(search),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        safePageable
+                );
+            }
         }
         return PageResponse.fromContent(page.getContent().stream().map(this::stockMovementOption).toList(), page);
     }
@@ -263,6 +289,12 @@ public class LookupService implements LookupServiceDefinition {
                 subtitle,
                 Boolean.TRUE.equals(binLocation.getActive()) ? "ACTIVE" : "INACTIVE"
         );
+    }
+
+    private Long currentEmployeeIdOrNotFound() {
+        return employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
+                .map(Employee::getId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
 
     private Long parseSearchId(String search) {

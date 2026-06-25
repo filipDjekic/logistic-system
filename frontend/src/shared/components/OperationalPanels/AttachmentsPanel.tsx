@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Alert, Button, Link, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Button, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { appEnv } from '../../../core/config/env';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
@@ -7,17 +7,40 @@ import {
   useOperationalAttachments,
   useUploadOperationalAttachment,
 } from '../../../features/activity-timeline/hooks/useActivityTimeline';
-import type { OperationalEntityType } from '../../../features/activity-timeline/types/activityTimeline.types';
+import type { OperationalAttachmentType, OperationalEntityType } from '../../../features/activity-timeline/types/activityTimeline.types';
 import RelatedDataSection from '../EntityDetails/RelatedDataSection';
+
+type AttachmentTypeOption = {
+  value: OperationalAttachmentType;
+  label: string;
+};
 
 type AttachmentsPanelProps = {
   entityType: OperationalEntityType;
   entityId: number | null;
   allowCreate?: boolean;
+  title?: string;
+  description?: string;
+  attachmentTypeOptions?: readonly AttachmentTypeOption[];
+  defaultAttachmentType?: OperationalAttachmentType;
 };
 
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'csv', 'docx', 'xlsx'];
+
+const defaultAttachmentTypeOptions: AttachmentTypeOption[] = [
+  { value: 'DOCUMENT', label: 'Document' },
+  { value: 'DELIVERY_NOTE', label: 'Delivery note' },
+  { value: 'REPORT', label: 'Report' },
+  { value: 'DAMAGE_PHOTO', label: 'Damage photo' },
+  { value: 'WRITE_OFF_EVIDENCE', label: 'Write-off evidence' },
+  { value: 'ADJUSTMENT_EVIDENCE', label: 'Adjustment evidence' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+function attachmentTypeLabel(value: OperationalAttachmentType | null | undefined, options: readonly AttachmentTypeOption[]) {
+  return options.find((option) => option.value === value)?.label ?? value?.replaceAll('_', ' ') ?? 'Document';
+}
 
 function validateAttachmentFile(file: File | null) {
   if (!file) return null;
@@ -46,14 +69,23 @@ function resolveAttachmentUrl(fileUrl: string) {
   return `${appEnv.apiBaseUrl}${fileUrl}`;
 }
 
-export default function AttachmentsPanel({ entityType, entityId, allowCreate = true }: AttachmentsPanelProps) {
+export default function AttachmentsPanel({
+  entityType,
+  entityId,
+  allowCreate = true,
+  title = 'Attachments',
+  description: panelDescription = 'Documents and evidence connected with this entity. Upload stores the file and keeps the audit trail.',
+  attachmentTypeOptions = defaultAttachmentTypeOptions,
+  defaultAttachmentType = 'DOCUMENT',
+}: AttachmentsPanelProps) {
   const { showSnackbar } = useAppSnackbar();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const attachmentsQuery = useOperationalAttachments(entityType, entityId);
   const uploadAttachmentMutation = useUploadOperationalAttachment();
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [description, setDescription] = useState('');
+  const [attachmentType, setAttachmentType] = useState<OperationalAttachmentType>(defaultAttachmentType);
+  const [attachmentDescription, setAttachmentDescription] = useState('');
 
   const attachments = attachmentsQuery.data ?? [];
   const canSubmit = Boolean(entityId && file && !fileError) && !uploadAttachmentMutation.isPending;
@@ -73,13 +105,15 @@ export default function AttachmentsPanel({ entityType, entityId, allowCreate = t
         entityType,
         entityId,
         file,
-        description: description.trim() || null,
+        attachmentType,
+        description: attachmentDescription.trim() || null,
       },
       {
         onSuccess: () => {
           setFile(null);
           setFileError(null);
-          setDescription('');
+          setAttachmentType(defaultAttachmentType);
+          setAttachmentDescription('');
           if (fileInputRef.current) {
             fileInputRef.current.value = '';
           }
@@ -94,8 +128,8 @@ export default function AttachmentsPanel({ entityType, entityId, allowCreate = t
 
   return (
     <RelatedDataSection
-      title="Attachments"
-      description="Documents and evidence connected with this entity. Upload stores the file and keeps the audit trail."
+      title={title}
+      description={panelDescription}
       loading={attachmentsQuery.isLoading}
       error={attachmentsQuery.isError}
       onRetry={() => { void attachmentsQuery.refetch(); }}
@@ -130,7 +164,19 @@ export default function AttachmentsPanel({ entityType, entityId, allowCreate = t
 
           {fileError ? <Alert severity="error">{fileError}</Alert> : null}
 
-          <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} fullWidth />
+          <TextField
+            select
+            label="Attachment type"
+            value={attachmentType}
+            onChange={(event) => setAttachmentType(event.target.value as OperationalAttachmentType)}
+            fullWidth
+          >
+            {attachmentTypeOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+            ))}
+          </TextField>
+
+          <TextField label="Description" value={attachmentDescription} onChange={(event) => setAttachmentDescription(event.target.value)} fullWidth />
           <Stack alignItems="flex-end">
             <Button variant="contained" disabled={!canSubmit} onClick={handleSubmit}>Upload attachment</Button>
           </Stack>
@@ -143,7 +189,12 @@ export default function AttachmentsPanel({ entityType, entityId, allowCreate = t
         <Stack spacing={1.25}>
           {attachments.map((attachment) => (
             <Stack key={attachment.id} spacing={0.5} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-              <Link href={resolveAttachmentUrl(attachment.fileUrl)} target="_blank" rel="noreferrer" fontWeight={800}>{attachment.fileName}</Link>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Link href={resolveAttachmentUrl(attachment.fileUrl)} target="_blank" rel="noreferrer" fontWeight={800}>{attachment.fileName}</Link>
+                <Typography variant="caption" color="text.secondary" sx={{ px: 1, py: 0.25, border: 1, borderColor: 'divider', borderRadius: 999 }}>
+                  {attachmentTypeLabel(attachment.attachmentType, attachmentTypeOptions)}
+                </Typography>
+              </Stack>
               {attachment.description ? <Typography variant="body2" color="text.secondary">{attachment.description}</Typography> : null}
               <Typography variant="caption" color="text.secondary">
                 {attachment.uploadedByName} · {attachment.contentType ?? 'file'} · {formatBytes(attachment.sizeBytes)}

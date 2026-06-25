@@ -89,6 +89,7 @@ public class CompanyAdminDashboardService implements CompanyAdminDashboardServic
                 lowStockRowsTotal,
                 safeBigDecimal(warehouseInventoryRepository.sumQuantityByCompanyId(companyId)),
                 safeBigDecimal(warehouseInventoryRepository.sumAvailableQuantityByCompanyId(companyId)),
+                safeBigDecimal(warehouseInventoryRepository.sumTotalValueByCompanyId(companyId)),
                 stockMovementRepository.countByWarehouse_Company_Id(companyId),
                 activityLogRepository.countByUser_Company_Id(companyId),
                 changeHistoryRepository.countByChangedBy_Company_Id(companyId),

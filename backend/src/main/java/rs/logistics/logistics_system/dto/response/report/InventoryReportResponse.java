@@ -13,6 +13,9 @@ public record InventoryReportResponse(
         BigDecimal totalInventoryQuantity,
         BigDecimal totalAvailableQuantity,
         BigDecimal totalReservedQuantity,
+        BigDecimal totalInventoryValue,
+        BigDecimal averageUnitCost,
+        String valuationCurrency,
         BigDecimal stockAvailabilityRate,
         BigDecimal reservationRate,
         BigDecimal inventoryHealthScore,
@@ -39,6 +42,9 @@ public record InventoryReportResponse(
             BigDecimal quantity,
             BigDecimal availableQuantity,
             BigDecimal reservedQuantity,
+            BigDecimal totalValue,
+            BigDecimal averageUnitCost,
+            String currency,
             long stockMovements
     ) {
     }
@@ -53,6 +59,9 @@ public record InventoryReportResponse(
             BigDecimal quantity,
             BigDecimal availableQuantity,
             BigDecimal reservedQuantity,
+            BigDecimal totalValue,
+            BigDecimal averageUnitCost,
+            String currency,
             long stockMovements
     ) {
     }
@@ -67,6 +76,9 @@ public record InventoryReportResponse(
             BigDecimal quantity,
             BigDecimal reservedQuantity,
             BigDecimal availableQuantity,
+            BigDecimal averageUnitCost,
+            BigDecimal totalValue,
+            String currency,
             BigDecimal minStockLevel,
             boolean lowStock,
             LocalDateTime lastUpdated
@@ -86,6 +98,9 @@ public record InventoryReportResponse(
             Long productId,
             String productName,
             String sku,
+            BigDecimal unitCost,
+            BigDecimal totalCost,
+            String currency,
             LocalDateTime createdAt
     ) {
     }

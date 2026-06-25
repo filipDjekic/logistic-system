@@ -22,6 +22,8 @@ export type UserEmployeeSummary = {
   position: EmployeePosition;
   employmentDate: string;
   salary: number;
+  salaryCurrencyCode: string | null;
+  salaryCurrencyName: string | null;
   active: boolean;
   companyId: number | null;
 };

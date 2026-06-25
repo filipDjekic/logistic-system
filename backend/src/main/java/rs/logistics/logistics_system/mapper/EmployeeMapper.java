@@ -72,6 +72,8 @@ public class EmployeeMapper {
         response.setCountryId(country != null ? country.getId() : null);
         response.setCountryCode(country != null ? country.getIso2Code() : null);
         response.setCountryName(country != null ? country.getName() : null);
+        response.setSalaryCurrencyCode(country != null ? country.getCurrencyCode() : null);
+        response.setSalaryCurrencyName(country != null ? country.getCurrencyName() : null);
         response.setPrimaryWarehouseId(primaryWarehouse != null ? primaryWarehouse.getId() : null);
         response.setPrimaryWarehouseName(primaryWarehouse != null ? primaryWarehouse.getName() : null);
         response.setPosition(employee.getPosition());

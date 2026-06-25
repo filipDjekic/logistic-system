@@ -92,8 +92,50 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
     @Override
     @Transactional(readOnly = true)
     public PageResponse<VehicleMaintenanceResponse> getAll(Long vehicleId, VehicleMaintenanceStatus status, Pageable pageable) {
+        if (authenticatedUserProvider.hasRole("DRIVER")) {
+            var page = maintenanceRepository.findForDriverRelatedVehicles(
+                    authenticatedUserProvider.getAuthenticatedUserId(),
+                    vehicleId,
+                    status,
+                    pageable
+            );
+            return PageResponse.from(page.map(VehicleMaintenanceMapper::toResponse));
+        }
+
         Long companyId = authenticatedUserProvider.isOverlord() ? null : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
-        return PageResponse.from(maintenanceRepository.search(companyId, vehicleId, status, pageable).map(VehicleMaintenanceMapper::toResponse));
+        var page = findMaintenancePage(companyId, vehicleId, status, pageable);
+        return PageResponse.from(page.map(VehicleMaintenanceMapper::toResponse));
+    }
+
+    private org.springframework.data.domain.Page<VehicleMaintenance> findMaintenancePage(
+            Long companyId,
+            Long vehicleId,
+            VehicleMaintenanceStatus status,
+            Pageable pageable
+    ) {
+        if (companyId == null) {
+            if (vehicleId != null && status != null) {
+                return maintenanceRepository.findByVehicle_IdAndStatus(vehicleId, status, pageable);
+            }
+            if (vehicleId != null) {
+                return maintenanceRepository.findByVehicle_Id(vehicleId, pageable);
+            }
+            if (status != null) {
+                return maintenanceRepository.findByStatus(status, pageable);
+            }
+            return maintenanceRepository.findAll(pageable);
+        }
+
+        if (vehicleId != null && status != null) {
+            return maintenanceRepository.findByCompany_IdAndVehicle_IdAndStatus(companyId, vehicleId, status, pageable);
+        }
+        if (vehicleId != null) {
+            return maintenanceRepository.findByCompany_IdAndVehicle_Id(companyId, vehicleId, pageable);
+        }
+        if (status != null) {
+            return maintenanceRepository.findByCompany_IdAndStatus(companyId, status, pageable);
+        }
+        return maintenanceRepository.findByCompany_Id(companyId, pageable);
     }
 
     @Override
@@ -166,6 +208,16 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
         if (!authenticatedUserProvider.isOverlord()) {
             Long companyId = maintenance.getCompany() != null ? maintenance.getCompany().getId() : null;
             if (!authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow().equals(companyId)) {
+                throw new ResourceNotFoundException("Vehicle maintenance not found");
+            }
+        }
+
+        if (authenticatedUserProvider.hasRole("DRIVER")) {
+            boolean related = maintenanceRepository.existsForDriverRelatedVehicle(
+                    id,
+                    authenticatedUserProvider.getAuthenticatedUserId()
+            );
+            if (!related) {
                 throw new ResourceNotFoundException("Vehicle maintenance not found");
             }
         }

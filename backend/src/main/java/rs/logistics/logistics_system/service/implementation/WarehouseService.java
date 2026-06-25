@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +47,7 @@ import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.CityServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
+import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 @Service
 @RequiredArgsConstructor
@@ -66,6 +68,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private final TimezoneServiceDefinition timezoneService;
     private final CityServiceDefinition cityService;
     private final DomainScopeValidator domainScopeValidator;
+    private final WarehouseAccessGuard warehouseAccessGuard;
 
     @Override
     @Transactional
@@ -103,6 +106,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     public WarehouseResponse update(Long id, WarehouseUpdate dto) {
         Warehouse warehouse = getWarehouseOrThrow(id);
         validateWarehouseIsActive(warehouse);
+        ensureWarehouseManagerCanUpdateManagedWarehouse(warehouse);
 
         String oldName = warehouse.getName();
         String oldLocation = (warehouse.getCity() != null ? warehouse.getCity().getName() : null) + "; " + warehouse.getAddress();
@@ -168,6 +172,18 @@ public class WarehouseService implements WarehouseServiceDefinition {
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        if (authenticatedUserProvider.hasRole("WORKER")) {
+            List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            if (warehouseIds == null) {
+                return PageResponse.from(_warehouseRepository.search(companyId, normalizedSearch, status, active, managerId, pageable)
+                        .map(WarehouseMapper::toResponse));
+            }
+            return PageResponse.from((warehouseIds.isEmpty()
+                    ? Page.<Warehouse>empty(pageable)
+                    : _warehouseRepository.searchWarehouseIds(companyId, warehouseIds, normalizedSearch, status, active, managerId, pageable))
+                    .map(WarehouseMapper::toResponse));
+        }
 
         return PageResponse.from(_warehouseRepository.search(companyId, normalizedSearch, status, active, managerId, pageable)
                 .map(WarehouseMapper::toResponse));
@@ -420,13 +436,39 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     private Warehouse getWarehouseOrThrow(Long id) {
+        Warehouse warehouse;
         if (authenticatedUserProvider.isOverlord()) {
-            return _warehouseRepository.findById(id)
+            warehouse = _warehouseRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        } else {
+            warehouse = _warehouseRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
                     .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         }
 
-        return _warehouseRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
-                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        if (authenticatedUserProvider.hasRole("WORKER")) {
+            warehouseAccessGuard.ensureCanReadWarehouse(warehouse);
+        }
+
+        return warehouse;
+    }
+
+    private Long currentEmployeeIdOrNotFound() {
+        return _employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
+                .map(Employee::getId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+    }
+
+    private void ensureWarehouseManagerCanUpdateManagedWarehouse(Warehouse warehouse) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return;
+        }
+
+        Long currentEmployeeId = currentEmployeeIdOrNotFound();
+        Long warehouseManagerId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
+
+        if (warehouseManagerId == null || !warehouseManagerId.equals(currentEmployeeId)) {
+            throw new ForbiddenException("WAREHOUSE_MANAGER can update only warehouses assigned to them");
+        }
     }
 
     private Employee getAccessibleEmployee(Long employeeId) {

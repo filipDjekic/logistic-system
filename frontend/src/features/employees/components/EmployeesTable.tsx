@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button, Chip, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { formatSalary } from '../../../core/utils/formatSalary';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { EmployeeResponse, EmployeeUserOption } from '../types/employee.types';
@@ -20,13 +21,6 @@ type EmployeesTableProps = {
   onSortChange?: (sort: SortState) => void;
 };
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('sr-RS', {
-    style: 'currency',
-    currency: 'RSD',
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 export default function EmployeesTable({
   rows,
@@ -94,7 +88,7 @@ export default function EmployeesTable({
       minWidth: 140,
       nowrap: true,
       align: 'right',
-      render: (row) => formatCurrency(row.salary),
+      render: (row) => formatSalary(row.salary, row.salaryCurrencyCode),
     },
     {
       id: 'access',

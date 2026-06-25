@@ -20,7 +20,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { DEFAULT_PAGE_SIZE } from '../../../core/api/pagination';
@@ -39,6 +38,11 @@ type MaintenanceFormState = {
   odometer: string;
   cost: string;
   notes: string;
+};
+
+type VehicleMaintenanceSectionProps = {
+  fixedVehicle?: LookupOption;
+  canManage?: boolean;
 };
 
 function statusColor(status: VehicleMaintenanceStatus) {
@@ -77,11 +81,11 @@ function maintenanceToForm(row: VehicleMaintenanceResponse): MaintenanceFormStat
   };
 }
 
-export default function VehicleMaintenancePage() {
+export default function VehicleMaintenanceSection({ fixedVehicle, canManage = true }: VehicleMaintenanceSectionProps) {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [status, setStatus] = useState<VehicleMaintenanceStatus | 'ALL'>('ALL');
-  const [selectedVehicle, setSelectedVehicle] = useState<LookupOption | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<LookupOption | null>(fixedVehicle ?? null);
   const [type, setType] = useState<VehicleMaintenanceType>('ROUTINE_SERVICE');
   const [scheduledAt, setScheduledAt] = useState(toLocalInput(new Date(Date.now() + 60 * 60 * 1000)));
   const [odometer, setOdometer] = useState('');
@@ -96,19 +100,28 @@ export default function VehicleMaintenancePage() {
     notes: '',
   });
 
+  const vehicle = fixedVehicle ?? selectedVehicle;
   const maintenanceQuery = useVehicleMaintenance({
     page,
     size,
-    vehicleId: selectedVehicle?.id,
+    vehicleId: vehicle?.id,
     status: status === 'ALL' ? undefined : status,
+    sort: 'scheduledAt,desc',
   });
   const createMutation = useCreateVehicleMaintenance();
   const updateMutation = useUpdateVehicleMaintenance();
   const actionMutation = useVehicleMaintenanceAction();
 
   const rows = maintenanceQuery.data?.content ?? [];
-  const canSubmit = Boolean(selectedVehicle?.id) && scheduledAt.trim().length > 0;
+  const canSubmit = Boolean(vehicle?.id) && scheduledAt.trim().length > 0;
   const canSubmitEdit = Boolean(editingRow?.id) && editForm.scheduledAt.trim().length > 0;
+
+  useEffect(() => {
+    if (fixedVehicle) {
+      setSelectedVehicle(fixedVehicle);
+      setPage(0);
+    }
+  }, [fixedVehicle]);
 
   useEffect(() => {
     if (editingRow) {
@@ -118,26 +131,27 @@ export default function VehicleMaintenancePage() {
 
   return (
     <Stack spacing={3}>
-      <PageHeader
-        overline="Fleet operations"
-        title="Vehicle maintenance"
-        description="Schedule maintenance, block vehicles from transport assignment, and track maintenance lifecycle."
-      />
-
+      {canManage ? (
       <SectionCard title="Schedule maintenance" description="Planned maintenance blocks the vehicle from new transport assignment.">
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <EntityLookupField
-              label="Vehicle"
-              entityType="vehicles"
-              value={selectedVehicle}
-              onChange={setSelectedVehicle}
-              required
-              placeholder="Choose vehicle"
-              searchPlaceholder="Search vehicles by registration, brand or model..."
-              sort="registrationNumber,asc"
-            />
-          </Grid>
+          {!fixedVehicle ? (
+            <Grid size={{ xs: 12, md: 4 }}>
+              <EntityLookupField
+                label="Vehicle"
+                entityType="vehicles"
+                value={selectedVehicle}
+                onChange={(value) => { setSelectedVehicle(value); setPage(0); }}
+                required
+                placeholder="Choose vehicle"
+                searchPlaceholder="Search vehicles by registration, brand or model..."
+                sort="registrationNumber,asc"
+              />
+            </Grid>
+          ) : (
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField label="Vehicle" value={fixedVehicle.label} InputProps={{ readOnly: true }} fullWidth />
+            </Grid>
+          )}
           <Grid size={{ xs: 12, md: 3 }}>
             <TextField select label="Type" value={type} onChange={(event) => setType(event.target.value as VehicleMaintenanceType)} fullWidth>
               {maintenanceTypes.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
@@ -153,15 +167,25 @@ export default function VehicleMaintenancePage() {
               sx={{ height: '100%' }}
               disabled={!canSubmit || createMutation.isPending}
               onClick={() => {
-                if (!selectedVehicle?.id) return;
-                createMutation.mutate({
-                  vehicleId: selectedVehicle.id,
-                  type,
-                  scheduledAt,
-                  odometer: toOptionalNumber(odometer),
-                  cost: toOptionalNumber(cost),
-                  notes: notes.trim() || undefined,
-                });
+                if (!vehicle?.id) return;
+                createMutation.mutate(
+                  {
+                    vehicleId: vehicle.id,
+                    type,
+                    scheduledAt,
+                    odometer: toOptionalNumber(odometer),
+                    cost: toOptionalNumber(cost),
+                    notes: notes.trim() || undefined,
+                  },
+                  {
+                    onSuccess: () => {
+                      setOdometer('');
+                      setCost('');
+                      setNotes('');
+                      void maintenanceQuery.refetch();
+                    },
+                  },
+                );
               }}
             >
               Schedule
@@ -178,20 +202,19 @@ export default function VehicleMaintenancePage() {
           </Grid>
         </Grid>
       </SectionCard>
+      ) : null}
 
       <SectionCard title="Maintenance records" action={
-        <Stack direction="row" spacing={1}>
-          <TextField select size="small" label="Status" value={status} onChange={(event) => setStatus(event.target.value as VehicleMaintenanceStatus | 'ALL')} sx={{ minWidth: 180 }}>
-            {maintenanceStatuses.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
-          </TextField>
-        </Stack>
+        <TextField select size="small" label="Status" value={status} onChange={(event) => { setStatus(event.target.value as VehicleMaintenanceStatus | 'ALL'); setPage(0); }} sx={{ minWidth: 180 }}>
+          {maintenanceStatuses.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+        </TextField>
       }>
         {maintenanceQuery.isError ? <Alert severity="error">Unable to load maintenance records.</Alert> : null}
         <TableContainer component={Paper} variant="outlined">
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Vehicle</TableCell>
+                {!fixedVehicle ? <TableCell>Vehicle</TableCell> : null}
                 <TableCell>Type</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Scheduled</TableCell>
@@ -203,24 +226,28 @@ export default function VehicleMaintenancePage() {
             <TableBody>
               {rows.map((row) => (
                 <TableRow key={row.id} hover>
-                  <TableCell>{row.vehicleRegistrationNumber}</TableCell>
+                  {!fixedVehicle ? <TableCell>{row.vehicleRegistrationNumber}</TableCell> : null}
                   <TableCell>{row.type}</TableCell>
                   <TableCell><Chip size="small" label={row.status} color={statusColor(row.status)} /></TableCell>
                   <TableCell>{row.scheduledAt ? new Date(row.scheduledAt).toLocaleString() : '—'}</TableCell>
                   <TableCell>{row.startedAt ? new Date(row.startedAt).toLocaleString() : '—'}</TableCell>
                   <TableCell>{row.completedAt ? new Date(row.completedAt).toLocaleString() : '—'}</TableCell>
                   <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Button size="small" disabled={row.status !== 'PLANNED' || updateMutation.isPending} onClick={() => setEditingRow(row)}>Edit</Button>
-                      <Button size="small" disabled={row.status !== 'PLANNED' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'start' })}>Start</Button>
-                      <Button size="small" disabled={row.status !== 'IN_PROGRESS' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'complete' })}>Complete</Button>
-                      <Button size="small" color="error" disabled={(row.status === 'COMPLETED' || row.status === 'CANCELLED') || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'cancel', reason: 'Cancelled from UI' })}>Cancel</Button>
-                    </Stack>
+                    {canManage ? (
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button size="small" disabled={row.status !== 'PLANNED' || updateMutation.isPending} onClick={() => setEditingRow(row)}>Edit</Button>
+                        <Button size="small" disabled={row.status !== 'PLANNED' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'start' })}>Start</Button>
+                        <Button size="small" disabled={row.status !== 'IN_PROGRESS' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'complete' })}>Complete</Button>
+                        <Button size="small" color="error" disabled={(row.status === 'COMPLETED' || row.status === 'CANCELLED') || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'cancel', reason: 'Cancelled from UI' })}>Cancel</Button>
+                      </Stack>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">Read only</Typography>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={7}><Typography color="text.secondary">No maintenance records.</Typography></TableCell></TableRow>
+                <TableRow><TableCell colSpan={fixedVehicle ? 6 : 7}><Typography color="text.secondary">No maintenance records.</Typography></TableCell></TableRow>
               ) : null}
             </TableBody>
           </Table>
@@ -228,7 +255,7 @@ export default function VehicleMaintenancePage() {
         <ServerTablePagination page={maintenanceQuery.data} disabled={maintenanceQuery.isFetching} onPageChange={setPage} onSizeChange={(value) => { setSize(value); setPage(0); }} />
       </SectionCard>
 
-      <Dialog open={Boolean(editingRow)} onClose={() => setEditingRow(null)} fullWidth maxWidth="sm">
+      <Dialog open={canManage && Boolean(editingRow)} onClose={() => setEditingRow(null)} fullWidth maxWidth="sm">
         <DialogTitle>Edit planned maintenance</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>

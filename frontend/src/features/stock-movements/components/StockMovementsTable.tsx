@@ -24,6 +24,15 @@ function formatOptionalNumber(value: number | null | undefined) {
   return value === null || value === undefined ? '—' : value;
 }
 
+
+function formatMoney(value: number | null | undefined, currency: string | null | undefined) {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  return currency ? `${value} ${currency}` : String(value);
+}
+
 function binDetailsPath(warehouseId: number, zoneId: number | null | undefined, binId: number | null | undefined) {
   if (!zoneId || !binId) {
     return `/warehouses/${warehouseId}/zones`;
@@ -50,7 +59,10 @@ export default function StockMovementsTable({
       minWidth: 210,
       render: (row) => (
         <Stack spacing={0.25}>
-          <StatusChip value={row.movementType} />
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+            <StatusChip value={row.movementType} />
+            {row.status ? <StatusChip value={row.status} variant="outlined" /> : null}
+          </Stack>
           <Typography variant="caption" color="text.secondary">
             #{row.id}{row.adjustmentDirection ? ` · ${row.adjustmentDirection}` : ''}
           </Typography>
@@ -96,11 +108,30 @@ export default function StockMovementsTable({
       ),
     },
     {
+      id: 'status',
+      header: 'Status',
+      sortField: 'status',
+      minWidth: 160,
+      render: (row) => <StatusChip value={row.status ?? 'EXECUTED'} emphasis="strong" />,
+    },
+    {
       id: 'quantity',
       header: 'Quantity',
       accessor: 'quantity',
       sortField: 'quantity',
       minWidth: 100,
+    },
+
+    {
+      id: 'cost',
+      header: 'Cost',
+      minWidth: 170,
+      render: (row) => (
+        <Stack spacing={0.25}>
+          <Typography variant="body2" fontWeight={600}>{formatMoney(row.totalCost, row.currency)}</Typography>
+          <Typography variant="caption" color="text.secondary">Unit: {formatMoney(row.unitCost, row.currency)}</Typography>
+        </Stack>
+      ),
     },
     {
       id: 'stockBalance',
@@ -189,10 +220,10 @@ export default function StockMovementsTable({
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}
-      getRowStatus={(row) => row.movementType}
+      getRowStatus={(row) => row.status ?? row.movementType}
       emptyTitle="No stock movements found"
       emptyDescription="There are no stock movements that match the current filters."
-      minWidth={1840}
+      minWidth={2170}
       onRowClick={(row) => navigate(`/stock-movements/${row.id}`)}
       rowClickLabel="Open stock movement details"
     />

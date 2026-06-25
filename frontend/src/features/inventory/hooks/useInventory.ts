@@ -36,7 +36,7 @@ type UseInventoryLookups = {
   products: InventoryProductOption[];
 };
 
-export function useInventory(filters: InventoryFiltersState & PageParams, lookups: UseInventoryLookups) {
+export function useInventory(filters: InventoryFiltersState & PageParams, lookups: UseInventoryLookups, enabled = true) {
   return useQuery({
     queryKey: queryKeys.inventory.list(filters),
     queryFn: async () => {
@@ -65,6 +65,7 @@ export function useInventory(filters: InventoryFiltersState & PageParams, lookup
 
       return { ...page, content } satisfies PageResponse<InventoryListRow>;
     },
+    enabled,
     placeholderData: keepPreviousData,
     staleTime: cacheTimes.standard,
   });

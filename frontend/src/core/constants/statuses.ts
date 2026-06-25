@@ -76,6 +76,14 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   DELETE: { label: 'Delete', tone: 'error' },
   STATUS_CHANGE: { label: 'Status Change', tone: 'primary' },
 
+  // StockMovementStatus
+  DRAFT: { label: 'Draft', tone: 'neutral' },
+  PENDING_APPROVAL: { label: 'Pending Approval', tone: 'warning' },
+  APPROVED: { label: 'Approved', tone: 'info' },
+  EXECUTED: { label: 'Executed', tone: 'success' },
+  REJECTED: { label: 'Rejected', tone: 'error' },
+  REVERSED: { label: 'Reversed', tone: 'neutral' },
+
   // StockMovementType
   INBOUND: { label: 'Inbound', tone: 'success' },
   OUTBOUND: { label: 'Outbound', tone: 'warning' },

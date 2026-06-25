@@ -10,9 +10,12 @@ import rs.logistics.logistics_system.enums.StockAdjustmentDirection;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
+import rs.logistics.logistics_system.enums.StockMovementDiscrepancyReason;
+import rs.logistics.logistics_system.enums.StockMovementStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(
@@ -25,7 +28,13 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_stock_movements_product_created", columnList = "product_id, created_at"),
                 @Index(name = "idx_stock_movements_warehouse_type_created", columnList = "warehouse_id, movement_type, created_at"),
                 @Index(name = "idx_stock_movements_parent_movement_id", columnList = "parent_movement_id"),
-                @Index(name = "idx_stock_movements_root_movement_id", columnList = "root_movement_id")
+                @Index(name = "idx_stock_movements_root_movement_id", columnList = "root_movement_id"),
+                @Index(name = "idx_stock_movements_status_created", columnList = "status, created_at"),
+                @Index(name = "idx_stock_movements_reversal_of_movement_id", columnList = "reversal_of_movement_id"),
+                @Index(name = "idx_stock_movements_reversed_by_movement_id", columnList = "reversed_by_movement_id"),
+                @Index(name = "idx_stock_movements_transport_discrepancy", columnList = "transport_order_id, discrepancy_quantity"),
+                @Index(name = "idx_stock_movements_discrepancy_reason_created", columnList = "discrepancy_reason, created_at"),
+                @Index(name = "idx_stock_movements_batch_lot_created", columnList = "batch_lot_number, created_at")
         }
 )
 @Getter
@@ -42,8 +51,46 @@ public class StockMovement {
     @Column(name = "movement_type", nullable = false, length = 30)
     private StockMovementType movementType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private StockMovementStatus status = StockMovementStatus.EXECUTED;
+
     @Column(name = "quantity", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantity;
+
+    @Column(name = "expected_quantity", nullable = false, precision = 12, scale = 2)
+    private BigDecimal expectedQuantity;
+
+    @Column(name = "actual_quantity", nullable = false, precision = 12, scale = 2)
+    private BigDecimal actualQuantity;
+
+    @Column(name = "discrepancy_quantity", nullable = false, precision = 12, scale = 2)
+    private BigDecimal discrepancyQuantity = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "discrepancy_reason", length = 50)
+    private StockMovementDiscrepancyReason discrepancyReason;
+
+    @Column(name = "discrepancy_note", length = 255)
+    private String discrepancyNote;
+
+    @Column(name = "batch_lot_number", length = 100)
+    private String batchLotNumber;
+
+    @Column(name = "batch_expiration_date")
+    private LocalDate batchExpirationDate;
+
+    @Column(name = "serial_numbers", length = 2000)
+    private String serialNumbers;
+
+    @Column(name = "unit_cost", precision = 19, scale = 4)
+    private BigDecimal unitCost;
+
+    @Column(name = "total_cost", precision = 19, scale = 4)
+    private BigDecimal totalCost;
+
+    @Column(name = "currency", length = 3)
+    private String currency;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reason_code", nullable = false, length = 50)
@@ -82,6 +129,12 @@ public class StockMovement {
 
     @Column(name = "root_movement_id")
     private Long rootMovementId;
+
+    @Column(name = "reversal_of_movement_id")
+    private Long reversalOfMovementId;
+
+    @Column(name = "reversed_by_movement_id")
+    private Long reversedByMovementId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "adjustment_direction", length = 20)
@@ -141,6 +194,14 @@ public class StockMovement {
             BigDecimal quantity,
             StockMovementReasonCode reasonCode,
             String reasonDescription,
+            BigDecimal expectedQuantity,
+            BigDecimal actualQuantity,
+            BigDecimal discrepancyQuantity,
+            StockMovementDiscrepancyReason discrepancyReason,
+            String discrepancyNote,
+            BigDecimal unitCost,
+            BigDecimal totalCost,
+            String currency,
             StockMovementReferenceType referenceType,
             Long referenceId,
             String referenceNumber,
@@ -159,7 +220,16 @@ public class StockMovement {
             TransportOrder transportOrder
     ) {
         this.movementType = movementType;
+        this.status = StockMovementStatus.EXECUTED;
         this.quantity = quantity;
+        this.expectedQuantity = expectedQuantity != null ? expectedQuantity : quantity;
+        this.actualQuantity = actualQuantity != null ? actualQuantity : quantity;
+        this.discrepancyQuantity = discrepancyQuantity != null ? discrepancyQuantity : BigDecimal.ZERO;
+        this.discrepancyReason = discrepancyReason;
+        this.discrepancyNote = discrepancyNote;
+        this.unitCost = unitCost;
+        this.totalCost = totalCost;
+        this.currency = currency;
         this.reasonCode = reasonCode;
         this.reasonDescription = reasonDescription;
         this.referenceType = referenceType;

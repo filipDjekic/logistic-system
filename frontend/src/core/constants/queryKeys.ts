@@ -55,6 +55,12 @@ export const queryKeys = {
     shifts: (id: number) => ['employees', 'details', id, 'shifts'] as const,
   },
 
+  inventoryCounts: {
+    root: () => ['inventory-counts'] as const,
+    list: (params?: unknown) => ['inventory-counts', 'list', params ?? {}] as const,
+    detail: (id: number) => ['inventory-counts', 'details', id] as const,
+  },
+
   inventory: {
     root: () => ['inventory'] as const,
     list: (filters: unknown) => ['inventory', 'list', filters] as const,
@@ -68,6 +74,19 @@ export const queryKeys = {
     root: () => ['notifications'] as const,
     my: (params: unknown) => ['notifications', 'my', params] as const,
     myUnreadCount: () => ['notifications', 'my', 'unread-count'] as const,
+  },
+
+
+  profile: {
+    root: () => ['profile'] as const,
+    current: () => ['profile', 'current'] as const,
+    changeRequests: (params?: unknown) => ['profile', 'change-requests', params ?? {}] as const,
+  },
+
+  employeeProfileChangeRequests: {
+    root: () => ['employee-profile-change-requests'] as const,
+    list: (params?: unknown) => ['employee-profile-change-requests', 'list', params ?? {}] as const,
+    detail: (id: number) => ['employee-profile-change-requests', 'details', id] as const,
   },
 
   products: {
@@ -95,6 +114,7 @@ export const queryKeys = {
     list: (params: unknown) => ['stock-movements', 'list', params] as const,
     detail: (id: number) => ['stock-movements', 'details', id] as const,
     trace: (id: number) => ['stock-movements', 'trace', id] as const,
+    statusTransitions: (id: number) => ['stock-movements', 'status-transitions', id] as const,
     operationWarehouseInventory: (warehouseId: number | null | undefined) => ['stock-operation-warehouse-inventory', warehouseId ?? null] as const,
   },
 

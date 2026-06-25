@@ -42,6 +42,8 @@ public class EmployeeResponse {
     private EmployeePosition position;
     private LocalDate employmentDate;
     private BigDecimal salary;
+    private String salaryCurrencyCode;
+    private String salaryCurrencyName;
     private Boolean active;
     private Long userId;
     private Long companyId;

@@ -53,8 +53,14 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     List<Vehicle> findByActiveAndCompany_Id(Boolean active, Long companyId);
 
     @Query("""
-        select v from Vehicle v
+        select distinct v from Vehicle v
         where (:companyId is null or v.company.id = :companyId)
+        and (:driverUserId is null or exists (
+            select 1
+            from TransportOrder t
+            where t.vehicle.id = v.id
+            and t.assignedEmployee.user.id = :driverUserId
+        ))
         and (:status is null or v.status = :status)
         and (:available is null or v.active = :available)
         and (:type is null or lower(v.type) like lower(concat('%', :type, '%')))
@@ -73,6 +79,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     """)
     Page<Vehicle> searchVehicles(
             @Param("companyId") Long companyId,
+            @Param("driverUserId") Long driverUserId,
             @Param("search") String search,
             @Param("status") VehicleStatus status,
             @Param("type") String type,
@@ -163,5 +170,14 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             order by v.registrationNumber asc
             """)
     List<Vehicle> findAvailableCandidatesByCompanyId(@Param("companyId") Long companyId, Pageable pageable);
+
+
+    @Query("""
+        select count(t) > 0
+        from TransportOrder t
+        where t.vehicle.id = :vehicleId
+        and t.assignedEmployee.user.id = :driverUserId
+    """)
+    boolean existsVehicleAssignedToDriverHistory(@Param("vehicleId") Long vehicleId, @Param("driverUserId") Long driverUserId);
 
 }

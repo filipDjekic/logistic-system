@@ -3,9 +3,11 @@ package rs.logistics.logistics_system.service.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.CompanyRepository;
@@ -23,6 +25,8 @@ import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
@@ -52,6 +56,33 @@ public class OperationalEntityAccessValidator {
         if (!canAccess(entityType, entityId)) {
             throw new ResourceNotFoundException("Operational entity not found");
         }
+    }
+
+
+    public void ensureCanCreateOperationalContent(OperationalEntityType entityType, Long entityId) {
+        if (!canCreateOperationalContent(entityType, entityId)) {
+            throw new ResourceNotFoundException("Operational entity not found");
+        }
+    }
+
+    public boolean canCreateOperationalContent(OperationalEntityType entityType, Long entityId) {
+        if (!canAccess(entityType, entityId)) {
+            return false;
+        }
+
+        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
+            return true;
+        }
+
+        return switch (entityType) {
+            case WAREHOUSE -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                    && hasWarehouseManageAccess(entityId);
+            case STOCK_MOVEMENT -> canCreateStockMovementOperationalContent(entityId);
+            case INTERNAL_WAREHOUSE_MOVEMENT -> canCreateInternalWarehouseMovementOperationalContent(entityId);
+            case WAREHOUSE_INVENTORY -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                    && hasWarehouseManageAccess(entityId);
+            default -> true;
+        };
     }
 
 
@@ -248,17 +279,98 @@ public class OperationalEntityAccessValidator {
                 || authenticatedUserProvider.hasRole("DISPATCHER");
     }
 
+
+    private boolean canCreateStockMovementOperationalContent(Long stockMovementId) {
+        if (authenticatedUserProvider.hasRole("DISPATCHER")) {
+            return true;
+        }
+
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return false;
+        }
+
+        return stockMovementRepository.findById(stockMovementId)
+                .map(StockMovement::getWarehouse)
+                .map(warehouse -> hasWarehouseManageAccess(warehouse.getId()))
+                .orElse(false);
+    }
+
+    private boolean canCreateInternalWarehouseMovementOperationalContent(Long movementId) {
+        if (authenticatedUserProvider.hasRole("DISPATCHER")) {
+            return true;
+        }
+
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return false;
+        }
+
+        return internalWarehouseMovementRepository.findById(movementId)
+                .map(movement -> movement.getWarehouse() != null && hasWarehouseManageAccess(movement.getWarehouse().getId()))
+                .orElse(false);
+    }
+
+    private boolean hasWarehouseManageAccess(Long warehouseId) {
+        if (warehouseId == null) {
+            return false;
+        }
+
+        Optional<Employee> employee = currentEmployee();
+        if (employee.isEmpty() || employee.get().getId() == null) {
+            return false;
+        }
+
+        if (employee.get().getPrimaryWarehouse() != null
+                && warehouseId.equals(employee.get().getPrimaryWarehouse().getId())) {
+            return true;
+        }
+
+        return employeeWarehouseAssignmentRepository.hasActiveAccess(
+                employee.get().getId(),
+                warehouseId,
+                List.of(
+                        EmployeeWarehouseAccessType.PRIMARY,
+                        EmployeeWarehouseAccessType.MANAGER
+                ),
+                LocalDate.now()
+        );
+    }
+
+
     private boolean hasWarehouseAccess(Long warehouseId) {
         if (warehouseId == null) {
             return false;
         }
-        Optional<Long> employeeId = currentEmployeeId();
-        return employeeId.isPresent()
-                && employeeWarehouseAssignmentRepository.existsByEmployee_IdAndWarehouse_IdAndActiveTrue(employeeId.get(), warehouseId);
+
+        Optional<Employee> employee = currentEmployee();
+        if (employee.isEmpty() || employee.get().getId() == null) {
+            return false;
+        }
+
+        if (employee.get().getPrimaryWarehouse() != null
+                && warehouseId.equals(employee.get().getPrimaryWarehouse().getId())) {
+            return true;
+        }
+
+        return employeeWarehouseAssignmentRepository.hasActiveAccess(
+                employee.get().getId(),
+                warehouseId,
+                List.of(
+                        EmployeeWarehouseAccessType.PRIMARY,
+                        EmployeeWarehouseAccessType.MANAGER,
+                        EmployeeWarehouseAccessType.WORKER,
+                        EmployeeWarehouseAccessType.DISPATCH,
+                        EmployeeWarehouseAccessType.VIEW_ONLY
+                ),
+                LocalDate.now()
+        );
+    }
+
+    private Optional<Employee> currentEmployee() {
+        return employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId());
     }
 
     private Optional<Long> currentEmployeeId() {
-        return employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId()).map(employee -> employee.getId());
+        return currentEmployee().map(Employee::getId);
     }
 
     private boolean isAssignedToCurrentUser(Task task, Long currentUserId) {

@@ -13,6 +13,9 @@ export type WarehouseInventoryResponse = {
   reservedQuantity: number;
   availableQuantity: number;
   minStockLevel: number;
+  averageUnitCost?: number | null;
+  totalValue?: number | null;
+  currency?: string | null;
 };
 
 export type WarehouseInventoryCreateRequest = {

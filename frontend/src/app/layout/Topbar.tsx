@@ -11,10 +11,11 @@ import {
 } from '@mui/material';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
+import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authStore, useAuthStore } from '../../core/auth/authStore';
 import { clearQueryCache } from '../../core/query/queryClient';
 import { getRouteMetaByPath } from '../router/routeMeta';
@@ -36,6 +37,7 @@ function getInitial(email: string | undefined) {
 export default function Topbar({ onOpenSidebar }: TopbarProps) {
   const auth = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const [userAnchorEl, setUserAnchorEl] = useState<null | HTMLElement>(null);
   const { mode, toggleMode } = useContext(ColorModeContext);
 
@@ -150,6 +152,11 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
             Role: {auth.user?.role ?? '-'}
           </Typography>
         </Box>
+
+        <MenuItem onClick={() => { setUserAnchorEl(null); navigate('/profile'); }}>
+          <AccountCircleRoundedIcon fontSize="small" sx={{ mr: 1.25 }} />
+          My Profile
+        </MenuItem>
 
         <MenuItem onClick={handleSignOut}>
           <LogoutRoundedIcon fontSize="small" sx={{ mr: 1.25 }} />

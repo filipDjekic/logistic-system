@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import rs.logistics.logistics_system.dto.create.OperationalAttachmentCreate;
 import rs.logistics.logistics_system.dto.response.OperationalAttachmentResponse;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
+import rs.logistics.logistics_system.enums.OperationalAttachmentType;
 import rs.logistics.logistics_system.service.definition.OperationalAttachmentServiceDefinition;
 
 import java.util.List;
@@ -24,22 +25,23 @@ public class OperationalAttachmentController {
 
     private final OperationalAttachmentServiceDefinition attachmentService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','WORKER')")
     @PostMapping
     public ResponseEntity<OperationalAttachmentResponse> create(@Valid @RequestBody OperationalAttachmentCreate dto) {
         return new ResponseEntity<>(attachmentService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','WORKER')")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<OperationalAttachmentResponse> upload(
             @RequestParam OperationalEntityType entityType,
             @RequestParam Long entityId,
             @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false, defaultValue = "DOCUMENT") OperationalAttachmentType attachmentType,
             @RequestParam(required = false) String description,
             @RequestParam(required = false) Long companyId
     ) {
-        return new ResponseEntity<>(attachmentService.upload(entityType, entityId, file, description, companyId), HttpStatus.CREATED);
+        return new ResponseEntity<>(attachmentService.upload(entityType, entityId, file, attachmentType, description, companyId), HttpStatus.CREATED);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")

@@ -55,7 +55,7 @@ public class TransportOrderController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @GetMapping("/{id}")
     public ResponseEntity<TransportOrderResponse> getById(@PathVariable Long id) {
         TransportOrderResponse response = transportOrderService.getById(id);
@@ -63,7 +63,7 @@ public class TransportOrderController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @GetMapping("/status-counts")
     public ResponseEntity<List<StatusCountResponse>> countByStatus(
             @RequestParam(required = false) PriorityLevel priority,
@@ -78,7 +78,7 @@ public class TransportOrderController {
         return ResponseEntity.ok(transportOrderService.countByStatus(priority, sourceWarehouseId, destinationWarehouseId, vehicleId, assignedEmployeeId, fromDate, toDate, search));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<TransportOrderResponse>> getAll(
             @RequestParam(required = false) TransportOrderStatus status,

@@ -16,6 +16,8 @@ const CompaniesPage = lazy(() => import('../../features/companies/pages/Companie
 const CompanyRegistrationRequestsPage = lazy(() => import('../../features/company-registration/pages/CompanyRegistrationRequestsPage'));
 const CompanyDetailsPage = lazy(() => import('../../features/companies/pages/CompanyDetailsPage'));
 const NotificationsPage = lazy(() => import('../../features/notifications/pages/NotificationsPage'));
+const ProfilePage = lazy(() => import('../../features/profile/pages/ProfilePage'));
+const EmployeeProfileChangeRequestsPage = lazy(() => import('../../features/employee-profile-change-requests/pages/EmployeeProfileChangeRequestsPage'));
 const ActivityLogsPage = lazy(() => import('../../features/activity-logs/pages/ActivityLogsPage'));
 const ChangeHistoryPage = lazy(() => import('../../features/change-history/pages/ChangeHistoryPage'));
 const ActivityTimelinePage = lazy(() => import('../../features/activity-timeline/pages/ActivityTimelinePage'));
@@ -24,7 +26,6 @@ const RoleDetailsPage = lazy(() => import('../../features/roles/pages/RoleDetail
 const UsersPage = lazy(() => import('../../features/users/pages/UsersPage'));
 const UserDetailsPage = lazy(() => import('../../features/users/pages/UserDetailsPage'));
 const EmployeesPage = lazy(() => import('../../features/employees/pages/EmployeesPage'));
-const EmployeeWarehouseAssignmentsPage = lazy(() => import('../../features/employee-warehouse-assignments/pages/EmployeeWarehouseAssignmentsPage'));
 const EmployeeDetailsPage = lazy(() => import('../../features/employees/pages/EmployeeDetailsPage'));
 const ShiftsPage = lazy(() => import('../../features/shifts/pages/ShiftsPage'));
 const MyShiftsPage = lazy(() => import('../../features/shifts/pages/MyShiftsPage'));
@@ -34,12 +35,10 @@ const TransportOrderEditPage = lazy(() => import('../../features/transport-order
 const TransportOrderDetailsPage = lazy(() => import('../../features/transport-orders/pages/TransportOrderDetailsPage'));
 const VehiclesPage = lazy(() => import('../../features/vehicles/pages/VehiclesPage'));
 const VehicleDetailsPage = lazy(() => import('../../features/vehicles/pages/VehicleDetailsPage'));
-const VehicleMaintenancePage = lazy(() => import('../../features/vehicle-maintenance/pages/VehicleMaintenancePage'));
 const WarehousesPage = lazy(() => import('../../features/warehouses/pages/WarehousesPage'));
 const WarehouseCreatePage = lazy(() => import('../../features/warehouses/pages/WarehouseCreatePage'));
 const WarehouseEditPage = lazy(() => import('../../features/warehouses/pages/WarehouseEditPage'));
 const WarehouseDetailsPage = lazy(() => import('../../features/warehouses/pages/WarehouseDetailsPage'));
-const WarehouseLocationsPage = lazy(() => import('../../features/warehouse-locations/pages/WarehouseLocationsPage'));
 const ZoneDetailsPage = lazy(() => import('../../features/warehouse-locations/pages/ZoneDetailsPage'));
 const BinDetailsPage = lazy(() => import('../../features/warehouse-locations/pages/BinDetailsPage'));
 const ProductsPage = lazy(() => import('../../features/product/pages/ProductsPage'));
@@ -48,6 +47,8 @@ const InventoryPage = lazy(() => import('../../features/inventory/pages/Inventor
 const InventoryCreatePage = lazy(() => import('../../features/inventory/pages/InventoryCreatePage'));
 const InventoryEditPage = lazy(() => import('../../features/inventory/pages/InventoryEditPage'));
 const InventoryDetailsPage = lazy(() => import('../../features/inventory/pages/InventoryDetailsPage'));
+const InventoryCountsPage = lazy(() => import('../../features/inventory-counts/pages/InventoryCountsPage'));
+const InventoryCountDetailsPage = lazy(() => import('../../features/inventory-counts/pages/InventoryCountDetailsPage'));
 const StockMovementsPage = lazy(() => import('../../features/stock-movements/pages/StockMovementsPage'));
 const StockMovementDetailsPage = lazy(() => import('../../features/stock-movements/pages/StockMovementDetailsPage'));
 const StockOperationPage = lazy(() => import('../../features/stock-movements/pages/StockOperationPage'));
@@ -58,7 +59,6 @@ const TaskDetailsPage = lazy(() => import('../../features/tasks/pages/TaskDetail
 const TransportReportPage = lazy(() => import('../../features/reports/pages/TransportReportPage'));
 const InventoryReportPage = lazy(() => import('../../features/reports/pages/InventoryReportPage'));
 const EmployeeTaskReportPage = lazy(() => import('../../features/reports/pages/EmployeeTaskReportPage'));
-const DataExchangePage = lazy(() => import('../../features/data-exchange/pages/DataExchangePage'));
 
 function lazyPage(page: ReactNode) {
   return <Suspense fallback={<PageLoader message="Loading page..." />}>{page}</Suspense>;
@@ -88,6 +88,7 @@ export const routes = [
         children: [
           { path: '/dashboard', element: lazyPage(<DashboardPage />) },
           { path: '/notifications', element: lazyPage(<NotificationsPage />) },
+          { path: '/profile', element: lazyPage(<ProfilePage />) },
           { path: '/my-shifts', element: lazyPage(<MyShiftsPage />) },
         ],
       },
@@ -119,7 +120,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER]} />,
     children: [
       {
         element: <AppLayout />,
@@ -138,13 +139,14 @@ export const routes = [
         children: [
           { path: '/users', element: lazyPage(<UsersPage />) },
           { path: '/users/:id', element: lazyPage(<UserDetailsPage />) },
+          { path: '/employee-profile-change-requests', element: lazyPage(<EmployeeProfileChangeRequestsPage />) },
 
         ],
       },
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.HR_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.HR_MANAGER, ROLES.DISPATCHER]} />,
     children: [
       {
         element: <AppLayout />,
@@ -155,7 +157,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
     children: [
       {
         element: <AppLayout />,
@@ -172,13 +174,12 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/employee-warehouse-assignments', element: lazyPage(<EmployeeWarehouseAssignmentsPage />) },
         ],
       },
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER]} />,
     children: [
       {
         element: <AppLayout />,
@@ -236,13 +237,12 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER]} />,
     children: [
       {
         element: <AppLayout />,
         children: [
           { path: '/vehicles', element: lazyPage(<VehiclesPage />) },
-          { path: '/vehicle-maintenance', element: lazyPage(<VehicleMaintenancePage />) },
           { path: '/vehicles/:id', element: lazyPage(<VehicleDetailsPage />) },
         ],
       },
@@ -254,10 +254,22 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/warehouse-locations', element: lazyPage(<WarehouseLocationsPage />) },
-          { path: '/warehouses/:warehouseId/zones', element: lazyPage(<WarehouseLocationsPage />) },
+          { path: '/warehouse-locations', element: <Navigate to="/warehouses" replace /> },
+          { path: '/warehouses/:warehouseId/zones', element: <Navigate to="/warehouses" replace /> },
           { path: '/warehouses/:warehouseId/zones/:zoneId', element: lazyPage(<ZoneDetailsPage />) },
           { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', element: lazyPage(<BinDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { path: '/warehouses', element: lazyPage(<WarehousesPage />) },
+          { path: '/warehouses/:id', element: lazyPage(<WarehouseDetailsPage />) },
         ],
       },
     ],
@@ -268,14 +280,22 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/warehouses', element: lazyPage(<WarehousesPage />) },
-          { path: '/warehouses/:id', element: lazyPage(<WarehouseDetailsPage />) },
           { path: '/products', element: lazyPage(<ProductsPage />) },
           { path: '/products/:id', element: lazyPage(<ProductDetailsPage />) },
           { path: '/inventory', element: lazyPage(<InventoryPage />) },
+          { path: '/inventory/:warehouseId/:productId', element: lazyPage(<InventoryDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.WAREHOUSE_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
           { path: '/inventory/create', element: lazyPage(<InventoryCreatePage />) },
           { path: '/inventory/:warehouseId/:productId/edit', element: lazyPage(<InventoryEditPage />) },
-          { path: '/inventory/:warehouseId/:productId', element: lazyPage(<InventoryDetailsPage />) },
         ],
       },
     ],
@@ -287,19 +307,31 @@ export const routes = [
         element: <AppLayout />,
         children: [
           { path: '/warehouses/create', element: lazyPage(<WarehouseCreatePage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
           { path: '/warehouses/:id/edit', element: lazyPage(<WarehouseEditPage />) },
         ],
       },
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
     children: [
       {
         element: <AppLayout />,
         children: [
           { path: '/stock-movements', element: lazyPage(<StockMovementsPage />) },
           { path: '/stock-movements/:id', element: lazyPage(<StockMovementDetailsPage />) },
+          { path: '/inventory-counts', element: lazyPage(<InventoryCountsPage />) },
+          { path: '/inventory-counts/:id', element: lazyPage(<InventoryCountDetailsPage />) },
         ],
       },
     ],
@@ -346,7 +378,6 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/data-exchange', element: lazyPage(<DataExchangePage />) },
         ],
       },
     ],

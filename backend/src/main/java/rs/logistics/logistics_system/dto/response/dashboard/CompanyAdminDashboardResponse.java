@@ -22,6 +22,7 @@ public record CompanyAdminDashboardResponse(
         long lowStockRowsTotal,
         BigDecimal inventoryQuantityTotal,
         BigDecimal inventoryAvailableQuantityTotal,
+        BigDecimal inventoryValueTotal,
         long stockMovementsTotal,
         long activityLogsTotal,
         long changeHistoryTotal,

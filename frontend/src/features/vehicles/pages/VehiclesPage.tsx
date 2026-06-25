@@ -14,7 +14,6 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialo
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
-import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import VehicleFormDialog from '../components/VehicleFormDialog';
@@ -117,18 +116,6 @@ export default function VehiclesPage() {
     [vehiclesQuery.data?.content],
   );
 
-  const statusOverviewItems = useMemo(
-    () => {
-      const countsByStatus = new Map((vehicleStatusCountsQuery.data ?? []).map((item) => [item.status, item.count]));
-
-      return vehicleStatusOptions.map((status) => ({
-        value: status,
-        count: countsByStatus.get(status) ?? rows.filter((row) => row.status === status).length,
-      }));
-    },
-    [rows, vehicleStatusCountsQuery.data],
-  );
-
   const companiesQuery = useCompanies(canManage && isOverlord && dialogOpen && dialogMode === 'create');
   const createVehicleMutation = useCreateVehicle();
   const updateVehicleMutation = useUpdateVehicle();
@@ -220,7 +207,6 @@ export default function VehiclesPage() {
             <TextField size="small" label="Capacity to" type="number" value={filters.capacityTo} onChange={(event) => updateFilters({ capacityTo: event.target.value })} />
           </FilterPanel>
         }
-        summary={<StatusOverview items={statusOverviewItems} title="Filtered result status" />}
         table={
           <VehiclesTable
             rows={rows}

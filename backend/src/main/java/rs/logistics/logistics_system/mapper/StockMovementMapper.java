@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.mapper;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import rs.logistics.logistics_system.dto.create.StockMovementCreate;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
@@ -25,11 +26,25 @@ public class StockMovementMapper {
             BigDecimal availableBefore,
             BigDecimal availableAfter
     ) {
-        return new StockMovement(
+        BigDecimal actualQuantity = dto.getActualQuantity() != null ? dto.getActualQuantity() : dto.getQuantity();
+        BigDecimal expectedQuantity = dto.getExpectedQuantity() != null ? dto.getExpectedQuantity() : actualQuantity;
+        BigDecimal discrepancyQuantity = actualQuantity.subtract(expectedQuantity);
+        BigDecimal unitCost = normalizeCost(dto.getUnitCost());
+        BigDecimal totalCost = normalizeTotalCost(dto.getTotalCost(), unitCost, actualQuantity);
+
+        StockMovement movement = new StockMovement(
                 dto.getMovementType(),
-                dto.getQuantity(),
+                actualQuantity,
                 dto.getReasonCode(),
                 dto.getReasonDescription(),
+                expectedQuantity,
+                actualQuantity,
+                discrepancyQuantity,
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                unitCost,
+                totalCost,
+                normalizeCurrency(dto.getCurrency()),
                 dto.getReferenceType(),
                 dto.getReferenceId(),
                 dto.getReferenceNumber(),
@@ -47,13 +62,34 @@ public class StockMovementMapper {
                 user,
                 transportOrder
         );
+        movement.setBatchLotNumber(dto.getBatchLotNumber());
+        movement.setBatchExpirationDate(dto.getBatchExpirationDate());
+        movement.setSerialNumbers(dto.getSerialNumbers() == null || dto.getSerialNumbers().isEmpty() ? null : String.join(",", dto.getSerialNumbers()));
+        return movement;
     }
 
     public static StockMovementResponse toResponse(StockMovement stockMovement) {
+        return toResponse(stockMovement, List.of());
+    }
+
+    public static StockMovementResponse toResponse(StockMovement stockMovement, List<rs.logistics.logistics_system.enums.StockMovementStatus> allowedNextStatuses) {
         return new StockMovementResponse(
                 stockMovement.getId(),
                 stockMovement.getMovementType(),
+                stockMovement.getStatus(),
+                allowedNextStatuses,
                 stockMovement.getQuantity(),
+                stockMovement.getExpectedQuantity(),
+                stockMovement.getActualQuantity(),
+                stockMovement.getDiscrepancyQuantity(),
+                stockMovement.getDiscrepancyReason(),
+                stockMovement.getDiscrepancyNote(),
+                stockMovement.getBatchLotNumber(),
+                stockMovement.getBatchExpirationDate(),
+                stockMovement.getSerialNumbers(),
+                stockMovement.getUnitCost(),
+                stockMovement.getTotalCost(),
+                stockMovement.getCurrency(),
                 stockMovement.getReasonCode(),
                 stockMovement.getReasonDescription(),
                 stockMovement.getReferenceType(),
@@ -66,6 +102,8 @@ public class StockMovementMapper {
                 stockMovement.getReferenceCode(),
                 stockMovement.getParentMovementId(),
                 stockMovement.getRootMovementId(),
+                stockMovement.getReversalOfMovementId(),
+                stockMovement.getReversedByMovementId(),
                 stockMovement.getAdjustmentDirection(),
                 stockMovement.getQuantityBefore(),
                 stockMovement.getQuantityAfter(),
@@ -90,4 +128,23 @@ public class StockMovementMapper {
                 stockMovement.getCreatedAt()
         );
     }
+
+    private static BigDecimal normalizeCost(BigDecimal value) {
+        return value != null ? value : null;
+    }
+
+    private static BigDecimal normalizeTotalCost(BigDecimal totalCost, BigDecimal unitCost, BigDecimal quantity) {
+        if (totalCost != null) {
+            return totalCost;
+        }
+        if (unitCost == null || quantity == null) {
+            return null;
+        }
+        return unitCost.multiply(quantity);
+    }
+
+    private static String normalizeCurrency(String currency) {
+        return currency == null || currency.isBlank() ? null : currency.trim().toUpperCase();
+    }
+
 }

@@ -2,7 +2,6 @@ import { Link as RouterLink } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
 import EmptyState from '../../../../shared/components/EmptyState/EmptyState';
 import StatusChip from '../../../../shared/components/StatusChip/StatusChip';
-import OperationalTimeline from '../../../../shared/components/OperationalTimeline/OperationalTimeline';
 import SectionCard from '../../../../shared/components/SectionCard/SectionCard';
 import { ForbiddenTransitionHint } from '../../../../shared/components/Lifecycle';
 import { formatTemporalView, formatTemporalZone } from '../../../../core/utils/timezoneFormat';
@@ -206,20 +205,6 @@ export default function TransportOrderOverviewTab({
               ))}
             </Stack>
           )}
-        </SectionCard>
-
-        <SectionCard title="Transport lifecycle" description="Operational status path from draft to delivery/failure.">
-          <OperationalTimeline
-            items={(transportOrder.timeline ?? []).map((entry) => ({
-              id: `${entry.status}-${entry.label}`,
-              status: entry.status,
-              title: entry.label,
-              description: entry.description,
-              timestamp: formatTemporalView(entry.timestampView, entry.timestamp),
-              completed: entry.completed,
-              current: entry.current,
-            }))}
-          />
         </SectionCard>
 
         <SectionCard

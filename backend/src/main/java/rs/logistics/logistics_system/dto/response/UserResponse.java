@@ -81,6 +81,8 @@ public class UserResponse {
         private EmployeePosition position;
         private LocalDate employmentDate;
         private BigDecimal salary;
+        private String salaryCurrencyCode;
+        private String salaryCurrencyName;
         private Boolean active;
         private Long companyId;
 
@@ -91,6 +93,8 @@ public class UserResponse {
                 EmployeePosition position,
                 LocalDate employmentDate,
                 BigDecimal salary,
+                String salaryCurrencyCode,
+                String salaryCurrencyName,
                 Boolean active,
                 Long companyId
         ) {
@@ -100,6 +104,8 @@ public class UserResponse {
             this.position = position;
             this.employmentDate = employmentDate;
             this.salary = salary;
+            this.salaryCurrencyCode = salaryCurrencyCode;
+            this.salaryCurrencyName = salaryCurrencyName;
             this.active = active;
             this.companyId = companyId;
         }

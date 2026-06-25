@@ -1,5 +1,6 @@
 package rs.logistics.logistics_system.config;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,6 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import rs.logistics.logistics_system.enums.TaskStatus;
+import rs.logistics.logistics_system.enums.StockMovementStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 
@@ -19,6 +21,7 @@ public class AppProperties {
     private final Pagination pagination = new Pagination();
     private final Shift shift = new Shift();
     private final Warehouse warehouse = new Warehouse();
+    private final StockMovement stockMovement = new StockMovement();
     private final StatusTransitions statusTransitions = new StatusTransitions();
     private final FailProtection failProtection = new FailProtection();
 
@@ -32,6 +35,10 @@ public class AppProperties {
 
     public Warehouse getWarehouse() {
         return warehouse;
+    }
+
+    public StockMovement getStockMovement() {
+        return stockMovement;
     }
 
     public StatusTransitions getStatusTransitions() {
@@ -71,6 +78,15 @@ public class AppProperties {
     }
 
 
+    public boolean isStockMovementStatusTransitionAllowed(StockMovementStatus current, StockMovementStatus next) {
+        if (current == null || next == null) {
+            return false;
+        }
+
+        return getAllowed(statusTransitions.stockMovement, current.name()).contains(next.name());
+    }
+
+
     public boolean isVehicleStatusTransitionAllowed(VehicleStatus current, VehicleStatus next) {
         if (current == null || next == null) {
             return false;
@@ -89,6 +105,10 @@ public class AppProperties {
 
     public List<String> allowedVehicleStatusTransitions(VehicleStatus current) {
         return current == null ? List.of() : getAllowed(statusTransitions.vehicle, current.name());
+    }
+
+    public List<String> allowedStockMovementStatusTransitions(StockMovementStatus current) {
+        return current == null ? List.of() : getAllowed(statusTransitions.stockMovement, current.name());
     }
 
     private List<String> getAllowed(Map<String, List<String>> transitions, String current) {
@@ -149,6 +169,22 @@ public class AppProperties {
         }
     }
 
+
+    public static class StockMovement {
+        private BigDecimal adjustmentApprovalThreshold = new BigDecimal("100");
+
+        public BigDecimal getAdjustmentApprovalThreshold() {
+            return adjustmentApprovalThreshold;
+        }
+
+        public void setAdjustmentApprovalThreshold(BigDecimal adjustmentApprovalThreshold) {
+            if (adjustmentApprovalThreshold == null || adjustmentApprovalThreshold.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("logistics.stock-movement.adjustment-approval-threshold must be zero or greater");
+            }
+            this.adjustmentApprovalThreshold = adjustmentApprovalThreshold;
+        }
+    }
+
     public static class FailProtection {
         private boolean enabled = true;
         private long idempotencyTtlSeconds = 30;
@@ -178,6 +214,7 @@ public class AppProperties {
         private Map<String, List<String>> task = defaultTaskTransitions();
         private Map<String, List<String>> transportOrder = defaultTransportOrderTransitions();
         private Map<String, List<String>> vehicle = defaultVehicleTransitions();
+        private Map<String, List<String>> stockMovement = defaultStockMovementTransitions();
 
         public Map<String, List<String>> getTask() {
             return task;
@@ -201,6 +238,14 @@ public class AppProperties {
 
         public void setVehicle(Map<String, List<String>> vehicle) {
             this.vehicle = normalize(vehicle);
+        }
+
+        public Map<String, List<String>> getStockMovement() {
+            return stockMovement;
+        }
+
+        public void setStockMovement(Map<String, List<String>> stockMovement) {
+            this.stockMovement = normalize(stockMovement);
         }
 
         private static Map<String, List<String>> defaultTaskTransitions() {
@@ -229,6 +274,19 @@ public class AppProperties {
             transitions.put("DELIVERED", List.of());
             transitions.put("FAILED", List.of());
             transitions.put("CANCELLED", List.of());
+            return transitions;
+        }
+
+
+        private static Map<String, List<String>> defaultStockMovementTransitions() {
+            Map<String, List<String>> transitions = new LinkedHashMap<>();
+            transitions.put("DRAFT", List.of("PENDING_APPROVAL", "EXECUTED", "CANCELLED"));
+            transitions.put("PENDING_APPROVAL", List.of("APPROVED", "REJECTED", "CANCELLED"));
+            transitions.put("APPROVED", List.of("EXECUTED", "CANCELLED"));
+            transitions.put("EXECUTED", List.of("REVERSED"));
+            transitions.put("REJECTED", List.of());
+            transitions.put("CANCELLED", List.of());
+            transitions.put("REVERSED", List.of());
             return transitions;
         }
 

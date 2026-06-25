@@ -42,6 +42,8 @@ export type EmployeeResponse = EmployeeLocationFields & {
   position: EmployeePosition;
   employmentDate: string;
   salary: number;
+  salaryCurrencyCode: string | null;
+  salaryCurrencyName: string | null;
   active: boolean;
   userId: number | null;
   companyId: number;

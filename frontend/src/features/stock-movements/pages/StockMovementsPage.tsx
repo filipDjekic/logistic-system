@@ -16,7 +16,8 @@ import { useInternalWarehouseMovements } from '../../warehouse-locations/hooks/u
 import type { SortState } from '../../../shared/types/common.types';
 import type { StockMovementFiltersState } from '../types/stockMovement.types';
 import type { InternalWarehouseMovementResponse } from '../../warehouse-locations/types/warehouseLocation.types';
-import { stockMovementTypeOptions } from '../validation/stockMovementSchema';
+import { stockMovementStatusOptions, stockMovementTypeOptions } from '../validation/stockMovementSchema';
+import { warehouseLocationRoutes } from '../../warehouse-locations/utils/warehouseLocationRoutes';
 
 function InternalMovementsList({ rows }: { rows: InternalWarehouseMovementResponse[] }) {
   return (
@@ -33,10 +34,10 @@ function InternalMovementsList({ rows }: { rows: InternalWarehouseMovementRespon
             {movement.productName} {movement.sku ? `(${movement.sku})` : ''} · Qty {movement.quantity}
           </Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>Warehouse</Button>
-            <Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>Product</Button>
-            <Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}/zones/${movement.sourceBinZoneId}/bins/${movement.sourceBinId}`}>Source bin</Button>
-            <Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}/zones/${movement.destinationBinZoneId}/bins/${movement.destinationBinId}`}>Destination bin</Button>
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.warehouseDetails(movement.warehouseId)}>Warehouse</Button>
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.productDetails(movement.productId)}>Product</Button>
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>Source bin</Button>
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>Destination bin</Button>
           </Stack>
         </Stack>
       ))}
@@ -48,7 +49,8 @@ export default function StockMovementsPage() {
   const auth = useAuthStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') === 'internal' ? 'internal' : 'stock';
+  const tabParam = searchParams.get('tab');
+  const activeTab = tabParam === 'internal' ? 'internal' : tabParam === 'approvals' ? 'approvals' : 'stock';
 
   const canCreate =
     auth.user?.role === ROLES.OVERLORD ||
@@ -57,9 +59,11 @@ export default function StockMovementsPage() {
   const [filters, setFilters] = useState<StockMovementFiltersState>({
     search: '',
     movementType: 'ALL',
+    status: 'ALL',
     warehouseId: 'ALL',
     productId: 'ALL',
     transportOrderId: 'ALL',
+    binLocationId: 'ALL',
     fromDate: '',
     toDate: '',
   });
@@ -86,13 +90,20 @@ export default function StockMovementsPage() {
     const warehouseId = searchParams.get('warehouseId');
     const productId = searchParams.get('productId');
     const transportId = searchParams.get('transportId') ?? searchParams.get('transportOrderId');
+    const binLocationId = searchParams.get('binLocationId');
 
     setFilters((current) => {
       const nextWarehouseId = warehouseId && Number.isFinite(Number(warehouseId)) ? Number(warehouseId) : current.warehouseId;
       const nextProductId = productId && Number.isFinite(Number(productId)) ? Number(productId) : current.productId;
       const nextTransportOrderId = transportId && Number.isFinite(Number(transportId)) ? Number(transportId) : current.transportOrderId;
+      const nextBinLocationId = binLocationId && Number.isFinite(Number(binLocationId)) ? Number(binLocationId) : current.binLocationId;
 
-      if (nextWarehouseId === current.warehouseId && nextProductId === current.productId && nextTransportOrderId === current.transportOrderId) {
+      if (
+        nextWarehouseId === current.warehouseId &&
+        nextProductId === current.productId &&
+        nextTransportOrderId === current.transportOrderId &&
+        nextBinLocationId === current.binLocationId
+      ) {
         return current;
       }
 
@@ -102,13 +113,20 @@ export default function StockMovementsPage() {
         warehouseId: nextWarehouseId,
         productId: nextProductId,
         transportOrderId: nextTransportOrderId,
+        binLocationId: nextBinLocationId,
       };
     });
   }, [searchParams]);
 
   const stockMovementQueryFilters = useMemo(
-    () => ({ ...filters, page, size, sort: buildSortParam(sort) }),
-    [filters, page, size, sort],
+    () => ({
+      ...filters,
+      status: activeTab === 'approvals' ? 'PENDING_APPROVAL' : filters.status,
+      page,
+      size,
+      sort: buildSortParam(sort),
+    }),
+    [activeTab, filters, page, size, sort],
   );
 
   const internalMovementQueryFilters = useMemo(
@@ -118,12 +136,13 @@ export default function StockMovementsPage() {
       sort: buildSortParam(sort),
       warehouseId: filters.warehouseId === 'ALL' ? undefined : filters.warehouseId,
       productId: filters.productId === 'ALL' ? undefined : filters.productId,
+      binLocationId: filters.binLocationId === 'ALL' ? undefined : filters.binLocationId,
       search: filters.search.trim() || undefined,
     }),
-    [filters.productId, filters.search, filters.warehouseId, page, size, sort],
+    [filters.binLocationId, filters.productId, filters.search, filters.warehouseId, page, size, sort],
   );
 
-  const stockMovementsQuery = useStockMovements(stockMovementQueryFilters, activeTab === 'stock');
+  const stockMovementsQuery = useStockMovements(stockMovementQueryFilters, activeTab === 'stock' || activeTab === 'approvals');
   const internalMovementsQuery = useInternalWarehouseMovements(internalMovementQueryFilters, activeTab === 'internal');
 
   const updateFilters = (next: Partial<StockMovementFiltersState>) => {
@@ -140,9 +159,11 @@ export default function StockMovementsPage() {
     setFilters({
       search: '',
       movementType: 'ALL',
+      status: 'ALL',
       warehouseId: 'ALL',
       productId: 'ALL',
       transportOrderId: 'ALL',
+      binLocationId: 'ALL',
       fromDate: '',
       toDate: '',
     });
@@ -151,9 +172,11 @@ export default function StockMovementsPage() {
   const hasActiveFilters =
     filters.search.trim().length > 0 ||
     filters.movementType !== 'ALL' ||
+    (activeTab !== 'approvals' && filters.status !== 'ALL') ||
     filters.warehouseId !== 'ALL' ||
     filters.productId !== 'ALL' ||
     filters.transportOrderId !== 'ALL' ||
+    filters.binLocationId !== 'ALL' ||
     filters.fromDate.length > 0 ||
     filters.toDate.length > 0;
 
@@ -176,26 +199,49 @@ export default function StockMovementsPage() {
         value={activeTab}
         onChange={(_, value) => {
           setPage(0);
-          setSearchParams(value === 'internal' ? { tab: 'internal' } : {});
+          setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            if (value === 'internal') {
+              next.set('tab', 'internal');
+            } else if (value === 'approvals') {
+              next.set('tab', 'approvals');
+            } else {
+              next.delete('tab');
+            }
+            return next;
+          });
         }}
         sx={{ mb: 2 }}
       >
         <Tab value="stock" label="Stock movements" />
+        <Tab value="approvals" label="Pending approvals" />
         <Tab value="internal" label="Internal movements" />
       </Tabs>
 
+
+      {hasActiveFilters ? (
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+          {filters.warehouseId !== 'ALL' ? <Chip size="small" label={`Warehouse #${filters.warehouseId}`} onDelete={() => updateFilters({ warehouseId: 'ALL' })} /> : null}
+          {filters.productId !== 'ALL' ? <Chip size="small" label={`Product #${filters.productId}`} onDelete={() => updateFilters({ productId: 'ALL' })} /> : null}
+          {filters.transportOrderId !== 'ALL' ? <Chip size="small" label={`Transport #${filters.transportOrderId}`} onDelete={() => updateFilters({ transportOrderId: 'ALL' })} /> : null}
+          {filters.binLocationId !== 'ALL' ? <Chip size="small" label={`Bin #${filters.binLocationId}`} onDelete={() => updateFilters({ binLocationId: 'ALL' })} /> : null}
+          {activeTab !== 'approvals' && filters.status !== 'ALL' ? <Chip size="small" label={`Status: ${filters.status}`} onDelete={() => updateFilters({ status: 'ALL' })} /> : null}
+          {activeTab === 'approvals' ? <Chip size="small" label="Pending approvals" /> : null}
+        </Stack>
+      ) : null}
+
       <TableLayout
-        title={activeTab === 'stock' ? 'Movement history' : 'Internal bin movements'}
-        description={activeTab === 'stock' ? 'Use server-side filters. Warehouse, product and transport filters use search panels instead of loading large dropdown lists.' : 'Internal movements are bin-to-bin operations scoped inside a warehouse.'}
+        title={activeTab === 'internal' ? 'Internal bin movements' : activeTab === 'approvals' ? 'Pending stock movement approvals' : 'Movement history'}
+        description={activeTab === 'internal' ? 'Internal movements are bin-to-bin operations scoped inside a warehouse.' : activeTab === 'approvals' ? 'Write-offs and large adjustments waiting for approval before execution.' : 'Use server-side filters. Warehouse, product and transport filters use search panels instead of loading large dropdown lists.'}
         toolbar={
           <TableToolbar
             searchValue={filters.search}
             onSearchChange={(search) => updateFilters({ search })}
             searchPlaceholder="Search by movement, warehouse, product, quantity or ID"
-            onRefresh={() => { void (activeTab === 'stock' ? stockMovementsQuery.refetch() : internalMovementsQuery.refetch()); }}
-            refreshDisabled={activeTab === 'stock' ? stockMovementsQuery.isFetching : internalMovementsQuery.isFetching}
+            onRefresh={() => { void (activeTab === 'internal' ? internalMovementsQuery.refetch() : stockMovementsQuery.refetch()); }}
+            refreshDisabled={activeTab === 'internal' ? internalMovementsQuery.isFetching : stockMovementsQuery.isFetching}
             onClearFilters={clearFilters}
-            clearDisabled={(activeTab === 'stock' ? stockMovementsQuery.isFetching : internalMovementsQuery.isFetching) || !hasActiveFilters}
+            clearDisabled={(activeTab === 'internal' ? internalMovementsQuery.isFetching : stockMovementsQuery.isFetching) || !hasActiveFilters}
           />
         }
         filters={
@@ -213,6 +259,21 @@ export default function StockMovementsPage() {
                   <MenuItem key={option} value={option}>{option}</MenuItem>
                 ))}
               </TextField>
+
+              {activeTab !== 'approvals' ? (
+                <TextField
+                  select
+                  size="small"
+                  label="Status"
+                  value={filters.status}
+                  onChange={(event) => updateFilters({ status: event.target.value as StockMovementFiltersState['status'] })}
+                >
+                  <MenuItem value="ALL">All</MenuItem>
+                  {stockMovementStatusOptions.map((option) => (
+                    <MenuItem key={option} value={option}>{option}</MenuItem>
+                  ))}
+                </TextField>
+              ) : null}
 
               <TextField
                 size="small"
@@ -265,7 +326,7 @@ export default function StockMovementsPage() {
           </>
         }
         table={
-          activeTab === 'stock' ? (
+          activeTab !== 'internal' ? (
             <StockMovementsTable
               rows={stockMovementsQuery.data?.content ?? []}
               loading={stockMovementsQuery.isLoading}

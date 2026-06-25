@@ -81,6 +81,7 @@ public class OverlordDashboardService implements OverlordDashboardServiceDefinit
                 lowStockRowsTotal,
                 safeBigDecimal(warehouseInventoryRepository.sumQuantity()),
                 safeBigDecimal(warehouseInventoryRepository.sumAvailableQuantity()),
+                safeBigDecimal(warehouseInventoryRepository.sumTotalValue()),
                 stockMovementRepository.count(),
                 activityLogRepository.count(),
                 changeHistoryRepository.count(),

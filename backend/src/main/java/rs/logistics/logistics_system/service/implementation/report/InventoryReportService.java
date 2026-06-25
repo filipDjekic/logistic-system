@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.response.report.InventoryReportResponse;
+import rs.logistics.logistics_system.dto.response.report.InventoryValuationResponse;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.StockMovement;
@@ -81,8 +82,10 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 null,
                 movementType,
                 null,
+                null,
                 warehouseId,
                 productId,
+                null,
                 null,
                 fromDate,
                 toDate,
@@ -94,6 +97,9 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
         BigDecimal totalQuantity = sumInventory(inventoryRows, WarehouseInventory::getQuantity);
         BigDecimal totalAvailable = sumInventory(inventoryRows, WarehouseInventory::getAvailableQuantity);
         BigDecimal totalReserved = sumInventory(inventoryRows, WarehouseInventory::getReservedQuantity);
+        BigDecimal totalInventoryValue = sumInventory(inventoryRows, WarehouseInventory::getSafeTotalValue);
+        BigDecimal averageUnitCost = averageUnitCost(totalInventoryValue, totalQuantity);
+        String valuationCurrency = resolveCurrency(inventoryRows);
 
         long lowStockRows = inventoryRows.stream().filter(WarehouseInventory::isLowStock).count();
         long criticalLowStockRows = inventoryRows.stream()
@@ -110,6 +116,9 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 totalQuantity,
                 totalAvailable,
                 totalReserved,
+                totalInventoryValue,
+                averageUnitCost,
+                valuationCurrency,
                 percentage(totalAvailable, totalQuantity),
                 percentage(totalReserved, totalQuantity),
                 inventoryHealthScore(inventoryRows.size(), lowStockRows, criticalLowStockRows),
@@ -146,10 +155,11 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
         rows.add(java.util.Arrays.asList("fromDate", report.fromDate(), "toDate", report.toDate()));
         rows.add(java.util.Arrays.asList("inventoryRowsTotal", report.inventoryRowsTotal(), "lowStockRowsTotal", report.lowStockRowsTotal(), "stockMovementsTotal", report.stockMovementsTotal()));
         rows.add(java.util.Arrays.asList("totalInventoryQuantity", report.totalInventoryQuantity(), "totalAvailableQuantity", report.totalAvailableQuantity(), "totalReservedQuantity", report.totalReservedQuantity()));
+        rows.add(java.util.Arrays.asList("totalInventoryValue", report.totalInventoryValue(), "averageUnitCost", report.averageUnitCost(), "valuationCurrency", report.valuationCurrency()));
         rows.add(java.util.Arrays.asList("inboundQuantity", report.inboundQuantity(), "outboundQuantity", report.outboundQuantity(), "transferQuantity", report.transferQuantity(), "adjustmentQuantity", report.adjustmentQuantity()));
 
         ReportCsvExportHelper.addSectionTitle(rows, "Inventory rows");
-        rows.add(java.util.Arrays.asList("warehouseId", "warehouseName", "productId", "productName", "sku", "unit", "quantity", "reservedQuantity", "availableQuantity", "minStockLevel", "lowStock", "lastUpdated"));
+        rows.add(java.util.Arrays.asList("warehouseId", "warehouseName", "productId", "productName", "sku", "unit", "quantity", "reservedQuantity", "availableQuantity", "averageUnitCost", "totalValue", "currency", "minStockLevel", "lowStock", "lastUpdated"));
         report.inventoryRows().forEach(row -> rows.add(java.util.Arrays.asList(
                 row.warehouseId(),
                 row.warehouseName(),
@@ -160,17 +170,23 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                 row.quantity(),
                 row.reservedQuantity(),
                 row.availableQuantity(),
+                row.averageUnitCost(),
+                row.totalValue(),
+                row.currency(),
                 row.minStockLevel(),
                 row.lowStock(),
                 row.lastUpdated()
         )));
 
         ReportCsvExportHelper.addSectionTitle(rows, "Stock movement rows");
-        rows.add(java.util.Arrays.asList("id", "movementType", "quantity", "reasonCode", "referenceType", "referenceId", "referenceNumber", "warehouseId", "warehouseName", "productId", "productName", "sku", "createdAt"));
+        rows.add(java.util.Arrays.asList("id", "movementType", "quantity", "unitCost", "totalCost", "currency", "reasonCode", "referenceType", "referenceId", "referenceNumber", "warehouseId", "warehouseName", "productId", "productName", "sku", "createdAt"));
         report.movementRows().forEach(row -> rows.add(java.util.Arrays.asList(
                 row.id(),
                 row.movementType(),
                 row.quantity(),
+                row.unitCost(),
+                row.totalCost(),
+                row.currency(),
                 row.reasonCode(),
                 row.referenceType(),
                 row.referenceId(),
@@ -184,15 +200,73 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
         )));
 
         ReportCsvExportHelper.addSectionTitle(rows, "Warehouse summary");
-        rows.add(java.util.Arrays.asList("warehouseId", "warehouseName", "city", "inventoryRows", "lowStockRows", "quantity", "availableQuantity", "reservedQuantity", "stockMovements"));
-        report.perWarehouse().forEach(row -> rows.add(java.util.Arrays.asList(row.warehouseId(), row.warehouseName(), row.city(), row.inventoryRows(), row.lowStockRows(), row.quantity(), row.availableQuantity(), row.reservedQuantity(), row.stockMovements())));
+        rows.add(java.util.Arrays.asList("warehouseId", "warehouseName", "city", "inventoryRows", "lowStockRows", "quantity", "availableQuantity", "reservedQuantity", "totalValue", "averageUnitCost", "currency", "stockMovements"));
+        report.perWarehouse().forEach(row -> rows.add(java.util.Arrays.asList(row.warehouseId(), row.warehouseName(), row.city(), row.inventoryRows(), row.lowStockRows(), row.quantity(), row.availableQuantity(), row.reservedQuantity(), row.totalValue(), row.averageUnitCost(), row.currency(), row.stockMovements())));
 
         ReportCsvExportHelper.addSectionTitle(rows, "Product summary");
-        rows.add(java.util.Arrays.asList("productId", "productName", "sku", "unit", "inventoryRows", "lowStockRows", "quantity", "availableQuantity", "reservedQuantity", "stockMovements"));
-        report.perProduct().forEach(row -> rows.add(java.util.Arrays.asList(row.productId(), row.productName(), row.sku(), row.unit(), row.inventoryRows(), row.lowStockRows(), row.quantity(), row.availableQuantity(), row.reservedQuantity(), row.stockMovements())));
+        rows.add(java.util.Arrays.asList("productId", "productName", "sku", "unit", "inventoryRows", "lowStockRows", "quantity", "availableQuantity", "reservedQuantity", "totalValue", "averageUnitCost", "currency", "stockMovements"));
+        report.perProduct().forEach(row -> rows.add(java.util.Arrays.asList(row.productId(), row.productName(), row.sku(), row.unit(), row.inventoryRows(), row.lowStockRows(), row.quantity(), row.availableQuantity(), row.reservedQuantity(), row.totalValue(), row.averageUnitCost(), row.currency(), row.stockMovements())));
 
         ReportCsvExportHelper.addSectionTitle(rows, "Movement type breakdown");
         ReportCsvExportHelper.addMapRows(rows, report.movementsByType(), "movementType", "count");
+
+        return ReportCsvExportHelper.toCsvBytes(rows);
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public InventoryValuationResponse getInventoryValuationReport(Long warehouseId, Long productId) {
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+
+        validateReportFilters(companyId, warehouseId, productId);
+
+        Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
+        validateWarehouseFilterAllowedForWarehouseManager(warehouseId, managedWarehouseIds);
+
+        List<WarehouseInventory> inventoryRows = warehouseInventoryRepository.searchInventory(
+                companyId,
+                null,
+                warehouseId,
+                productId,
+                null,
+                Pageable.unpaged()
+        ).getContent().stream()
+                .filter(row -> isAllowedWarehouseForWarehouseManager(row.getWarehouse(), managedWarehouseIds))
+                .toList();
+
+        BigDecimal totalQuantity = sumInventory(inventoryRows, WarehouseInventory::getQuantity);
+        BigDecimal totalValue = sumInventory(inventoryRows, WarehouseInventory::getSafeTotalValue);
+        return new InventoryValuationResponse(
+                LocalDateTime.now(),
+                totalValue,
+                averageUnitCost(totalValue, totalQuantity),
+                resolveCurrency(inventoryRows),
+                inventoryRows.size(),
+                inventoryRows.stream().filter(row -> safe(row.getSafeTotalValue()).compareTo(BigDecimal.ZERO) > 0).count(),
+                buildWarehouseValuation(inventoryRows),
+                buildProductValuation(inventoryRows)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportInventoryValuationCsv(Long warehouseId, Long productId) {
+        InventoryValuationResponse report = getInventoryValuationReport(warehouseId, productId);
+        List<List<?>> rows = new java.util.ArrayList<>();
+        rows.add(java.util.Arrays.asList("Inventory valuation"));
+        rows.add(java.util.Arrays.asList("generatedAt", report.generatedAt(), "totalInventoryValue", report.totalInventoryValue(), "averageUnitCost", report.averageUnitCost(), "currency", report.currency()));
+        rows.add(java.util.Arrays.asList("inventoryRowsTotal", report.inventoryRowsTotal(), "valuedRowsTotal", report.valuedRowsTotal()));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Warehouse valuation");
+        rows.add(java.util.Arrays.asList("warehouseId", "warehouseName", "totalValue", "quantity", "averageUnitCost", "currency", "inventoryRows"));
+        report.perWarehouse().forEach(row -> rows.add(java.util.Arrays.asList(row.warehouseId(), row.warehouseName(), row.totalValue(), row.quantity(), row.averageUnitCost(), row.currency(), row.inventoryRows())));
+
+        ReportCsvExportHelper.addSectionTitle(rows, "Product valuation");
+        rows.add(java.util.Arrays.asList("productId", "productName", "sku", "totalValue", "quantity", "averageUnitCost", "currency", "inventoryRows"));
+        report.perProduct().forEach(row -> rows.add(java.util.Arrays.asList(row.productId(), row.productName(), row.sku(), row.totalValue(), row.quantity(), row.averageUnitCost(), row.currency(), row.inventoryRows())));
 
         return ReportCsvExportHelper.toCsvBytes(rows);
     }
@@ -280,6 +354,32 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
         return value == null ? BigDecimal.ZERO : value;
     }
 
+    private BigDecimal averageUnitCost(BigDecimal totalValue, BigDecimal quantity) {
+        BigDecimal safeQuantity = safe(quantity);
+        if (safeQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return safe(totalValue).divide(safeQuantity, 4, RoundingMode.HALF_UP);
+    }
+
+    private String resolveCurrency(List<WarehouseInventory> rows) {
+        return rows.stream()
+                .map(WarehouseInventory::getCurrency)
+                .filter(Objects::nonNull)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .limit(2)
+                .collect(Collectors.collectingAndThen(Collectors.toList(), values -> {
+                    if (values.isEmpty()) {
+                        return null;
+                    }
+                    if (values.size() == 1) {
+                        return values.get(0);
+                    }
+                    return "MIXED";
+                }));
+    }
+
     private BigDecimal sumInventory(List<WarehouseInventory> rows, Function<WarehouseInventory, BigDecimal> extractor) {
         return rows.stream()
                 .map(extractor)
@@ -342,6 +442,9 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                             sumInventory(group, WarehouseInventory::getQuantity),
                             sumInventory(group, WarehouseInventory::getAvailableQuantity),
                             sumInventory(group, WarehouseInventory::getReservedQuantity),
+                            sumInventory(group, WarehouseInventory::getSafeTotalValue),
+                            averageUnitCost(sumInventory(group, WarehouseInventory::getSafeTotalValue), sumInventory(group, WarehouseInventory::getQuantity)),
+                            resolveCurrency(group),
                             movementsByWarehouse.getOrDefault(warehouse.getId(), 0L)
                     );
                 })
@@ -374,10 +477,63 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                             sumInventory(group, WarehouseInventory::getQuantity),
                             sumInventory(group, WarehouseInventory::getAvailableQuantity),
                             sumInventory(group, WarehouseInventory::getReservedQuantity),
+                            sumInventory(group, WarehouseInventory::getSafeTotalValue),
+                            averageUnitCost(sumInventory(group, WarehouseInventory::getSafeTotalValue), sumInventory(group, WarehouseInventory::getQuantity)),
+                            resolveCurrency(group),
                             movementsByProduct.getOrDefault(product.getId(), 0L)
                     );
                 })
                 .sorted(Comparator.comparing(InventoryReportResponse.ProductInventorySummaryResponse::quantity).reversed())
+                .toList();
+    }
+
+
+    private List<InventoryValuationResponse.WarehouseValuationResponse> buildWarehouseValuation(List<WarehouseInventory> inventoryRows) {
+        return inventoryRows.stream()
+                .filter(row -> row.getWarehouse() != null)
+                .collect(Collectors.groupingBy(row -> row.getWarehouse().getId()))
+                .values()
+                .stream()
+                .map(group -> {
+                    Warehouse warehouse = group.get(0).getWarehouse();
+                    BigDecimal quantity = sumInventory(group, WarehouseInventory::getQuantity);
+                    BigDecimal totalValue = sumInventory(group, WarehouseInventory::getSafeTotalValue);
+                    return new InventoryValuationResponse.WarehouseValuationResponse(
+                            warehouse.getId(),
+                            warehouse.getName(),
+                            totalValue,
+                            quantity,
+                            averageUnitCost(totalValue, quantity),
+                            resolveCurrency(group),
+                            group.size()
+                    );
+                })
+                .sorted(Comparator.comparing(InventoryValuationResponse.WarehouseValuationResponse::totalValue).reversed())
+                .toList();
+    }
+
+    private List<InventoryValuationResponse.ProductValuationResponse> buildProductValuation(List<WarehouseInventory> inventoryRows) {
+        return inventoryRows.stream()
+                .filter(row -> row.getProduct() != null)
+                .collect(Collectors.groupingBy(row -> row.getProduct().getId()))
+                .values()
+                .stream()
+                .map(group -> {
+                    Product product = group.get(0).getProduct();
+                    BigDecimal quantity = sumInventory(group, WarehouseInventory::getQuantity);
+                    BigDecimal totalValue = sumInventory(group, WarehouseInventory::getSafeTotalValue);
+                    return new InventoryValuationResponse.ProductValuationResponse(
+                            product.getId(),
+                            product.getName(),
+                            product.getSku(),
+                            totalValue,
+                            quantity,
+                            averageUnitCost(totalValue, quantity),
+                            resolveCurrency(group),
+                            group.size()
+                    );
+                })
+                .sorted(Comparator.comparing(InventoryValuationResponse.ProductValuationResponse::totalValue).reversed())
                 .toList();
     }
 
@@ -399,6 +555,9 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                             safe(row.getQuantity()),
                             safe(row.getReservedQuantity()),
                             safe(row.getAvailableQuantity()),
+                            safe(row.getSafeAverageUnitCost()),
+                            safe(row.getSafeTotalValue()),
+                            row.getCurrency(),
                             row.getMinStockLevel(),
                             row.isLowStock(),
                             row.getLastUpdated()
@@ -426,6 +585,9 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
                             product != null ? product.getId() : null,
                             product != null ? product.getName() : null,
                             product != null ? product.getSku() : null,
+                            safe(row.getUnitCost()),
+                            safe(row.getTotalCost()),
+                            row.getCurrency(),
                             row.getCreatedAt()
                     );
                 })

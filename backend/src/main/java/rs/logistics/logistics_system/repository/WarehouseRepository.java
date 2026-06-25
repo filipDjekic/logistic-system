@@ -100,6 +100,33 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
     );
 
 
+
+    @Query("""
+        select w
+        from Warehouse w
+        where (:companyId is null or w.company.id = :companyId)
+        and w.id in :warehouseIds
+        and (:status is null or w.status = :status)
+        and (:active is null or w.active = :active)
+        and (:managerId is null or w.manager.id = :managerId)
+        and (
+            :search is null
+            or lower(w.name) like lower(concat('%', :search, '%'))
+            or lower(w.city.name) like lower(concat('%', :search, '%'))
+            or lower(w.address) like lower(concat('%', :search, '%'))
+            or str(w.id) like concat('%', :search, '%')
+        )
+    """)
+    Page<Warehouse> searchWarehouseIds(
+            @Param("companyId") Long companyId,
+            @Param("warehouseIds") java.util.Collection<Long> warehouseIds,
+            @Param("search") String search,
+            @Param("status") WarehouseStatus status,
+            @Param("active") Boolean active,
+            @Param("managerId") Long managerId,
+            Pageable pageable
+    );
+
     @Query("""
         select w.id, w.name, w.capacity, coalesce(sum(wi.quantity), 0), count(wi)
         from Warehouse w

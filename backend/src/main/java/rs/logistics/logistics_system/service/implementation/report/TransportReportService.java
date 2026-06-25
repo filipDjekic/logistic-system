@@ -87,6 +87,7 @@ public class TransportReportService implements TransportReportServiceDefinition 
         List<TransportOrder> orders = transportOrderRepository.searchTransportOrders(
                 companyId,
                 null,
+                null,
                 status,
                 priority,
                 sourceWarehouseId,

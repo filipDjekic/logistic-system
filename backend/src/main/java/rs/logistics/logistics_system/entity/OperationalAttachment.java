@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
+import rs.logistics.logistics_system.enums.OperationalAttachmentType;
 
 import java.time.LocalDateTime;
 
@@ -36,6 +37,10 @@ public class OperationalAttachment {
 
     @Column(name = "entity_id", nullable = false)
     private Long entityId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attachment_type", nullable = false, length = 40)
+    private OperationalAttachmentType attachmentType = OperationalAttachmentType.DOCUMENT;
 
     @Column(name = "file_name", nullable = false, length = 255)
     private String fileName;

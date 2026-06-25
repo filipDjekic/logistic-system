@@ -91,6 +91,9 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
     @Query("select coalesce(sum(wi.quantity), 0) from WarehouseInventory wi")
     BigDecimal sumQuantity();
 
+    @Query("select coalesce(sum(wi.totalValue), 0) from WarehouseInventory wi")
+    BigDecimal sumTotalValue();
+
     @Query("select coalesce(sum(wi.quantity), 0) from WarehouseInventory wi where wi.warehouse.id = :warehouseId")
     BigDecimal sumQuantityByWarehouseId(@Param("warehouseId") Long warehouseId);
 
@@ -104,6 +107,9 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
 
     @Query("select coalesce(sum(wi.quantity), 0) from WarehouseInventory wi where wi.warehouse.company.id = :companyId")
     BigDecimal sumQuantityByCompanyId(@Param("companyId") Long companyId);
+
+    @Query("select coalesce(sum(wi.totalValue), 0) from WarehouseInventory wi where wi.warehouse.company.id = :companyId")
+    BigDecimal sumTotalValueByCompanyId(@Param("companyId") Long companyId);
 
     @Query("select coalesce(sum(wi.quantity - wi.reservedQuantity), 0) from WarehouseInventory wi where wi.warehouse.company.id = :companyId")
     BigDecimal sumAvailableQuantityByCompanyId(@Param("companyId") Long companyId);
@@ -192,6 +198,9 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
     @Query("select coalesce(sum(wi.quantity - wi.reservedQuantity), 0) from WarehouseInventory wi where wi.warehouse.id in :warehouseIds and wi.warehouse.company.id = :companyId")
     BigDecimal sumAvailableQuantityByWarehouseIdsAndCompanyId(@Param("warehouseIds") java.util.Collection<Long> warehouseIds, @Param("companyId") Long companyId);
 
+    @Query("select coalesce(sum(wi.totalValue), 0) from WarehouseInventory wi where wi.warehouse.id in :warehouseIds and wi.warehouse.company.id = :companyId")
+    BigDecimal sumTotalValueByWarehouseIdsAndCompanyId(@Param("warehouseIds") java.util.Collection<Long> warehouseIds, @Param("companyId") Long companyId);
+
     @Query("""
             select warehouse.id,
                    warehouse.name,
@@ -199,7 +208,8 @@ public interface WarehouseInventoryRepository extends JpaRepository<WarehouseInv
                    sum(case when wi.minStockLevel is not null and (wi.quantity - wi.reservedQuantity) <= wi.minStockLevel then 1 else 0 end),
                    coalesce(sum(wi.quantity), 0),
                    coalesce(sum(wi.reservedQuantity), 0),
-                   coalesce(sum(wi.quantity - wi.reservedQuantity), 0)
+                   coalesce(sum(wi.quantity - wi.reservedQuantity), 0),
+                   coalesce(sum(wi.totalValue), 0)
             from WarehouseInventory wi
             join wi.warehouse warehouse
             where warehouse.id in :warehouseIds

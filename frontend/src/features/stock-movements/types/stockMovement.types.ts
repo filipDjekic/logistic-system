@@ -10,6 +10,15 @@ export type StockMovementType =
   | 'RESERVATION'
   | 'RESERVATION_RELEASE';
 
+export type StockMovementStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'EXECUTED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'REVERSED';
+
 export type StockMovementReasonCode =
   | 'INITIAL_STOCK'
   | 'MANUAL_INBOUND'
@@ -27,10 +36,32 @@ export type StockMovementReasonCode =
 
 export type StockAdjustmentDirection = 'INCREASE' | 'DECREASE';
 
+export type StockMovementDiscrepancyReason =
+  | 'SHORTAGE'
+  | 'OVERAGE'
+  | 'DAMAGE'
+  | 'PICKING_ERROR'
+  | 'RECEIVING_ERROR'
+  | 'TRANSPORT_LOSS'
+  | 'OTHER';
+
 export type StockMovementResponse = {
   id: number;
   movementType: string;
+  status?: StockMovementStatus | string | null;
+  allowedNextStatuses?: Array<StockMovementStatus | string>;
   quantity: number;
+  expectedQuantity?: number;
+  actualQuantity?: number;
+  discrepancyQuantity?: number;
+  discrepancyReason?: StockMovementDiscrepancyReason | null;
+  discrepancyNote?: string | null;
+  unitCost?: number | null;
+  totalCost?: number | null;
+  currency?: string | null;
+  batchLotNumber?: string | null;
+  batchExpirationDate?: string | null;
+  serialNumbers?: string | null;
   reasonCode?: string;
   reasonDescription?: string | null;
   referenceType?: string;
@@ -43,6 +74,8 @@ export type StockMovementResponse = {
   referenceCode?: string | null;
   parentMovementId?: number | null;
   rootMovementId?: number | null;
+  reversalOfMovementId?: number | null;
+  reversedByMovementId?: number | null;
   adjustmentDirection?: StockAdjustmentDirection | null;
   warehouseId: number;
   warehouseName: string;
@@ -118,9 +151,11 @@ export type StockMovementTransportOrderOption = {
 export type StockMovementFiltersState = {
   search: string;
   movementType: StockMovementType | 'ALL';
+  status?: StockMovementStatus | 'ALL';
   warehouseId: number | 'ALL';
   productId: number | 'ALL';
   transportOrderId: number | 'ALL';
+  binLocationId?: number | 'ALL';
   fromDate: string;
   toDate: string;
   reasonCode?: StockMovementReasonCode | 'ALL';
@@ -128,6 +163,16 @@ export type StockMovementFiltersState = {
 
 export type StockInboundRequest = {
   quantity: number;
+  expectedQuantity?: number;
+  actualQuantity?: number;
+  discrepancyReason?: StockMovementDiscrepancyReason;
+  discrepancyNote?: string;
+  unitCost?: number;
+  totalCost?: number;
+  currency?: string;
+  batchLotNumber?: string;
+  batchExpirationDate?: string;
+  serialNumbers?: string[];
   reasonDescription?: string;
   referenceNumber?: string;
   referenceNote?: string;
@@ -142,6 +187,16 @@ export type StockOutboundRequest = StockInboundRequest;
 
 export type StockTransferRequest = {
   quantity: number;
+  expectedQuantity?: number;
+  actualQuantity?: number;
+  discrepancyReason?: StockMovementDiscrepancyReason;
+  discrepancyNote?: string;
+  unitCost?: number;
+  totalCost?: number;
+  currency?: string;
+  batchLotNumber?: string;
+  batchExpirationDate?: string;
+  serialNumbers?: string[];
   reasonDescription?: string;
   referenceNumber?: string;
   referenceNote?: string;
@@ -155,6 +210,16 @@ export type StockTransferRequest = {
 
 export type StockAdjustmentRequest = {
   quantity: number;
+  expectedQuantity?: number;
+  actualQuantity?: number;
+  discrepancyReason?: StockMovementDiscrepancyReason;
+  discrepancyNote?: string;
+  unitCost?: number;
+  totalCost?: number;
+  currency?: string;
+  batchLotNumber?: string;
+  batchExpirationDate?: string;
+  serialNumbers?: string[];
   direction: StockAdjustmentDirection;
   reasonDescription?: string;
   referenceNumber?: string;
@@ -167,6 +232,16 @@ export type StockAdjustmentRequest = {
 
 export type StockWriteOffRequest = {
   quantity: number;
+  expectedQuantity?: number;
+  actualQuantity?: number;
+  discrepancyReason?: StockMovementDiscrepancyReason;
+  discrepancyNote?: string;
+  unitCost?: number;
+  totalCost?: number;
+  currency?: string;
+  batchLotNumber?: string;
+  batchExpirationDate?: string;
+  serialNumbers?: string[];
   reasonDescription?: string;
   referenceNumber?: string;
   referenceNote?: string;
@@ -178,10 +253,14 @@ export type StockWriteOffRequest = {
 
 export type StockReturnRequest = StockWriteOffRequest;
 
-export type StockOperationType = 'inbound' | 'outbound' | 'transfer' | 'adjustment' | 'write-off' | 'return';
+export type StockOperationType = 'inbound' | 'outbound' | 'transfer' | 'internal' | 'adjustment' | 'write-off' | 'return';
 
 export type StockOperationFormValues = {
   quantity: number;
+  expectedQuantity?: number;
+  actualQuantity?: number;
+  discrepancyReason?: StockMovementDiscrepancyReason;
+  discrepancyNote?: string;
   warehouse: StockMovementWarehouseOption | null;
   destinationWarehouse: StockMovementWarehouseOption | null;
   product: StockMovementProductOption | null;

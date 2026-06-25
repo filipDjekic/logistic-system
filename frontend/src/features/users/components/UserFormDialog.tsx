@@ -5,19 +5,21 @@ import {
   DialogTitle,
   Divider,
   Grid,
+  InputAdornment,
   Stack,
   Typography,
 } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import FormActions from '../../../shared/components/Form/FormActions';
 import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import Form from '../../../shared/components/Form/Form';
 import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormDatePicker from '../../../shared/components/Form/FormDatePicker';
 import FormSelect from '../../../shared/components/Form/FormSelect';
+import { getSalaryCurrencyCode } from '../../../core/utils/formatSalary';
 import type { CompanyResponse } from '../../companies/types/company.types';
 import type { RoleResponse } from '../../roles/types/role.types';
 import type {
@@ -190,6 +192,13 @@ export default function UserFormDialog({
     value: String(company.id),
     label: company.name,
   }));
+
+  const selectedCreateCompanyId = useWatch({ control: createForm.control, name: 'companyId' });
+  const createSalaryCurrencyCode = useMemo(() => {
+    const selectedCompany = companies.find((company) => String(company.id) === String(selectedCreateCompanyId));
+    return getSalaryCurrencyCode(selectedCompany?.effectiveCurrencyCode ?? selectedCompany?.currencyCode);
+  }, [companies, selectedCreateCompanyId]);
+  const updateSalaryCurrencyCode = getSalaryCurrencyCode(initialData?.employee?.salaryCurrencyCode);
 
   const isCreate = mode === 'create';
 
@@ -394,6 +403,16 @@ export default function UserFormDialog({
                     label="Salary"
                     type="number"
                     required
+                    helperText={`Currency: ${createSalaryCurrencyCode}`}
+                    slotProps={{
+                      input: {
+                        endAdornment: <InputAdornment position="end">{createSalaryCurrencyCode}</InputAdornment>,
+                      },
+                      htmlInput: {
+                        min: 0,
+                        step: '0.01',
+                      },
+                    }}
                   />
                 </Grid>
               </Grid>
@@ -444,6 +463,16 @@ export default function UserFormDialog({
                     label="Salary"
                     type="number"
                     required
+                    helperText={`Currency: ${updateSalaryCurrencyCode}`}
+                    slotProps={{
+                      input: {
+                        endAdornment: <InputAdornment position="end">{updateSalaryCurrencyCode}</InputAdornment>,
+                      },
+                      htmlInput: {
+                        min: 0,
+                        step: '0.01',
+                      },
+                    }}
                   />
                 </Grid>
 

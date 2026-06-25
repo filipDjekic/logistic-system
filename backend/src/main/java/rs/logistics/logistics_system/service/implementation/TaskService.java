@@ -32,6 +32,7 @@ import rs.logistics.logistics_system.lifecycle.LifecycleTransitionContext;
 import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.mapper.TaskMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.EmployeeWarehouseAssignmentRepository;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
@@ -45,6 +46,7 @@ import rs.logistics.logistics_system.service.definition.NotificationServiceDefin
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -61,6 +63,7 @@ public class TaskService implements TaskServiceDefinition {
     private final TransportOrderRepository _transportOrderRepository;
     private final StockMovementRepository stockMovementRepository;
     private final WarehouseRepository warehouseRepository;
+    private final EmployeeWarehouseAssignmentRepository employeeWarehouseAssignmentRepository;
 
     private final NotificationServiceDefinition notificationService;
     private final AuditFacadeDefinition auditFacade;
@@ -865,13 +868,27 @@ public class TaskService implements TaskServiceDefinition {
             throw new BadRequestException("Authenticated warehouse manager is not linked to an employee");
         }
 
-        return warehouseRepository.findByManagerIdAndCompany_Id(
-                        user.getEmployee().getId(),
-                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-                )
+        Long employeeId = user.getEmployee().getId();
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        LocalDate today = LocalDate.now();
+
+        Set<Long> managedWarehouseIds = warehouseRepository.findByManagerIdAndCompany_Id(employeeId, companyId)
                 .stream()
                 .map(warehouse -> warehouse.getId())
                 .collect(Collectors.toSet());
+
+        employeeWarehouseAssignmentRepository.findByEmployee_IdAndCompany_IdOrderByWarehouse_NameAsc(employeeId, companyId)
+                .stream()
+                .filter(assignment -> Boolean.TRUE.equals(assignment.getActive()))
+                .filter(assignment -> assignment.getWarehouse() != null && assignment.getWarehouse().getId() != null)
+                .filter(assignment -> assignment.getAccessType() == EmployeeWarehouseAccessType.MANAGER
+                        || assignment.getAccessType() == EmployeeWarehouseAccessType.PRIMARY)
+                .filter(assignment -> assignment.getValidFrom() == null || !assignment.getValidFrom().isAfter(today))
+                .filter(assignment -> assignment.getValidTo() == null || !assignment.getValidTo().isBefore(today))
+                .map(assignment -> assignment.getWarehouse().getId())
+                .forEach(managedWarehouseIds::add);
+
+        return managedWarehouseIds;
     }
 
     private String normalizeLinkedProcessType(String linkedProcessType) {

@@ -13,6 +13,7 @@ import rs.logistics.logistics_system.entity.OperationalAttachment;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.DomainEventType;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
+import rs.logistics.logistics_system.enums.OperationalAttachmentType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.CompanyRepository;
@@ -65,12 +66,13 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
     @Transactional
     public OperationalAttachmentResponse create(OperationalAttachmentCreate dto) {
         User user = authenticatedUserProvider.getAuthenticatedUser();
-        operationalEntityAccessValidator.ensureCanAccess(dto.getEntityType(), dto.getEntityId());
+        operationalEntityAccessValidator.ensureCanCreateOperationalContent(dto.getEntityType(), dto.getEntityId());
         Company company = resolveCompany(dto.getCompanyId(), user, dto.getEntityType(), dto.getEntityId());
         validateExternalAttachment(dto);
         OperationalAttachment attachment = new OperationalAttachment();
         attachment.setEntityType(dto.getEntityType());
         attachment.setEntityId(dto.getEntityId());
+        attachment.setAttachmentType(dto.getAttachmentType() != null ? dto.getAttachmentType() : OperationalAttachmentType.DOCUMENT);
         attachment.setFileName(dto.getFileName().trim());
         attachment.setContentType(trim(dto.getContentType()));
         attachment.setFileUrl(dto.getFileUrl().trim());
@@ -86,9 +88,9 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
 
     @Override
     @Transactional
-    public OperationalAttachmentResponse upload(OperationalEntityType entityType, Long entityId, MultipartFile file, String description, Long companyId) {
+    public OperationalAttachmentResponse upload(OperationalEntityType entityType, Long entityId, MultipartFile file, OperationalAttachmentType attachmentType, String description, Long companyId) {
         User user = authenticatedUserProvider.getAuthenticatedUser();
-        operationalEntityAccessValidator.ensureCanAccess(entityType, entityId);
+        operationalEntityAccessValidator.ensureCanCreateOperationalContent(entityType, entityId);
         Company company = resolveCompany(companyId, user, entityType, entityId);
 
         validateUpload(file);
@@ -100,6 +102,7 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
         OperationalAttachment attachment = new OperationalAttachment();
         attachment.setEntityType(entityType);
         attachment.setEntityId(entityId);
+        attachment.setAttachmentType(attachmentType != null ? attachmentType : OperationalAttachmentType.DOCUMENT);
         attachment.setFileName(originalFileName);
         attachment.setContentType(contentType);
         attachment.setFileUrl("pending-upload");
@@ -310,6 +313,7 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
         response.setId(attachment.getId());
         response.setEntityType(attachment.getEntityType());
         response.setEntityId(attachment.getEntityId());
+        response.setAttachmentType(attachment.getAttachmentType());
         response.setFileName(attachment.getFileName());
         response.setContentType(attachment.getContentType());
         response.setFileUrl(attachment.getFileUrl());

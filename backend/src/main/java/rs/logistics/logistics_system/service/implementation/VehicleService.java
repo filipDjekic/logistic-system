@@ -136,7 +136,9 @@ public class VehicleService implements VehicleServiceDefinition {
 
     @Override
     public VehicleResponse getById(Long id) {
-        return VehicleMapper.toResponse(findVehicleById(id));
+        Vehicle vehicle = findVehicleById(id);
+        validateDriverCanAccessVehicle(vehicle.getId());
+        return VehicleMapper.toResponse(vehicle);
     }
 
     @Override
@@ -154,9 +156,13 @@ public class VehicleService implements VehicleServiceDefinition {
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        Long driverUserId = authenticatedUserProvider.hasRole("DRIVER")
+                ? authenticatedUserProvider.getAuthenticatedUserId()
+                : null;
 
         return PageResponse.from(vehicleRepository.searchVehicles(
                 companyId,
+                driverUserId,
                 QueryParameterNormalizer.trimToNull(search),
                 status,
                 QueryParameterNormalizer.trimToNull(type),
@@ -274,6 +280,21 @@ public class VehicleService implements VehicleServiceDefinition {
     @Transactional
     public VehicleResponse restoreVehicle(Long id) {
         return changeStatus(id, VehicleStatus.AVAILABLE, "Restored", null);
+    }
+
+    private void validateDriverCanAccessVehicle(Long vehicleId) {
+        if (!authenticatedUserProvider.hasRole("DRIVER")) {
+            return;
+        }
+
+        boolean assignedInTransportHistory = vehicleRepository.existsVehicleAssignedToDriverHistory(
+                vehicleId,
+                authenticatedUserProvider.getAuthenticatedUserId()
+        );
+
+        if (!assignedInTransportHistory) {
+            throw new ResourceNotFoundException("Vehicle not found");
+        }
     }
 
     private String transitionReasonSuffix(String reason) {

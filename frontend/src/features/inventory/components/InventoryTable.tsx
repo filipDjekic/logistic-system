@@ -6,6 +6,15 @@ import type { DataTableColumn, SortState } from '../../../shared/types/common.ty
 import type { InventoryListRow } from '../types/inventory.types';
 import InventoryStatusChip from './InventoryStatusChip';
 
+
+function formatMoney(value: number | null | undefined, currency: string | null | undefined) {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  return currency ? `${value} ${currency}` : String(value);
+}
+
 type Props = {
   rows: InventoryListRow[];
   loading: boolean;
@@ -86,6 +95,18 @@ export default function InventoryTable({
       sortField: 'minStockLevel',
       minWidth: 100,
     },
+
+    {
+      id: 'valuation',
+      header: 'Value',
+      minWidth: 160,
+      render: (row) => (
+        <Stack spacing={0.25}>
+          <Typography variant="body2" fontWeight={600}>{formatMoney(row.totalValue, row.currency)}</Typography>
+          <Typography variant="caption" color="text.secondary">Avg: {formatMoney(row.averageUnitCost, row.currency)}</Typography>
+        </Stack>
+      ),
+    },
     {
       id: 'status',
       header: 'Status',
@@ -138,7 +159,7 @@ export default function InventoryTable({
       getRowStatus={(row) => row.derivedStatus}
       emptyTitle="No inventory records found"
       emptyDescription="There are no inventory records that match the current filters."
-      minWidth={1180}
+      minWidth={1340}
       onRowClick={(row) => navigate(`/inventory/${row.warehouseId}/${row.productId}`)}
       rowClickLabel="Open inventory details"
     />

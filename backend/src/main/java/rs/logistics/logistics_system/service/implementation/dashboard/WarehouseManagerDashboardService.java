@@ -90,6 +90,9 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    null,
                     0,
                     0,
                     0,
@@ -115,6 +118,9 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
         BigDecimal quantityTotal = safe(warehouseInventoryRepository.sumQuantityByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId));
         BigDecimal reservedQuantityTotal = safe(warehouseInventoryRepository.sumReservedQuantityByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId));
         BigDecimal availableQuantityTotal = safe(warehouseInventoryRepository.sumAvailableQuantityByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId));
+        BigDecimal inventoryValueTotal = safe(warehouseInventoryRepository.sumTotalValueByWarehouseIdsAndCompanyId(managedWarehouseIds, companyId));
+        BigDecimal inventoryAverageUnitCost = averageUnitCost(inventoryValueTotal, quantityTotal);
+        String inventoryValuationCurrency = resolveCurrency(warehouseInventoryRepository.findByWarehouse_IdInAndWarehouse_Company_Id(managedWarehouseIds, companyId));
 
         long stockMovementsTotal = stockMovementRepository.countByCompanyIdAndWarehouseIds(companyId, managedWarehouseIds);
         long activeTransportOrdersTotal = transportOrderRepository.countByCompanyIdAndStatusInAndWarehouseIds(companyId, ACTIVE_TRANSPORT_STATUSES, managedWarehouseIds);
@@ -133,6 +139,9 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
                 quantityTotal,
                 reservedQuantityTotal,
                 availableQuantityTotal,
+                inventoryValueTotal,
+                inventoryAverageUnitCost,
+                inventoryValuationCurrency,
                 stockMovementsTotal,
                 activeTransportOrdersTotal,
                 warehouseTasksTotal,
@@ -196,7 +205,10 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
                                 0,
                                 BigDecimal.ZERO,
                                 BigDecimal.ZERO,
-                                BigDecimal.ZERO
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO,
+                                null
                         );
                     }
 
@@ -207,7 +219,10 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
                             ((Number) row[3]).longValue(),
                             safe((BigDecimal) row[4]),
                             safe((BigDecimal) row[5]),
-                            safe((BigDecimal) row[6])
+                            safe((BigDecimal) row[6]),
+                            safe((BigDecimal) row[7]),
+                            averageUnitCost(safe((BigDecimal) row[7]), safe((BigDecimal) row[4])),
+                            null
                     );
                 })
                 .toList();
@@ -254,6 +269,28 @@ public class WarehouseManagerDashboardService implements WarehouseManagerDashboa
 
     private boolean isLowStock(WarehouseInventory row) {
         return row.getMinStockLevel() != null && row.getAvailableQuantity().compareTo(row.getMinStockLevel()) <= 0;
+    }
+
+    private BigDecimal averageUnitCost(BigDecimal totalValue, BigDecimal quantity) {
+        BigDecimal safeQuantity = safe(quantity);
+        if (safeQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return safe(totalValue).divide(safeQuantity, 4, java.math.RoundingMode.HALF_UP);
+    }
+
+    private String resolveCurrency(List<WarehouseInventory> rows) {
+        java.util.List<String> currencies = rows.stream()
+                .map(WarehouseInventory::getCurrency)
+                .filter(java.util.Objects::nonNull)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .limit(2)
+                .toList();
+        if (currencies.isEmpty()) {
+            return null;
+        }
+        return currencies.size() == 1 ? currencies.get(0) : "MIXED";
     }
 
     private BigDecimal sumQuantity(List<WarehouseInventory> rows) {

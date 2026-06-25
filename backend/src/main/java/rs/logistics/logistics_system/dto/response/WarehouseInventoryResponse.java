@@ -23,6 +23,9 @@ public class WarehouseInventoryResponse {
     private BigDecimal reservedQuantity;
     private BigDecimal availableQuantity;
     private BigDecimal minStockLevel;
+    private BigDecimal averageUnitCost;
+    private BigDecimal totalValue;
+    private String currency;
 
     public WarehouseInventoryResponse(
             Long warehouseId,
@@ -34,7 +37,10 @@ public class WarehouseInventoryResponse {
             BigDecimal quantity,
             BigDecimal reservedQuantity,
             BigDecimal availableQuantity,
-            BigDecimal minStockLevel
+            BigDecimal minStockLevel,
+            BigDecimal averageUnitCost,
+            BigDecimal totalValue,
+            String currency
     ) {
         this.warehouseId = warehouseId;
         this.warehouseName = warehouseName;
@@ -46,5 +52,8 @@ public class WarehouseInventoryResponse {
         this.reservedQuantity = reservedQuantity;
         this.availableQuantity = availableQuantity;
         this.minStockLevel = minStockLevel;
+        this.averageUnitCost = averageUnitCost;
+        this.totalValue = totalValue;
+        this.currency = currency;
     }
 }

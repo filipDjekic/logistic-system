@@ -101,6 +101,7 @@ export default function EmployeesPage() {
   const rolesQuery = useQuery({
     queryKey: ['roles', 'all'],
     queryFn: employeesApi.getRoles,
+    enabled: canEditEmployees,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -380,8 +381,7 @@ export default function EmployeesPage() {
             onRefresh={() => {
               void Promise.all([
                 employeesQuery.refetch(),
-                rolesQuery.refetch(),
-                ...(canEditEmployees ? [usersQuery.refetch()] : []),
+                ...(canEditEmployees ? [rolesQuery.refetch(), usersQuery.refetch()] : []),
                 ...(isOverlord && dialogOpen && dialogMode === 'create' ? [companiesQuery.refetch()] : []),
               ]);
             }}
@@ -451,13 +451,12 @@ export default function EmployeesPage() {
           <EmployeesTable
             rows={rows}
             usersById={usersById}
-            loading={employeesQuery.isLoading || usersQuery.isLoading || rolesQuery.isLoading}
-            error={employeesQuery.isError || usersQuery.isError || rolesQuery.isError}
+            loading={employeesQuery.isLoading || (canEditEmployees && (usersQuery.isLoading || rolesQuery.isLoading))}
+            error={employeesQuery.isError || (canEditEmployees && (usersQuery.isError || rolesQuery.isError))}
             onRetry={() => {
               void Promise.all([
                 employeesQuery.refetch(),
-                rolesQuery.refetch(),
-                ...(canEditEmployees ? [usersQuery.refetch()] : []),
+                ...(canEditEmployees ? [rolesQuery.refetch(), usersQuery.refetch()] : []),
               ]);
             }}
             onEdit={(employee) => {

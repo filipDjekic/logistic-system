@@ -333,6 +333,11 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
         left join assignedEmployee.user assignedUser
         where (:companyId is null or t.createdBy.company.id = :companyId)
         and (:driverUserId is null or assignedUser.id = :driverUserId)
+        and (:workerEmployeeId is null or exists (
+            select 1 from Task workerTask
+            where workerTask.transportOrder = t
+            and workerTask.assignedEmployee.id = :workerEmployeeId
+        ))
         and (:status is null or t.status = :status)
         and (:priority is null or t.priority = :priority)
         and (:sourceWarehouseId is null or sourceWarehouse.id = :sourceWarehouseId)
@@ -368,6 +373,7 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
     Page<TransportOrder> searchTransportOrders(
             @Param("companyId") Long companyId,
             @Param("driverUserId") Long driverUserId,
+            @Param("workerEmployeeId") Long workerEmployeeId,
             @Param("status") TransportOrderStatus status,
             @Param("priority") PriorityLevel priority,
             @Param("sourceWarehouseId") Long sourceWarehouseId,
@@ -379,6 +385,15 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             @Param("search") String search,
             Pageable pageable
     );
+
+
+    @Query("""
+        select count(t) > 0
+        from Task t
+        where t.transportOrder.id = :transportOrderId
+        and t.assignedEmployee.id = :employeeId
+    """)
+    boolean existsAssignedWorkerTaskForTransportOrder(@Param("transportOrderId") Long transportOrderId, @Param("employeeId") Long employeeId);
 
     @Query("""
         select count(v) > 0
@@ -398,6 +413,11 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
         left join assignedEmployee.user assignedUser
         where (:companyId is null or t.createdBy.company.id = :companyId)
         and (:driverUserId is null or assignedUser.id = :driverUserId)
+        and (:workerEmployeeId is null or exists (
+            select 1 from Task workerTask
+            where workerTask.transportOrder = t
+            and workerTask.assignedEmployee.id = :workerEmployeeId
+        ))
         and (:priority is null or t.priority = :priority)
         and (:sourceWarehouseId is null or sourceWarehouse.id = :sourceWarehouseId)
         and (:destinationWarehouseId is null or destinationWarehouse.id = :destinationWarehouseId)
@@ -426,6 +446,7 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
     List<Object[]> countGroupedByStatusFiltered(
             @Param("companyId") Long companyId,
             @Param("driverUserId") Long driverUserId,
+            @Param("workerEmployeeId") Long workerEmployeeId,
             @Param("priority") PriorityLevel priority,
             @Param("sourceWarehouseId") Long sourceWarehouseId,
             @Param("destinationWarehouseId") Long destinationWarehouseId,

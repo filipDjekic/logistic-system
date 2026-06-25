@@ -23,8 +23,13 @@ import type {
   ShiftResponse,
 } from '../types/shift.types';
 import { shiftStatusOptions } from '../validation/shiftSchema';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 
 export default function ShiftsPage() {
+  const auth = useAuthStore();
+  const canManageShifts = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+
   const [filters, setFilters] = useState<ShiftFiltersState>({
     search: '',
     status: 'ALL',
@@ -105,7 +110,7 @@ export default function ShiftsPage() {
         overline="Workforce"
         title="Shifts"
         description="Plan and review employee shifts."
-        actions={
+        actions={canManageShifts ? (
           <Stack direction="row" spacing={1}>
             <Button
               variant="outlined"
@@ -127,7 +132,7 @@ export default function ShiftsPage() {
               Create shift
             </Button>
           </Stack>
-        }
+        ) : undefined}
       />
 
       <TableLayout
@@ -164,15 +169,15 @@ export default function ShiftsPage() {
               loading={shiftsQuery.isLoading || employeesQuery.isLoading}
               error={shiftsQuery.isError || employeesQuery.isError}
               onRetry={() => { void Promise.all([shiftsQuery.refetch(), employeesQuery.refetch()]); }}
-              onEdit={(shift) => {
+              onEdit={canManageShifts ? (shift) => {
                 setDialogMode('edit');
                 setSelectedShift(shift);
                 setDialogOpen(true);
-              }}
-              onCancel={(shift) => saveShiftMutation.mutate({ mode: 'cancel', id: shift.id })}
+              } : undefined}
+              onCancel={canManageShifts ? (shift) => saveShiftMutation.mutate({ mode: 'cancel', id: shift.id }) : undefined}
               cancelLoading={saveShiftMutation.isPending}
               showEmployeeColumn
-              showActions
+              showActions={canManageShifts}
               emptyTitle="No shifts found"
               emptyDescription="There are no shifts for the current filter combination."
             />
@@ -186,6 +191,7 @@ export default function ShiftsPage() {
         }
       />
 
+      {canManageShifts ? (
       <ShiftImportDialog
         open={importDialogOpen}
         preview={previewImportMutation.data}
@@ -207,7 +213,9 @@ export default function ShiftsPage() {
           }
         }}
       />
+      ) : null}
 
+      {canManageShifts ? (
       <ShiftFormDialog
         open={dialogOpen}
         mode={dialogMode}
@@ -249,6 +257,7 @@ export default function ShiftsPage() {
           }, { onSuccess: () => setDialogOpen(false) });
         }}
       />
+      ) : null}
     </Stack>
   );
 }

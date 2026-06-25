@@ -39,7 +39,10 @@ public class WarehouseInventoryMapper {
                 quantity,
                 reserved,
                 available,
-                warehouseInventory.getMinStockLevel()
+                warehouseInventory.getMinStockLevel(),
+                warehouseInventory.getSafeAverageUnitCost(),
+                warehouseInventory.getSafeTotalValue(),
+                warehouseInventory.getCurrency()
         );
     }
 }

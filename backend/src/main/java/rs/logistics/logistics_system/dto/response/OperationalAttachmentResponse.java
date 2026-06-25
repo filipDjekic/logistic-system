@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
+import rs.logistics.logistics_system.enums.OperationalAttachmentType;
 
 import java.time.LocalDateTime;
 
@@ -14,6 +15,7 @@ public class OperationalAttachmentResponse {
     private Long id;
     private OperationalEntityType entityType;
     private Long entityId;
+    private OperationalAttachmentType attachmentType;
     private String fileName;
     private String contentType;
     private String fileUrl;

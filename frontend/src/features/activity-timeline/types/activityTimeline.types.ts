@@ -14,6 +14,14 @@ export type OperationalEntityType =
   | 'GENERAL';
 
 export type ActivityTimelineItemType = 'COMMENT' | 'ATTACHMENT' | 'DOMAIN_EVENT';
+export type OperationalAttachmentType =
+  | 'DOCUMENT'
+  | 'DELIVERY_NOTE'
+  | 'REPORT'
+  | 'DAMAGE_PHOTO'
+  | 'WRITE_OFF_EVIDENCE'
+  | 'ADJUSTMENT_EVIDENCE'
+  | 'OTHER';
 export type DomainEventType =
   | 'COMMENT_CREATED'
   | 'COMMENT_DELETED'
@@ -56,6 +64,7 @@ export type OperationalAttachment = {
   id: number;
   entityType: OperationalEntityType;
   entityId: number;
+  attachmentType: OperationalAttachmentType;
   fileName: string;
   contentType: string | null;
   fileUrl: string;
@@ -79,6 +88,7 @@ export type OperationalCommentCreate = {
 export type OperationalAttachmentCreate = {
   entityType: OperationalEntityType;
   entityId: number;
+  attachmentType?: OperationalAttachmentType;
   fileName: string;
   contentType?: string | null;
   fileUrl: string;
@@ -91,6 +101,7 @@ export type OperationalAttachmentUpload = {
   entityType: OperationalEntityType;
   entityId: number;
   file: File;
+  attachmentType?: OperationalAttachmentType;
   description?: string | null;
   companyId?: number | null;
 };

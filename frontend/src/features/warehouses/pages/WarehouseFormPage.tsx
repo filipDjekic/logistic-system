@@ -53,6 +53,7 @@ export default function WarehouseFormPage({ mode }: Props) {
   const params = useParams();
   const auth = useAuthStore();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
+  const isWarehouseManager = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
   const warehouseId = mode === 'edit' ? Number(params.id) : null;
   const warehouseQuery = useWarehouse(warehouseId);
   const companiesQuery = useCompanies(mode === 'create' && isOverlord);
@@ -243,8 +244,14 @@ export default function WarehouseFormPage({ mode }: Props) {
             position="WAREHOUSE_MANAGER"
             companyId={mode === 'create' && isOverlord ? selectedCompanyId : undefined}
             onSelect={(employee) => setValue('employeeId', employee.id, { shouldDirty: true, shouldValidate: true })}
-            helperText={mode === 'create' && isOverlord && !selectedCompanyId ? 'Select company first, then search warehouse managers.' : 'Search manager by name, email, status or company.'}
-            disabled={mode === 'create' && isOverlord && !selectedCompanyId}
+            helperText={
+              isWarehouseManager && mode === 'edit'
+                ? 'Warehouse manager cannot reassign warehouse ownership.'
+                : mode === 'create' && isOverlord && !selectedCompanyId
+                  ? 'Select company first, then search warehouse managers.'
+                  : 'Search manager by name, email, status or company.'
+            }
+            disabled={(mode === 'create' && isOverlord && !selectedCompanyId) || (isWarehouseManager && mode === 'edit')}
           />
 
           <FormActions
@@ -293,7 +300,7 @@ export default function WarehouseFormPage({ mode }: Props) {
                   const currentManagerId = warehouseQuery.data?.employeeId ?? null;
                   const nextManagerId = Number(values.employeeId);
 
-                  if (currentManagerId !== nextManagerId) {
+                  if (!isWarehouseManager && currentManagerId !== nextManagerId) {
                     assignWarehouseManager.mutate({ warehouseId: updated.id, employeeId: nextManagerId }, {
                       onSuccess: () => navigate(`/warehouses/${updated.id}`),
                       onError: (error) => { applyServerFieldErrors(error, setError); },

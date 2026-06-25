@@ -10,6 +10,7 @@ export const routeMeta = {
   login: { path: '/login', title: 'Login', breadcrumb: 'Login' },
   dashboard: { path: '/dashboard', title: 'Dashboard', breadcrumb: 'Dashboard' },
   notifications: { path: '/notifications', title: 'Notifications', breadcrumb: 'Notifications' },
+  profile: { path: '/profile', title: 'My Profile', breadcrumb: 'My Profile' },
   companyRegistration: { path: '/register-company', title: 'Register Company', breadcrumb: 'Register Company' },
   companyRegistrationRequests: { path: '/company-registration-requests', title: 'Company Registration Requests', breadcrumb: 'Company Registration Requests' },
   companies: { path: '/companies', title: 'Companies', breadcrumb: 'Companies' },
@@ -20,18 +21,17 @@ export const routeMeta = {
   transportOrderDetails: { path: '/transport-orders/:id', title: 'Transport Order Details', breadcrumb: 'Transport Order Details', parent: 'transportOrders' },
   vehicles: { path: '/vehicles', title: 'Vehicles', breadcrumb: 'Vehicles' },
   vehicleDetails: { path: '/vehicles/:id', title: 'Vehicle Details', breadcrumb: 'Vehicle Details', parent: 'vehicles' },
-  vehicleMaintenance: { path: '/vehicle-maintenance', title: 'Vehicle Maintenance', breadcrumb: 'Vehicle Maintenance', parent: 'vehicles' },
   warehouses: { path: '/warehouses', title: 'Warehouses', breadcrumb: 'Warehouses' },
   warehouseDetails: { path: '/warehouses/:id', title: 'Warehouse Details', breadcrumb: 'Warehouse Details', parent: 'warehouses' },
-  warehouseLocations: { path: '/warehouse-locations', title: 'Warehouse Locations', breadcrumb: 'Warehouse Locations', parent: 'warehouses' },
-  warehouseZones: { path: '/warehouses/:warehouseId/zones', title: 'Warehouse Zones', breadcrumb: 'Zones', parent: 'warehouseDetails' },
-  warehouseZoneDetails: { path: '/warehouses/:warehouseId/zones/:zoneId', title: 'Zone Details', breadcrumb: 'Zone', parent: 'warehouseZones' },
+  warehouseZoneDetails: { path: '/warehouses/:warehouseId/zones/:zoneId', title: 'Zone Details', breadcrumb: 'Zone', parent: 'warehouseDetails' },
   warehouseBinDetails: { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', title: 'Bin Details', breadcrumb: 'Bin', parent: 'warehouseZoneDetails' },
   products: { path: '/products', title: 'Products', breadcrumb: 'Products' },
   productDetails: { path: '/products/:id', title: 'Product Details', breadcrumb: 'Product Details', parent: 'products' },
   inventory: { path: '/inventory', title: 'Inventory', breadcrumb: 'Inventory' },
   inventoryDetails: { path: '/inventory/:warehouseId/:productId', title: 'Inventory Details', breadcrumb: 'Inventory Details', parent: 'inventory' },
   stockMovements: { path: '/stock-movements', title: 'Stock Movements', breadcrumb: 'Stock Movements' },
+  inventoryCounts: { path: '/inventory-counts', title: 'Inventory Counts', breadcrumb: 'Inventory Counts' },
+  inventoryCountDetails: { path: '/inventory-counts/:id', title: 'Inventory Count Details', breadcrumb: 'Inventory Count Details', parent: 'inventoryCounts' },
   stockMovementDetails: { path: '/stock-movements/:id', title: 'Stock Movement Details', breadcrumb: 'Stock Movement Details', parent: 'stockMovements' },
   stockInbound: { path: '/stock/inbound', title: 'Inbound Stock', breadcrumb: 'Inbound Stock', parent: 'stockMovements' },
   stockOutbound: { path: '/stock/outbound', title: 'Outbound Stock', breadcrumb: 'Outbound Stock', parent: 'stockMovements' },
@@ -52,13 +52,11 @@ export const routeMeta = {
   roleDetails: { path: '/roles/:id', title: 'Role Details', breadcrumb: 'Role Details', parent: 'roles' },
   employees: { path: '/employees', title: 'Employees', breadcrumb: 'Employees' },
   employeeDetails: { path: '/employees/:id', title: 'Employee Details', breadcrumb: 'Employee Details', parent: 'employees' },
-  employeeWarehouseAssignments: { path: '/employee-warehouse-assignments', title: 'Employee Warehouse Assignments', breadcrumb: 'Employee Warehouse Assignments', parent: 'employees' },
   users: { path: '/users', title: 'Users', breadcrumb: 'Users' },
   userDetails: { path: '/users/:id', title: 'User Details', breadcrumb: 'User Details', parent: 'users' },
   activityLogs: { path: '/activity-logs', title: 'Activity Logs', breadcrumb: 'Activity Logs' },
   activityTimeline: { path: '/activity-timeline', title: 'Activity Timeline', breadcrumb: 'Activity Timeline' },
   changeHistory: { path: '/change-history', title: 'Change History', breadcrumb: 'Change History' },
-  dataExchange: { path: '/data-exchange', title: 'Import / Export', breadcrumb: 'Import / Export' },
 } satisfies Record<string, AppRouteMeta>;
 
 type RouteMetaKey = keyof typeof routeMeta;
@@ -85,7 +83,6 @@ export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
     [/^\/vehicles\/\d+$/, 'vehicleDetails'],
     [/^\/inventory\/\d+\/\d+$/, 'inventoryDetails'],
     [/^\/warehouses\/\d+$/, 'warehouseDetails'],
-    [/^\/warehouses\/\d+\/zones$/, 'warehouseZones'],
     [/^\/warehouses\/\d+\/zones\/\d+$/, 'warehouseZoneDetails'],
     [/^\/warehouses\/\d+\/zones\/\d+\/bins\/\d+$/, 'warehouseBinDetails'],
     [/^\/products\/\d+$/, 'productDetails'],
@@ -96,6 +93,7 @@ export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
     [/^\/users\/\d+$/, 'userDetails'],
     [/^\/roles\/\d+$/, 'roleDetails'],
     [/^\/stock-movements\/\d+$/, 'stockMovementDetails'],
+    [/^\/inventory-counts\/\d+$/, 'inventoryCountDetails'],
   ];
 
   const dynamicMatch = dynamicMatches.find(([pattern]) => pattern.test(pathname));
@@ -115,7 +113,6 @@ export function buildBreadcrumbTrail(pathname: string): AppRouteMeta[] {
       routeMeta.dashboard as AppRouteMeta,
       routeMeta.warehouses as AppRouteMeta,
       { ...routeMeta.warehouseDetails, path: `/warehouses/${warehouseId}`, breadcrumb: `Warehouse #${warehouseId}` },
-      { ...routeMeta.warehouseZones, path: `/warehouses/${warehouseId}/zones`, breadcrumb: 'Zones' },
       { ...routeMeta.warehouseZoneDetails, path: `/warehouses/${warehouseId}/zones/${zoneId}`, breadcrumb: `Zone #${zoneId}` },
       { ...routeMeta.warehouseBinDetails, path: pathname, breadcrumb: `Bin #${binId}` },
     ];
@@ -128,7 +125,6 @@ export function buildBreadcrumbTrail(pathname: string): AppRouteMeta[] {
       routeMeta.dashboard as AppRouteMeta,
       routeMeta.warehouses as AppRouteMeta,
       { ...routeMeta.warehouseDetails, path: `/warehouses/${warehouseId}`, breadcrumb: `Warehouse #${warehouseId}` },
-      { ...routeMeta.warehouseZones, path: `/warehouses/${warehouseId}/zones`, breadcrumb: 'Zones' },
       { ...routeMeta.warehouseZoneDetails, path: pathname, breadcrumb: `Zone #${zoneId}` },
     ];
   }
@@ -140,7 +136,6 @@ export function buildBreadcrumbTrail(pathname: string): AppRouteMeta[] {
       routeMeta.dashboard as AppRouteMeta,
       routeMeta.warehouses as AppRouteMeta,
       { ...routeMeta.warehouseDetails, path: `/warehouses/${warehouseId}`, breadcrumb: `Warehouse #${warehouseId}` },
-      { ...routeMeta.warehouseZones, path: pathname, breadcrumb: 'Zones' },
     ];
   }
 

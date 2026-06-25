@@ -13,7 +13,8 @@ type Props = {
   onRetry: () => void;
   onEdit: (warehouse: WarehouseResponse) => void;
   onDelete: (warehouse: WarehouseResponse) => void;
-  canManage: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   pagination?: ReactNode;
   sort?: SortState;
   onSortChange?: (sort: SortState) => void;
@@ -26,7 +27,8 @@ export default function WarehousesTable({
   onRetry,
   onEdit,
   onDelete,
-  canManage,
+  canEdit,
+  canDelete,
   pagination,
   sort,
   onSortChange,
@@ -101,13 +103,13 @@ export default function WarehousesTable({
             Details
           </Button>
 
-          {canManage ? (
+          {canEdit ? (
             <Button size="small" variant="contained" onClick={() => onEdit(warehouse)}>
               Edit
             </Button>
           ) : null}
 
-          {canManage ? (
+          {canDelete ? (
             <Button size="small" color="error" variant="text" onClick={() => onDelete(warehouse)}>
               Delete
             </Button>

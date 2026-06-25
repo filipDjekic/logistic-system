@@ -8,6 +8,7 @@ import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import SyncAltRoundedIcon from '@mui/icons-material/SyncAltRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
+import PlaylistAddCheckRoundedIcon from '@mui/icons-material/PlaylistAddCheckRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
@@ -16,7 +17,7 @@ import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
 import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded';
 import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded';
-import ImportExportRoundedIcon from '@mui/icons-material/ImportExportRounded';
+import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { ALL_ROLES, ROLES, type Role } from '../constants/roles';
 
@@ -43,33 +44,31 @@ type NavigationSectionTemplate = {
 const navigationItemsByKey: Record<string, NavigationItem> = {
   dashboard: { key: 'dashboard', label: 'Dashboard', to: '/dashboard', roles: ALL_ROLES, icon: DashboardRoundedIcon },
   notifications: { key: 'notifications', label: 'Notifications', to: '/notifications', roles: ALL_ROLES, icon: NotificationsRoundedIcon },
+  profile: { key: 'profile', label: 'My Profile', to: '/profile', roles: ALL_ROLES, icon: AccountCircleRoundedIcon },
   'my-shifts': { key: 'my-shifts', label: 'My Shifts', to: '/my-shifts', roles: ALL_ROLES, icon: EventNoteRoundedIcon },
 
   companies: { key: 'companies', label: 'Companies', to: '/companies', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
   'company-registration-requests': { key: 'company-registration-requests', label: 'Registration Requests', to: '/company-registration-requests', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
-  employees: { key: 'employees', label: 'Employees', to: '/employees', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: GroupsRoundedIcon },
-  'employee-warehouse-assignments': { key: 'employee-warehouse-assignments', label: 'Warehouse Access', to: '/employee-warehouse-assignments', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER], icon: WarehouseRoundedIcon },
-  'warehouse-locations': { key: 'warehouse-locations', label: 'Warehouse Locations', to: '/warehouse-locations', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: WarehouseRoundedIcon },
-  shifts: { key: 'shifts', label: 'Shifts', to: '/shifts', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER], icon: ScheduleRoundedIcon },
+  employees: { key: 'employees', label: 'Employees', to: '/employees', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: GroupsRoundedIcon },
+    shifts: { key: 'shifts', label: 'Shifts', to: '/shifts', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER, ROLES.DISPATCHER], icon: ScheduleRoundedIcon },
   users: { key: 'users', label: 'Users', to: '/users', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: ManageAccountsRoundedIcon },
+  'employee-profile-change-requests': { key: 'employee-profile-change-requests', label: 'Profile Requests', to: '/employee-profile-change-requests', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: FactCheckRoundedIcon },
   roles: { key: 'roles', label: 'Roles', to: '/roles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AdminPanelSettingsRoundedIcon },
 
-  'transport-orders': { key: 'transport-orders', label: 'Transport Orders', to: '/transport-orders', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER], icon: LocalShippingRoundedIcon },
+  'transport-orders': { key: 'transport-orders', label: 'Transport Orders', to: '/transport-orders', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: LocalShippingRoundedIcon },
   tasks: { key: 'tasks', label: 'Tasks', to: '/tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: AssignmentRoundedIcon },
-  vehicles: { key: 'vehicles', label: 'Vehicles', to: '/vehicles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER], icon: DirectionsCarFilledRoundedIcon },
-  'vehicle-maintenance': { key: 'vehicle-maintenance', label: 'Vehicle Maintenance', to: '/vehicle-maintenance', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER], icon: DirectionsCarFilledRoundedIcon },
+  vehicles: { key: 'vehicles', label: 'Vehicles', to: '/vehicles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER], icon: DirectionsCarFilledRoundedIcon },
 
-  warehouses: { key: 'warehouses', label: 'Warehouses', to: '/warehouses', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: WarehouseRoundedIcon },
+  warehouses: { key: 'warehouses', label: 'Warehouses', to: '/warehouses', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: WarehouseRoundedIcon },
   products: { key: 'products', label: 'Products', to: '/products', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: CategoryRoundedIcon },
   inventory: { key: 'inventory', label: 'Inventory', to: '/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: Inventory2RoundedIcon },
-  'stock-movements': { key: 'stock-movements', label: 'Stock Movements', to: '/stock-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: SyncAltRoundedIcon },
-  'internal-movements': { key: 'internal-movements', label: 'Internal Movements', to: '/warehouse-locations?tab=internal-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER], icon: SyncAltRoundedIcon },
+  'stock-movements': { key: 'stock-movements', label: 'Stock Movements', to: '/stock-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: SyncAltRoundedIcon },
+  'inventory-counts': { key: 'inventory-counts', label: 'Inventory Counts', to: '/inventory-counts', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER], icon: PlaylistAddCheckRoundedIcon },
 
   'transport-report': { key: 'transport-report', label: 'Transport Report', to: '/reports/transport', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
   'inventory-report': { key: 'inventory-report', label: 'Inventory Report', to: '/reports/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
   'employee-task-report': { key: 'employee-task-report', label: 'Employee / Task Report', to: '/reports/employee-tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AssessmentRoundedIcon },
 
-  'data-exchange': { key: 'data-exchange', label: 'Import / Export', to: '/data-exchange', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: ImportExportRoundedIcon },
   'activity-logs': { key: 'activity-logs', label: 'Activity Logs', to: '/activity-logs', roles: [ROLES.OVERLORD], icon: HistoryRoundedIcon },
   'activity-timeline': { key: 'activity-timeline', label: 'Activity Timeline', to: '/activity-timeline', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: HistoryRoundedIcon },
   'change-history': { key: 'change-history', label: 'Change History', to: '/change-history', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: FactCheckRoundedIcon },
@@ -77,51 +76,57 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
 
 const defaultNavigationTemplate: NavigationSectionTemplate[] = [
   { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-  { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles', 'vehicle-maintenance'] },
-  { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'warehouse-locations', 'products', 'inventory', 'stock-movements', 'internal-movements'] },
-  { key: 'workforce', label: 'Workforce', itemKeys: ['companies', 'company-registration-requests', 'employees', 'shifts', 'employee-warehouse-assignments', 'users', 'roles'] },
-  { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report', 'data-exchange'] },
+  { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
+  { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
+  { key: 'workforce', label: 'Workforce', itemKeys: ['companies', 'company-registration-requests', 'employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles'] },
+  { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
   { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history', 'activity-logs'] },
-  { key: 'personal', label: 'Personal', itemKeys: ['my-shifts'] },
+  { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
 ];
 
 const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[]>> = {
   [ROLES.OVERLORD]: defaultNavigationTemplate,
   [ROLES.COMPANY_ADMIN]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles', 'vehicle-maintenance'] },
-    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'warehouse-locations', 'products', 'inventory', 'stock-movements', 'internal-movements'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-warehouse-assignments', 'users'] },
-    { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report', 'data-exchange'] },
+    { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
+    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'users'] },
+    { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
     { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history'] },
+    { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.HR_MANAGER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'shifts', 'employee-warehouse-assignments'] },
-    { key: 'data-reports', label: 'Data & Reports', itemKeys: ['employee-task-report', 'data-exchange'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts'] },
+    { key: 'data-reports', label: 'Data & Reports', itemKeys: ['employee-task-report'] },
+    { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.WAREHOUSE_MANAGER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'warehouse-locations', 'inventory', 'products', 'stock-movements', 'internal-movements'] },
-    { key: 'transport', label: 'Transport', itemKeys: ['tasks', 'transport-orders'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employee-warehouse-assignments'] },
-    { key: 'data-reports', label: 'Data & Reports', itemKeys: ['inventory-report', 'transport-report', 'data-exchange'] },
+    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'inventory', 'products', 'stock-movements', 'inventory-counts'] },
+    { key: 'transport', label: 'Transport', itemKeys: ['tasks', 'transport-orders', 'vehicles'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees'] },
+    { key: 'data-reports', label: 'Data & Reports', itemKeys: ['inventory-report', 'transport-report'] },
     { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history'] },
+    { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.DISPATCHER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles', 'vehicle-maintenance'] },
-    { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouse-locations', 'stock-movements'] },
-    { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'data-exchange'] },
+    { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
+    { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
+    { key: 'workforce-reference', label: 'Workforce Reference', itemKeys: ['employees', 'shifts'] },
+    { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report'] },
     { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history'] },
+    { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.DRIVER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'my-work', label: 'My Work', itemKeys: ['transport-orders', 'tasks', 'my-shifts'] },
+    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'transport-orders', 'tasks', 'vehicles', 'my-shifts'] },
   ],
   [ROLES.WORKER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'my-work', label: 'My Work', itemKeys: ['tasks', 'warehouse-locations', 'my-shifts'] },
+    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'stock-movements', 'inventory-counts', 'my-shifts'] },
+    { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses'] },
   ],
 };
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -6,6 +6,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Grid,
   LinearProgress,
@@ -25,11 +29,9 @@ import {
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import ArchivedEntityAlert from '../../../shared/components/archive/ArchivedEntityAlert';
-import ArchiveStatusBadge from '../../../shared/components/archive/ArchiveStatusBadge';
 import { LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
 import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
 import {
@@ -55,25 +57,27 @@ import type {
 import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { invalidateWarehouseState } from '../../../core/utils/invalidateAppState';
-import { useInternalWarehouseMovements, useWarehouseZones } from '../../warehouse-locations/hooks/useWarehouseLocations';
+import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
+import { useBinLocations, useWarehouseZones } from '../../warehouse-locations/hooks/useWarehouseLocations';
 import { warehousesApi } from '../api/warehousesApi';
 import { useWarehouse } from '../hooks/useWarehouse';
-import type { InternalWarehouseMovementResponse, WarehouseZoneResponse } from '../../warehouse-locations/types/warehouseLocation.types';
+import type { BinLocationResponse, WarehouseZoneResponse, WarehouseZoneType } from '../../warehouse-locations/types/warehouseLocation.types';
 import type { WarehouseStatus } from '../types/warehouse.types';
 import { useInventory } from '../../inventory/hooks/useInventory';
 import type { InventoryListRow } from '../../inventory/types/inventory.types';
 import { useStockMovements } from '../../stock-movements/hooks/useStockMovements';
 import type { StockMovementResponse } from '../../stock-movements/types/stockMovement.types';
+import { warehouseLocationRoutes } from '../../warehouse-locations/utils/warehouseLocationRoutes';
 
 type WarehouseDetailsTab =
   | 'overview'
-  | 'zones'
+  | 'locations'
+  | 'bins'
   | 'inventory'
   | 'stockMovements'
   | 'access'
   | 'commentsAttachments'
-  | 'domainEvents'
-  | 'changeHistory';
+  | 'eventsHistory';
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -101,6 +105,91 @@ function formatDate(value: string | null | undefined) {
 function toNumber(value: number | string | null | undefined) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toNullableNumber(value: string) {
+  if (value.trim().length === 0) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+
+const zoneTypes: WarehouseZoneType[] = ['RECEIVING', 'STORAGE', 'PICKING', 'PACKING', 'DISPATCH', 'RETURNS', 'QUARANTINE', 'OTHER'];
+
+function CreateWarehouseLocationDialog({
+  open,
+  warehouseId,
+  warehouseName,
+  loading,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean;
+  warehouseId: number;
+  warehouseName: string;
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (payload: { warehouseId: number; code: string; name: string; type: WarehouseZoneType; capacity?: number | null; description?: string | null }) => void;
+}) {
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [type, setType] = useState<WarehouseZoneType>('STORAGE');
+  const [capacity, setCapacity] = useState('');
+  const [description, setDescription] = useState('');
+
+  const resetAndClose = () => {
+    if (loading) return;
+    setCode('');
+    setName('');
+    setType('STORAGE');
+    setCapacity('');
+    setDescription('');
+    onClose();
+  };
+
+  const submitDisabled = code.trim().length === 0 || name.trim().length === 0;
+
+  return (
+    <Dialog open={open} onClose={resetAndClose} fullWidth maxWidth="sm">
+      <DialogTitle>Create warehouse location</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <TextField label="Warehouse" value={warehouseName} fullWidth disabled />
+          <TextField label="Code" value={code} onChange={(event) => setCode(event.target.value)} required fullWidth />
+          <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} required fullWidth />
+          <TextField select label="Type" value={type} onChange={(event) => setType(event.target.value as WarehouseZoneType)} fullWidth>
+            {zoneTypes.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+          </TextField>
+          <TextField label="Capacity" value={capacity} onChange={(event) => setCapacity(event.target.value)} type="number" fullWidth />
+          <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} multiline minRows={2} fullWidth />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={resetAndClose} disabled={loading}>Cancel</Button>
+        <Button
+          variant="contained"
+          disabled={submitDisabled || loading}
+          onClick={() => {
+            onSubmit({
+              warehouseId,
+              code: code.trim(),
+              name: name.trim(),
+              type,
+              capacity: toNullableNumber(capacity),
+              description: description.trim() || null,
+            });
+            setCode('');
+            setName('');
+            setType('STORAGE');
+            setCapacity('');
+            setDescription('');
+          }}
+        >
+          {loading ? 'Creating...' : 'Create location'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 }
 
 function QuantityBar({ value, total }: { value: number | string | null | undefined; total: number }) {
@@ -132,22 +221,7 @@ function usePagedState(defaultSize = 10) {
     />
   );
 
-  return { page, size, pagination };
-}
-
-function getAllowedNextStatuses(status: WarehouseStatus): WarehouseStatus[] {
-  switch (status) {
-    case 'ACTIVE':
-      return ['INACTIVE', 'FULL', 'UNDER_MAINTENANCE'];
-    case 'INACTIVE':
-      return ['ACTIVE'];
-    case 'FULL':
-      return ['ACTIVE', 'INACTIVE', 'UNDER_MAINTENANCE'];
-    case 'UNDER_MAINTENANCE':
-      return ['ACTIVE', 'INACTIVE'];
-    default:
-      return [];
-  }
+  return { page, size, setPage, pagination };
 }
 
 function ZonesTable({ rows, onOpenZone }: { rows: WarehouseZoneResponse[]; onOpenZone: (zone: WarehouseZoneResponse) => void }) {
@@ -178,6 +252,45 @@ function ZonesTable({ rows, onOpenZone }: { rows: WarehouseZoneResponse[]; onOpe
               <TableCell>
                 <StatusChip value={row.active ? 'ACTIVE' : 'INACTIVE'} />
               </TableCell>
+              <TableCell>{formatDate(row.updatedAt ?? row.createdAt)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+
+function WarehouseBinsTable({ rows, onOpenBin }: { rows: BinLocationResponse[]; onOpenBin: (bin: BinLocationResponse) => void }) {
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Bin</TableCell>
+            <TableCell>Location / zone</TableCell>
+            <TableCell>Type</TableCell>
+            <TableCell align="right">Capacity</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Updated</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.id} hover onClick={() => onOpenBin(row)} sx={{ cursor: 'pointer' }}>
+              <TableCell>
+                <Typography fontWeight={800}>{row.code}</Typography>
+                <Typography variant="caption" color="text.secondary">{row.name}</Typography>
+              </TableCell>
+              <TableCell>
+                <Button size="small" component={RouterLink} to={warehouseLocationRoutes.warehouseLocationDetails(row.warehouseId, row.zoneId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                  {row.zoneCode} · {row.zoneName}
+                </Button>
+              </TableCell>
+              <TableCell><Chip size="small" variant="outlined" label={row.zoneType} /></TableCell>
+              <TableCell align="right">{row.capacity ?? '—'}</TableCell>
+              <TableCell><StatusChip value={row.active ? 'ACTIVE' : 'INACTIVE'} /></TableCell>
               <TableCell>{formatDate(row.updatedAt ?? row.createdAt)}</TableCell>
             </TableRow>
           ))}
@@ -247,19 +360,19 @@ function StockMovementsTable({ rows, onOpenMovement }: { rows: StockMovementResp
               <TableCell>#{row.id}</TableCell>
               <TableCell><Chip size="small" variant="outlined" label={row.movementType} /></TableCell>
               <TableCell>
-                <Button size="small" component={RouterLink} to={`/products/${row.productId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                <Button size="small" component={RouterLink} to={warehouseLocationRoutes.productDetails(row.productId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
                   {row.productName}
                 </Button>
               </TableCell>
               <TableCell>
                 <Stack spacing={0.25} alignItems="flex-start">
                   {row.sourceBinId && row.sourceBinZoneId ? (
-                    <Button size="small" component={RouterLink} to={`/warehouses/${row.warehouseId}/zones/${row.sourceBinZoneId}/bins/${row.sourceBinId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                    <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(row.warehouseId, row.sourceBinZoneId, row.sourceBinId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
                       Source: {row.sourceBinCode ?? `#${row.sourceBinId}`}
                     </Button>
                   ) : <Typography variant="caption" color="text.secondary">Source: —</Typography>}
                   {row.destinationBinId && row.destinationBinZoneId ? (
-                    <Button size="small" component={RouterLink} to={`/warehouses/${row.warehouseId}/zones/${row.destinationBinZoneId}/bins/${row.destinationBinId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                    <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(row.warehouseId, row.destinationBinZoneId, row.destinationBinId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
                       Destination: {row.destinationBinCode ?? `#${row.destinationBinId}`}
                     </Button>
                   ) : <Typography variant="caption" color="text.secondary">Destination: —</Typography>}
@@ -267,7 +380,7 @@ function StockMovementsTable({ rows, onOpenMovement }: { rows: StockMovementResp
               </TableCell>
               <TableCell>
                 {row.transportOrderId ? (
-                  <Button size="small" component={RouterLink} to={`/transport-orders/${row.transportOrderId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                  <Button size="small" component={RouterLink} to={warehouseLocationRoutes.transportOrderDetails(row.transportOrderId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
                     #{row.transportOrderId}
                   </Button>
                 ) : '—'}
@@ -282,52 +395,6 @@ function StockMovementsTable({ rows, onOpenMovement }: { rows: StockMovementResp
     </TableContainer>
   );
 }
-
-function InternalMovementsTable({ rows, onOpenProduct }: { rows: InternalWarehouseMovementResponse[]; onOpenProduct: (row: InternalWarehouseMovementResponse) => void }) {
-  return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>ID</TableCell>
-            <TableCell>Product</TableCell>
-            <TableCell>Source bin</TableCell>
-            <TableCell>Destination bin</TableCell>
-            <TableCell align="right">Quantity</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Created</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id} hover onClick={() => onOpenProduct(row)} sx={{ cursor: 'pointer' }}>
-              <TableCell>#{row.id}</TableCell>
-              <TableCell>
-                <Button size="small" component={RouterLink} to={`/products/${row.productId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
-                  {row.productName} {row.sku ? `(${row.sku})` : ''}
-                </Button>
-              </TableCell>
-              <TableCell>
-                <Button size="small" component={RouterLink} to={`/warehouses/${row.warehouseId}/zones/${row.sourceBinZoneId}/bins/${row.sourceBinId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
-                  {row.sourceBinCode ?? `#${row.sourceBinId}`}
-                </Button>
-              </TableCell>
-              <TableCell>
-                <Button size="small" component={RouterLink} to={`/warehouses/${row.warehouseId}/zones/${row.destinationBinZoneId}/bins/${row.destinationBinId}`} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
-                  {row.destinationBinCode ?? `#${row.destinationBinId}`}
-                </Button>
-              </TableCell>
-              <TableCell align="right">{row.quantity}</TableCell>
-              <TableCell><Chip size="small" variant="outlined" label={row.status} /></TableCell>
-              <TableCell>{formatDate(row.createdAt)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-}
-
 
 const warehouseAccessTypes: EmployeeWarehouseAccessType[] = ['PRIMARY', 'WORKER', 'MANAGER', 'DISPATCH', 'VIEW_ONLY'];
 
@@ -419,16 +486,12 @@ function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: num
 
   return (
     <Stack spacing={3}>
-      <Alert severity="info">
-        Warehouse access controls which employees and operational roles can work inside this warehouse scope. It is managed from warehouse details instead of the main sidebar so access is reviewed in context.
-      </Alert>
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, lg: 5 }}>
           <SectionCard title="Assign access" description="Structured warehouse access form with employee lookup, permission scope and validity window.">
             <Stack spacing={2.25}>
               <Box>
-                <Typography variant="overline" color="text.secondary">Employee</Typography>
                 <EntityLookupField
                   label="Employee"
                   entityType="employees"
@@ -454,15 +517,6 @@ function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: num
                     />
                   ))}
                 </Stack>
-                <TextField
-                  select
-                  label="Access role"
-                  value={form.accessType}
-                  onChange={(event) => setForm((current) => ({ ...current, accessType: event.target.value as EmployeeWarehouseAccessType }))}
-                  fullWidth
-                >
-                  {warehouseAccessTypes.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}
-                </TextField>
               </Box>
 
               <Box>
@@ -477,7 +531,6 @@ function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: num
               </Box>
 
               <Box>
-                <Typography variant="overline" color="text.secondary">Validity</Typography>
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
@@ -503,7 +556,6 @@ function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: num
               </Box>
 
               <Box>
-                <Typography variant="overline" color="text.secondary">Status</Typography>
                 <TextField
                   select
                   label="Status"
@@ -591,35 +643,48 @@ export default function WarehouseDetailsPage() {
 
   const [activeTab, setActiveTab] = useState<WarehouseDetailsTab>('overview');
   const zonePage = usePagedState();
+  const binPage = usePagedState();
   const inventoryPage = usePagedState();
   const stockMovementPage = usePagedState();
-  const internalMovementPage = usePagedState();
+  const [zoneSearch, setZoneSearch] = useState('');
+  const [binSearch, setBinSearch] = useState('');
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [movementSearch, setMovementSearch] = useState('');
+  const [movementTypeFilter, setMovementTypeFilter] = useState<string>('ALL');
 
   const canManage =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+
+  const canManageStorage =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+
+  const [createLocationOpen, setCreateLocationOpen] = useState(false);
 
   const canManageAccess =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
+  const canViewInventoryTab = auth.user?.role !== ROLES.WORKER;
+
   const warehouseQuery = useWarehouse(validWarehouseId);
   const warehouse = warehouseQuery.data;
 
-  const zoneQuery = useWarehouseZones({ warehouseId: scopedWarehouseId, page: zonePage.page, size: zonePage.size, sort: 'code,asc' }, Boolean(validWarehouseId) && activeTab === 'zones');
-  const inventoryQuery = useInventory({ search: '', warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', status: 'ALL', page: inventoryPage.page, size: inventoryPage.size, sort: 'product.name,asc' }, { warehouses: [], products: [] });
-  const stockMovementQuery = useStockMovements({ search: '', movementType: 'ALL', warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', transportOrderId: 'ALL', fromDate: '', toDate: '', page: stockMovementPage.page, size: stockMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'stockMovements');
-  const internalMovementQuery = useInternalWarehouseMovements({ warehouseId: scopedWarehouseId, page: internalMovementPage.page, size: internalMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'stockMovements');
+  const zoneQuery = useWarehouseZones({ warehouseId: scopedWarehouseId, search: zoneSearch.trim() || undefined, page: zonePage.page, size: zonePage.size, sort: 'code,asc' }, Boolean(validWarehouseId) && activeTab === 'locations');
+  const binQuery = useBinLocations({ warehouseId: scopedWarehouseId, search: binSearch.trim() || undefined, page: binPage.page, size: binPage.size, sort: 'code,asc' }, Boolean(validWarehouseId) && activeTab === 'bins');
+  const inventoryQuery = useInventory(
+    { search: inventorySearch, warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', status: 'ALL', page: inventoryPage.page, size: inventoryPage.size, sort: 'product.name,asc' },
+    { warehouses: [], products: [] },
+    Boolean(validWarehouseId) && canViewInventoryTab && activeTab === 'inventory',
+  );
+  const stockMovementQuery = useStockMovements({ search: movementSearch, movementType: movementTypeFilter as any, warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', transportOrderId: 'ALL', fromDate: '', toDate: '', page: stockMovementPage.page, size: stockMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'stockMovements');
 
   const zones = zoneQuery.data?.content ?? [];
+  const bins = binQuery.data?.content ?? [];
   const inventory = activeTab === 'inventory' ? inventoryQuery.data?.content ?? [] : [];
   const stockMovements = stockMovementQuery.data?.content ?? [];
-  const internalMovements = internalMovementQuery.data?.content ?? [];
-
-  const nextStatuses = useMemo(
-    () => (warehouse ? getAllowedNextStatuses(warehouse.status) : []),
-    [warehouse],
-  );
 
   const [transitionTarget, setTransitionTarget] = useState<WarehouseStatus | null>(null);
 
@@ -667,6 +732,19 @@ export default function WarehouseDetailsPage() {
     },
   });
 
+  const createLocationMutation = useMutation({
+    mutationFn: warehouseLocationsApi.createZone,
+    onSuccess: async () => {
+      showSnackbar({ message: 'Warehouse location created successfully.', severity: 'success' });
+      setCreateLocationOpen(false);
+      setActiveTab('locations');
+      await queryClient.invalidateQueries({ queryKey: ['warehouse-locations', 'zones'] });
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
   if (!Number.isFinite(warehouseId)) {
     return (
       <ErrorState
@@ -682,7 +760,7 @@ export default function WarehouseDetailsPage() {
         overline="Storage"
         title="Warehouse details"
         actions={
-          <Button variant="outlined" onClick={() => navigate('/warehouses')}>
+          <Button variant="outlined" onClick={() => navigate(warehouseLocationRoutes.warehouses())}>
             Back to list
           </Button>
         }
@@ -704,51 +782,14 @@ export default function WarehouseDetailsPage() {
     );
   }
 
-  const warehouseRecommendedStep = (() => {
-    if (warehouse.status !== 'ACTIVE') {
-      return {
-        title: 'Resolve warehouse availability before using it operationally.',
-        description: `Current status is ${warehouse.status}. Inventory and movement workflows should be reviewed before this warehouse is used for new work.`,
-        severity: warehouse.status === 'FULL' ? 'warning' as const : 'error' as const,
-        actions: [
-          { label: 'Open inventory', onClick: () => setActiveTab('inventory'), variant: 'outlined' as const },
-          ...(canManage ? [{ label: 'Review status actions', onClick: () => setActiveTab('overview') }] : []),
-        ],
-      };
-    }
-
-    if (warehouse.binTrackingEnabled) {
-      return {
-        title: 'Review zones and bins before stock operations.',
-        description: 'Bin tracking is enabled. Stock operations should be checked against zones, bin locations and bin inventory distribution.',
-        severity: 'info' as const,
-        actions: [
-          { label: 'Open zones', onClick: () => setActiveTab('zones') },
-          { label: 'Open inventory', onClick: () => setActiveTab('inventory'), variant: 'outlined' as const },
-        ],
-      };
-    }
-
-    return {
-      title: 'Review warehouse inventory and recent movements.',
-      description: 'This warehouse is active. Use inventory and stock movements to confirm current operational state before creating new work.',
-      severity: 'info' as const,
-      actions: [
-        { label: 'Open inventory', onClick: () => setActiveTab('inventory') },
-        { label: 'Open movements', onClick: () => setActiveTab('stockMovements'), variant: 'outlined' as const },
-      ],
-    };
-  })();
-
   const tabItems: { value: WarehouseDetailsTab; label: ReactNode }[] = [
     { value: 'overview', label: 'Overview' },
-    { value: 'zones', label: `Zones${zoneQuery.data ? ` (${zoneQuery.data.totalElements})` : ''}` },
-    { value: 'inventory', label: `Inventory${inventoryQuery.data ? ` (${inventoryQuery.data.totalElements})` : ''}` },
-    { value: 'stockMovements', label: `Movements${stockMovementQuery.data || internalMovementQuery.data ? ` (${(stockMovementQuery.data?.totalElements ?? 0) + (internalMovementQuery.data?.totalElements ?? 0)})` : ''}` },
+    { value: 'locations', label: `Locations${zoneQuery.data ? ` (${zoneQuery.data.totalElements})` : ''}` },
+    ...(canViewInventoryTab ? [{ value: 'inventory' as WarehouseDetailsTab, label: `Inventory${inventoryQuery.data ? ` (${inventoryQuery.data.totalElements})` : ''}` }] : []),
+    { value: 'stockMovements', label: `Movements${stockMovementQuery.data ? ` (${stockMovementQuery.data.totalElements})` : ''}` },
     ...(canManageAccess ? [{ value: 'access' as WarehouseDetailsTab, label: 'Access' }] : []),
-    { value: 'commentsAttachments', label: 'Comments & attachments' },
-    { value: 'domainEvents', label: 'Domain events' },
-    { value: 'changeHistory', label: 'Change history' },
+    { value: 'commentsAttachments', label: 'Attachments & comments' },
+    { value: 'eventsHistory', label: 'Events & history' },
   ];
 
   return (
@@ -761,19 +802,12 @@ export default function WarehouseDetailsPage() {
       onTabChange={(value) => setActiveTab(value as WarehouseDetailsTab)}
       actions={
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <ArchiveStatusBadge archived={!warehouse.active} />
           {canManage && warehouse.active ? (
             <Button variant="outlined" color="warning" disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(warehouse.id)}>Archive</Button>
           ) : null}
           {canManage && !warehouse.active ? (
             <Button variant="contained" color="success" disabled={restoreMutation.isPending} onClick={() => restoreMutation.mutate(warehouse.id)}>Restore</Button>
           ) : null}
-          <Button
-            variant="contained"
-            onClick={() => navigate(`/inventory?warehouseId=${warehouse.id}`)}
-          >
-            Open inventory
-          </Button>
           {canManage ? (
             <Button
               variant="outlined"
@@ -782,20 +816,13 @@ export default function WarehouseDetailsPage() {
               Create stock movement
             </Button>
           ) : null}
-          <Button
-            variant="outlined"
-            onClick={() => navigate(`/warehouses/${warehouse.id}/zones`)}
-          >
-            Open zones
-          </Button>
-          <Button variant="outlined" onClick={() => navigate('/warehouses')}>
+          <Button variant="outlined" onClick={() => navigate(warehouseLocationRoutes.warehouses())}>
             Back to list
           </Button>
         </Stack>
       }
     >
       {!warehouse.active ? <ArchivedEntityAlert entityLabel="Warehouse" /> : null}
-      <RecommendedNextStep {...warehouseRecommendedStep} />
 
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
@@ -842,6 +869,7 @@ export default function WarehouseDetailsPage() {
             </Grid>
           </SectionCard>
 
+
           <SectionCard title="Ownership and assignment">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 4 }}>
@@ -855,58 +883,69 @@ export default function WarehouseDetailsPage() {
               </Grid>
             </Grid>
           </SectionCard>
-
-          {canManage ? (
-            <SectionCard
-              title="Status actions"
-              description="Warehouse status changes use a confirmation dialog because they can affect inventory, bin and transport workflows."
-            >
-              {nextStatuses.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No warehouse status transition is currently available. Backend validation remains the final authority.
-                </Typography>
-              ) : (
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {nextStatuses.map((status) => (
-                    <Button
-                      key={status}
-                      variant="outlined"
-                      disabled={changeStatusMutation.isPending}
-                      onClick={() => setTransitionTarget(status)}
-                    >
-                      Move to {status.replaceAll('_', ' ')}
-                    </Button>
-                  ))}
-                </Stack>
-              )}
-
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Final validation stays on the backend. If the warehouse has inventory, bin or
-                active transport constraints, the backend validation message will be shown.
-              </Typography>
-            </SectionCard>
-          ) : null}
         </Stack>
       ) : null}
 
-      {activeTab === 'zones' ? (
+      {activeTab === 'locations' ? (
         <RelatedDataSection
-          title="Warehouse zones"
-          description="Logical warehouse areas used for receiving, storage, picking, dispatch and exception handling."
-          action={
-            <Button variant="outlined" onClick={() => navigate(`/warehouses/${warehouse.id}/zones`)}>
-              Open zones
+          title="Locations"
+          description="Warehouse physical layout starts here: open a location/zone, then drill down into its bins and bin inventory."
+          action={canManageStorage ? (
+            <Button variant="outlined" onClick={() => setCreateLocationOpen(true)}>
+              Create location
             </Button>
-          }
+          ) : undefined}
           loading={zoneQuery.isLoading}
           error={zoneQuery.isError}
           onRetry={() => void zoneQuery.refetch()}
           empty={!zoneQuery.isLoading && !zoneQuery.isError && zones.length === 0}
-          emptyTitle="No zones"
-          emptyDescription="This warehouse does not have configured operational zones yet."
+          emptyTitle="No bin locations"
+          emptyDescription="This warehouse does not have configured locations/zones yet. Create locations before managing bins and bin inventory."
         >
-          <ZonesTable rows={zones} onOpenZone={(zone) => navigate(`/warehouses/${warehouse.id}/zones/${zone.id}`)} />
+          <Stack spacing={2}>
+            <TextField
+              size="small"
+              label="Search locations"
+              value={zoneSearch}
+              onChange={(event) => { setZoneSearch(event.target.value); zonePage.setPage(0) }}
+              placeholder="Search by code, name or type"
+              fullWidth
+            />
+            <ZonesTable rows={zones} onOpenZone={(zone) => navigate(warehouseLocationRoutes.warehouseLocationDetails(warehouse.id, zone.id))} />
+          </Stack>
           {zonePage.pagination(zoneQuery.data)}
+        </RelatedDataSection>
+      ) : null}
+
+
+      {activeTab === 'bins' ? (
+        <RelatedDataSection
+          title="Bins"
+          description="All bin locations for this warehouse. Open a bin to see its details, bin inventory, stock movements and movement trace."
+          action={
+            <Button variant="outlined" onClick={() => setActiveTab('locations')}>
+              Open locations
+            </Button>
+          }
+          loading={binQuery.isLoading}
+          error={binQuery.isError}
+          onRetry={() => void binQuery.refetch()}
+          empty={!binQuery.isLoading && !binQuery.isError && bins.length === 0}
+          emptyTitle="No bins"
+          emptyDescription="This warehouse does not have configured bins yet. Create bins inside a warehouse location first."
+        >
+          <Stack spacing={2}>
+            <TextField
+              size="small"
+              label="Search bins"
+              value={binSearch}
+              onChange={(event) => { setBinSearch(event.target.value); binPage.setPage(0); }}
+              placeholder="Search by bin code, label or location"
+              fullWidth
+            />
+            <WarehouseBinsTable rows={bins} onOpenBin={(bin) => navigate(warehouseLocationRoutes.binDetails(warehouse.id, bin.zoneId, bin.id))} />
+          </Stack>
+          {binPage.pagination(binQuery.data)}
         </RelatedDataSection>
       ) : null}
 
@@ -914,11 +953,6 @@ export default function WarehouseDetailsPage() {
         <RelatedDataSection
           title="Warehouse inventory"
           description="Warehouse-level product stock. Physical bin distribution is opened from zone and bin details."
-          action={
-            <Button variant="outlined" onClick={() => navigate(`/inventory?warehouseId=${warehouse.id}`)}>
-              Open inventory module
-            </Button>
-          }
           loading={inventoryQuery.isLoading}
           error={inventoryQuery.isError}
           onRetry={() => void inventoryQuery.refetch()}
@@ -926,7 +960,17 @@ export default function WarehouseDetailsPage() {
           emptyTitle="No inventory"
           emptyDescription="This warehouse does not currently have product stock records."
         >
-          <WarehouseInventoryTable rows={inventory} onOpenInventory={(row) => navigate(`/inventory/${row.warehouseId}/${row.productId}`)} />
+          <Stack spacing={2}>
+            <TextField
+              size="small"
+              label="Search inventory"
+              value={inventorySearch}
+              onChange={(event) => { setInventorySearch(event.target.value); inventoryPage.setPage(0); }}
+              placeholder="Search by product, SKU or status"
+              fullWidth
+            />
+            <WarehouseInventoryTable rows={inventory} onOpenInventory={(row) => navigate(warehouseLocationRoutes.inventoryDetails(row.warehouseId, row.productId))} />
+          </Stack>
           {inventoryPage.pagination(inventoryQuery.data)}
         </RelatedDataSection>
       ) : null}
@@ -936,11 +980,6 @@ export default function WarehouseDetailsPage() {
           <RelatedDataSection
             title="Warehouse stock movements"
             description="Inbound, outbound, transfer, adjustment, write-off, return and reservation records scoped to this warehouse."
-            action={
-              <Button variant="outlined" onClick={() => navigate(`/stock-movements?warehouseId=${warehouse.id}`)}>
-                Open stock movements
-              </Button>
-            }
             loading={stockMovementQuery.isLoading}
             error={stockMovementQuery.isError}
             onRetry={() => void stockMovementQuery.refetch()}
@@ -948,27 +987,44 @@ export default function WarehouseDetailsPage() {
             emptyTitle="No stock movements"
             emptyDescription="No stock movements have been recorded for this warehouse yet."
           >
-            <StockMovementsTable rows={stockMovements} onOpenMovement={(movement) => navigate(`/stock-movements/${movement.id}`)} />
+            <Stack spacing={2}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <TextField
+                    size="small"
+                    label="Search movements"
+                    value={movementSearch}
+                    onChange={(event) => { setMovementSearch(event.target.value); stockMovementPage.setPage(0); }}
+                    placeholder="Search by product, reason, reference or movement id"
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    select
+                    size="small"
+                    label="Movement type"
+                    value={movementTypeFilter}
+                    onChange={(event) => { setMovementTypeFilter(event.target.value); stockMovementPage.setPage(0); }}
+                    fullWidth
+                  >
+                    <MenuItem value="ALL">All movement types</MenuItem>
+                    <MenuItem value="INBOUND">Inbound</MenuItem>
+                    <MenuItem value="OUTBOUND">Outbound</MenuItem>
+                    <MenuItem value="TRANSFER_IN">Transfer in</MenuItem>
+                    <MenuItem value="TRANSFER_OUT">Transfer out</MenuItem>
+                    <MenuItem value="ADJUSTMENT">Adjustment</MenuItem>
+                    <MenuItem value="WRITE_OFF">Write off</MenuItem>
+                    <MenuItem value="RETURN_IN">Return in</MenuItem>
+                    <MenuItem value="RETURN_OUT">Return out</MenuItem>
+                    <MenuItem value="RESERVATION">Reservation</MenuItem>
+                    <MenuItem value="RESERVATION_RELEASE">Reservation release</MenuItem>
+                  </TextField>
+                </Grid>
+              </Grid>
+              <StockMovementsTable rows={stockMovements} onOpenMovement={(movement) => navigate(warehouseLocationRoutes.stockMovementDetails(movement.id))} />
+            </Stack>
             {stockMovementPage.pagination(stockMovementQuery.data)}
-          </RelatedDataSection>
-
-          <RelatedDataSection
-            title="Internal movements"
-            description="Bin-to-bin relocations scoped to this warehouse. These do not change warehouse-level total stock."
-            action={
-              <Button variant="outlined" onClick={() => navigate(`/stock-movements?warehouseId=${warehouse.id}&tab=internal`)}>
-                Open internal movements
-              </Button>
-            }
-            loading={internalMovementQuery.isLoading}
-            error={internalMovementQuery.isError}
-            onRetry={() => void internalMovementQuery.refetch()}
-            empty={!internalMovementQuery.isLoading && !internalMovementQuery.isError && internalMovements.length === 0}
-            emptyTitle="No internal movements"
-            emptyDescription="No bin-to-bin movements have been recorded for this warehouse yet."
-          >
-            <InternalMovementsTable rows={internalMovements} onOpenProduct={(movement) => navigate(`/products/${movement.productId}`)} />
-            {internalMovementPage.pagination(internalMovementQuery.data)}
           </RelatedDataSection>
         </Stack>
       ) : null}
@@ -980,28 +1036,36 @@ export default function WarehouseDetailsPage() {
       {activeTab === 'commentsAttachments' ? (
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, lg: 6 }}>
-            <CommentsPanel entityType="WAREHOUSE" entityId={warehouse.id} allowCreate={canManage} />
+            <CommentsPanel entityType="WAREHOUSE" entityId={warehouse.id} allowCreate={canManageStorage} />
           </Grid>
           <Grid size={{ xs: 12, lg: 6 }}>
-            <AttachmentsPanel entityType="WAREHOUSE" entityId={warehouse.id} allowCreate={canManage} />
+            <AttachmentsPanel entityType="WAREHOUSE" entityId={warehouse.id} allowCreate={canManageStorage} />
           </Grid>
         </Grid>
       ) : null}
 
-      {activeTab === 'domainEvents' ? (
-        <DomainEventsPanel entityType="WAREHOUSE" entityId={warehouse.id} />
-      ) : null}
-
-      {activeTab === 'changeHistory' ? (
-        <Stack spacing={2}>
-          <ChangeHistoryPanel entityName="WAREHOUSE" entityId={warehouse.id} />
-          <Stack alignItems="flex-end">
-            <Link component="button" variant="body2" onClick={() => navigate(`/change-history?entityName=WAREHOUSE&entityId=${warehouse.id}`)}>
-              Open full change history
-            </Link>
+      {activeTab === 'eventsHistory' ? (
+        <Stack spacing={3}>
+          <DomainEventsPanel entityType="WAREHOUSE" entityId={warehouse.id} />
+          <Stack spacing={2}>
+            <ChangeHistoryPanel entityName="WAREHOUSE" entityId={warehouse.id} />
+            <Stack alignItems="flex-end">
+              <Link component="button" variant="body2" onClick={() => navigate(`/change-history?entityName=WAREHOUSE&entityId=${warehouse.id}`)}>
+                Open full change history
+              </Link>
+            </Stack>
           </Stack>
         </Stack>
       ) : null}
+
+      <CreateWarehouseLocationDialog
+        open={createLocationOpen}
+        warehouseId={warehouse.id}
+        warehouseName={warehouse.name}
+        loading={createLocationMutation.isPending}
+        onClose={() => setCreateLocationOpen(false)}
+        onSubmit={(payload) => createLocationMutation.mutate(payload)}
+      />
 
       <LifecycleTransitionDialog
         open={transitionTarget != null}

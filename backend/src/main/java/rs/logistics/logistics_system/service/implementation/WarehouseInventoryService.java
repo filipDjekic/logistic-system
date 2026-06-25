@@ -556,7 +556,11 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
 
         StockMovement movement = new StockMovement();
         movement.setMovementType(movementType);
-        movement.setQuantity(resolveMovementQuantity(quantityBefore, quantityAfter, reservedBefore, reservedAfter));
+        BigDecimal resolvedMovementQuantity = resolveMovementQuantity(quantityBefore, quantityAfter, reservedBefore, reservedAfter);
+        movement.setQuantity(resolvedMovementQuantity);
+        movement.setExpectedQuantity(resolvedMovementQuantity);
+        movement.setActualQuantity(resolvedMovementQuantity);
+        movement.setDiscrepancyQuantity(BigDecimal.ZERO);
         movement.setReasonCode(reasonCode);
         movement.setReasonDescription(note);
         movement.setReferenceType(StockMovementReferenceType.SYSTEM);

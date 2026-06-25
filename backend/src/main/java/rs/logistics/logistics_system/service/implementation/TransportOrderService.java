@@ -317,11 +317,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 ? authenticatedUserProvider.getAuthenticatedUserId()
                 : null;
 
+        Long workerEmployeeId = authenticatedUserProvider.hasRole("WORKER")
+                ? currentEmployeeIdOrNotFound()
+                : null;
+
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
 
         return PageResponse.from(_transportOrderRepository.searchTransportOrders(
                 companyId,
                 driverUserId,
+                workerEmployeeId,
                 status,
                 priority,
                 sourceWarehouseId,
@@ -355,11 +360,16 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 ? authenticatedUserProvider.getAuthenticatedUserId()
                 : null;
 
+        Long workerEmployeeId = authenticatedUserProvider.hasRole("WORKER")
+                ? currentEmployeeIdOrNotFound()
+                : null;
+
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
 
         return _transportOrderRepository.countGroupedByStatusFiltered(
                         companyId,
                         driverUserId,
+                        workerEmployeeId,
                         priority,
                         sourceWarehouseId,
                         destinationWarehouseId,
@@ -1581,6 +1591,11 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             }
         }
 
+        if (authenticatedUserProvider.hasRole("WORKER")
+                && !_transportOrderRepository.existsAssignedWorkerTaskForTransportOrder(id, currentEmployeeIdOrNotFound())) {
+            throw new ResourceNotFoundException("Transport order not found");
+        }
+
         return transportOrder;
     }
 
@@ -1606,7 +1621,18 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             }
         }
 
+        if (authenticatedUserProvider.hasRole("WORKER")
+                && !_transportOrderRepository.existsAssignedWorkerTaskForTransportOrder(id, currentEmployeeIdOrNotFound())) {
+            throw new ResourceNotFoundException("Transport order not found");
+        }
+
         return transportOrder;
+    }
+
+    private Long currentEmployeeIdOrNotFound() {
+        return _employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
+                .map(Employee::getId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
 
     private Warehouse getAccessibleWarehouse(Long id, String message) {

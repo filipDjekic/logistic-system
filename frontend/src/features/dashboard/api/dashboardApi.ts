@@ -174,6 +174,9 @@ export type OverlordDashboardResponse = {
   lowStockRowsTotal: number;
   inventoryQuantityTotal: string;
   inventoryAvailableQuantityTotal: string;
+  inventoryValueTotal: string;
+  inventoryAverageUnitCost: string;
+  inventoryValuationCurrency: string | null;
   stockMovementsTotal: number;
   activityLogsTotal: number;
   changeHistoryTotal: number;
@@ -199,6 +202,9 @@ export type CompanyAdminDashboardResponse = {
   lowStockRowsTotal: number;
   inventoryQuantityTotal: string;
   inventoryAvailableQuantityTotal: string;
+  inventoryValueTotal: string;
+  inventoryAverageUnitCost: string;
+  inventoryValuationCurrency: string | null;
   stockMovementsTotal: number;
   activityLogsTotal: number;
   changeHistoryTotal: number;
@@ -231,6 +237,9 @@ export type WarehouseManagerInventorySummaryResponse = {
   quantityTotal: string;
   reservedQuantityTotal: string;
   availableQuantityTotal: string;
+  totalValue: string;
+  averageUnitCost: string;
+  currency: string | null;
 };
 
 export type WarehouseManagerLowStockItemResponse = {
@@ -266,6 +275,9 @@ export type WarehouseManagerDashboardResponse = {
   inventoryQuantityTotal: string;
   inventoryReservedQuantityTotal: string;
   inventoryAvailableQuantityTotal: string;
+  inventoryValueTotal: string;
+  inventoryAverageUnitCost: string;
+  inventoryValuationCurrency: string | null;
   stockMovementsTotal: number;
   activeTransportOrdersAffectingWarehouses: number;
   warehouseTasksTotal: number;

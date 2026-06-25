@@ -9,14 +9,14 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { buildSortParam } from '../../../core/api/pagination';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
 import {
@@ -26,16 +26,29 @@ import {
   DomainEventsPanel,
 } from '../../../shared/components/OperationalPanels';
 import { useTasks } from '../../tasks/hooks/useTasks';
+import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { stockMovementsApi } from '../api/stockMovementsApi';
+import StockMovementLifecycleTimeline from '../components/StockMovementLifecycleTimeline';
+import {
+  canUseLifecycleAction,
+  normalizeStockMovementStatus,
+  stockMovementLifecycleActions,
+  type StockMovementLifecycleAction,
+} from '../utils/stockMovementLifecycle';
 
-type StockMovementDetailsTab =
-  | 'overview'
-  | 'inventoryImpact'
-  | 'relatedProcess'
-  | 'lifecycleTrace'
-  | 'commentsAttachments'
-  | 'domainEvents'
-  | 'changeHistory';
+
+const stockMovementAttachmentTypeOptions = [
+  { value: 'DELIVERY_NOTE', label: 'Delivery note / otpremnica' },
+  { value: 'REPORT', label: 'Report / zapisnik' },
+  { value: 'DAMAGE_PHOTO', label: 'Damage photo' },
+  { value: 'WRITE_OFF_EVIDENCE', label: 'Write-off evidence' },
+  { value: 'ADJUSTMENT_EVIDENCE', label: 'Adjustment evidence' },
+  { value: 'DOCUMENT', label: 'Document' },
+  { value: 'OTHER', label: 'Other' },
+] as const;
+
+type StockMovementDetailsTab = 'overview' | 'relatedEntities' | 'movementTrace' | 'activity';
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -43,7 +56,7 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
       <Typography variant="caption" color="text.secondary">
         {label}
       </Typography>
-      <Typography variant="body1" fontWeight={600}>
+      <Typography variant="body1" fontWeight={600} component="div">
         {value ?? '—'}
       </Typography>
     </Stack>
@@ -71,25 +84,26 @@ function formatOptionalNumber(value: number | null | undefined) {
   return value === null || value === undefined ? '—' : value;
 }
 
-function getMovementDirection(movementType: string) {
-  if (movementType.includes('IN') || movementType === 'ADJUSTMENT' || movementType === 'RETURN_IN') {
-    return 'Inventory increase / reconciliation';
+
+function formatMoney(value: number | null | undefined, currency: string | null | undefined) {
+  if (value === null || value === undefined) {
+    return '—';
   }
 
-  if (movementType.includes('OUT') || movementType === 'WRITE_OFF' || movementType === 'RETURN_OUT') {
-    return 'Inventory decrease / consumption';
-  }
-
-  return 'Inventory lifecycle event';
+  const code = currency?.trim() || '';
+  return code ? `${value} ${code}` : value;
 }
 
 export default function StockMovementDetailsPage() {
   const params = useParams();
   const navigate = useNavigate();
   const auth = useAuthStore();
+  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
   const movementId = Number(params.id);
   const validMovementId = Number.isInteger(movementId) && movementId > 0 ? movementId : null;
   const [activeTab, setActiveTab] = useState<StockMovementDetailsTab>('overview');
+  const [pendingLifecycleAction, setPendingLifecycleAction] = useState<StockMovementLifecycleAction | null>(null);
 
   const stockMovementQuery = useQuery({
     queryKey: validMovementId ? queryKeys.stockMovements.detail(validMovementId) : ['stock-movements', 'details', 'invalid'],
@@ -100,7 +114,13 @@ export default function StockMovementDetailsPage() {
   const traceQuery = useQuery({
     queryKey: validMovementId ? queryKeys.stockMovements.trace(validMovementId) : ['stock-movements', 'trace', 'invalid'],
     queryFn: () => stockMovementsApi.trace(validMovementId as number),
-    enabled: Boolean(validMovementId) && activeTab === 'lifecycleTrace',
+    enabled: Boolean(validMovementId) && activeTab === 'movementTrace',
+  });
+
+  const statusTransitionsQuery = useQuery({
+    queryKey: validMovementId ? queryKeys.stockMovements.statusTransitions(validMovementId) : ['stock-movements', 'status-transitions', 'invalid'],
+    queryFn: () => stockMovementsApi.getStatusTransitions(validMovementId as number),
+    enabled: Boolean(validMovementId),
   });
 
   const relatedTasksQuery = useTasks(
@@ -112,14 +132,120 @@ export default function StockMovementDetailsPage() {
           sort: buildSortParam({ field: 'dueDate', direction: 'desc' }),
         }
       : undefined,
-    Boolean(validMovementId) && activeTab === 'relatedProcess',
+    Boolean(validMovementId) && activeTab === 'relatedEntities',
   );
 
   const movement = stockMovementQuery.data;
+  const currentStatus = statusTransitionsQuery.data?.currentStatus ?? movement?.status ?? 'EXECUTED';
+  const allowedNextStatuses = statusTransitionsQuery.data?.allowedStatuses ?? movement?.allowedNextStatuses ?? [];
+
+  const refreshStockMovementDetails = async () => {
+    if (!validMovementId) {
+      return;
+    }
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.detail(validMovementId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.statusTransitions(validMovementId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.trace(validMovementId) }),
+    ]);
+  };
+
+  const executeMutation = useMutation({
+    mutationFn: (id: number) => stockMovementsApi.execute(id),
+    onSuccess: async () => {
+      showSnackbar({ message: 'Stock movement executed successfully.', severity: 'success' });
+      await refreshStockMovementDetails();
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) => stockMovementsApi.cancel(id),
+    onSuccess: async () => {
+      showSnackbar({ message: 'Stock movement cancelled successfully.', severity: 'success' });
+      await refreshStockMovementDetails();
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (id: number) => stockMovementsApi.approve(id),
+    onSuccess: async () => {
+      showSnackbar({ message: 'Stock movement approved successfully.', severity: 'success' });
+      await refreshStockMovementDetails();
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: number) => stockMovementsApi.reject(id),
+    onSuccess: async () => {
+      showSnackbar({ message: 'Stock movement rejected successfully.', severity: 'success' });
+      await refreshStockMovementDetails();
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
+  const reverseMutation = useMutation({
+    mutationFn: (id: number) => stockMovementsApi.reverse(id),
+    onSuccess: async (reversal) => {
+      showSnackbar({ message: `Stock movement reversed. Reversal movement #${reversal.id} was created.`, severity: 'success' });
+      await refreshStockMovementDetails();
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
   const canManageOperationalNotes =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canExecuteLifecycleAction =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER ||
+    auth.user?.role === ROLES.DISPATCHER;
+  const canApproveLifecycleAction =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const lifecycleActionPending = executeMutation.isPending || cancelMutation.isPending || approveMutation.isPending || rejectMutation.isPending || reverseMutation.isPending;
+  const currentLifecycleStatus = normalizeStockMovementStatus(currentStatus);
+  const visibleLifecycleActions = movement
+    ? stockMovementLifecycleActions.filter((action) => canUseLifecycleAction(action, allowedNextStatuses, {
+        canApprove: canApproveLifecycleAction,
+        canExecute: canExecuteLifecycleAction,
+        movement,
+      }))
+    : [];
+  const pendingActionDefinition = stockMovementLifecycleActions.find((action) => action.key === pendingLifecycleAction) ?? null;
+
+  const runLifecycleAction = (action: StockMovementLifecycleAction) => {
+    if (!movement) {
+      return;
+    }
+
+    const mutationMap = {
+      approve: approveMutation,
+      reject: rejectMutation,
+      execute: executeMutation,
+      cancel: cancelMutation,
+      reverse: reverseMutation,
+    } as const;
+
+    setPendingLifecycleAction(null);
+    mutationMap[action].mutate(movement.id);
+  };
 
   if (!validMovementId) {
     return (
@@ -155,221 +281,211 @@ export default function StockMovementDetailsPage() {
     );
   }
 
-  const stockMovementRecommendedStep = (() => {
-    if (movement.transportOrderId) {
-      return {
-        title: 'Review the transport order that caused this movement.',
-        description: 'This stock movement is linked to transport execution. Open the related process to verify reservation, dispatch or delivery context.',
-        severity: 'info' as const,
-        actions: [
-          { label: 'Open related process', onClick: () => setActiveTab('relatedProcess') },
-          { label: 'Open inventory record', to: `/inventory/${movement.warehouseId}/${movement.productId}`, variant: 'outlined' as const },
-        ],
-      };
-    }
-
-    if (movement.parentMovementId || movement.rootMovementId) {
-      return {
-        title: 'Review lifecycle trace for the movement chain.',
-        description: 'This movement belongs to a movement chain. Use lifecycle trace to see parent/root movement context and related inventory impact.',
-        severity: 'info' as const,
-        actions: [{ label: 'Open lifecycle trace', onClick: () => setActiveTab('lifecycleTrace') }],
-      };
-    }
-
-    return {
-      title: 'Verify inventory impact and references.',
-      description: 'Open inventory impact to confirm how this movement changed warehouse/bin quantity, then review references if a process link is expected.',
-      severity: 'info' as const,
-      actions: [
-        { label: 'Open inventory impact', onClick: () => setActiveTab('inventoryImpact') },
-        { label: 'Open inventory record', to: `/inventory/${movement.warehouseId}/${movement.productId}`, variant: 'outlined' as const },
-      ],
-    };
-  })();
-
   const tabs: { value: StockMovementDetailsTab; label: ReactNode }[] = [
     { value: 'overview', label: 'Overview' },
-    { value: 'inventoryImpact', label: 'Inventory impact' },
-    { value: 'relatedProcess', label: `Related process${relatedTasksQuery.data ? ` (${relatedTasksQuery.data.totalElements})` : ''}` },
-    { value: 'lifecycleTrace', label: `Lifecycle trace${traceQuery.data ? ` (${traceQuery.data.movements.length})` : ''}` },
-    { value: 'commentsAttachments', label: 'Comments & attachments' },
-    { value: 'domainEvents', label: 'Domain events' },
-    { value: 'changeHistory', label: 'Change history' },
+    { value: 'relatedEntities', label: `Related entities${relatedTasksQuery.data ? ` (${relatedTasksQuery.data.totalElements})` : ''}` },
+    { value: 'movementTrace', label: `Movement trace${traceQuery.data ? ` (${traceQuery.data.movements.length})` : ''}` },
+    { value: 'activity', label: 'Activity' },
   ];
 
   return (
     <EntityDetailsLayout
       overline="Inventory"
       title={`Stock movement #${movement.id}`}
-      description={`${movement.movementType} • ${movement.warehouseName} • ${movement.productName}`}
+      description={`${movement.movementType} • ${currentStatus} • ${movement.warehouseName} • ${movement.productName}`}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as StockMovementDetailsTab)}
       actions={
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button
-            variant="outlined"
-            component={RouterLink}
-            to={`/inventory/${movement.warehouseId}/${movement.productId}`}
-          >
-            Open inventory record
-          </Button>
+          {visibleLifecycleActions.map((action) => (
+            <Button
+              key={action.key}
+              variant={action.variant}
+              color={action.color}
+              onClick={() => setPendingLifecycleAction(action.key)}
+              disabled={lifecycleActionPending}
+            >
+              {action.label}
+            </Button>
+          ))}
           <Button variant="outlined" onClick={() => navigate('/stock-movements')}>
             Back to list
           </Button>
         </Stack>
       }
     >
-      <RecommendedNextStep {...stockMovementRecommendedStep} />
 
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
-          <SectionCard title="Movement overview" description="Business identity and source context for this stock movement.">
+          <SectionCard title="Movement overview">
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <Stack spacing={0.5} alignItems="flex-start">
                   <Typography variant="caption" color="text.secondary">Movement type</Typography>
                   <StatusChip value={movement.movementType} />
                 </Stack>
               </Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Movement ID" value={movement.id} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Created at" value={formatDateTime(movement.createdAt)} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Warehouse" value={<Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>{movement.warehouseName}</Button>} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Product" value={<Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button>} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Quantity" value={movement.quantity} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Adjustment direction" value={movement.adjustmentDirection ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reason code" value={movement.reasonCode ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reason description" value={movement.reasonDescription ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <Stack spacing={0.5} alignItems="flex-start">
+                  <Typography variant="caption" color="text.secondary">Lifecycle status</Typography>
+                  <StatusChip value={currentStatus} emphasis="strong" />
+                </Stack>
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Movement ID" value={movement.id} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Quantity" value={movement.quantity} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Created at" value={formatDateTime(movement.createdAt)} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Warehouse" value={<Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>{movement.warehouseName}</Button>} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Product" value={<Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button>} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Reason code" value={movement.reasonCode ?? '—'} /></Grid>
+              <Grid size={{ xs: 12 }}><InfoRow label="Reason description" value={movement.reasonDescription ?? '—'} /></Grid>
             </Grid>
           </SectionCard>
 
-          <SectionCard title="Reference" description="External or operational reference connected with the stock movement.">
+          <SectionCard title="Lifecycle workflow" description="Status is controlled by backend actions. Users do not edit status manually.">
+            <Stack spacing={2}>
+              {statusTransitionsQuery.isError ? (
+                <Alert severity="warning">Allowed lifecycle transitions could not be loaded.</Alert>
+              ) : null}
+
+              <StockMovementLifecycleTimeline
+                movement={movement}
+                currentStatus={currentLifecycleStatus}
+                allowedNextStatuses={allowedNextStatuses}
+              />
+
+              <Stack spacing={1}>
+                <Typography variant="subtitle2" fontWeight={800}>Available actions</Typography>
+                {visibleLifecycleActions.length > 0 ? (
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {visibleLifecycleActions.map((action) => (
+                      <Button
+                        key={action.key}
+                        variant={action.variant}
+                        color={action.color}
+                        onClick={() => setPendingLifecycleAction(action.key)}
+                        disabled={lifecycleActionPending}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">No lifecycle action is currently available for your role and this status.</Typography>
+                )}
+              </Stack>
+            </Stack>
+          </SectionCard>
+
+
+
+          <SectionCard title="Batch and serial tracking" description="Shows batch/lot, expiration and serialized stock trace data captured with this movement.">
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Batch / lot" value={movement.batchLotNumber ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Expiration date" value={movement.batchExpirationDate ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Serial numbers" value={movement.serialNumbers ?? '—'} /></Grid>
+            </Grid>
+          </SectionCard>
+
+          <SectionCard title="Expected vs actual" description="Shows operational quantity variance for transport, receiving, damage and shortage scenarios.">
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Expected quantity" value={formatOptionalNumber(movement.expectedQuantity)} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Actual quantity" value={formatOptionalNumber(movement.actualQuantity)} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Discrepancy" value={formatOptionalNumber(movement.discrepancyQuantity)} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Discrepancy reason" value={movement.discrepancyReason ?? '—'} /></Grid>
+              <Grid size={{ xs: 12 }}><InfoRow label="Discrepancy note" value={movement.discrepancyNote ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Transport link" value={movement.transportOrderId ? <Button size="small" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`}>Transport order #{movement.transportOrderId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference" value={movement.referenceType ? `${movement.referenceType}${movement.referenceId ? ` #${movement.referenceId}` : ''}` : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference code" value={movement.referenceCode ?? movement.referenceNumber ?? '—'} /></Grid>
+            </Grid>
+          </SectionCard>
+
+
+          <SectionCard title="Cost and valuation" description="Cost fields are captured on the movement and used by backend inventory valuation when available.">
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Unit cost" value={formatMoney(movement.unitCost, movement.currency)} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Total cost" value={formatMoney(movement.totalCost, movement.currency)} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Currency" value={movement.currency ?? '—'} /></Grid>
+            </Grid>
+          </SectionCard>
+
+          <SectionCard title="Inventory impact">
+            <Stack spacing={2}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Quantity" value={`${movement.quantityBefore} → ${movement.quantityAfter}`} /></Grid>
+                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reserved" value={`${formatOptionalNumber(movement.reservedBefore)} → ${formatOptionalNumber(movement.reservedAfter)}`} /></Grid>
+                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Available" value={`${formatOptionalNumber(movement.availableBefore)} → ${formatOptionalNumber(movement.availableAfter)}`} /></Grid>
+              </Grid>
+            </Stack>
+          </SectionCard>
+        </Stack>
+      ) : null}
+
+      {activeTab === 'relatedEntities' ? (
+        <Stack spacing={3}>
+          <SectionCard title="Related entities">
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Warehouse" value={<Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>{movement.warehouseName}</Button>} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Product" value={<Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button>} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Inventory record" value={<Button size="small" component={RouterLink} to={`/inventory/${movement.warehouseId}/${movement.productId}`}>Open inventory</Button>} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Transport order" value={movement.transportOrderId ? <Button size="small" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`}>#{movement.transportOrderId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Source bin" value={movement.sourceBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>{movement.sourceBinCode ?? `#${movement.sourceBinId}`}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Destination bin" value={movement.destinationBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>{movement.destinationBinCode ?? `#${movement.destinationBinId}`}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Parent movement" value={movement.parentMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.parentMovementId}`}>#{movement.parentMovementId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Root movement" value={movement.rootMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.rootMovementId}`}>#{movement.rootMovementId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reversal of" value={movement.reversalOfMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.reversalOfMovementId}`}>#{movement.reversalOfMovementId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reversed by" value={movement.reversedByMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.reversedByMovementId}`}>#{movement.reversedByMovementId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Transfer group" value={movement.transferGroupId ?? '—'} /></Grid>
+            </Grid>
+          </SectionCard>
+
+          <SectionCard title="Reference">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference type" value={movement.referenceType ?? '—'} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference ID" value={movement.referenceId ?? '—'} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference code" value={movement.referenceCode ?? movement.referenceNumber ?? '—'} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Source" value={movement.sourceType ? `${movement.sourceType}${movement.sourceId ? ` #${movement.sourceId}` : ''}` : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Parent movement" value={movement.parentMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.parentMovementId}`}>#{movement.parentMovementId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Root movement" value={movement.rootMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.rootMovementId}`}>#{movement.rootMovementId}</Button> : '—'} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference number" value={movement.referenceNumber ?? '—'} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference note" value={movement.referenceNote ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Transfer group" value={movement.transferGroupId ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Transport order" value={movement.transportOrderId ? <Button size="small" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`}>#{movement.transportOrderId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Source bin" value={movement.sourceBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>{movement.sourceBinCode ?? `#${movement.sourceBinId}`}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Destination bin" value={movement.destinationBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>{movement.destinationBinCode ?? `#${movement.destinationBinId}`}</Button> : '—'} /></Grid>
             </Grid>
           </SectionCard>
+
+          <RelatedDataSection
+            title="Linked tasks"
+            description="Operational tasks connected with this stock movement."
+            loading={relatedTasksQuery.isLoading}
+            error={relatedTasksQuery.isError}
+            onRetry={() => { void relatedTasksQuery.refetch(); }}
+            empty={!relatedTasksQuery.isLoading && !relatedTasksQuery.isError && (relatedTasksQuery.data?.content ?? []).length === 0}
+            emptyTitle="No linked tasks"
+            emptyDescription="There are no tasks linked with this stock movement."
+          >
+            <Stack spacing={1.25}>
+              {(relatedTasksQuery.data?.content ?? []).map((task) => (
+                <Stack key={task.id} spacing={0.5} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                  <Typography variant="body2" fontWeight={800}>{task.title}</Typography>
+                  <Typography variant="body2" color="text.secondary">{task.priority} · {formatDateTime(task.dueDate)}</Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip size="small" label={task.taskType} variant="outlined" />
+                    <StatusChip value={task.status} />
+                    <Button size="small" component={RouterLink} to={`/tasks/${task.id}`}>Open</Button>
+                  </Stack>
+                </Stack>
+              ))}
+            </Stack>
+          </RelatedDataSection>
         </Stack>
       ) : null}
 
-      {activeTab === 'inventoryImpact' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 5 }}>
-            <SectionCard title="Inventory impact" description="Quantity, reserved and available balance before and after this movement.">
-              <Stack spacing={2}>
-                <Alert severity="info">{getMovementDirection(movement.movementType)}</Alert>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Quantity before" value={movement.quantityBefore} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Quantity after" value={movement.quantityAfter} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Reserved before" value={formatOptionalNumber(movement.reservedBefore)} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Reserved after" value={formatOptionalNumber(movement.reservedAfter)} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Available before" value={formatOptionalNumber(movement.availableBefore)} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Available after" value={formatOptionalNumber(movement.availableAfter)} /></Grid>
-                </Grid>
-              </Stack>
-            </SectionCard>
-          </Grid>
-
-          <Grid size={{ xs: 12, lg: 7 }}>
-            <SectionCard title="Linked inventory context" description="Direct navigation to the affected warehouse, product and inventory record.">
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Button variant="outlined" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>
-                  Open warehouse
-                </Button>
-                <Button variant="outlined" component={RouterLink} to={`/products/${movement.productId}`}>
-                  Open product
-                </Button>
-                <Button variant="contained" component={RouterLink} to={`/inventory/${movement.warehouseId}/${movement.productId}`}>
-                  Open inventory record
-                </Button>
-                {movement.sourceBinId ? (
-                  <Button variant="outlined" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>
-                    Open source bin
-                  </Button>
-                ) : null}
-                {movement.destinationBinId ? (
-                  <Button variant="outlined" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>
-                    Open destination bin
-                  </Button>
-                ) : null}
-              </Stack>
-            </SectionCard>
-          </Grid>
-        </Grid>
-      ) : null}
-
-      {activeTab === 'relatedProcess' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <RelatedDataSection
-              title="Linked transport"
-              description="Transport order connected with this stock movement, when the movement was created from transport flow."
-              empty={!movement.transportOrderId}
-              emptyTitle="No linked transport order"
-              emptyDescription="This stock movement is not linked with a transport order."
-            >
-              <Stack spacing={1.25}>
-                <Typography variant="body2" color="text.secondary">Transport order ID</Typography>
-                <Typography variant="h6">#{movement.transportOrderId}</Typography>
-                {movement.transportOrderId ? (
-                  <Button variant="outlined" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`} sx={{ alignSelf: 'flex-start' }}>
-                    Open transport order
-                  </Button>
-                ) : null}
-              </Stack>
-            </RelatedDataSection>
-          </Grid>
-
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <RelatedDataSection
-              title="Linked tasks"
-              description="Operational tasks connected with this stock movement."
-              loading={relatedTasksQuery.isLoading}
-              error={relatedTasksQuery.isError}
-              onRetry={() => { void relatedTasksQuery.refetch(); }}
-              empty={!relatedTasksQuery.isLoading && !relatedTasksQuery.isError && (relatedTasksQuery.data?.content ?? []).length === 0}
-              emptyTitle="No linked tasks"
-              emptyDescription="There are no tasks linked with this stock movement."
-            >
-              <Stack spacing={1.25}>
-                {(relatedTasksQuery.data?.content ?? []).map((task) => (
-                  <Stack key={task.id} spacing={0.5} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                    <Typography variant="body2" fontWeight={800}>{task.title}</Typography>
-                    <Typography variant="body2" color="text.secondary">{task.priority} · {formatDateTime(task.dueDate)}</Typography>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Chip size="small" label={task.taskType} variant="outlined" />
-                      <StatusChip value={task.status} />
-                      <Button size="small" component={RouterLink} to={`/tasks/${task.id}`}>Open</Button>
-                    </Stack>
-                  </Stack>
-                ))}
-              </Stack>
-            </RelatedDataSection>
-          </Grid>
-        </Grid>
-      ) : null}
-
-
-      {activeTab === 'lifecycleTrace' ? (
+      {activeTab === 'movementTrace' ? (
         <RelatedDataSection
-          title="Lifecycle trace"
-          description="Traceable movement chain connected through parent/root movement, transport order or transfer group."
+          title="Movement trace"
+          description="Traceable stock movement chain connected through parent/root movement, transport order or transfer group."
           loading={traceQuery.isLoading}
           error={traceQuery.isError}
           onRetry={() => { void traceQuery.refetch(); }}
           empty={!traceQuery.isLoading && !traceQuery.isError && (traceQuery.data?.movements ?? []).length === 0}
-          emptyTitle="No additional lifecycle movements"
+          emptyTitle="No additional movements"
           emptyDescription="This movement is currently the only known item in its trace chain."
         >
           <Stack spacing={1.25}>
@@ -387,13 +503,14 @@ export default function StockMovementDetailsPage() {
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                   <Typography variant="body2" fontWeight={800}>Movement #{item.id}</Typography>
                   <StatusChip value={item.movementType} />
+                  <StatusChip value={item.status ?? 'EXECUTED'} variant="outlined" />
                   {item.id === movement.id ? <Chip size="small" label="Current" /> : null}
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
                   {formatDateTime(item.createdAt)} · {item.warehouseName} · {item.productName} · quantity {item.quantity}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Source: {item.sourceType ?? item.referenceType ?? '—'}{item.sourceId ? ` #${item.sourceId}` : ''} · Parent: {item.parentMovementId ? `#${item.parentMovementId}` : '—'} · Root: {item.rootMovementId ? `#${item.rootMovementId}` : '—'}
+                  Source: {item.sourceType ?? item.referenceType ?? '—'}{item.sourceId ? ` #${item.sourceId}` : ''} · Parent: {item.parentMovementId ? `#${item.parentMovementId}` : '—'} · Root: {item.rootMovementId ? `#${item.rootMovementId}` : '—'} · Reversal: {item.reversalOfMovementId ? `of #${item.reversalOfMovementId}` : item.reversedByMovementId ? `by #${item.reversedByMovementId}` : '—'}
                 </Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   <Button size="small" component={RouterLink} to={`/stock-movements/${item.id}`}>Open movement</Button>
@@ -406,24 +523,45 @@ export default function StockMovementDetailsPage() {
         </RelatedDataSection>
       ) : null}
 
-      {activeTab === 'commentsAttachments' ? (
+      {activeTab === 'activity' ? (
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, lg: 6 }}>
-            <CommentsPanel entityType="STOCK_MOVEMENT" entityId={movement.id} allowCreate={canManageOperationalNotes} />
+            <Stack spacing={3}>
+              <CommentsPanel entityType="STOCK_MOVEMENT" entityId={movement.id} allowCreate={canManageOperationalNotes} />
+              <AttachmentsPanel
+                entityType="STOCK_MOVEMENT"
+                entityId={movement.id}
+                allowCreate={canManageOperationalNotes}
+                title="Movement evidence"
+                description="Upload delivery notes, reports, damage photos and write-off/adjustment evidence connected with this stock movement."
+                attachmentTypeOptions={stockMovementAttachmentTypeOptions}
+                defaultAttachmentType="DELIVERY_NOTE"
+              />
+            </Stack>
           </Grid>
           <Grid size={{ xs: 12, lg: 6 }}>
-            <AttachmentsPanel entityType="STOCK_MOVEMENT" entityId={movement.id} allowCreate={canManageOperationalNotes} />
+            <Stack spacing={3}>
+              <DomainEventsPanel entityType="STOCK_MOVEMENT" entityId={movement.id} />
+              <ChangeHistoryPanel entityName="STOCK_MOVEMENT" entityId={movement.id} />
+            </Stack>
           </Grid>
         </Grid>
       ) : null}
 
-      {activeTab === 'domainEvents' ? (
-        <DomainEventsPanel entityType="STOCK_MOVEMENT" entityId={movement.id} />
-      ) : null}
-
-      {activeTab === 'changeHistory' ? (
-        <ChangeHistoryPanel entityName="STOCK_MOVEMENT" entityId={movement.id} />
-      ) : null}
+      <ConfirmDialog
+        open={Boolean(pendingActionDefinition)}
+        title={pendingActionDefinition?.confirmTitle ?? 'Confirm lifecycle action'}
+        description={pendingActionDefinition?.confirmDescription(movement) ?? ''}
+        confirmText={pendingActionDefinition?.label ?? 'Confirm'}
+        confirmColor={pendingActionDefinition?.color ?? 'primary'}
+        isLoading={lifecycleActionPending}
+        onClose={() => setPendingLifecycleAction(null)}
+        onConfirm={() => {
+          if (pendingLifecycleAction) {
+            runLifecycleAction(pendingLifecycleAction);
+          }
+        }}
+      />
     </EntityDetailsLayout>
   );
 }

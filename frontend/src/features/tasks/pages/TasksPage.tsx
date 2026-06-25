@@ -15,7 +15,6 @@ import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
-import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
 import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { EntityLookupField } from '../../lookup';
 import type { LookupOption } from '../../lookup';
@@ -152,17 +151,6 @@ export default function TasksPage() {
   const updateTaskStatus = useUpdateTaskStatus();
   const [deleteTarget, setDeleteTarget] = useState<TaskResponse | null>(null);
 
-  const assignableEmployees = useMemo(
-    () =>
-      (employeesQuery.data ?? []).filter(
-        (employee) =>
-          !isWarehouseManager ||
-          employee.position === 'WAREHOUSE_MANAGER' ||
-          employee.position === 'WORKER',
-      ),
-    [employeesQuery.data, isWarehouseManager],
-  );
-
   const managedRows = useMemo(
     () =>
       (tasksQuery.data?.content ?? []).filter((task) => {
@@ -184,12 +172,6 @@ export default function TasksPage() {
   const taskSetupLoading = employeesQuery.isLoading || transportOrdersQuery.isLoading || stockMovementsQuery.isLoading;
   const setupItems = [
     {
-      title: 'Create at least one assignable employee',
-      description: 'Every task must have a responsible employee.',
-      done: !canCreateOrAssign || taskSetupLoading || assignableEmployees.length > 0,
-      action: { label: 'Open employees', to: '/employees' },
-    },
-    {
       title: 'Create transport orders before transport-linked tasks',
       description: 'Transport task context is available only after transport orders exist.',
       done: !canCreateOrAssign || isWarehouseManager || taskSetupLoading || (transportOrdersQuery.data?.content ?? []).length > 0,
@@ -202,8 +184,6 @@ export default function TasksPage() {
       action: { label: 'Open stock movements', to: '/stock-movements' },
     },
   ];
-
-  const hasRequiredTaskSetupBlockers = setupItems.some((item) => !item.done && item.title === 'Create at least one assignable employee');
 
 
   useEffect(() => {
@@ -231,7 +211,7 @@ export default function TasksPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1' || !canCreateOrAssign || taskSetupLoading || hasRequiredTaskSetupBlockers) {
+    if (searchParams.get('create') !== '1' || !canCreateOrAssign || taskSetupLoading) {
       return;
     }
     navigate('/tasks/create');
@@ -239,23 +219,11 @@ export default function TasksPage() {
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete('create');
     setSearchParams(nextSearchParams, { replace: true });
-  }, [canCreateOrAssign, hasRequiredTaskSetupBlockers, navigate, searchParams, setSearchParams, taskSetupLoading]);
+  }, [canCreateOrAssign, navigate, searchParams, setSearchParams, taskSetupLoading]);
 
   useEffect(() => {
     setPage(0);
   }, [filters.search, filters.status, filters.priority, filters.assignedEmployeeId, filters.linkedProcessType]);
-
-  const statusOverviewItems = useMemo(
-    () => {
-      const countsByStatus = new Map((taskStatusCountsQuery.data ?? []).map((item) => [item.status, item.count]));
-
-      return ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'CANCELLED'].map((status) => ({
-        value: status,
-        count: countsByStatus.get(status) ?? rows.filter((row) => row.status === status).length,
-      }));
-    },
-    [rows, taskStatusCountsQuery.data],
-  );
 
   const refreshAll = () => {
     void Promise.all([
@@ -315,7 +283,6 @@ export default function TasksPage() {
           canCreateOrAssign ? (
             <Button
               variant="contained"
-              disabled={hasRequiredTaskSetupBlockers}
               onClick={() => navigate('/tasks/create')}
             >
               Create task
@@ -430,7 +397,6 @@ export default function TasksPage() {
             </FilterPanel>
           </>
         }
-        summary={<StatusOverview items={statusOverviewItems} title="Filtered result status" />}
         table={
           <TasksTable
             rows={rows}

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import rs.logistics.logistics_system.dto.response.report.EmployeeTaskReportResponse;
 import rs.logistics.logistics_system.dto.response.report.InventoryReportResponse;
+import rs.logistics.logistics_system.dto.response.report.InventoryValuationResponse;
 import rs.logistics.logistics_system.dto.response.report.TransportReportResponse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.PriorityLevel;
@@ -121,6 +122,27 @@ public class ReportsController {
                 movementType
         );
         return exportResponse(csv, "inventory-report", format);
+    }
+
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @GetMapping("/inventory/valuation")
+    public ResponseEntity<InventoryValuationResponse> getInventoryValuationReport(
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long productId
+    ) {
+        return ResponseEntity.ok(inventoryReportService.getInventoryValuationReport(warehouseId, productId));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @GetMapping(value = "/inventory/valuation/export", produces = "text/csv")
+    public ResponseEntity<byte[]> exportInventoryValuationReport(
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long productId,
+            @RequestParam(defaultValue = "CSV") String format
+    ) {
+        byte[] csv = inventoryReportService.exportInventoryValuationCsv(warehouseId, productId);
+        return exportResponse(csv, "inventory-valuation-report", format);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")

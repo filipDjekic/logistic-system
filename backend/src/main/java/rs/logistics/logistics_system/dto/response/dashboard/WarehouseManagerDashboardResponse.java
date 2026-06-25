@@ -12,6 +12,9 @@ public record WarehouseManagerDashboardResponse(
         BigDecimal inventoryQuantityTotal,
         BigDecimal inventoryReservedQuantityTotal,
         BigDecimal inventoryAvailableQuantityTotal,
+        BigDecimal inventoryValueTotal,
+        BigDecimal inventoryAverageUnitCost,
+        String inventoryValuationCurrency,
         long stockMovementsTotal,
         long activeTransportOrdersAffectingWarehouses,
         long warehouseTasksTotal,
@@ -30,7 +33,10 @@ public record WarehouseManagerDashboardResponse(
             long lowStockRowsTotal,
             BigDecimal quantityTotal,
             BigDecimal reservedQuantityTotal,
-            BigDecimal availableQuantityTotal
+            BigDecimal availableQuantityTotal,
+            BigDecimal totalValue,
+            BigDecimal averageUnitCost,
+            String currency
     ) {
     }
 

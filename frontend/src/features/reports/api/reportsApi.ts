@@ -101,6 +101,9 @@ export type WarehouseInventorySummaryResponse = {
   quantity: number;
   availableQuantity: number;
   reservedQuantity: number;
+  totalValue: number;
+  averageUnitCost: number;
+  currency: string | null;
   stockMovements: number;
 };
 
@@ -114,6 +117,9 @@ export type ProductInventorySummaryResponse = {
   quantity: number;
   availableQuantity: number;
   reservedQuantity: number;
+  totalValue: number;
+  averageUnitCost: number;
+  currency: string | null;
   stockMovements: number;
 };
 
@@ -127,6 +133,9 @@ export type InventoryReportRowResponse = {
   quantity: number;
   reservedQuantity: number;
   availableQuantity: number;
+  averageUnitCost: number;
+  totalValue: number;
+  currency: string | null;
   minStockLevel: number | null;
   lowStock: boolean;
   lastUpdated: string | null;
@@ -145,6 +154,9 @@ export type StockMovementReportRowResponse = {
   productId: number | null;
   productName: string | null;
   sku: string | null;
+  unitCost: number;
+  totalCost: number;
+  currency: string | null;
   createdAt: string | null;
 };
 
@@ -156,6 +168,9 @@ export type InventoryReportResponse = {
   totalInventoryQuantity: number;
   totalAvailableQuantity: number;
   totalReservedQuantity: number;
+  totalInventoryValue: number;
+  averageUnitCost: number;
+  valuationCurrency: string | null;
   stockAvailabilityRate: number;
   reservationRate: number;
   inventoryHealthScore: number;
@@ -172,6 +187,39 @@ export type InventoryReportResponse = {
   perProduct: ProductInventorySummaryResponse[];
   inventoryRows: InventoryReportRowResponse[];
   movementRows: StockMovementReportRowResponse[];
+};
+
+
+export type InventoryValuationWarehouseResponse = {
+  warehouseId: number;
+  warehouseName: string;
+  totalValue: number;
+  quantity: number;
+  averageUnitCost: number;
+  currency: string | null;
+  inventoryRows: number;
+};
+
+export type InventoryValuationProductResponse = {
+  productId: number;
+  productName: string;
+  sku: string | null;
+  totalValue: number;
+  quantity: number;
+  averageUnitCost: number;
+  currency: string | null;
+  inventoryRows: number;
+};
+
+export type InventoryValuationResponse = {
+  generatedAt: string;
+  totalInventoryValue: number;
+  averageUnitCost: number;
+  currency: string | null;
+  inventoryRowsTotal: number;
+  valuedRowsTotal: number;
+  perWarehouse: InventoryValuationWarehouseResponse[];
+  perProduct: InventoryValuationProductResponse[];
 };
 
 function buildTransportReportParams(filters: TransportReportFilters) {
@@ -230,6 +278,23 @@ export const reportsApi = {
   exportInventoryReport(filters: InventoryReportFilters, format: ReportExportFormat = 'CSV') {
     return apiClient
       .get<Blob>('/api/reports/inventory/export', {
+        params: { ...buildInventoryReportParams(filters), format },
+        responseType: 'blob',
+      })
+      .then((response) => response.data);
+  },
+
+  getInventoryValuation(filters: Pick<InventoryReportFilters, 'warehouseId' | 'productId'>) {
+    return apiClient
+      .get<InventoryValuationResponse>('/api/reports/inventory/valuation', {
+        params: buildInventoryReportParams(filters),
+      })
+      .then((response) => response.data);
+  },
+
+  exportInventoryValuation(filters: Pick<InventoryReportFilters, 'warehouseId' | 'productId'>, format: ReportExportFormat = 'CSV') {
+    return apiClient
+      .get<Blob>('/api/reports/inventory/valuation/export', {
         params: { ...buildInventoryReportParams(filters), format },
         responseType: 'blob',
       })

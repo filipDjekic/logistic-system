@@ -28,10 +28,12 @@ function buildStockMovementParams(filters?: Partial<StockMovementFiltersState> &
     size: filters.size,
     sort: filters.sort,
     movementType: enumFilter(filters.movementType),
+    status: enumFilter(filters.status),
     reasonCode: enumFilter(filters.reasonCode),
     warehouseId: filters.warehouseId === 'ALL' ? undefined : filters.warehouseId,
     productId: filters.productId === 'ALL' ? undefined : filters.productId,
     transportOrderId: filters.transportOrderId === 'ALL' ? undefined : filters.transportOrderId,
+    binLocationId: filters.binLocationId === 'ALL' ? undefined : filters.binLocationId,
     fromDate: filters.fromDate || undefined,
     toDate: filters.toDate || undefined,
   });
@@ -55,6 +57,54 @@ export const stockMovementsApi = {
   trace(id: number) {
     return apiClient
       .get<StockMovementTraceResponse>(`/api/stock-movements/${id}/trace`)
+      .then((response) => response.data);
+  },
+
+  batchHistory(lotNumber: string) {
+    return apiClient
+      .get<StockMovementResponse[]>(`/api/stock-movements/batches/${encodeURIComponent(lotNumber)}/history`)
+      .then((response) => response.data);
+  },
+
+  serialHistory(serialNumber: string) {
+    return apiClient
+      .get<StockMovementResponse[]>(`/api/stock-movements/serials/${encodeURIComponent(serialNumber)}/history`)
+      .then((response) => response.data);
+  },
+
+  getStatusTransitions(id: number) {
+    return apiClient
+      .get<{ currentStatus: string; allowedStatuses: string[]; currentVersion?: number | null }>(`/api/stock-movements/${id}/status-transitions`)
+      .then((response) => response.data);
+  },
+
+  execute(id: number) {
+    return apiClient
+      .post<StockMovementResponse>(`/api/stock-movements/${id}/execute`)
+      .then((response) => response.data);
+  },
+
+  cancel(id: number) {
+    return apiClient
+      .post<StockMovementResponse>(`/api/stock-movements/${id}/cancel`)
+      .then((response) => response.data);
+  },
+
+  approve(id: number) {
+    return apiClient
+      .post<StockMovementResponse>(`/api/stock-movements/${id}/approve`)
+      .then((response) => response.data);
+  },
+
+  reject(id: number) {
+    return apiClient
+      .post<StockMovementResponse>(`/api/stock-movements/${id}/reject`)
+      .then((response) => response.data);
+  },
+
+  reverse(id: number) {
+    return apiClient
+      .post<StockMovementResponse>(`/api/stock-movements/${id}/reverse`)
       .then((response) => response.data);
   },
 

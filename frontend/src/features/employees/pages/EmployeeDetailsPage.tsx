@@ -9,7 +9,6 @@ import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import ArchivedEntityAlert from '../../../shared/components/archive/ArchivedEntityAlert';
-import ArchiveStatusBadge from '../../../shared/components/archive/ArchiveStatusBadge';
 import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
 import {
   AttachmentsPanel,
@@ -22,7 +21,7 @@ import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { invalidateEmployeeState } from '../../../core/utils/invalidateAppState';
-import { useEmployeeWarehouseAssignmentsByEmployee } from '../../employee-warehouse-assignments/hooks/useEmployeeWarehouseAssignments';
+import { formatSalary } from '../../../core/utils/formatSalary';
 import { useTransportOrders } from '../../transport-orders/hooks/useTransportOrders';
 import { employeesApi } from '../api/employeesApi';
 import { useEmployee } from '../hooks/useEmployee';
@@ -48,13 +47,6 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('sr-RS', {
-    style: 'currency',
-    currency: 'RSD',
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '—';
@@ -99,7 +91,6 @@ export default function EmployeeDetailsPage() {
     refetchOnWindowFocus: false,
   });
 
-  const assignmentsQuery = useEmployeeWarehouseAssignmentsByEmployee(activeTab === 'assignments' ? validEmployeeId : null);
   const transportOrdersQuery = useTransportOrders(
     { assignedEmployeeId: validEmployeeId, page: 0, size: 10, sort: 'departureTime,desc' },
     Boolean(validEmployeeId) && activeTab === 'transportActivity',
@@ -198,55 +189,12 @@ export default function EmployeeDetailsPage() {
   const linkedUser = employee.userId ? usersById[employee.userId] : null;
   const canTerminateEmployee = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
   const canViewHistory = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
-  const canManageOperationalNotes = canViewHistory || auth.user?.role === ROLES.DISPATCHER || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
-
-  const employeeRecommendedStep = (() => {
-    if (!employee.active) {
-      return {
-        title: 'Employee is inactive.',
-        description: 'Review tasks, shifts and warehouse assignments to ensure no active operational work is still assigned to this employee.',
-        severity: 'warning' as const,
-        actions: [
-          { label: 'Open tasks', onClick: () => setActiveTab('tasks'), variant: 'outlined' as const },
-          { label: 'Open shifts', onClick: () => setActiveTab('shifts'), variant: 'outlined' as const },
-        ],
-      };
-    }
-
-    if (!employee.userId) {
-      return {
-        title: 'Link this employee with a user account if system access is required.',
-        description: 'The employee record exists, but no user account is linked. Operational assignment is possible, but login-based execution depends on user linkage.',
-        severity: 'info' as const,
-        actions: [{ label: 'Open users', to: '/users', variant: 'outlined' as const }],
-      };
-    }
-
-    if (!employee.primaryWarehouseId && (employee.position ?? '').toLowerCase().includes('warehouse')) {
-      return {
-        title: 'Assign warehouse access for warehouse work.',
-        description: 'This employee looks warehouse-related but has no primary warehouse. Add warehouse assignment before relying on this employee for warehouse tasks.',
-        severity: 'warning' as const,
-        actions: [{ label: 'Open assignments', onClick: () => setActiveTab('assignments') }],
-      };
-    }
-
-    return {
-      title: 'Review current workload and schedule.',
-      description: 'Use tasks and shifts to confirm what this employee is responsible for next.',
-      severity: 'info' as const,
-      actions: [
-        { label: 'Open tasks', onClick: () => setActiveTab('tasks') },
-        { label: 'Open shifts', onClick: () => setActiveTab('shifts'), variant: 'outlined' as const },
-      ],
-    };
-  })();
+  const canManageOperationalNotes = canViewHistory || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const tabs: { value: EmployeeDetailsTab; label: ReactNode }[] = [
     { value: 'overview', label: 'Overview' },
     { value: 'tasks', label: `Tasks${tasksQuery.data ? ` (${tasksQuery.data.length})` : ''}` },
     { value: 'shifts', label: `Shifts${shiftsQuery.data ? ` (${shiftsQuery.data.length})` : ''}` },
-    { value: 'assignments', label: `Warehouse assignments${assignmentsQuery.data ? ` (${assignmentsQuery.data.length})` : ''}` },
     { value: 'transportActivity', label: `Transport activity${transportOrdersQuery.data ? ` (${transportOrdersQuery.data.totalElements})` : ''}` },
     { value: 'commentsAttachments', label: 'Comments & attachments' },
     { value: 'domainEvents', label: 'Domain events' },
@@ -264,10 +212,6 @@ export default function EmployeeDetailsPage() {
       actions={
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button component={RouterLink} to="/employees" variant="outlined">Back to list</Button>
-          {canViewHistory ? (
-            <Button variant="outlined" component={RouterLink} to={`/change-history?entityName=EMPLOYEE&entityId=${employee.id}`}>Full history</Button>
-          ) : null}
-          <ArchiveStatusBadge archived={!employee.active} />
           {canTerminateEmployee && employee.active ? (
             <Button variant="contained" color="warning" disabled={terminateMutation.isPending} onClick={() => terminateMutation.mutate(employee.id)}>
               Archive employee
@@ -282,7 +226,6 @@ export default function EmployeeDetailsPage() {
       }
     >
       {!employee.active ? <ArchivedEntityAlert entityLabel="Employee" /> : null}
-      <RecommendedNextStep {...employeeRecommendedStep} />
 
       {activeTab === 'overview' ? (
         <Grid container spacing={3}>
@@ -296,7 +239,7 @@ export default function EmployeeDetailsPage() {
                 <Grid size={{ xs: 12, md: 6 }}><InfoRow label="JMBG" value={employee.jmbg} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Position" value={employee.position} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Employment date" value={employee.employmentDate} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Salary" value={formatCurrency(employee.salary)} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Salary" value={formatSalary(employee.salary, employee.salaryCurrencyCode)} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Active" value={<StatusChip value={employee.active ? 'ACTIVE' : 'INACTIVE'} />} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Company" value={employee.companyName ?? '—'} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Primary warehouse" value={employee.primaryWarehouseId ? <Button component={RouterLink} to={`/warehouses/${employee.primaryWarehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{employee.primaryWarehouseName ?? `Warehouse #${employee.primaryWarehouseId}`}</Button> : '—'} /></Grid>
@@ -345,29 +288,6 @@ export default function EmployeeDetailsPage() {
             emptyTitle="No shifts found"
             emptyDescription="This employee currently has no assigned shifts."
           />
-        </RelatedDataSection>
-      ) : null}
-
-      {activeTab === 'assignments' ? (
-        <RelatedDataSection
-          title="Warehouse assignments"
-          description="Warehouse access and assignment context for this employee."
-          action={<Button variant="outlined" onClick={() => navigate('/employee-warehouse-assignments')}>Open assignments</Button>}
-          loading={assignmentsQuery.isLoading}
-          error={assignmentsQuery.isError}
-          onRetry={() => { void assignmentsQuery.refetch(); }}
-          empty={!assignmentsQuery.isLoading && !assignmentsQuery.isError && (assignmentsQuery.data ?? []).length === 0}
-          emptyTitle="No warehouse assignments"
-        >
-          <Stack spacing={1.25}>
-            {(assignmentsQuery.data ?? []).map((assignment) => (
-              <Stack key={assignment.id} spacing={0.5} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                <Typography variant="body2" fontWeight={800}>{assignment.warehouseName}</Typography>
-                <Typography variant="body2" color="text.secondary">{assignment.accessType} · {assignment.active ? 'Active' : 'Inactive'}</Typography>
-                <Button size="small" onClick={() => navigate(`/warehouses/${assignment.warehouseId}`)} sx={{ alignSelf: 'flex-start' }}>Open warehouse</Button>
-              </Stack>
-            ))}
-          </Stack>
         </RelatedDataSection>
       ) : null}
 

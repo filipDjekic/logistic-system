@@ -49,7 +49,7 @@ export function getEntityDetailsPath(input: EntityRouteInput) {
     case 'SHIFT':
       return `/shifts?search=${id}`;
     case 'VEHICLE_MAINTENANCE':
-      return `/vehicle-maintenance?search=${id}`;
+      return null;
     case 'WAREHOUSE_INVENTORY':
       return `/inventory?warehouseId=${id}`;
     default:

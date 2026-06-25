@@ -24,6 +24,7 @@ public record OverlordDashboardResponse(
         long lowStockRowsTotal,
         BigDecimal inventoryQuantityTotal,
         BigDecimal inventoryAvailableQuantityTotal,
+        BigDecimal inventoryValueTotal,
         long stockMovementsTotal,
         long activityLogsTotal,
         long changeHistoryTotal,

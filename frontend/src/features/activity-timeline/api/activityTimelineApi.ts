@@ -48,6 +48,10 @@ export const activityTimelineApi = {
     formData.append('entityId', String(payload.entityId));
     formData.append('file', payload.file);
 
+    if (payload.attachmentType) {
+      formData.append('attachmentType', payload.attachmentType);
+    }
+
     if (payload.description?.trim()) {
       formData.append('description', payload.description.trim());
     }

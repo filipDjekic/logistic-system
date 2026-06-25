@@ -5,10 +5,8 @@ import { Button, Chip, Grid, Stack, Typography } from '@mui/material';
 import { EntityDetailsLayout } from '../../../shared/components/EntityDetails';
 import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import ArchivedEntityAlert from '../../../shared/components/archive/ArchivedEntityAlert';
-import ArchiveStatusBadge from '../../../shared/components/archive/ArchiveStatusBadge';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StockMovementsTable from '../../stock-movements/components/StockMovementsTable';
@@ -252,30 +250,6 @@ export default function ProductDetailsPage() {
   }
 
   const product = productQuery.data;
-  const productRecommendedStep = (() => {
-    if (!product.active) {
-      return {
-        title: 'Product is inactive.',
-        description: 'Review inventory and transport usage before reactivating or using this product in new operational work.',
-        severity: 'warning' as const,
-        actions: [
-          { label: 'Open inventory', onClick: () => setActiveTab('inventoryByWarehouse'), variant: 'outlined' as const },
-          { label: 'Open transport usage', onClick: () => setActiveTab('transportUsage'), variant: 'outlined' as const },
-        ],
-      };
-    }
-
-    return {
-      title: 'Review inventory availability before using this product.',
-      description: 'Open warehouse inventory and recent stock movements to confirm available quantity and movement history before transport planning.',
-      severity: 'info' as const,
-      actions: [
-        { label: 'Inventory by warehouse', onClick: () => setActiveTab('inventoryByWarehouse') },
-        { label: 'Stock movements', onClick: () => setActiveTab('stockMovements'), variant: 'outlined' as const },
-      ],
-    };
-  })();
-
   const tabs = [
     { value: 'overview', label: 'Overview' },
     { value: 'inventoryByWarehouse', label: 'Inventory by warehouse' },
@@ -295,19 +269,16 @@ export default function ProductDetailsPage() {
       onTabChange={(value) => setActiveTab(value as ProductDetailsTab)}
       actions={(
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <ArchiveStatusBadge archived={!product.active} />
           {product.active ? (
             <Button variant="outlined" color="warning" disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(product.id)}>Archive</Button>
           ) : (
             <Button variant="contained" color="success" disabled={restoreMutation.isPending} onClick={() => restoreMutation.mutate(product.id)}>Restore</Button>
           )}
-          <Button variant="outlined" onClick={() => setActiveTab('stockMovements')}>View movements</Button>
           <Button variant="outlined" onClick={() => navigate('/products')}>Back to list</Button>
         </Stack>
       )}
     >
       {!product.active ? <ArchivedEntityAlert entityLabel="Product" /> : null}
-      <RecommendedNextStep {...productRecommendedStep} />
 
       {activeTab === 'overview' ? (
         <SectionCard title="Product overview" description="Catalog identity, logistics attributes and lifecycle status.">

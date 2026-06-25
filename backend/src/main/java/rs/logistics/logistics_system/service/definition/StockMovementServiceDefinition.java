@@ -11,10 +11,12 @@ import rs.logistics.logistics_system.dto.create.StockOutboundCreate;
 import rs.logistics.logistics_system.dto.create.StockReturnCreate;
 import rs.logistics.logistics_system.dto.create.StockTransferCreate;
 import rs.logistics.logistics_system.dto.create.StockWriteOffCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementTraceResponse;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
+import rs.logistics.logistics_system.enums.StockMovementStatus;
 import rs.logistics.logistics_system.enums.StockMovementType;
 
 public interface StockMovementServiceDefinition {
@@ -41,7 +43,23 @@ public interface StockMovementServiceDefinition {
 
     StockMovementTraceResponse trace(Long id);
 
+    List<StockMovementResponse> batchHistory(String lotNumber);
+
+    List<StockMovementResponse> serialHistory(String serialNumber);
+
+    StockMovementResponse execute(Long id);
+
+    StockMovementResponse cancel(Long id);
+
+    StockMovementResponse approve(Long id);
+
+    StockMovementResponse reject(Long id);
+
+    StockMovementResponse reverse(Long id);
+
+    AllowedStatusTransitionsResponse allowedStatusTransitions(Long id);
+
     PageResponse<StockMovementResponse> getAll(Pageable pageable);
 
-    PageResponse<StockMovementResponse> search(String search, StockMovementType movementType, StockMovementReasonCode reasonCode, Long warehouseId, Long productId, Long transportOrderId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable);
+    PageResponse<StockMovementResponse> search(String search, StockMovementType movementType, StockMovementStatus status, StockMovementReasonCode reasonCode, Long warehouseId, Long productId, Long transportOrderId, Long binLocationId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable);
 }

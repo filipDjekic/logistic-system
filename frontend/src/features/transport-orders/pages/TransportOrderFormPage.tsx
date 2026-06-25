@@ -255,15 +255,24 @@ export default function TransportOrderFormPage({ mode }: Props) {
               <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicle} onChange={setVehicle} required disabled={isSubmitting} error={submitted && !vehicle} helperText={submitted && !vehicle ? 'Vehicle is required.' : undefined} searchPlaceholder="Search vehicles..." />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
-              <EmployeeSearchSelect
+              <EntityLookupField
                 title="Driver"
-                value={assignedEmployee?.id ?? null}
-                onSelect={(employee) => setAssignedEmployee({ id: employee.id, label: `${employee.firstName} ${employee.lastName}` })}
-                position="DRIVER"
-                active
-                disabled={isSubmitting || !departureTime || !plannedArrivalTime || Boolean(dateTimeError)}
-                availableFrom={departureTime || undefined}
-                availableTo={plannedArrivalTime || undefined}
+                value={assignedEmployee}
+                onChange={setAssignedEmployee}
+                entityType="employee"
+                disabled={
+                  isSubmitting ||
+                  !departureTime ||
+                  !plannedArrivalTime ||
+                  Boolean(dateTimeError)
+                }
+                lookupParams={{
+                  position: 'DRIVER',
+                  active: true,
+                  availableFrom: departureTime || undefined,
+                  availableTo: plannedArrivalTime || undefined,
+                }}
+                error={submitted && !assignedEmployee}
                 helperText={
                   submitted && !assignedEmployee
                     ? 'Driver is required.'

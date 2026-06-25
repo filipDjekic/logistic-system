@@ -43,19 +43,19 @@ public class WarehouseController {
         return new ResponseEntity<>(warehouseService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<WarehouseResponse> update(@PathVariable Long id, @Valid @RequestBody WarehouseUpdate dto) {
         return new ResponseEntity<>(warehouseService.update(id, dto), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/{id}")
     public ResponseEntity<WarehouseResponse> getById(@PathVariable Long id) {
         return new ResponseEntity<>(warehouseService.getById(id), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<WarehouseResponse>> getAll(
             @RequestParam(required = false) String search,
@@ -87,19 +87,19 @@ public class WarehouseController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/{id}/inventory")
     public ResponseEntity<List<WarehouseInventoryResponse>> getInventoryByWarehouse(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseService.getInventoryByWarehouse(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/{id}/outgoing-transports")
     public ResponseEntity<List<TransportOrderResponse>> getOutgoingTransports(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseService.getOutgoingTransportOrders(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/{id}/incoming-transports")
     public ResponseEntity<List<TransportOrderResponse>> getIncomingTransports(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseService.getIncomingTransportOrders(id));

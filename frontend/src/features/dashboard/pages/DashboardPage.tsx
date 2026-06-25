@@ -1,9 +1,6 @@
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
-import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import ListAltRoundedIcon from '@mui/icons-material/ListAltRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import { alpha, Box, Button, Chip, Stack, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { cacheTimes } from '../../../core/constants/cache';
@@ -20,62 +17,6 @@ import OverlordDashboardPanel from '../components/OverlordDashboardPanel';
 import WarehouseManagerDashboardPanel from '../components/WarehouseManagerDashboardPanel';
 import WorkerDashboardPanel from '../components/WorkerDashboardPanel';
 import LifecycleMonitoringPanel from '../components/LifecycleMonitoringPanel';
-
-type DashboardAction = {
-  label: string;
-  to: string;
-  variant?: 'contained' | 'outlined';
-  icon?: 'add' | 'list';
-};
-
-function getDashboardActions(role: string): DashboardAction[] {
-  switch (role) {
-    case ROLES.OVERLORD:
-      return [
-        { label: 'Create company', to: '/companies?create=1', variant: 'contained', icon: 'add' },
-        { label: 'Open users', to: '/users', icon: 'list' },
-        { label: 'Open audit logs', to: '/activity-logs', icon: 'list' },
-      ];
-    case ROLES.COMPANY_ADMIN:
-      return [
-        { label: 'Open employees', to: '/employees', variant: 'contained', icon: 'list' },
-        { label: 'Open transport orders', to: '/transport-orders', icon: 'list' },
-        { label: 'Open warehouses', to: '/warehouses', icon: 'list' },
-      ];
-    case ROLES.HR_MANAGER:
-      return [
-        { label: 'Create employee', to: '/employees?create=1', variant: 'contained', icon: 'add' },
-        { label: 'Open shifts', to: '/shifts', icon: 'list' },
-        { label: 'Employee task report', to: '/reports/employee-tasks', icon: 'list' },
-      ];
-    case ROLES.WAREHOUSE_MANAGER:
-      return [
-        { label: 'Create stock movement', to: '/stock-movements/create', variant: 'contained', icon: 'add' },
-        { label: 'Open inventory', to: '/inventory', icon: 'list' },
-        { label: 'Open warehouse tasks', to: '/tasks', icon: 'list' },
-      ];
-    case ROLES.DISPATCHER:
-      return [
-        { label: 'Create transport order', to: '/transport-orders?create=1', variant: 'contained', icon: 'add' },
-        { label: 'Create transport task', to: '/tasks?create=1', icon: 'add' },
-        { label: 'Open vehicles', to: '/vehicles', icon: 'list' },
-      ];
-    case ROLES.DRIVER:
-      return [
-        { label: 'Open my transports', to: '/transport-orders?assignedToMe=true', variant: 'contained', icon: 'list' },
-        { label: 'Open my tasks', to: '/tasks?assignedToMe=true', icon: 'list' },
-        { label: 'Open my shifts', to: '/my-shifts', icon: 'list' },
-      ];
-    case ROLES.WORKER:
-      return [
-        { label: 'Open my tasks', to: '/tasks?assignedToMe=true', variant: 'contained', icon: 'list' },
-        { label: 'Open my shifts', to: '/my-shifts', icon: 'list' },
-        { label: 'Open notifications', to: '/notifications', icon: 'list' },
-      ];
-    default:
-      return [];
-  }
-}
 
 const roleDashboardCopy: Record<string, { title: string; description: string }> = {
   [ROLES.OVERLORD]: {
@@ -110,7 +51,6 @@ const roleDashboardCopy: Record<string, { title: string; description: string }> 
 
 export default function DashboardPage() {
   const auth = useAuthStore();
-  const navigate = useNavigate();
   const role = auth.user?.role ?? null;
   const isOverlord = role === ROLES.OVERLORD;
   const isCompanyAdmin = role === ROLES.COMPANY_ADMIN;
@@ -221,8 +161,6 @@ export default function DashboardPage() {
     description: 'Role-based logistics overview.',
   };
 
-  const dashboardActions = getDashboardActions(role);
-
   const updatedAt = activeQuery?.dataUpdatedAt
     ? new Date(activeQuery.dataUpdatedAt).toLocaleString()
     : '-';
@@ -273,7 +211,6 @@ export default function DashboardPage() {
           </Stack>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap" alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ width: { xs: '100%', md: 'auto' }, '& > *': { width: { xs: '100%', sm: 'auto' } } }}>
-            <Chip label={role} color="primary" variant="outlined" />
             <Chip label={`Updated: ${updatedAt}`} />
             <Button
               size="small"
@@ -291,36 +228,6 @@ export default function DashboardPage() {
           </Stack>
         </Stack>
       </Box>
-
-      {dashboardActions.length > 0 ? (
-        <Box
-          sx={(theme) => ({
-            p: { xs: 1.5, sm: 2 },
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
-            bgcolor: 'background.paper',
-          })}
-        >
-          <Stack spacing={1.25}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Quick actions
-            </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap" useFlexGap>
-              {dashboardActions.map((action) => (
-                <Button
-                  key={action.to}
-                  variant={action.variant ?? 'outlined'}
-                  startIcon={action.icon === 'add' ? <AddRoundedIcon /> : <ListAltRoundedIcon />}
-                  onClick={() => navigate(action.to)}
-                >
-                  {action.label}
-                </Button>
-              ))}
-            </Stack>
-          </Stack>
-        </Box>
-      ) : null}
-
 
       {canViewLifecycleMonitoring ? (
         <LifecycleMonitoringPanel

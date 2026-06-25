@@ -71,14 +71,14 @@ public class ShiftController {
         return ResponseEntity.ok(shiftResponse);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER') or @shiftSecurity.isOwner(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER','DISPATCHER') or @shiftSecurity.isOwner(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<ShiftResponse> getById(@PathVariable Long id) {
         ShiftResponse shiftResponse = shiftService.getById(id);
         return ResponseEntity.ok(shiftResponse);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER','DISPATCHER')")
     @GetMapping
     public ResponseEntity<PageResponse<ShiftResponse>> getAllShifts(
             @PageableDefault(size = 20, sort = "startTime", direction = Sort.Direction.DESC) Pageable pageable
@@ -99,14 +99,14 @@ public class ShiftController {
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER','DISPATCHER')")
     @GetMapping("/by-date")
     public ResponseEntity<List<ShiftResponse>> getShiftsByDate(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<ShiftResponse> response = shiftService.getShiftsByDate(date);
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER','DISPATCHER')")
     @GetMapping("/between-dates")
     public ResponseEntity<List<ShiftResponse>> getShiftsBetweenDates(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,

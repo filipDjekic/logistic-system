@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
+import rs.logistics.logistics_system.enums.OperationalAttachmentType;
 
 @Getter
 @Setter
@@ -19,6 +20,8 @@ public class OperationalAttachmentCreate {
     @NotNull
     @Positive
     private Long entityId;
+
+    private OperationalAttachmentType attachmentType = OperationalAttachmentType.DOCUMENT;
 
     @NotBlank
     @Size(max = 255)

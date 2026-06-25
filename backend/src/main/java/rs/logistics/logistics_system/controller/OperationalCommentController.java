@@ -20,7 +20,7 @@ public class OperationalCommentController {
 
     private final OperationalCommentServiceDefinition commentService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','WORKER')")
     @PostMapping
     public ResponseEntity<OperationalCommentResponse> create(@Valid @RequestBody OperationalCommentCreate dto) {
         return new ResponseEntity<>(commentService.create(dto), HttpStatus.CREATED);
@@ -32,7 +32,7 @@ public class OperationalCommentController {
         return ResponseEntity.ok(commentService.getForEntity(entityType, entityId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','WORKER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         commentService.delete(id);

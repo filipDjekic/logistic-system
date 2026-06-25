@@ -33,10 +33,10 @@ export default function TransportOrdersPage() {
 
   const currentRole = auth.user?.role;
   const canManage = canManageTransportOrders(currentRole);
-  const canReadAll = canManage || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER || auth.user?.role === ROLES.DRIVER;
+  const canReadAll = canManage || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER || auth.user?.role === ROLES.DRIVER || auth.user?.role === ROLES.WORKER;
   const canResolveWarehouses = auth.user?.role !== ROLES.DRIVER;
-  const canResolveVehicles = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DISPATCHER;
-  const canResolveEmployees = canManage;
+  const canResolveVehicles = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DISPATCHER || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canResolveEmployees = canManage || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
   const canChangeStatus = canManage || currentRole === ROLES.DRIVER;
 
   const [filters, setFilters] = useState<TransportOrderFiltersState>({ search: '', status: 'ALL', priority: 'ALL' });
@@ -242,7 +242,6 @@ export default function TransportOrdersPage() {
             </FilterPanel>
           </>
         }
-        summary={<StatusOverview items={statusOverviewItems} title="Filtered result status" />}
         table={
           <TransportOrdersTable
             rows={canReadAll ? rows : []}

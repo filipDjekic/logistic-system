@@ -1,5 +1,6 @@
 import AssignmentTurnedInRoundedIcon from '@mui/icons-material/AssignmentTurnedInRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import PaidRoundedIcon from '@mui/icons-material/PaidRounded';
 import LocalShippingRoundedIcon from '@mui/icons-material/LocalShippingRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { Box, Button, Chip, Stack, Typography } from '@mui/material';
@@ -64,6 +65,14 @@ export default function WarehouseManagerDashboardPanel({ data }: Props) {
       accent: 'info' as const,
     },
     {
+      key: 'inventoryValue',
+      title: 'Inventory value',
+      value: formatNumber(data.inventoryValueTotal),
+      subtitle: `${data.inventoryValuationCurrency ?? 'No currency'} · avg ${formatNumber(data.inventoryAverageUnitCost)}`,
+      icon: <PaidRoundedIcon fontSize="small" />,
+      accent: 'success' as const,
+    },
+    {
       key: 'activeTransports',
       title: 'Inbound/outbound transports',
       value: formatNumber(data.activeTransportOrdersAffectingWarehouses),
@@ -82,7 +91,7 @@ export default function WarehouseManagerDashboardPanel({ data }: Props) {
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
-            xl: 'repeat(4, minmax(0, 1fr))',
+            xl: 'repeat(5, minmax(0, 1fr))',
           },
         }}
       >
@@ -102,6 +111,7 @@ export default function WarehouseManagerDashboardPanel({ data }: Props) {
         items={[
           { label: 'Managed warehouses', value: formatNumber(data.managedWarehousesTotal), tone: 'info' },
           { label: 'Inventory rows', value: formatNumber(data.inventoryRowsTotal), tone: 'default' },
+          { label: 'Inventory value', value: formatNumber(data.inventoryValueTotal), tone: 'success' },
           { label: 'Recent movements', value: formatNumber(data.recentStockMovements.length), tone: 'success' },
           { label: 'Open tasks', value: formatNumber(data.openWarehouseTasksTotal), tone: data.openWarehouseTasksTotal > 0 ? 'warning' : 'success' },
         ]}
@@ -250,7 +260,7 @@ export default function WarehouseManagerDashboardPanel({ data }: Props) {
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
                     Rows: {formatNumber(warehouse.inventoryRowsTotal)} · Available:{' '}
                     {formatNumber(warehouse.availableQuantityTotal)} · Reserved:{' '}
-                    {formatNumber(warehouse.reservedQuantityTotal)}
+                    {formatNumber(warehouse.reservedQuantityTotal)} · Value: {formatNumber(warehouse.totalValue)}
                   </Typography>
                 </Box>
               ))

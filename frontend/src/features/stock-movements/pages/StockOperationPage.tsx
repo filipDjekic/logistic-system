@@ -1,32 +1,39 @@
 import { useMemo, useState } from 'react';
-import { Button, CardActionArea, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Button, CardActionArea, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { queryKeys } from '../../../core/constants/queryKeys';
+import { useMutation } from '@tanstack/react-query';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import BusinessRuleWarnings, { type BusinessRuleWarning } from '../../../shared/components/BusinessRuleWarnings';
 import FormActions from '../../../shared/components/Form/FormActions';
 import FormProgress from '../../../shared/components/Form/FormProgress';
 import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
-import { ProductSearchSelect, StockMovementSearchSelect, TransportOrderSearchSelect, WarehouseSearchSelect } from '../../search-select';
 import { EntityLookupField, type LookupOption } from '../../lookup';
-import type { ProductResponse } from '../../product/types/product.types';
-import type { StockMovementResponse, StockOperationType } from '../types/stockMovement.types';
-import type { TransportOrderResponse } from '../../transport-orders/types/transportOrder.types';
-import type { WarehouseResponse } from '../../warehouses/types/warehouse.types';
+import type { StockMovementDiscrepancyReason, StockOperationType } from '../types/stockMovement.types';
 import { useCreateStockOperation } from '../hooks/useStockMovements';
-import { inventoryApi } from '../../inventory/api/inventoryApi';
+import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
+import { useAppSnackbar } from '../../../app/providers/useSnackbar';
+import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 
 type StockOperationFormValues = {
   quantity: number | '';
-  warehouse: WarehouseResponse | null;
-  destinationWarehouse: WarehouseResponse | null;
-  product: ProductResponse | null;
+  expectedQuantity: number | '';
+  actualQuantity: number | '';
+  discrepancyReason: StockMovementDiscrepancyReason | '';
+  discrepancyNote: string;
+  unitCost: number | '';
+  totalCost: number | '';
+  currency: string;
+  batchLotNumber: string;
+  batchExpirationDate: string;
+  serialNumbersText: string;
+  warehouse: LookupOption | null;
+  destinationWarehouse: LookupOption | null;
+  product: LookupOption | null;
   binLocation: LookupOption | null;
   destinationBinLocation: LookupOption | null;
-  transportOrder: TransportOrderResponse | null;
-  stockMovementReference: StockMovementResponse | null;
+  transportOrder: LookupOption | null;
+  stockMovementReference: LookupOption | null;
   adjustmentDirection: 'INCREASE' | 'DECREASE';
   reasonDescription: string;
   referenceNumber: string;
@@ -44,41 +51,57 @@ type OperationConfig = {
 const operationConfig: Record<StockOperationType, OperationConfig> = {
   inbound: {
     title: 'Receive stock',
-    description: 'Adds product quantity into selected warehouse. Transport order can be selected as reference. If no reference is selected, a manual reference number is generated.',
-    submitLabel: 'Create inbound movement',
+    description: 'Creates an inbound stock movement. Backend lifecycle decides whether it is directly executable, pending approval or executed by integration flow.',
+    submitLabel: 'Submit inbound movement',
   },
   outbound: {
     title: 'Issue stock',
-    description: 'Removes product quantity from selected warehouse. Transport order or related stock movement can be selected as reference.',
-    submitLabel: 'Create outbound movement',
+    description: 'Creates an outbound stock movement. Stock is changed only when the backend lifecycle executes the movement.',
+    submitLabel: 'Submit outbound movement',
   },
   transfer: {
     title: 'Transfer stock',
     description: 'Moves product quantity from source warehouse to destination warehouse in one backend transaction. Transport order can be selected when transfer follows transport flow.',
-    submitLabel: 'Create transfer movements',
+    submitLabel: 'Submit transfer movements',
+  },
+  internal: {
+    title: 'Internal bin movement',
+    description: 'Moves product quantity from one bin to another bin inside the same warehouse. This creates an internal warehouse movement, not a separate transport flow.',
+    submitLabel: 'Create internal movement',
   },
   adjustment: {
     title: 'Adjust stock',
-    description: 'Corrects stock using backend adjustment direction. No external document ID is entered; reference number is optional and generated when empty.',
-    submitLabel: 'Create adjustment movement',
+    description: 'Creates an adjustment request. Large adjustments can be routed to approval before execution.',
+    submitLabel: 'Submit adjustment movement',
   },
   'write-off': {
     title: 'Write off stock',
-    description: 'Removes damaged, missing or unusable product quantity from warehouse stock. Related stock movement can be selected when the write-off follows an existing movement.',
-    submitLabel: 'Create write-off movement',
+    description: 'Creates a write-off request. Write-offs are routed through approval before inventory is affected.',
+    submitLabel: 'Submit write-off movement',
   },
   return: {
     title: 'Return stock',
-    description: 'Returns product quantity into selected warehouse stock. Related stock movement can be selected when the return follows an existing movement.',
-    submitLabel: 'Create return movement',
+    description: 'Creates a return movement. Related movement context can be selected when the return follows existing stock activity.',
+    submitLabel: 'Submit return movement',
   },
 };
 
-const operationOrder: StockOperationType[] = ['inbound', 'outbound', 'transfer', 'adjustment', 'write-off', 'return'];
-const stockOperationSteps = ['Operation', 'Entities', 'Quantity', 'Reference', 'Review'];
+const operationOrder: StockOperationType[] = ['inbound', 'outbound', 'transfer', 'internal', 'adjustment', 'write-off', 'return'];
+const stockOperationSteps = ['Operation', 'Entities', 'Quantity', 'Reference', 'Submit'];
+const discrepancyReasonOptions: StockMovementDiscrepancyReason[] = ['SHORTAGE', 'OVERAGE', 'DAMAGE', 'PICKING_ERROR', 'RECEIVING_ERROR', 'TRANSPORT_LOSS', 'OTHER'];
 
 const initialValues: StockOperationFormValues = {
   quantity: '',
+  expectedQuantity: '',
+  actualQuantity: '',
+  discrepancyReason: '',
+  discrepancyNote: '',
+  unitCost: '',
+  totalCost: '',
+  currency: '',
+  batchLotNumber: '',
+  batchExpirationDate: '',
+  serialNumbersText: '',
   warehouse: null,
   destinationWarehouse: null,
   product: null,
@@ -97,16 +120,16 @@ function optionalText(value: string) {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function referenceNumberFromTransportOrder(transportOrder: TransportOrderResponse | null) {
-  return transportOrder?.orderNumber?.trim() || undefined;
+function referenceNumberFromTransportOrder(transportOrder: LookupOption | null) {
+  return transportOrder?.label?.trim() || undefined;
 }
 
-function referenceNumberFromStockMovement(stockMovement: StockMovementResponse | null) {
+function referenceNumberFromStockMovement(stockMovement: LookupOption | null) {
   if (!stockMovement) {
     return undefined;
   }
 
-  return stockMovement.referenceNumber?.trim() || `STOCK_MOVEMENT_${stockMovement.id}`;
+  return stockMovement.label?.trim() || `STOCK_MOVEMENT_${stockMovement.id}`;
 }
 
 const generatedReferenceNumber = (operation: StockOperationType) => {
@@ -124,23 +147,11 @@ const generatedReferenceNumber = (operation: StockOperationType) => {
   return `${prefix}_${yyyy}${mm}${dd}_${hh}${min}${ss}`;
 }
 
-function sumWarehouseQuantity(rows: Array<{ quantity: number }>) {
-  return rows.reduce((total, row) => total + Number(row.quantity || 0), 0);
-}
-
-function exceedsWarehouseCapacity(warehouse: WarehouseResponse | null, currentQuantity: number | null, addedQuantity: number) {
-  if (!warehouse || currentQuantity === null || !Number.isFinite(warehouse.capacity)) {
-    return false;
-  }
-
-  return currentQuantity + addedQuantity > Number(warehouse.capacity);
-}
-
 function resolvedReferenceNumber(
   operation: StockOperationType,
   typedReferenceNumber: string,
-  transportOrder: TransportOrderResponse | null,
-  stockMovementReference: StockMovementResponse | null,
+  transportOrder: LookupOption | null,
+  stockMovementReference: LookupOption | null,
 ) {
   return (
     optionalText(typedReferenceNumber) ??
@@ -153,107 +164,48 @@ function resolvedReferenceNumber(
 export default function StockOperationPage() {
   const navigate = useNavigate();
   const mutation = useCreateStockOperation();
+  const internalMovementMutation = useMutation({
+    mutationFn: warehouseLocationsApi.moveInternal,
+    onSuccess: () => {
+      showSnackbar({ message: 'Internal movement completed successfully.', severity: 'success' });
+      navigate('/stock-movements?tab=internal');
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+  const { showSnackbar } = useAppSnackbar();
   const [operation, setOperation] = useState<StockOperationType | null>(null);
   const [values, setValues] = useState<StockOperationFormValues>(initialValues);
   const [errors, setErrors] = useState<FieldErrors>({});
 
   const config = operation ? operationConfig[operation] : null;
   const isTransfer = operation === 'transfer';
+  const isInternal = operation === 'internal';
   const isAdjustment = operation === 'adjustment';
   const usesTransportOrder = operation === 'inbound' || operation === 'outbound' || operation === 'transfer';
   const allowsStockMovementReference = operation === 'outbound' || operation === 'write-off' || operation === 'return';
-  const submitDisabled = mutation.isPending;
+  const submitDisabled = mutation.isPending || internalMovementMutation.isPending;
   const supportsBinSelection = operation !== null;
   const quantityValue = Number(values.quantity);
-
-  const checksSourceWarehouseCapacity =
-    operation === 'inbound' ||
-    operation === 'return' ||
-    (operation === 'adjustment' && values.adjustmentDirection === 'INCREASE');
-
-  const sourceInventoryQuery = useQuery({
-    queryKey: queryKeys.stockMovements.operationWarehouseInventory(values.warehouse?.id),
-    queryFn: () => inventoryApi.getInventoryByWarehouse(values.warehouse!.id),
-    enabled: Boolean(values.warehouse?.id && checksSourceWarehouseCapacity),
-  });
-
-  const destinationInventoryQuery = useQuery({
-    queryKey: queryKeys.stockMovements.operationWarehouseInventory(values.destinationWarehouse?.id),
-    queryFn: () => inventoryApi.getInventoryByWarehouse(values.destinationWarehouse!.id),
-    enabled: Boolean(values.destinationWarehouse?.id && operation === 'transfer'),
-  });
-
-  const sourceWarehouseQuantity = sourceInventoryQuery.data ? sumWarehouseQuantity(sourceInventoryQuery.data) : null;
-  const destinationWarehouseQuantity = destinationInventoryQuery.data ? sumWarehouseQuantity(destinationInventoryQuery.data) : null;
-
-  const sourceCapacityExceeded = checksSourceWarehouseCapacity && Number.isFinite(quantityValue)
-    ? exceedsWarehouseCapacity(values.warehouse, sourceWarehouseQuantity, quantityValue)
-    : false;
-
-  const destinationCapacityExceeded = operation === 'transfer' && Number.isFinite(quantityValue)
-    ? exceedsWarehouseCapacity(values.destinationWarehouse, destinationWarehouseQuantity, quantityValue)
-    : false;
+  const expectedQuantityValue = values.expectedQuantity === '' ? quantityValue : Number(values.expectedQuantity);
+  const actualQuantityValue = values.actualQuantity === '' ? quantityValue : Number(values.actualQuantity);
+  const discrepancyQuantity = Number.isFinite(expectedQuantityValue) && Number.isFinite(actualQuantityValue)
+    ? actualQuantityValue - expectedQuantityValue
+    : 0;
+  const hasDiscrepancy = discrepancyQuantity !== 0;
 
   const businessWarnings: BusinessRuleWarning[] = [];
-
-  if (values.warehouse && values.warehouse.status !== 'ACTIVE') {
-    businessWarnings.push({
-      key: 'source-warehouse-status',
-      severity: values.warehouse.status === 'FULL' ? 'warning' : 'error',
-      message: `Selected warehouse is ${values.warehouse.status}. Stock operations should normally run only on active warehouses.`,
-    });
-  }
-
-  if (values.destinationWarehouse && values.destinationWarehouse.status !== 'ACTIVE') {
-    businessWarnings.push({
-      key: 'destination-warehouse-status',
-      severity: values.destinationWarehouse.status === 'FULL' ? 'warning' : 'error',
-      message: `Destination warehouse is ${values.destinationWarehouse.status}. Check operational availability before transfer.`,
-    });
-  }
-
-  if (values.warehouse?.binTrackingEnabled && !values.binLocation) {
-    businessWarnings.push({
-      key: 'source-bin-required',
-      severity: 'error',
-      message: 'Source warehouse has bin tracking enabled. Source bin is required for this operation.',
-    });
-  }
-
-  if (isTransfer && values.destinationWarehouse?.binTrackingEnabled && !values.destinationBinLocation) {
-    businessWarnings.push({
-      key: 'destination-bin-required',
-      severity: 'error',
-      message: 'Destination warehouse has bin tracking enabled. Destination bin is required for transfer.',
-    });
-  }
-
-
-  if (values.transportOrder && ['DELIVERED', 'FAILED', 'CANCELLED'].includes(values.transportOrder.status)) {
-    businessWarnings.push({
-      key: 'terminal-transport-reference',
-      severity: 'error',
-      message: `Selected transport order is ${values.transportOrder.status}. Do not attach new stock operations to terminal transports.`,
-    });
-  }
-
-  if (sourceCapacityExceeded || destinationCapacityExceeded) {
-    businessWarnings.push({
-      key: 'capacity-exceeded',
-      severity: 'error',
-      message: 'Warehouse capacity would be exceeded. Current occupied quantity is checked from inventory records before submit.',
-    });
-  }
 
   const hasBlockingBusinessWarning = businessWarnings.some((warning) => warning.severity === 'error');
 
   const activeStep = useMemo(() => {
     if (!operation) return 0;
-    if (!values.warehouse || !values.product || (isTransfer && !values.destinationWarehouse)) return 1;
+    if (!values.warehouse || !values.product || (isTransfer && !values.destinationWarehouse) || (isInternal && (!values.binLocation || !values.destinationBinLocation))) return 1;
     if (!Number.isFinite(quantityValue) || quantityValue <= 0) return 2;
     if (values.transportOrder || values.stockMovementReference || values.referenceNumber.trim()) return 4;
     return 3;
-  }, [isTransfer, operation, quantityValue, values.destinationWarehouse, values.product, values.referenceNumber, values.stockMovementReference, values.transportOrder, values.warehouse]);
+  }, [isInternal, isTransfer, operation, quantityValue, values.binLocation, values.destinationBinLocation, values.destinationWarehouse, values.product, values.referenceNumber, values.stockMovementReference, values.transportOrder, values.warehouse]);
 
   const pageDescription = useMemo(() => {
     if (!operation || !config) {
@@ -282,6 +234,26 @@ export default function StockOperationPage() {
       nextErrors.quantity = 'Quantity must be greater than 0';
     }
 
+    const expectedQuantity = values.expectedQuantity === '' ? quantity : Number(values.expectedQuantity);
+    const actualQuantity = values.actualQuantity === '' ? quantity : Number(values.actualQuantity);
+    const currentDiscrepancy = actualQuantity - expectedQuantity;
+
+    if (!Number.isFinite(expectedQuantity) || expectedQuantity <= 0) {
+      nextErrors.expectedQuantity = 'Expected quantity must be greater than 0';
+    }
+
+    if (!Number.isFinite(actualQuantity) || actualQuantity <= 0) {
+      nextErrors.actualQuantity = 'Actual quantity must be greater than 0';
+    }
+
+    if (currentDiscrepancy !== 0 && !values.discrepancyReason) {
+      nextErrors.discrepancyReason = 'Discrepancy reason is required';
+    }
+
+    if (currentDiscrepancy !== 0 && ['SHORTAGE', 'DAMAGE', 'TRANSPORT_LOSS'].includes(values.discrepancyReason as string) && values.discrepancyNote.trim().length < 5) {
+      nextErrors.discrepancyNote = 'Shortage, damage or transport loss needs a meaningful note';
+    }
+
     if (!values.warehouse) {
       nextErrors.warehouse = isTransfer ? 'Source warehouse is required' : 'Warehouse is required';
     }
@@ -299,40 +271,20 @@ export default function StockOperationPage() {
       nextErrors.destinationWarehouse = 'Destination warehouse must be different from source warehouse';
     }
 
-    if (values.transportOrder && values.warehouse) {
-      if ((operation === 'outbound' || operation === 'transfer') && values.transportOrder.sourceWarehouseId !== values.warehouse.id) {
-        nextErrors.warehouse = 'Source warehouse must match selected transport order';
-      }
-
-      if (operation === 'inbound' && values.transportOrder.destinationWarehouseId !== values.warehouse.id) {
-        nextErrors.warehouse = 'Warehouse must match selected transport order destination';
-      }
-    }
-
-    if (operation === 'transfer' && values.transportOrder && values.destinationWarehouse) {
-      if (values.transportOrder.destinationWarehouseId !== values.destinationWarehouse.id) {
-        nextErrors.destinationWarehouse = 'Destination warehouse must match selected transport order destination';
-      }
-    }
-
     if (!values.product) {
       nextErrors.product = 'Product is required';
     }
 
-    if (values.warehouse?.binTrackingEnabled && !values.binLocation) {
-      nextErrors.binLocation = 'Source bin is required because selected warehouse has bin tracking enabled';
+    if ((isTransfer || isInternal) && !values.binLocation) {
+      nextErrors.binLocation = 'Source bin is required';
     }
 
-    if (isTransfer && values.destinationWarehouse?.binTrackingEnabled && !values.destinationBinLocation) {
-      nextErrors.destinationBinLocation = 'Destination bin is required because selected warehouse has bin tracking enabled';
+    if ((isTransfer || isInternal) && !values.destinationBinLocation) {
+      nextErrors.destinationBinLocation = 'Destination bin is required';
     }
 
-    if (sourceCapacityExceeded) {
-      nextErrors.warehouse = 'Warehouse capacity would be exceeded';
-    }
-
-    if (destinationCapacityExceeded) {
-      nextErrors.destinationWarehouse = 'Destination warehouse capacity would be exceeded';
+    if (isInternal && values.binLocation && values.destinationBinLocation && values.binLocation.id === values.destinationBinLocation.id) {
+      nextErrors.destinationBinLocation = 'Destination bin must be different from source bin';
     }
 
     if (hasBlockingBusinessWarning) {
@@ -351,6 +303,44 @@ export default function StockOperationPage() {
       nextErrors.referenceNote = 'Reference note must be at most 255 characters';
     }
 
+    if (values.discrepancyNote.trim().length > 255) {
+      nextErrors.discrepancyNote = 'Discrepancy note must be at most 255 characters';
+    }
+
+    const hasUnitCost = values.unitCost !== '';
+    const hasTotalCost = values.totalCost !== '';
+    const unitCost = hasUnitCost ? Number(values.unitCost) : null;
+    const totalCost = hasTotalCost ? Number(values.totalCost) : null;
+
+    if (hasUnitCost && (!Number.isFinite(unitCost) || Number(unitCost) < 0)) {
+      nextErrors.unitCost = 'Unit cost cannot be negative';
+    }
+
+    if (hasTotalCost && (!Number.isFinite(totalCost) || Number(totalCost) < 0)) {
+      nextErrors.totalCost = 'Total cost cannot be negative';
+    }
+
+    if ((hasUnitCost || hasTotalCost) && values.currency.trim().length !== 3) {
+      nextErrors.currency = 'Currency is required as a 3-letter ISO code';
+    }
+
+    if (values.batchLotNumber.trim().length > 100) {
+      nextErrors.batchLotNumber = 'Batch/lot number must be at most 100 characters';
+    }
+
+    if (values.batchExpirationDate && !values.batchLotNumber.trim()) {
+      nextErrors.batchLotNumber = 'Batch/lot number is required when expiration date is set';
+    }
+
+    const serialNumbers = values.serialNumbersText.split(/[\n,]+/).map((serial) => serial.trim()).filter(Boolean);
+    if (serialNumbers.some((serial) => serial.length > 100)) {
+      nextErrors.serialNumbersText = 'Each serial number must be at most 100 characters';
+    }
+
+    if (serialNumbers.length > 0 && Number.isInteger(actualQuantity) && serialNumbers.length !== actualQuantity) {
+      nextErrors.serialNumbersText = 'Serial number count must match actual quantity';
+    }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
@@ -361,17 +351,51 @@ export default function StockOperationPage() {
     }
 
     const common = {
-      quantity: Number(values.quantity),
+      quantity: actualQuantityValue,
+      expectedQuantity: expectedQuantityValue,
+      actualQuantity: actualQuantityValue,
       reasonDescription: optionalText(values.reasonDescription),
       referenceNumber: resolvedReferenceNumber(operation, values.referenceNumber, values.transportOrder, values.stockMovementReference),
       referenceNote: optionalText(values.referenceNote),
+      discrepancyReason: hasDiscrepancy && values.discrepancyReason ? values.discrepancyReason : undefined,
+      discrepancyNote: hasDiscrepancy ? optionalText(values.discrepancyNote) : undefined,
+      unitCost: values.unitCost === '' ? undefined : Number(values.unitCost),
+      totalCost: values.totalCost === '' ? undefined : Number(values.totalCost),
+      currency: optionalText(values.currency)?.toUpperCase(),
+      batchLotNumber: optionalText(values.batchLotNumber),
+      batchExpirationDate: values.batchExpirationDate || undefined,
+      serialNumbers: values.serialNumbersText.split(/[\n,]+/).map((serial) => serial.trim()).filter(Boolean),
     };
 
     const selectedReferenceId = values.transportOrder?.id ?? values.stockMovementReference?.id;
 
-    const afterSuccess = () => {
-      navigate(`/inventory/${values.warehouse?.id}/${values.product?.id}`);
+    const afterSuccess = (created: unknown) => {
+      const firstMovement = Array.isArray(created) ? created[0] : created;
+      const createdId = typeof firstMovement === 'object' && firstMovement !== null && 'id' in firstMovement
+        ? Number((firstMovement as { id: unknown }).id)
+        : null;
+
+      if (createdId && Number.isFinite(createdId)) {
+        navigate(`/stock-movements/${createdId}`);
+        return;
+      }
+
+      navigate('/stock-movements');
     };
+
+
+    if (operation === 'internal') {
+      if (!values.binLocation || !values.destinationBinLocation) return;
+
+      internalMovementMutation.mutate({
+        sourceBinId: values.binLocation.id,
+        destinationBinId: values.destinationBinLocation.id,
+        productId: values.product.id,
+        quantity: Number(values.quantity),
+        note: optionalText(values.referenceNote) ?? optionalText(values.reasonDescription) ?? null,
+      });
+      return;
+    }
 
     if (operation === 'transfer') {
       if (!values.destinationWarehouse) return;
@@ -476,6 +500,10 @@ export default function StockOperationPage() {
 
       <FormProgress steps={stockOperationSteps} activeStep={activeStep} />
 
+      <Alert severity="info">
+        Submit creates a lifecycle-controlled stock movement. Use the details page after submit for Execute, Approve, Reject, Cancel or Reverse actions when the backend allows them.
+      </Alert>
+
       <SectionCard title="1. Choose operation" description="Pick the operational intent first. The remaining form is scoped to the matching backend endpoint.">
         <Grid container spacing={2}>
           {operationOrder.map((item) => {
@@ -511,14 +539,17 @@ export default function StockOperationPage() {
         <SectionCard title="2. Entities and locations" description="Select the operational entities first. Dynamic references use lookup/search fields; enum values stay as dropdowns.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <WarehouseSearchSelect
-                title={isTransfer ? 'Select source warehouse' : 'Select warehouse'}
-                value={values.warehouse?.id ?? null}
-                active
-                disabledWarehouseIds={values.destinationWarehouse ? [values.destinationWarehouse.id] : []}
-                onSelect={(warehouse) => {
-                  setValues((prev) => ({ ...prev, warehouse, binLocation: null }));
-                  setErrors((prev) => ({ ...prev, warehouse: undefined }));
+              <EntityLookupField
+                label={isTransfer ? 'Source warehouse' : 'Warehouse'}
+                entityType="warehouses"
+                value={values.warehouse}
+                required
+                disabledOptionIds={values.destinationWarehouse ? [values.destinationWarehouse.id] : []}
+                activeOnly
+                searchPlaceholder="Search warehouses by name, city or code..."
+                onChange={(warehouse) => {
+                  setValues((prev) => ({ ...prev, warehouse, binLocation: null, destinationBinLocation: isInternal ? null : prev.destinationBinLocation }));
+                  setErrors((prev) => ({ ...prev, warehouse: undefined, binLocation: undefined }));
                 }}
               />
               {errors.warehouse ? <Typography variant="caption" color="error">{errors.warehouse}</Typography> : null}
@@ -526,12 +557,15 @@ export default function StockOperationPage() {
 
             {isTransfer ? (
               <Grid size={{ xs: 12, md: 6 }}>
-                <WarehouseSearchSelect
-                  title="Select destination warehouse"
-                  value={values.destinationWarehouse?.id ?? null}
-                  active
-                  disabledWarehouseIds={values.warehouse ? [values.warehouse.id] : []}
-                  onSelect={(destinationWarehouse) => {
+                <EntityLookupField
+                  label="Destination warehouse"
+                  entityType="warehouses"
+                  value={values.destinationWarehouse}
+                  required
+                  disabledOptionIds={values.warehouse ? [values.warehouse.id] : []}
+                  activeOnly
+                  searchPlaceholder="Search destination warehouses..."
+                  onChange={(destinationWarehouse) => {
                     setValues((prev) => ({ ...prev, destinationWarehouse, destinationBinLocation: null }));
                     setErrors((prev) => ({ ...prev, destinationWarehouse: undefined }));
                   }}
@@ -541,11 +575,14 @@ export default function StockOperationPage() {
             ) : null}
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <ProductSearchSelect
-                title="Select product"
-                value={values.product?.id ?? null}
+              <EntityLookupField
+                label="Product"
+                entityType="products"
+                value={values.product}
+                required
                 activeOnly
-                onSelect={(product) => {
+                searchPlaceholder="Search products by name or SKU..."
+                onChange={(product) => {
                   setValues((prev) => ({ ...prev, product }));
                   setErrors((prev) => ({ ...prev, product: undefined }));
                 }}
@@ -556,12 +593,12 @@ export default function StockOperationPage() {
             {supportsBinSelection ? (
               <Grid size={{ xs: 12, md: 6 }}>
                 <EntityLookupField
-                  label={isTransfer ? 'Source bin location' : 'Bin location'}
+                  label={isTransfer || isInternal ? 'Source bin location' : 'Bin location'}
                   entityType="bin-locations"
                   value={values.binLocation}
                   disabled={submitDisabled || !values.warehouse}
                   error={Boolean(errors.binLocation)}
-                  helperText={errors.binLocation ?? (values.warehouse?.binTrackingEnabled ? 'Required because selected warehouse has bin tracking enabled.' : 'Optional. Empty value updates only warehouse inventory.')}
+                  helperText={errors.binLocation ?? (isTransfer || isInternal ? 'Required for bin-to-bin movement.' : 'Optional. Empty value updates only warehouse inventory.')}
                   placeholder={values.warehouse ? 'No bin selected' : 'Choose warehouse first'}
                   searchPlaceholder="Search bins by code, name, zone or warehouse..."
                   warehouseId={values.warehouse?.id}
@@ -575,18 +612,18 @@ export default function StockOperationPage() {
               </Grid>
             ) : null}
 
-            {isTransfer ? (
+            {(isTransfer || isInternal) ? (
               <Grid size={{ xs: 12, md: 6 }}>
                 <EntityLookupField
                   label="Destination bin location"
                   entityType="bin-locations"
                   value={values.destinationBinLocation}
-                  disabled={submitDisabled || !values.destinationWarehouse}
+                  disabled={submitDisabled || (isTransfer ? !values.destinationWarehouse : !values.warehouse)}
                   error={Boolean(errors.destinationBinLocation)}
-                  helperText={errors.destinationBinLocation ?? (values.destinationWarehouse?.binTrackingEnabled ? 'Required because selected destination warehouse has bin tracking enabled.' : 'Optional unless destination warehouse has bin tracking enabled.')}
-                  placeholder={values.destinationWarehouse ? 'No destination bin selected' : 'Choose destination warehouse first'}
+                  helperText={errors.destinationBinLocation ?? (isInternal ? 'Required. Internal movement destination stays inside the same warehouse.' : 'Required for transfer destination when using bins.')}
+                  placeholder={(isTransfer ? values.destinationWarehouse : values.warehouse) ? 'No destination bin selected' : 'Choose warehouse first'}
                   searchPlaceholder="Search destination bins by code, name, zone or warehouse..."
-                  warehouseId={values.destinationWarehouse?.id}
+                  warehouseId={(isTransfer ? values.destinationWarehouse : values.warehouse)?.id}
                   activeOnly
                   sort="code,asc"
                   onChange={(destinationBinLocation) => {
@@ -622,6 +659,171 @@ export default function StockOperationPage() {
               />
             </Grid>
 
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                label="Expected quantity"
+                type="number"
+                fullWidth
+                value={values.expectedQuantity}
+                disabled={submitDisabled}
+                error={Boolean(errors.expectedQuantity)}
+                helperText={errors.expectedQuantity ?? 'Optional. Empty value uses entered quantity.'}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setValues((prev) => ({ ...prev, expectedQuantity: nextValue === '' ? '' : Number(nextValue) }));
+                  setErrors((prev) => ({ ...prev, expectedQuantity: undefined }));
+                }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                label="Actual quantity"
+                type="number"
+                fullWidth
+                value={values.actualQuantity}
+                disabled={submitDisabled}
+                error={Boolean(errors.actualQuantity)}
+                helperText={errors.actualQuantity ?? 'Optional. Empty value uses entered quantity. Actual quantity is used as movement quantity.'}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setValues((prev) => ({ ...prev, actualQuantity: nextValue === '' ? '' : Number(nextValue), quantity: nextValue === '' ? prev.quantity : Number(nextValue) }));
+                  setErrors((prev) => ({ ...prev, actualQuantity: undefined, quantity: undefined }));
+                }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                select
+                fullWidth
+                label="Discrepancy reason"
+                value={values.discrepancyReason}
+                disabled={submitDisabled || !hasDiscrepancy}
+                error={Boolean(errors.discrepancyReason)}
+                helperText={errors.discrepancyReason ?? (hasDiscrepancy ? `Discrepancy: ${discrepancyQuantity}` : 'No reason required when expected and actual match.')}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, discrepancyReason: event.target.value as StockMovementDiscrepancyReason }));
+                  setErrors((prev) => ({ ...prev, discrepancyReason: undefined }));
+                }}
+              >
+                <MenuItem value="">None</MenuItem>
+                {discrepancyReasonOptions.map((reason) => (
+                  <MenuItem key={reason} value={reason}>{reason}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                label="Discrepancy note"
+                fullWidth
+                value={values.discrepancyNote}
+                disabled={submitDisabled || !hasDiscrepancy}
+                error={Boolean(errors.discrepancyNote)}
+                helperText={errors.discrepancyNote ?? 'Required for shortage, damage or transport loss.'}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, discrepancyNote: event.target.value }));
+                  setErrors((prev) => ({ ...prev, discrepancyNote: undefined }));
+                }}
+              />
+            </Grid>
+
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Unit cost"
+                type="number"
+                fullWidth
+                value={values.unitCost}
+                disabled={submitDisabled}
+                error={Boolean(errors.unitCost)}
+                helperText={errors.unitCost ?? 'Optional cost per unit for valuation.'}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setValues((prev) => ({ ...prev, unitCost: nextValue === '' ? '' : Number(nextValue) }));
+                  setErrors((prev) => ({ ...prev, unitCost: undefined }));
+                }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Total cost"
+                type="number"
+                fullWidth
+                value={values.totalCost}
+                disabled={submitDisabled}
+                error={Boolean(errors.totalCost)}
+                helperText={errors.totalCost ?? 'Optional total movement value.'}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setValues((prev) => ({ ...prev, totalCost: nextValue === '' ? '' : Number(nextValue) }));
+                  setErrors((prev) => ({ ...prev, totalCost: undefined }));
+                }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Currency"
+                fullWidth
+                value={values.currency}
+                disabled={submitDisabled}
+                error={Boolean(errors.currency)}
+                helperText={errors.currency ?? 'ISO code, e.g. RSD, EUR, USD.'}
+                inputProps={{ maxLength: 3 }}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }));
+                  setErrors((prev) => ({ ...prev, currency: undefined }));
+                }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                label="Batch / lot number"
+                fullWidth
+                value={values.batchLotNumber}
+                disabled={submitDisabled}
+                error={Boolean(errors.batchLotNumber)}
+                helperText={errors.batchLotNumber ?? 'Optional batch/lot tracking for this movement.'}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, batchLotNumber: event.target.value }));
+                  setErrors((prev) => ({ ...prev, batchLotNumber: undefined }));
+                }}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                label="Batch expiration date"
+                type="date"
+                fullWidth
+                value={values.batchExpirationDate}
+                disabled={submitDisabled}
+                InputLabelProps={{ shrink: true }}
+                onChange={(event) => setValues((prev) => ({ ...prev, batchExpirationDate: event.target.value }))}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                label="Serial numbers"
+                multiline
+                minRows={3}
+                fullWidth
+                value={values.serialNumbersText}
+                disabled={submitDisabled}
+                error={Boolean(errors.serialNumbersText)}
+                helperText={errors.serialNumbersText ?? 'Optional. Separate serial numbers by comma or new line.'}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, serialNumbersText: event.target.value }));
+                  setErrors((prev) => ({ ...prev, serialNumbersText: undefined }));
+                }}
+              />
+            </Grid>
+
             {isAdjustment ? (
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
@@ -650,15 +852,17 @@ export default function StockOperationPage() {
           <Grid container spacing={2}>
             {usesTransportOrder ? (
               <Grid size={{ xs: 12 }}>
-                <TransportOrderSearchSelect
-                  title="Select transport order reference"
-                  value={values.transportOrder?.id ?? null}
-                  onSelect={(transportOrder) => {
+                <EntityLookupField
+                  label="Transport order reference"
+                  entityType="transport-orders"
+                  value={values.transportOrder}
+                  searchPlaceholder="Search transport orders..."
+                  onChange={(transportOrder) => {
                     setValues((prev) => ({
                       ...prev,
                       transportOrder,
                       stockMovementReference: null,
-                      referenceNumber: prev.referenceNumber || transportOrder.orderNumber,
+                      referenceNumber: prev.referenceNumber || transportOrder?.label || '',
                     }));
                   }}
                 />
@@ -667,10 +871,12 @@ export default function StockOperationPage() {
 
             {allowsStockMovementReference ? (
               <Grid size={{ xs: 12 }}>
-                <StockMovementSearchSelect
-                  title="Select related stock movement reference"
-                  value={values.stockMovementReference?.id ?? null}
-                  onSelect={(stockMovementReference) => {
+                <EntityLookupField
+                  label="Related stock movement reference"
+                  entityType="stock-movements"
+                  value={values.stockMovementReference}
+                  searchPlaceholder="Search stock movements..."
+                  onChange={(stockMovementReference) => {
                     setValues((prev) => ({
                       ...prev,
                       stockMovementReference,
@@ -700,7 +906,7 @@ export default function StockOperationPage() {
           </Grid>
         </SectionCard>
 
-        <SectionCard title="5. Review and submit" description="Add the human-readable reason/note, then confirm. Cancel always returns to stock movements without submitting.">
+        <SectionCard title="5. Review and submit" description="Submit creates the movement and opens its details page, where lifecycle actions are handled explicitly.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12 }}>
               <TextField
@@ -735,7 +941,7 @@ export default function StockOperationPage() {
             </Grid>
 
             <Grid size={{ xs: 12 }}>
-              <FormGlobalError error={mutation.error} fallbackMessage="Stock operation could not be submitted." />
+              <FormGlobalError error={mutation.error ?? internalMovementMutation.error} fallbackMessage="Stock operation could not be submitted." />
             </Grid>
 
             <Grid size={{ xs: 12 }}>
@@ -743,7 +949,7 @@ export default function StockOperationPage() {
                 cancelLabel="Cancel"
                 submitLabel={config.submitLabel}
                 submittingLabel="Submitting..."
-                helperText={hasBlockingBusinessWarning ? 'Resolve blocking business warnings before submitting.' : 'Review operation, quantity, references and notes before submit.'}
+                helperText={hasBlockingBusinessWarning ? 'Resolve blocking business warnings before submitting.' : 'After submit, continue from the movement details page if approval or execution is required.'}
                 loading={submitDisabled}
                 submitDisabled={hasBlockingBusinessWarning}
                 onCancel={() => navigate('/stock-movements')}

@@ -31,20 +31,52 @@ public interface VehicleMaintenanceRepository extends JpaRepository<VehicleMaint
             @Param("endAt") LocalDateTime endAt
     );
 
+    Page<VehicleMaintenance> findByCompany_Id(Long companyId, Pageable pageable);
+
+    Page<VehicleMaintenance> findByCompany_IdAndVehicle_Id(Long companyId, Long vehicleId, Pageable pageable);
+
+    Page<VehicleMaintenance> findByCompany_IdAndStatus(Long companyId, VehicleMaintenanceStatus status, Pageable pageable);
+
+    Page<VehicleMaintenance> findByCompany_IdAndVehicle_IdAndStatus(Long companyId, Long vehicleId, VehicleMaintenanceStatus status, Pageable pageable);
+
+    Page<VehicleMaintenance> findByVehicle_Id(Long vehicleId, Pageable pageable);
+
+    Page<VehicleMaintenance> findByStatus(VehicleMaintenanceStatus status, Pageable pageable);
+
+    Page<VehicleMaintenance> findByVehicle_IdAndStatus(Long vehicleId, VehicleMaintenanceStatus status, Pageable pageable);
+
+    List<VehicleMaintenance> findByVehicleIdOrderByScheduledAtDesc(Long vehicleId);
+
     @Query("""
         select vm
         from VehicleMaintenance vm
-        where (:companyId is null or vm.company.id = :companyId)
+        where vm.vehicle.id in (
+            select distinct t.vehicle.id
+            from TransportOrder t
+            where t.assignedEmployee.user.id = :driverUserId
+            and t.vehicle is not null
+        )
         and (:vehicleId is null or vm.vehicle.id = :vehicleId)
         and (:status is null or vm.status = :status)
-        order by vm.scheduledAt desc, vm.id desc
     """)
-    Page<VehicleMaintenance> search(
-            @Param("companyId") Long companyId,
+    Page<VehicleMaintenance> findForDriverRelatedVehicles(
+            @Param("driverUserId") Long driverUserId,
             @Param("vehicleId") Long vehicleId,
             @Param("status") VehicleMaintenanceStatus status,
             Pageable pageable
     );
 
-    List<VehicleMaintenance> findByVehicleIdOrderByScheduledAtDesc(Long vehicleId);
+    @Query("""
+        select count(vm) > 0
+        from VehicleMaintenance vm
+        where vm.id = :maintenanceId
+        and vm.vehicle.id in (
+            select distinct t.vehicle.id
+            from TransportOrder t
+            where t.assignedEmployee.user.id = :driverUserId
+            and t.vehicle is not null
+        )
+    """)
+    boolean existsForDriverRelatedVehicle(@Param("maintenanceId") Long maintenanceId, @Param("driverUserId") Long driverUserId);
+
 }

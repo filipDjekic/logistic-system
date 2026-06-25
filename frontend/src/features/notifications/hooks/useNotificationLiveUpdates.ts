@@ -55,6 +55,8 @@ export function useNotificationLiveUpdates() {
     const invalidateNotificationData = () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.root() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.employeeProfileChangeRequests.root() });
     };
 
     const scheduleInvalidateNotificationData = () => {

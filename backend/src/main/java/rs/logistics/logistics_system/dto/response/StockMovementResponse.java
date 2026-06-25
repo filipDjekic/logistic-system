@@ -2,13 +2,17 @@ package rs.logistics.logistics_system.dto.response;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.util.List;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.StockAdjustmentDirection;
+import rs.logistics.logistics_system.enums.StockMovementDiscrepancyReason;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
+import rs.logistics.logistics_system.enums.StockMovementStatus;
 import rs.logistics.logistics_system.enums.StockMovementType;
 
 @Getter
@@ -18,7 +22,21 @@ public class StockMovementResponse {
 
     private Long id;
     private StockMovementType movementType;
+    private StockMovementStatus status;
+    private List<StockMovementStatus> allowedNextStatuses;
     private BigDecimal quantity;
+    private BigDecimal expectedQuantity;
+    private BigDecimal actualQuantity;
+    private BigDecimal discrepancyQuantity;
+    private StockMovementDiscrepancyReason discrepancyReason;
+    private String discrepancyNote;
+    private String batchLotNumber;
+    private LocalDate batchExpirationDate;
+    private String serialNumbers;
+
+    private BigDecimal unitCost;
+    private BigDecimal totalCost;
+    private String currency;
 
     private StockMovementReasonCode reasonCode;
     private String reasonDescription;
@@ -33,6 +51,8 @@ public class StockMovementResponse {
     private String referenceCode;
     private Long parentMovementId;
     private Long rootMovementId;
+    private Long reversalOfMovementId;
+    private Long reversedByMovementId;
     private StockAdjustmentDirection adjustmentDirection;
 
     private BigDecimal quantityBefore;
@@ -65,7 +85,20 @@ public class StockMovementResponse {
     public StockMovementResponse(
             Long id,
             StockMovementType movementType,
+            StockMovementStatus status,
+            List<StockMovementStatus> allowedNextStatuses,
             BigDecimal quantity,
+            BigDecimal expectedQuantity,
+            BigDecimal actualQuantity,
+            BigDecimal discrepancyQuantity,
+            StockMovementDiscrepancyReason discrepancyReason,
+            String discrepancyNote,
+            String batchLotNumber,
+            LocalDate batchExpirationDate,
+            String serialNumbers,
+            BigDecimal unitCost,
+            BigDecimal totalCost,
+            String currency,
             StockMovementReasonCode reasonCode,
             String reasonDescription,
             StockMovementReferenceType referenceType,
@@ -78,6 +111,8 @@ public class StockMovementResponse {
             String referenceCode,
             Long parentMovementId,
             Long rootMovementId,
+            Long reversalOfMovementId,
+            Long reversedByMovementId,
             StockAdjustmentDirection adjustmentDirection,
             BigDecimal quantityBefore,
             BigDecimal quantityAfter,
@@ -103,7 +138,20 @@ public class StockMovementResponse {
     ) {
         this.id = id;
         this.movementType = movementType;
+        this.status = status;
+        this.allowedNextStatuses = allowedNextStatuses;
         this.quantity = quantity;
+        this.expectedQuantity = expectedQuantity;
+        this.actualQuantity = actualQuantity;
+        this.discrepancyQuantity = discrepancyQuantity;
+        this.discrepancyReason = discrepancyReason;
+        this.discrepancyNote = discrepancyNote;
+        this.batchLotNumber = batchLotNumber;
+        this.batchExpirationDate = batchExpirationDate;
+        this.serialNumbers = serialNumbers;
+        this.unitCost = unitCost;
+        this.totalCost = totalCost;
+        this.currency = currency;
         this.reasonCode = reasonCode;
         this.reasonDescription = reasonDescription;
         this.referenceType = referenceType;
@@ -116,6 +164,8 @@ public class StockMovementResponse {
         this.referenceCode = referenceCode;
         this.parentMovementId = parentMovementId;
         this.rootMovementId = rootMovementId;
+        this.reversalOfMovementId = reversalOfMovementId;
+        this.reversedByMovementId = reversedByMovementId;
         this.adjustmentDirection = adjustmentDirection;
         this.quantityBefore = quantityBefore;
         this.quantityAfter = quantityAfter;

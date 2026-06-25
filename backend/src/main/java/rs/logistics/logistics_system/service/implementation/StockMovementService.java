@@ -15,6 +15,7 @@ import rs.logistics.logistics_system.dto.create.StockReturnCreate;
 import rs.logistics.logistics_system.dto.create.StockTransferCreate;
 import rs.logistics.logistics_system.dto.create.StockWriteOffCreate;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
+import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementTraceResponse;
@@ -31,14 +32,19 @@ import rs.logistics.logistics_system.enums.DomainEventType;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
 import rs.logistics.logistics_system.enums.StockAdjustmentDirection;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
+import rs.logistics.logistics_system.enums.StockMovementDiscrepancyReason;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
+import rs.logistics.logistics_system.enums.StockMovementStatus;
 import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
+import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.mapper.StockMovementMapper;
 import rs.logistics.logistics_system.repository.BinInventoryRepository;
 import rs.logistics.logistics_system.repository.BinLocationRepository;
+import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
@@ -54,6 +60,7 @@ import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -73,6 +80,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final BinInventoryRepository binInventoryRepository;
     private final BinLocationRepository binLocationRepository;
     private final TransportOrderRepository transportOrderRepository;
+    private final EmployeeRepository employeeRepository;
     private final AuditFacadeDefinition auditFacade;
     private final DomainEventServiceDefinition domainEventService;
     private final TaskServiceDefinition taskService;
@@ -81,6 +89,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final TimeServiceDefinition timeService;
     private final BinIntegrityValidator binIntegrityValidator;
     private final LifecycleNotificationService lifecycleNotificationService;
+    private final LifecycleTransitionEngine lifecycleTransitionEngine;
     private final WarehouseAccessGuard warehouseAccessGuard;
 
 
@@ -101,6 +110,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.INBOUND,
                 dto.getTransportOrderId() != null ? StockMovementReasonCode.TRANSPORT_RECEIPT : StockMovementReasonCode.MANUAL_INBOUND,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 dto.getTransportOrderId() != null
                         ? StockMovementReferenceType.TRANSPORT_ORDER
                         : resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
@@ -113,7 +132,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBinLocationId(),
                 false
         );
-        return StockMovementMapper.toResponse(saved);
+        return toResponseWithLifecycle(saved);
     }
 
     @Override
@@ -134,6 +153,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.OUTBOUND,
                 dto.getTransportOrderId() != null ? StockMovementReasonCode.TRANSPORT_DISPATCH : StockMovementReasonCode.MANUAL_OUTBOUND,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 dto.getTransportOrderId() != null
                         ? StockMovementReferenceType.TRANSPORT_ORDER
                         : resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
@@ -146,7 +175,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBinLocationId(),
                 false
         );
-        return StockMovementMapper.toResponse(saved);
+        return toResponseWithLifecycle(saved);
     }
 
     @Override
@@ -200,6 +229,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.TRANSFER_OUT,
                 dto.getTransportOrderId() != null ? StockMovementReasonCode.TRANSPORT_DISPATCH : StockMovementReasonCode.MANUAL_OUTBOUND,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 referenceType,
                 referenceId,
                 referenceNumber,
@@ -218,6 +257,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.TRANSFER_IN,
                 dto.getTransportOrderId() != null ? StockMovementReasonCode.TRANSPORT_RECEIPT : StockMovementReasonCode.MANUAL_INBOUND,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 referenceType,
                 referenceId,
                 referenceNumber,
@@ -229,7 +278,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 false
         );
 
-        return List.of(StockMovementMapper.toResponse(out), StockMovementMapper.toResponse(in));
+        return List.of(toResponseWithLifecycle(out), toResponseWithLifecycle(in));
     }
 
 
@@ -261,6 +310,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.TRANSFER_OUT,
                 StockMovementReasonCode.TRANSPORT_DISPATCH,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 StockMovementReferenceType.TRANSPORT_ORDER,
                 transportOrder.getId(),
                 referenceNumber,
@@ -272,7 +331,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 true
         );
 
-        return StockMovementMapper.toResponse(saved);
+        return executeCreatedMovement(saved);
     }
 
     @Override
@@ -303,6 +362,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.TRANSFER_IN,
                 StockMovementReasonCode.TRANSPORT_RECEIPT,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 StockMovementReferenceType.TRANSPORT_ORDER,
                 transportOrder.getId(),
                 referenceNumber,
@@ -314,7 +383,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 false
         );
 
-        return StockMovementMapper.toResponse(saved);
+        return executeCreatedMovement(saved);
     }
 
 
@@ -345,6 +414,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.RETURN_IN,
                 StockMovementReasonCode.RETURN_IN,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 StockMovementReferenceType.TRANSPORT_ORDER,
                 transportOrder.getId(),
                 referenceNumber,
@@ -356,7 +435,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 false
         );
 
-        return StockMovementMapper.toResponse(saved);
+        return executeCreatedMovement(saved);
     }
 
 
@@ -370,7 +449,17 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.ADJUSTMENT,
                 StockMovementReasonCode.INVENTORY_ADJUSTMENT,
                 dto.getReasonDescription(),
-                StockMovementReferenceType.MANUAL,
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
+                dto.getReferenceType() != null ? dto.getReferenceType() : StockMovementReferenceType.MANUAL,
                 dto.getReferenceId(),
                 dto.getReferenceNumber(),
                 dto.getReferenceNote(),
@@ -380,7 +469,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBinLocationId(),
                 dto.getDirection() == StockAdjustmentDirection.DECREASE
         );
-        return StockMovementMapper.toResponse(saved);
+        if (requiresAdjustmentApproval(saved)) {
+            saved = submitMovementForApproval(saved, "Adjustment quantity requires approval");
+        }
+        return toResponseWithLifecycle(saved);
     }
 
     @Override
@@ -393,6 +485,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 StockMovementType.WRITE_OFF,
                 StockMovementReasonCode.DAMAGE_WRITE_OFF,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
                 dto.getReferenceId(),
                 dto.getReferenceNumber(),
@@ -403,7 +505,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBinLocationId(),
                 false
         );
-        return StockMovementMapper.toResponse(saved);
+        saved = submitMovementForApproval(saved, "Write-off requires approval");
+        return toResponseWithLifecycle(saved);
     }
 
     @Override
@@ -423,6 +526,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 movementType,
                 reasonCode,
                 dto.getReasonDescription(),
+                dto.getExpectedQuantity(),
+                dto.getActualQuantity(),
+                dto.getDiscrepancyReason(),
+                dto.getDiscrepancyNote(),
+                dto.getBatchLotNumber(),
+                dto.getBatchExpirationDate(),
+                dto.getSerialNumbers(),
+                dto.getUnitCost(),
+                dto.getTotalCost(),
+                dto.getCurrency(),
                 resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
                 dto.getReferenceId(),
                 dto.getReferenceNumber(),
@@ -433,7 +546,70 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBinLocationId(),
                 false
         );
-        return StockMovementMapper.toResponse(saved);
+        return toResponseWithLifecycle(saved);
+    }
+
+    private BigDecimal normalizeCost(BigDecimal value) {
+        return value != null ? value : null;
+    }
+
+    private BigDecimal normalizeTotalCost(BigDecimal totalCost, BigDecimal unitCost, BigDecimal quantity) {
+        if (totalCost != null) {
+            return totalCost;
+        }
+        if (unitCost == null || quantity == null) {
+            return null;
+        }
+        return unitCost.multiply(quantity);
+    }
+
+    private String normalizeCurrency(String currency) {
+        return currency == null || currency.isBlank() ? null : currency.trim().toUpperCase();
+    }
+
+    private String normalizeBatchLotNumber(String batchLotNumber) {
+        if (batchLotNumber == null || batchLotNumber.isBlank()) {
+            return null;
+        }
+        return batchLotNumber.trim();
+    }
+
+    private String serializeSerialNumbers(List<String> serialNumbers) {
+        if (serialNumbers == null || serialNumbers.isEmpty()) {
+            return null;
+        }
+        String serialized = serialNumbers.stream()
+                .filter(serial -> serial != null && !serial.isBlank())
+                .map(String::trim)
+                .distinct()
+                .collect(Collectors.joining(","));
+        return serialized.isBlank() ? null : serialized;
+    }
+
+    private List<String> parseSerialNumbers(String serialNumbers) {
+        if (serialNumbers == null || serialNumbers.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(serialNumbers.split(","))
+                .map(String::trim)
+                .filter(serial -> !serial.isBlank())
+                .toList();
+    }
+
+    private void validateBatchSerialTracking(StockMovement movement) {
+        if (movement.getBatchExpirationDate() != null && movement.getBatchLotNumber() == null) {
+            throw new BadRequestException("Batch expiration date requires batch/lot number");
+        }
+        if (movement.getSerialNumbers() != null) {
+            int serialCount = parseSerialNumbers(movement.getSerialNumbers()).size();
+            if (serialCount == 0) {
+                movement.setSerialNumbers(null);
+                return;
+            }
+            if (movement.getQuantity() != null && movement.getQuantity().stripTrailingZeros().scale() <= 0 && movement.getQuantity().intValue() != serialCount) {
+                throw new BadRequestException("Serial number count must match movement quantity for serialized stock");
+            }
+        }
     }
 
 
@@ -495,6 +671,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
             StockMovementType movementType,
             StockMovementReasonCode reasonCode,
             String reasonDescription,
+            BigDecimal expectedQuantity,
+            BigDecimal actualQuantity,
+            StockMovementDiscrepancyReason discrepancyReason,
+            String discrepancyNote,
+            String batchLotNumber,
+            LocalDate batchExpirationDate,
+            List<String> serialNumbers,
+            BigDecimal unitCost,
+            BigDecimal totalCost,
+            String currency,
             StockMovementReferenceType referenceType,
             Long referenceId,
             String referenceNumber,
@@ -512,7 +698,11 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
 
         User currentUser = authenticatedUserProvider.getAuthenticatedUser();
-        BigDecimal movementQuantity = positiveQuantity(quantity, "Movement quantity must be greater than zero");
+        BigDecimal movementQuantity = positiveQuantity(actualQuantity != null ? actualQuantity : quantity, "Actual movement quantity must be greater than zero");
+        BigDecimal normalizedExpectedQuantity = positiveQuantity(expectedQuantity != null ? expectedQuantity : movementQuantity, "Expected movement quantity must be greater than zero");
+        BigDecimal normalizedActualQuantity = movementQuantity;
+        BigDecimal discrepancyQuantity = normalizedActualQuantity.subtract(normalizedExpectedQuantity);
+        validateDiscrepancy(discrepancyQuantity, discrepancyReason, discrepancyNote, transportOrder, referenceType);
         validateMovementContext(movementType, reasonCode, referenceType, referenceId, transferGroupId, adjustmentDirection, transportOrder);
         validateMovementReason(movementType, reasonCode, adjustmentDirection);
         binIntegrityValidator.ensureBinSelectionMatchesWarehouseMode(warehouse, binLocationId);
@@ -520,41 +710,6 @@ public class StockMovementService implements StockMovementServiceDefinition {
         BigDecimal quantityBefore = inventory.getSafeQuantity();
         BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
         BigDecimal availableBefore = inventory.getAvailableQuantity();
-        BigDecimal projectedQuantityAfter = projectQuantityAfter(
-                inventory,
-                movementType,
-                movementQuantity,
-                decreaseForAdjustmentOrReservedTransfer
-        );
-
-        validateWarehouseCapacity(warehouse, quantityBefore, projectedQuantityAfter);
-        applyInventoryMovement(
-                inventory,
-                movementType,
-                movementQuantity,
-                decreaseForAdjustmentOrReservedTransfer,
-                transportOrder
-        );
-
-        BigDecimal quantityAfter = inventory.getSafeQuantity();
-        BigDecimal reservedAfter = inventory.getSafeReservedQuantity();
-        BigDecimal availableAfter = inventory.getAvailableQuantity();
-        validateInventoryState(quantityAfter, reservedAfter);
-
-        WarehouseInventory savedInventory = warehouseInventoryRepository.saveAndFlush(inventory);
-
-        BinLocation movementBin = applyOptionalBinMovement(
-                warehouse,
-                product,
-                binLocationId,
-                movementType,
-                movementQuantity,
-                adjustmentDirection,
-                savedInventory,
-                decreaseForAdjustmentOrReservedTransfer
-        );
-
-        recordInventoryQuantityHistory(savedInventory, quantityBefore, quantityAfter, reservedBefore, reservedAfter);
 
         StockMovement parentMovement = resolveParentMovement(referenceType, referenceId, transportOrder, transferGroupId, product);
         Long parentMovementId = parentMovement != null ? parentMovement.getId() : null;
@@ -568,6 +723,14 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 movementQuantity,
                 reasonCode,
                 reasonDescription,
+                normalizedExpectedQuantity,
+                normalizedActualQuantity,
+                discrepancyQuantity,
+                discrepancyReason,
+                discrepancyNote,
+                normalizeCost(unitCost),
+                normalizeTotalCost(totalCost, unitCost, normalizedActualQuantity),
+                normalizeCurrency(currency),
                 referenceType,
                 referenceId,
                 referenceNumber,
@@ -575,21 +738,28 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 transferGroupId,
                 adjustmentDirection,
                 quantityBefore,
-                quantityAfter,
+                quantityBefore,
                 reservedBefore,
-                reservedAfter,
+                reservedBefore,
                 availableBefore,
-                availableAfter,
+                availableBefore,
                 warehouse,
                 product,
                 currentUser,
                 transportOrder
         );
+        stockMovement.setStatus(StockMovementStatus.DRAFT);
         stockMovement.setParentMovementId(parentMovementId);
         stockMovement.setRootMovementId(rootMovementId);
         stockMovement.setSourceType(sourceType);
         stockMovement.setSourceId(sourceId);
         stockMovement.setReferenceCode(lifecycleReferenceCode);
+        stockMovement.setBatchLotNumber(normalizeBatchLotNumber(batchLotNumber));
+        stockMovement.setBatchExpirationDate(batchExpirationDate);
+        stockMovement.setSerialNumbers(serializeSerialNumbers(serialNumbers));
+        validateBatchSerialTracking(stockMovement);
+
+        BinLocation movementBin = resolveMovementBinForDraft(warehouse, binLocationId);
         if (movementBin != null) {
             if (shouldDecreaseBin(movementType, adjustmentDirection, decreaseForAdjustmentOrReservedTransfer)) {
                 stockMovement.setSourceBin(movementBin);
@@ -601,10 +771,18 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         StockMovement saved = stockMovementRepository.saveAndFlush(stockMovement);
         recordStockMovementAudit(saved, warehouse, product, transportOrder);
-        recordStockMovementDomainEvent(saved, warehouse, product, movementBin);
         lifecycleNotificationService.notifyStockMovementCreated(saved);
-        createOperationalTaskForStockMovement(saved);
         return saved;
+    }
+
+    private BinLocation resolveMovementBinForDraft(Warehouse warehouse, Long binLocationId) {
+        if (binLocationId == null) {
+            return null;
+        }
+        BinLocation bin = getAccessibleBinLocation(binLocationId);
+        binIntegrityValidator.ensureBinBelongsToWarehouse(bin, warehouse, "Selected bin must belong to selected warehouse");
+        binIntegrityValidator.ensureActiveBin(bin, "Selected bin is not active");
+        return bin;
     }
 
     private BinLocation applyOptionalBinMovement(
@@ -733,6 +911,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
         auditFacade.recordCreate("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved));
         auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "movementType", null, saved.getMovementType());
         auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "quantity", null, saved.getQuantity());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "expectedQuantity", null, saved.getExpectedQuantity());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "actualQuantity", null, saved.getActualQuantity());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "discrepancyQuantity", null, saved.getDiscrepancyQuantity());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "discrepancyReason", null, saved.getDiscrepancyReason());
         auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "warehouseId", null, warehouse.getId());
         auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "productId", null, product.getId());
         auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "transportOrderId", null, transportOrder != null ? transportOrder.getId() : null);
@@ -752,6 +934,33 @@ public class StockMovementService implements StockMovementServiceDefinition {
                         + ", warehouseId=" + warehouse.getId()
                         + ", productId=" + product.getId() + ")"
         );
+    }
+
+    private void validateDiscrepancy(
+            BigDecimal discrepancyQuantity,
+            StockMovementDiscrepancyReason discrepancyReason,
+            String discrepancyNote,
+            TransportOrder transportOrder,
+            StockMovementReferenceType referenceType
+    ) {
+        boolean hasDiscrepancy = discrepancyQuantity != null && discrepancyQuantity.compareTo(BigDecimal.ZERO) != 0;
+        if (!hasDiscrepancy) {
+            return;
+        }
+        if (discrepancyReason == null) {
+            throw new BadRequestException("Discrepancy reason is required when actual quantity differs from expected quantity");
+        }
+        if ((discrepancyReason == StockMovementDiscrepancyReason.DAMAGE
+                || discrepancyReason == StockMovementDiscrepancyReason.SHORTAGE
+                || discrepancyReason == StockMovementDiscrepancyReason.TRANSPORT_LOSS)
+                && (discrepancyNote == null || discrepancyNote.isBlank())) {
+            throw new BadRequestException("Discrepancy note is required for shortage, damage or transport loss");
+        }
+        if (discrepancyReason == StockMovementDiscrepancyReason.TRANSPORT_LOSS
+                && transportOrder == null
+                && referenceType != StockMovementReferenceType.TRANSPORT_ORDER) {
+            throw new BadRequestException("Transport loss discrepancy must be linked to a transport order");
+        }
     }
 
     private void validateMovementContext(
@@ -959,10 +1168,379 @@ public class StockMovementService implements StockMovementServiceDefinition {
         return normalized;
     }
 
+
+    @Override
+    @Transactional
+    public StockMovementResponse execute(Long id) {
+        StockMovement movement = getAccessibleStockMovement(id);
+        enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), true);
+
+        var context = lifecycleTransitionEngine.validate(
+                LifecycleEntityType.STOCK_MOVEMENT,
+                movement.getId(),
+                StockMovementStatus.class,
+                movement.getStatus(),
+                StockMovementStatus.EXECUTED,
+                "Execute stock movement",
+                null,
+                null
+        );
+
+        executeInventoryEffects(movement);
+        movement.setStatus(StockMovementStatus.EXECUTED);
+        StockMovement saved = stockMovementRepository.saveAndFlush(movement);
+
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "status", context.fromStatus(), context.toStatus());
+        lifecycleTransitionEngine.afterTransition(context, StockMovementStatus.class);
+        recordStockMovementDomainEvent(saved, saved.getWarehouse(), saved.getProduct(), executedMovementBin(saved));
+        createOperationalTaskForStockMovement(saved);
+        return toResponseWithLifecycle(saved);
+    }
+
+
+    @Override
+    @Transactional
+    public StockMovementResponse approve(Long id) {
+        StockMovement movement = getAccessibleStockMovement(id);
+        enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), true);
+
+        StockMovement saved = transitionMovementStatus(
+                movement,
+                StockMovementStatus.APPROVED,
+                "Approve stock movement"
+        );
+        return toResponseWithLifecycle(saved);
+    }
+
+    @Override
+    @Transactional
+    public StockMovementResponse reject(Long id) {
+        StockMovement movement = getAccessibleStockMovement(id);
+        enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), true);
+
+        StockMovement saved = transitionMovementStatus(
+                movement,
+                StockMovementStatus.REJECTED,
+                "Reject stock movement"
+        );
+        return toResponseWithLifecycle(saved);
+    }
+
+    @Override
+    @Transactional
+    public StockMovementResponse cancel(Long id) {
+        StockMovement movement = getAccessibleStockMovement(id);
+        enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), true);
+
+        var context = lifecycleTransitionEngine.validate(
+                LifecycleEntityType.STOCK_MOVEMENT,
+                movement.getId(),
+                StockMovementStatus.class,
+                movement.getStatus(),
+                StockMovementStatus.CANCELLED,
+                "Cancel stock movement",
+                null,
+                null
+        );
+
+        movement.setStatus(StockMovementStatus.CANCELLED);
+        StockMovement saved = stockMovementRepository.saveAndFlush(movement);
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "status", context.fromStatus(), context.toStatus());
+        lifecycleTransitionEngine.afterTransition(context, StockMovementStatus.class);
+        return toResponseWithLifecycle(saved);
+    }
+
+
+    private boolean requiresAdjustmentApproval(StockMovement movement) {
+        if (movement == null || movement.getMovementType() != StockMovementType.ADJUSTMENT) {
+            return false;
+        }
+        BigDecimal threshold = appProperties.getStockMovement().getAdjustmentApprovalThreshold();
+        return threshold != null && movement.getQuantity().abs().compareTo(threshold) >= 0;
+    }
+
+    private StockMovement submitMovementForApproval(StockMovement movement, String reason) {
+        return transitionMovementStatus(movement, StockMovementStatus.PENDING_APPROVAL, reason);
+    }
+
+    private StockMovement transitionMovementStatus(StockMovement movement, StockMovementStatus nextStatus, String reason) {
+        var context = lifecycleTransitionEngine.validate(
+                LifecycleEntityType.STOCK_MOVEMENT,
+                movement.getId(),
+                StockMovementStatus.class,
+                movement.getStatus(),
+                nextStatus,
+                reason,
+                null,
+                null
+        );
+
+        movement.setStatus(nextStatus);
+        StockMovement saved = stockMovementRepository.saveAndFlush(movement);
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "status", context.fromStatus(), context.toStatus());
+        lifecycleTransitionEngine.afterTransition(context, StockMovementStatus.class);
+        return saved;
+    }
+
+
+    private void validateMovementCanBeReversed(StockMovement movement) {
+        if (movement.getStatus() != StockMovementStatus.EXECUTED) {
+            throw new BadRequestException("Only executed stock movements can be reversed");
+        }
+        if (movement.getReversedByMovementId() != null) {
+            throw new BadRequestException("Stock movement has already been reversed");
+        }
+        if (movement.getReversalOfMovementId() != null) {
+            throw new BadRequestException("Reversal movements cannot be reversed again");
+        }
+    }
+
+    private StockMovementType reversalTypeFor(StockMovement movement) {
+        return switch (movement.getMovementType()) {
+            case INBOUND -> StockMovementType.OUTBOUND;
+            case OUTBOUND -> StockMovementType.INBOUND;
+            case TRANSFER_IN -> StockMovementType.TRANSFER_OUT;
+            case TRANSFER_OUT -> StockMovementType.TRANSFER_IN;
+            case ADJUSTMENT -> StockMovementType.ADJUSTMENT;
+            case WRITE_OFF -> StockMovementType.INBOUND;
+            case RETURN_IN -> StockMovementType.RETURN_OUT;
+            case RETURN_OUT -> StockMovementType.RETURN_IN;
+            case RESERVATION -> StockMovementType.RESERVATION_RELEASE;
+            case RESERVATION_RELEASE -> StockMovementType.RESERVATION;
+        };
+    }
+
+    private StockAdjustmentDirection reversalAdjustmentDirectionFor(StockMovement movement) {
+        if (movement.getMovementType() != StockMovementType.ADJUSTMENT) {
+            return null;
+        }
+        return movement.getAdjustmentDirection() == StockAdjustmentDirection.DECREASE
+                ? StockAdjustmentDirection.INCREASE
+                : StockAdjustmentDirection.DECREASE;
+    }
+
+    private StockMovementReasonCode reversalReasonFor(StockMovementType reversalType) {
+        return switch (reversalType) {
+            case INBOUND, TRANSFER_IN -> StockMovementReasonCode.MANUAL_INBOUND;
+            case OUTBOUND, TRANSFER_OUT -> StockMovementReasonCode.MANUAL_OUTBOUND;
+            case ADJUSTMENT -> StockMovementReasonCode.CORRECTION;
+            case WRITE_OFF -> StockMovementReasonCode.DAMAGE_WRITE_OFF;
+            case RETURN_IN -> StockMovementReasonCode.RETURN_IN;
+            case RETURN_OUT -> StockMovementReasonCode.RETURN_OUT;
+            case RESERVATION -> StockMovementReasonCode.STOCK_RESERVED;
+            case RESERVATION_RELEASE -> StockMovementReasonCode.RESERVATION_RELEASED;
+        };
+    }
+
+    private Long reversalBinLocationId(StockMovement original) {
+        StockMovementType reversalType = reversalTypeFor(original);
+        StockAdjustmentDirection reversalAdjustmentDirection = reversalAdjustmentDirectionFor(original);
+        boolean decreaseForAdjustmentOrReservedTransfer = reversalType == StockMovementType.ADJUSTMENT
+                ? reversalAdjustmentDirection == StockAdjustmentDirection.DECREASE
+                : false;
+
+        if (shouldDecreaseBin(reversalType, reversalAdjustmentDirection, decreaseForAdjustmentOrReservedTransfer)) {
+            if (original.getDestinationBin() != null) {
+                return original.getDestinationBin().getId();
+            }
+            return original.getSourceBin() != null ? original.getSourceBin().getId() : null;
+        }
+        if (shouldIncreaseBin(reversalType, reversalAdjustmentDirection, decreaseForAdjustmentOrReservedTransfer)) {
+            if (original.getSourceBin() != null) {
+                return original.getSourceBin().getId();
+            }
+            return original.getDestinationBin() != null ? original.getDestinationBin().getId() : null;
+        }
+        return null;
+    }
+
+    private StockMovementResponse executeCreatedMovement(StockMovement movement) {
+        return execute(movement.getId());
+    }
+
+    private void executeInventoryEffects(StockMovement movement) {
+        Warehouse warehouse = movement.getWarehouse();
+        Product product = movement.getProduct();
+
+        WarehouseInventory inventory = warehouseInventoryRepository
+                .findByWarehouseIdAndProductIdForUpdate(warehouse.getId(), product.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
+
+        BigDecimal quantityBefore = inventory.getSafeQuantity();
+        BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
+        BigDecimal availableBefore = inventory.getAvailableQuantity();
+
+        boolean reservedTransportTransferOut = movement.getMovementType() == StockMovementType.TRANSFER_OUT && movement.getTransportOrder() != null;
+        boolean decreaseForAdjustmentOrReservedTransfer = movement.getMovementType() == StockMovementType.ADJUSTMENT
+                ? movement.getAdjustmentDirection() == StockAdjustmentDirection.DECREASE
+                : reservedTransportTransferOut;
+
+        BigDecimal projectedQuantityAfter = projectQuantityAfter(
+                inventory,
+                movement.getMovementType(),
+                movement.getQuantity(),
+                decreaseForAdjustmentOrReservedTransfer
+        );
+        validateWarehouseCapacity(warehouse, quantityBefore, projectedQuantityAfter);
+
+        applyInventoryMovement(
+                inventory,
+                movement.getMovementType(),
+                movement.getQuantity(),
+                decreaseForAdjustmentOrReservedTransfer,
+                movement.getTransportOrder()
+        );
+
+        BigDecimal quantityAfter = inventory.getSafeQuantity();
+        BigDecimal reservedAfter = inventory.getSafeReservedQuantity();
+        BigDecimal availableAfter = inventory.getAvailableQuantity();
+        validateInventoryState(quantityAfter, reservedAfter);
+        applyInventoryValuation(inventory, movement, quantityBefore, quantityAfter, decreaseForAdjustmentOrReservedTransfer);
+
+        WarehouseInventory savedInventory = warehouseInventoryRepository.saveAndFlush(inventory);
+        BinLocation movementBin = applyOptionalBinMovement(
+                warehouse,
+                product,
+                executableBinLocationId(movement),
+                movement.getMovementType(),
+                movement.getQuantity(),
+                movement.getAdjustmentDirection(),
+                savedInventory,
+                decreaseForAdjustmentOrReservedTransfer
+        );
+
+        recordInventoryQuantityHistory(savedInventory, quantityBefore, quantityAfter, reservedBefore, reservedAfter);
+
+        movement.setQuantityBefore(quantityBefore);
+        movement.setQuantityAfter(quantityAfter);
+        movement.setReservedBefore(reservedBefore);
+        movement.setReservedAfter(reservedAfter);
+        movement.setAvailableBefore(availableBefore);
+        movement.setAvailableAfter(availableAfter);
+        if (movementBin != null) {
+            if (shouldDecreaseBin(movement.getMovementType(), movement.getAdjustmentDirection(), decreaseForAdjustmentOrReservedTransfer)) {
+                movement.setSourceBin(movementBin);
+            }
+            if (shouldIncreaseBin(movement.getMovementType(), movement.getAdjustmentDirection(), decreaseForAdjustmentOrReservedTransfer)) {
+                movement.setDestinationBin(movementBin);
+            }
+        }
+    }
+
+    private void applyInventoryValuation(
+            WarehouseInventory inventory,
+            StockMovement movement,
+            BigDecimal quantityBefore,
+            BigDecimal quantityAfter,
+            boolean decreaseForAdjustmentOrReservedTransfer
+    ) {
+        try {
+            inventory.applyWeightedAverageValuation(
+                    movement.getMovementType(),
+                    movement.getAdjustmentDirection(),
+                    quantityBefore,
+                    quantityAfter,
+                    movement.getQuantity(),
+                    movement.getUnitCost(),
+                    movement.getTotalCost(),
+                    movement.getCurrency(),
+                    decreaseForAdjustmentOrReservedTransfer
+            );
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private Long executableBinLocationId(StockMovement movement) {
+        if (shouldDecreaseBin(movement.getMovementType(), movement.getAdjustmentDirection(), movement.getMovementType() == StockMovementType.TRANSFER_OUT && movement.getTransportOrder() != null)) {
+            return movement.getSourceBin() != null ? movement.getSourceBin().getId() : null;
+        }
+        if (shouldIncreaseBin(movement.getMovementType(), movement.getAdjustmentDirection(), false)) {
+            return movement.getDestinationBin() != null ? movement.getDestinationBin().getId() : null;
+        }
+        return null;
+    }
+
+    private BinLocation executedMovementBin(StockMovement movement) {
+        return movement.getSourceBin() != null ? movement.getSourceBin() : movement.getDestinationBin();
+    }
+
+
+
+    @Override
+    @Transactional
+    public StockMovementResponse reverse(Long id) {
+        StockMovement original = getAccessibleStockMovement(id);
+        enforceWarehouseScopeForCurrentRole(original.getWarehouse(), true);
+        validateMovementCanBeReversed(original);
+
+        StockMovementType reversalType = reversalTypeFor(original);
+        StockAdjustmentDirection reversalAdjustmentDirection = reversalAdjustmentDirectionFor(original);
+        boolean decreaseForAdjustmentOrReservedTransfer = reversalType == StockMovementType.ADJUSTMENT
+                ? reversalAdjustmentDirection == StockAdjustmentDirection.DECREASE
+                : false;
+
+        StockMovement reversal = applyMovement(
+                original.getWarehouse(),
+                original.getProduct(),
+                original.getQuantity(),
+                reversalType,
+                reversalReasonFor(reversalType),
+                "Reversal of stock movement #" + original.getId(),
+                original.getQuantity(),
+                original.getQuantity(),
+                null,
+                null,
+                original.getBatchLotNumber(),
+                original.getBatchExpirationDate(),
+                parseSerialNumbers(original.getSerialNumbers()),
+                original.getUnitCost(),
+                original.getTotalCost(),
+                original.getCurrency(),
+                StockMovementReferenceType.STOCK_MOVEMENT,
+                original.getId(),
+                "REV-" + original.getId(),
+                original.getReasonDescription(),
+                reversalType == StockMovementType.TRANSFER_IN || reversalType == StockMovementType.TRANSFER_OUT ? original.getTransferGroupId() : null,
+                reversalAdjustmentDirection,
+                null,
+                reversalBinLocationId(original),
+                decreaseForAdjustmentOrReservedTransfer
+        );
+        reversal.setReversalOfMovementId(original.getId());
+        reversal.setRootMovementId(original.getRootMovementId() != null ? original.getRootMovementId() : original.getId());
+        reversal = stockMovementRepository.saveAndFlush(reversal);
+
+        StockMovementResponse executedReversal = execute(reversal.getId());
+        StockMovement executedReversalEntity = getAccessibleStockMovement(executedReversal.getId());
+
+        var context = lifecycleTransitionEngine.validate(
+                LifecycleEntityType.STOCK_MOVEMENT,
+                original.getId(),
+                StockMovementStatus.class,
+                original.getStatus(),
+                StockMovementStatus.REVERSED,
+                "Reverse stock movement",
+                null,
+                null
+        );
+        original.setStatus(StockMovementStatus.REVERSED);
+        original.setReversedByMovementId(executedReversalEntity.getId());
+        StockMovement savedOriginal = stockMovementRepository.saveAndFlush(original);
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedOriginal.getId(), stockMovementIdentifier(savedOriginal), "status", context.fromStatus(), context.toStatus());
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", savedOriginal.getId(), stockMovementIdentifier(savedOriginal), "reversedByMovementId", null, executedReversalEntity.getId());
+        lifecycleTransitionEngine.afterTransition(context, StockMovementStatus.class);
+
+        executedReversalEntity.setReversalOfMovementId(savedOriginal.getId());
+        executedReversalEntity = stockMovementRepository.saveAndFlush(executedReversalEntity);
+        auditFacade.recordFieldChange("STOCK_MOVEMENT", executedReversalEntity.getId(), stockMovementIdentifier(executedReversalEntity), "reversalOfMovementId", null, savedOriginal.getId());
+        return toResponseWithLifecycle(executedReversalEntity);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public StockMovementResponse getById(Long id) {
-        return StockMovementMapper.toResponse(getAccessibleStockMovement(id));
+        return toResponseWithLifecycle(getAccessibleStockMovement(id));
     }
 
     @Override
@@ -981,9 +1559,57 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 related.stream()
                         .sorted(Comparator.comparing(StockMovement::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
                                 .thenComparing(StockMovement::getId))
-                        .map(StockMovementMapper::toResponse)
+                        .map(this::toResponseWithLifecycle)
                         .toList()
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AllowedStatusTransitionsResponse allowedStatusTransitions(Long id) {
+        StockMovement stockMovement = getAccessibleStockMovement(id);
+        return new AllowedStatusTransitionsResponse(
+                stockMovement.getStatus().name(),
+                lifecycleTransitionEngine.allowedStatuses(
+                        LifecycleEntityType.STOCK_MOVEMENT,
+                        StockMovementStatus.class,
+                        stockMovement.getStatus()
+                ).stream().map(Enum::name).toList(),
+                null
+        );
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StockMovementResponse> batchHistory(String lotNumber) {
+        String normalizedLotNumber = normalizeBatchLotNumber(lotNumber);
+        if (normalizedLotNumber == null) {
+            throw new BadRequestException("Batch/lot number is required");
+        }
+        List<StockMovement> movements = authenticatedUserProvider.isOverlord()
+                ? stockMovementRepository.findByBatchLotNumberOrderByCreatedAtDesc(normalizedLotNumber)
+                : stockMovementRepository.findByBatchLotNumberAndWarehouse_Company_IdOrderByCreatedAtDesc(
+                        normalizedLotNumber,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                );
+        return movements.stream().map(this::toResponseWithLifecycle).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StockMovementResponse> serialHistory(String serialNumber) {
+        String normalizedSerialNumber = serialNumber == null ? null : serialNumber.trim();
+        if (normalizedSerialNumber == null || normalizedSerialNumber.isBlank()) {
+            throw new BadRequestException("Serial number is required");
+        }
+        Long companyId = authenticatedUserProvider.isOverlord()
+                ? null
+                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        return stockMovementRepository.findSerialHistory(normalizedSerialNumber, companyId)
+                .stream()
+                .map(this::toResponseWithLifecycle)
+                .toList();
     }
 
 
@@ -1005,8 +1631,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 null,
                 null,
                 null,
+                null,
+                null,
                 pageable
-        ).map(StockMovementMapper::toResponse));
+        ).map(this::toResponseWithLifecycle));
     }
 
     @Override
@@ -1014,10 +1642,12 @@ public class StockMovementService implements StockMovementServiceDefinition {
     public PageResponse<StockMovementResponse> search(
             String search,
             StockMovementType movementType,
+            StockMovementStatus status,
             StockMovementReasonCode reasonCode,
             Long warehouseId,
             Long productId,
             Long transportOrderId,
+            Long binLocationId,
             LocalDateTime fromDate,
             LocalDateTime toDate,
             Pageable pageable
@@ -1050,42 +1680,87 @@ public class StockMovementService implements StockMovementServiceDefinition {
             }
         }
 
-        List<Long> scopedWarehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+        if (binLocationId != null) {
+            BinLocation binLocation = getAccessibleBinLocation(binLocationId);
+            if (warehouseId != null) {
+                binIntegrityValidator.ensureBinBelongsToWarehouse(
+                        binLocation,
+                        getAccessibleWarehouse(warehouseId),
+                        "Bin location must belong to selected warehouse"
+                );
+            }
+        }
+
         Page<StockMovement> page;
-        if (scopedWarehouseIds != null) {
-            page = scopedWarehouseIds.isEmpty()
-                    ? Page.empty(pageable)
-                    : stockMovementRepository.searchMovementsForWarehouseIds(
+        if (authenticatedUserProvider.hasRole("WORKER")) {
+            page = stockMovementRepository.searchMovementsAssignedToEmployee(
                     companyId,
-                    scopedWarehouseIds,
+                    currentEmployeeIdOrNotFound(),
                     normalizedSearch,
                     searchId,
                     movementType,
+                    status,
                     reasonCode,
                     warehouseId,
                     productId,
                     transportOrderId,
+                    binLocationId,
                     fromDate,
                     toDate,
                     pageable
             );
         } else {
-            page = stockMovementRepository.searchMovements(
-                    companyId,
-                    normalizedSearch,
-                    searchId,
-                    movementType,
-                    reasonCode,
-                    warehouseId,
-                    productId,
-                    transportOrderId,
-                    fromDate,
-                    toDate,
-                    pageable
-            );
+            List<Long> scopedWarehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            if (scopedWarehouseIds != null) {
+                page = scopedWarehouseIds.isEmpty()
+                        ? Page.empty(pageable)
+                        : stockMovementRepository.searchMovementsForWarehouseIds(
+                        companyId,
+                        scopedWarehouseIds,
+                        normalizedSearch,
+                        searchId,
+                        movementType,
+                        status,
+                        reasonCode,
+                        warehouseId,
+                        productId,
+                        transportOrderId,
+                        binLocationId,
+                        fromDate,
+                        toDate,
+                        pageable
+                );
+            } else {
+                page = stockMovementRepository.searchMovements(
+                        companyId,
+                        normalizedSearch,
+                        searchId,
+                        movementType,
+                        status,
+                        reasonCode,
+                        warehouseId,
+                        productId,
+                        transportOrderId,
+                        binLocationId,
+                        fromDate,
+                        toDate,
+                        pageable
+                );
+            }
         }
 
-        return PageResponse.from(page.map(StockMovementMapper::toResponse));
+        return PageResponse.from(page.map(this::toResponseWithLifecycle));
+    }
+
+    private StockMovementResponse toResponseWithLifecycle(StockMovement stockMovement) {
+        return StockMovementMapper.toResponse(
+                stockMovement,
+                lifecycleTransitionEngine.allowedStatuses(
+                        LifecycleEntityType.STOCK_MOVEMENT,
+                        StockMovementStatus.class,
+                        stockMovement.getStatus()
+                ).stream().toList()
+        );
     }
 
     private List<StockMovement> collectTraceMovements(StockMovement movement) {
@@ -1366,7 +2041,17 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 )
                 .orElseThrow(() -> new ResourceNotFoundException("Stock movement not found"));
         enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), false);
+        if (authenticatedUserProvider.hasRole("WORKER")
+                && !stockMovementRepository.existsAssignedWorkerTaskForStockMovement(id, currentEmployeeIdOrNotFound())) {
+            throw new ResourceNotFoundException("Stock movement not found");
+        }
         return movement;
+    }
+
+    private Long currentEmployeeIdOrNotFound() {
+        return employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
+                .map(Employee::getId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
     }
 
     private TransportOrder resolveTransportOrder(Long transportOrderId, Warehouse warehouse) {

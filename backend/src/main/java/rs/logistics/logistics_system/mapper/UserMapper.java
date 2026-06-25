@@ -51,6 +51,8 @@ public class UserMapper {
                         employee.getPosition(),
                         employee.getEmploymentDate(),
                         employee.getSalary(),
+                        employee.getCountry() != null ? employee.getCountry().getCurrencyCode() : null,
+                        employee.getCountry() != null ? employee.getCountry().getCurrencyName() : null,
                         employee.getActive(),
                         employee.getCompany() != null ? employee.getCompany().getId() : null
                 );

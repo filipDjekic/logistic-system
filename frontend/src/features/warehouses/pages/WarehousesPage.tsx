@@ -42,6 +42,8 @@ export default function WarehousesPage() {
   const canManage =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
+  const canEdit = canManage || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+
   const [filters, setFilters] = useState<WarehouseFiltersState>({
     search: '',
     status: 'ALL',
@@ -231,14 +233,15 @@ export default function WarehousesPage() {
             error={warehousesQuery.isError}
             onRetry={() => { void warehousesQuery.refetch(); }}
             onEdit={(warehouse) => {
-              if (!canManage) return;
+              if (!canEdit) return;
               navigate(`/warehouses/${warehouse.id}/edit`);
             }}
             onDelete={(warehouse) => {
               if (!canManage) return;
               setDeleteTarget(warehouse);
             }}
-            canManage={canManage}
+            canEdit={canEdit}
+            canDelete={canManage}
             pagination={
               <ServerTablePagination
                 page={warehousesQuery.data}

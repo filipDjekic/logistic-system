@@ -67,6 +67,12 @@ export function canCreateTasks(role: Role | null | undefined) {
   );
 }
 
+const WAREHOUSE_SIDE_TASK_TYPES = ['PICKING', 'PACKING', 'LOADING', 'UNLOADING', 'COUNTING', 'STOCK_MOVEMENT'];
+
+function isWarehouseSideTask(task: TaskResponse) {
+  return WAREHOUSE_SIDE_TASK_TYPES.includes(task.taskType);
+}
+
 export function canMutateManagedTask(role: Role | null | undefined, task: TaskResponse | null | undefined) {
   if (task == null || task.status === 'COMPLETED' || task.status === 'CANCELLED') {
     return false;
@@ -76,7 +82,7 @@ export function canMutateManagedTask(role: Role | null | undefined, task: TaskRe
     return true;
   }
 
-  return role === ROLES.WAREHOUSE_MANAGER && task.transportOrderId == null;
+  return role === ROLES.WAREHOUSE_MANAGER && isWarehouseSideTask(task);
 }
 
 export function getAllowedTaskStatusTransitions(
@@ -97,14 +103,11 @@ export function getAllowedTaskStatusTransitions(
     return [];
   }
 
-  if (role === ROLES.WAREHOUSE_MANAGER && task.transportOrderId != null) {
-    const warehouseSideTaskTypes = ['PICKING', 'PACKING', 'LOADING', 'UNLOADING'];
-    if (!warehouseSideTaskTypes.includes(task.taskType)) {
-      return [];
-    }
+  if (role === ROLES.WAREHOUSE_MANAGER && !isWarehouseSideTask(task)) {
+    return [];
   }
 
-  if (role === ROLES.WORKER && task.stockMovementId == null && task.transportOrderId != null) {
+  if (role === ROLES.WORKER && !isWarehouseSideTask(task)) {
     return [];
   }
 

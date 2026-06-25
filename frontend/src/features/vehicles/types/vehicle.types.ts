@@ -10,7 +10,6 @@ export const vehicleTypeOptions = [
   'TRUCK',
   'BOX_TRUCK',
   'SEMI_TRUCK',
-  'REFRIGERATED_TRUCK',
   'TANKER',
   'PICKUP',
   'FORKLIFT',

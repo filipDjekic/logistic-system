@@ -21,7 +21,6 @@ import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { canEditTransportOrder, canManageTransportOrders, canMutateTransportOrderItems, getAllowedTransportOrderStatusTransitions } from '../../../core/permissions/operationGuards';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
 import { StickyMobileActions } from '../../../shared/components/Mobile';
 import { LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
@@ -96,7 +95,8 @@ export default function TransportOrderDetailsPage() {
   const canReadItems =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.DISPATCHER;
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
 
   const canViewHistory = auth.user?.role !== ROLES.DRIVER;
@@ -106,12 +106,14 @@ export default function TransportOrderDetailsPage() {
   const canResolveVehicles =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.DISPATCHER;
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const canResolveEmployees =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.DISPATCHER;
+    auth.user?.role === ROLES.DISPATCHER ||
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const canResolveProducts = canReadItems;
 
@@ -407,60 +409,6 @@ export default function TransportOrderDetailsPage() {
   const isItemMutationLoading =
     createItemMutation.isPending || updateItemMutation.isPending;
 
-  const transportItemCount = itemsQuery.data?.length ?? 0;
-  const transportRecommendedStep = (() => {
-    const terminal = ['DELIVERED', 'FAILED', 'CANCELLED'].includes(transportOrder.status);
-
-    if (terminal) {
-      return {
-        title: 'Review final outcome and audit trail.',
-        description: 'This transport order is terminal. Use the timeline, linked stock movements and change history to verify the completed business process.',
-        severity: 'success' as const,
-        actions: [
-          { label: 'Open lifecycle', onClick: () => setActiveTab('lifecycle'), variant: 'outlined' as const },
-          { label: 'Open stock movements', onClick: () => setActiveTab('relatedStockMovements'), variant: 'outlined' as const },
-        ],
-      };
-    }
-
-    if (canReadItems && transportItemCount === 0 && transportOrder.status === 'DRAFT') {
-      return {
-        title: 'Add transport items before moving the order forward.',
-        description: 'The order has no products connected to it yet. Add at least one item so warehouse execution, reservation and later stock movement tracing have a clear source.',
-        severity: 'warning' as const,
-        actions: [{ label: 'Add items', onClick: () => setActiveTab('items') }],
-      };
-    }
-
-    if (relatedTasksQuery.data && relatedTasksQuery.data.totalElements === 0 && canManageOrder && transportOrder.status !== 'DRAFT') {
-      return {
-        title: 'Create operational tasks for this order.',
-        description: 'The order has moved into the operational lifecycle, but there are no linked tasks yet. Create picking, loading, transport or unloading tasks so execution can be tracked by role.',
-        severity: 'warning' as const,
-        actions: [{ label: 'Create task', to: `/tasks/create?transportOrderId=${transportOrder.id}` }],
-      };
-    }
-
-    if (nextStatuses.length > 0 && canChangeStatus) {
-      return {
-        title: `Continue lifecycle from ${transportOrder.status}.`,
-        description: `Available next status: ${nextStatuses.join(', ')}. Use a lifecycle action only when the real operational work for the current stage is complete.`,
-        severity: 'info' as const,
-        actions: [{ label: 'Open status actions', onClick: () => setActiveTab('overview') }],
-      };
-    }
-
-    return {
-      title: 'Review linked operational context.',
-      description: 'No direct action is available for your role or the current state. Review tasks, stock movements and lifecycle history to understand the order context.',
-      severity: 'info' as const,
-      actions: [
-        { label: 'Open tasks', onClick: () => setActiveTab('tasks'), variant: 'outlined' as const },
-        { label: 'Open lifecycle', onClick: () => setActiveTab('lifecycle'), variant: 'outlined' as const },
-      ],
-    };
-  })();
-
   const tabs = [
     { value: 'overview', label: 'Overview' },
     { value: 'lifecycle', label: 'Lifecycle' },
@@ -491,31 +439,12 @@ export default function TransportOrderDetailsPage() {
               </Button>
             ) : null}
 
-            {canManageOrder ? (
-              <Button
-                variant="contained"
-                onClick={() => navigate('/tasks?create=1')}
-              >
-                Create task
-              </Button>
-            ) : null}
-
-            {canViewHistory ? (
-              <Button
-                variant="outlined"
-                onClick={() => setActiveTab('changeHistory')}
-              >
-                View history
-              </Button>
-            ) : null}
-
             <Button variant="outlined" onClick={() => navigate('/transport-orders')}>
               Back to list
             </Button>
           </Stack>
       }
     >
-      <RecommendedNextStep {...transportRecommendedStep} />
 
       {activeTab === 'overview' ? (
         <TransportOrderOverviewTab

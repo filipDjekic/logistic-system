@@ -11,6 +11,7 @@ import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { formatSalary } from '../../../core/utils/formatSalary';
 import { invalidateUserState } from '../../../core/utils/invalidateAppState';
 import { useRoles } from '../../roles/hooks/useRoles';
 import { useCompanies } from '../../companies/hooks/useCompanies';
@@ -259,7 +260,7 @@ export default function UserDetailsPage() {
                 <InfoRow
                   label="Salary"
                   value={
-                    user.employee?.salary != null ? String(user.employee.salary) : '—'
+                    formatSalary(user.employee?.salary, user.employee?.salaryCurrencyCode)
                   }
                 />
               </Grid>

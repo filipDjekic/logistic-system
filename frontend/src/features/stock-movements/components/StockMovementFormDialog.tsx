@@ -19,6 +19,7 @@ import type {
   StockMovementWarehouseOption,
 } from '../types/stockMovement.types';
 import {
+  stockMovementDiscrepancyReasonOptions,
   stockMovementReasonCodeOptions,
   stockMovementReferenceTypeOptions,
   stockMovementSchema,
@@ -40,6 +41,13 @@ type StockMovementFormDialogProps = {
 const defaultValues: StockMovementSchemaValues = {
   movementType: 'INBOUND',
   quantity: 0,
+  expectedQuantity: null,
+  actualQuantity: null,
+  discrepancyReason: null,
+  discrepancyNote: '',
+  unitCost: null,
+  totalCost: null,
+  currency: '',
   reasonCode: 'MANUAL_INBOUND',
   reasonDescription: '',
   referenceType: 'MANUAL',
@@ -98,7 +106,7 @@ export default function StockMovementFormDialog({
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md">
-      <DialogTitle>Create stock movement</DialogTitle>
+      <DialogTitle>Submit stock movement</DialogTitle>
 
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -140,6 +148,139 @@ export default function StockMovementFormDialog({
                       const value = event.target.value;
                       field.onChange(value === '' ? undefined : Number(value));
                     }}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="expectedQuantity"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Expected quantity"
+                    type="number"
+                    fullWidth
+                    value={field.value ?? ''}
+                    onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message ?? 'Optional. Empty value uses quantity.'}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="actualQuantity"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Actual quantity"
+                    type="number"
+                    fullWidth
+                    value={field.value ?? ''}
+                    onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message ?? 'Optional. Empty value uses quantity.'}
+                  />
+                )}
+              />
+            </Grid>
+
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <Controller
+                name="unitCost"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Unit cost"
+                    type="number"
+                    fullWidth
+                    value={field.value ?? ''}
+                    onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message ?? 'Optional movement valuation.'}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <Controller
+                name="totalCost"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Total cost"
+                    type="number"
+                    fullWidth
+                    value={field.value ?? ''}
+                    onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message ?? 'Optional. Backend can use it for valuation.'}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <Controller
+                name="currency"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    label="Currency"
+                    fullWidth
+                    value={field.value ?? ''}
+                    onChange={(event) => field.onChange(event.target.value.toUpperCase())}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message ?? 'ISO code, e.g. RSD, EUR, USD.'}
+                    inputProps={{ maxLength: 3 }}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="discrepancyReason"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    {...field}
+                    value={field.value ?? ''}
+                    select
+                    fullWidth
+                    label="Discrepancy reason"
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                    onChange={(event) => field.onChange(event.target.value || null)}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {stockMovementDiscrepancyReasonOptions.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="discrepancyNote"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="Discrepancy note"
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message}
                   />
@@ -344,9 +485,9 @@ export default function StockMovementFormDialog({
 
       <DialogContent sx={{ pt: 2 }}>
         <FormActions
-          submitLabel="Create"
-          submittingLabel="Creating movement..."
-          helperText="Product, warehouse and quantity rules must be valid before creating the movement."
+          submitLabel="Submit"
+          submittingLabel="Submitting movement..."
+          helperText="Product, warehouse and quantity rules must be valid before submitting the movement into lifecycle."
           loading={loading}
           submitDisabled={!form.formState.isValid}
           onCancel={onClose}
@@ -355,6 +496,8 @@ export default function StockMovementFormDialog({
             reasonDescription: values.reasonDescription?.trim() || undefined,
             referenceNumber: values.referenceNumber?.trim() || undefined,
             referenceNote: values.referenceNote?.trim() || undefined,
+            discrepancyNote: values.discrepancyNote?.trim() || undefined,
+            currency: values.currency?.trim().toUpperCase() || undefined,
           }))}
         />
       </DialogContent>

@@ -5,11 +5,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.EmployeeWarehouseAssignmentRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,7 +42,7 @@ public class WarehouseAccessGuard {
             return List.of();
         }
 
-        return employeeWarehouseAssignmentRepository.findByEmployee_IdAndCompany_IdOrderByWarehouse_NameAsc(
+        List<Long> assignedWarehouseIds = employeeWarehouseAssignmentRepository.findByEmployee_IdAndCompany_IdOrderByWarehouse_NameAsc(
                         employee.get().getId(),
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 )
@@ -48,6 +50,19 @@ public class WarehouseAccessGuard {
                 .filter(assignment -> Boolean.TRUE.equals(assignment.getActive()))
                 .filter(assignment -> assignment.getWarehouse() != null && assignment.getWarehouse().getId() != null)
                 .map(assignment -> assignment.getWarehouse().getId())
+                .distinct()
+                .toList();
+
+        if (employee.get().getPrimaryWarehouse() == null || employee.get().getPrimaryWarehouse().getId() == null) {
+            return assignedWarehouseIds;
+        }
+
+        Long primaryWarehouseId = employee.get().getPrimaryWarehouse().getId();
+        if (assignedWarehouseIds.contains(primaryWarehouseId)) {
+            return assignedWarehouseIds;
+        }
+
+        return java.util.stream.Stream.concat(java.util.stream.Stream.of(primaryWarehouseId), assignedWarehouseIds.stream())
                 .distinct()
                 .toList();
     }
@@ -81,7 +96,25 @@ public class WarehouseAccessGuard {
 
     private boolean hasAssignedWarehouseAccess(Long warehouseId) {
         return employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
-                .map(employee -> employeeWarehouseAssignmentRepository.existsByEmployee_IdAndWarehouse_IdAndActiveTrue(employee.getId(), warehouseId))
+                .map(employee -> {
+                    if (employee.getPrimaryWarehouse() != null
+                            && warehouseId.equals(employee.getPrimaryWarehouse().getId())) {
+                        return true;
+                    }
+
+                    return employeeWarehouseAssignmentRepository.hasActiveAccess(
+                            employee.getId(),
+                            warehouseId,
+                            List.of(
+                                    EmployeeWarehouseAccessType.PRIMARY,
+                                    EmployeeWarehouseAccessType.MANAGER,
+                                    EmployeeWarehouseAccessType.WORKER,
+                                    EmployeeWarehouseAccessType.DISPATCH,
+                                    EmployeeWarehouseAccessType.VIEW_ONLY
+                            ),
+                            LocalDate.now()
+                    );
+                })
                 .orElse(false);
     }
 }
