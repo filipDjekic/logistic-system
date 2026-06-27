@@ -10,7 +10,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import rs.logistics.logistics_system.enums.TaskStatus;
+import rs.logistics.logistics_system.enums.InventoryCountSessionStatus;
 import rs.logistics.logistics_system.enums.StockMovementStatus;
+import rs.logistics.logistics_system.enums.ShiftStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 
@@ -95,6 +97,14 @@ public class AppProperties {
         return getAllowed(statusTransitions.vehicle, current.name()).contains(next.name());
     }
 
+    public boolean isShiftStatusTransitionAllowed(ShiftStatus current, ShiftStatus next) {
+        if (current == null || next == null) {
+            return false;
+        }
+
+        return getAllowed(statusTransitions.shift, current.name()).contains(next.name());
+    }
+
     public List<String> allowedTaskStatusTransitions(TaskStatus current) {
         return current == null ? List.of() : getAllowed(statusTransitions.task, current.name());
     }
@@ -109,6 +119,14 @@ public class AppProperties {
 
     public List<String> allowedStockMovementStatusTransitions(StockMovementStatus current) {
         return current == null ? List.of() : getAllowed(statusTransitions.stockMovement, current.name());
+    }
+
+    public List<String> allowedInventoryCountStatusTransitions(InventoryCountSessionStatus current) {
+        return current == null ? List.of() : getAllowed(statusTransitions.inventoryCount, current.name());
+    }
+
+    public List<String> allowedShiftStatusTransitions(ShiftStatus current) {
+        return current == null ? List.of() : getAllowed(statusTransitions.shift, current.name());
     }
 
     private List<String> getAllowed(Map<String, List<String>> transitions, String current) {
@@ -215,6 +233,8 @@ public class AppProperties {
         private Map<String, List<String>> transportOrder = defaultTransportOrderTransitions();
         private Map<String, List<String>> vehicle = defaultVehicleTransitions();
         private Map<String, List<String>> stockMovement = defaultStockMovementTransitions();
+        private Map<String, List<String>> inventoryCount = defaultInventoryCountTransitions();
+        private Map<String, List<String>> shift = defaultShiftTransitions();
 
         public Map<String, List<String>> getTask() {
             return task;
@@ -246,6 +266,22 @@ public class AppProperties {
 
         public void setStockMovement(Map<String, List<String>> stockMovement) {
             this.stockMovement = normalize(stockMovement);
+        }
+
+        public Map<String, List<String>> getInventoryCount() {
+            return inventoryCount;
+        }
+
+        public void setInventoryCount(Map<String, List<String>> inventoryCount) {
+            this.inventoryCount = normalize(inventoryCount);
+        }
+
+        public Map<String, List<String>> getShift() {
+            return shift;
+        }
+
+        public void setShift(Map<String, List<String>> shift) {
+            this.shift = normalize(shift);
         }
 
         private static Map<String, List<String>> defaultTaskTransitions() {
@@ -290,6 +326,29 @@ public class AppProperties {
             return transitions;
         }
 
+
+        private static Map<String, List<String>> defaultInventoryCountTransitions() {
+            Map<String, List<String>> transitions = new LinkedHashMap<>();
+            transitions.put("DRAFT", List.of("OPEN", "CANCELLED"));
+            transitions.put("OPEN", List.of("COUNTING", "CANCELLED"));
+            transitions.put("COUNTING", List.of("REVIEW", "CANCELLED"));
+            transitions.put("REVIEW", List.of("APPROVED", "REJECTED", "COUNTING", "CANCELLED"));
+            transitions.put("APPROVED", List.of("ADJUSTMENTS_CREATED", "CANCELLED"));
+            transitions.put("ADJUSTMENTS_CREATED", List.of("CLOSED"));
+            transitions.put("CLOSED", List.of());
+            transitions.put("REJECTED", List.of());
+            transitions.put("CANCELLED", List.of());
+            return transitions;
+        }
+
+        private static Map<String, List<String>> defaultShiftTransitions() {
+            Map<String, List<String>> transitions = new LinkedHashMap<>();
+            transitions.put("PLANNED", List.of("ACTIVE", "CANCELLED"));
+            transitions.put("ACTIVE", List.of("FINISHED"));
+            transitions.put("FINISHED", List.of());
+            transitions.put("CANCELLED", List.of());
+            return transitions;
+        }
 
         private static Map<String, List<String>> defaultVehicleTransitions() {
             Map<String, List<String>> transitions = new LinkedHashMap<>();

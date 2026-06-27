@@ -265,10 +265,7 @@ export default function ProfilePage() {
                   {display(profile.employeeEmail || profile.email)}
                 </Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-                  <Chip icon={<BadgeRoundedIcon />} label={display(profile.role)} size="small" />
                   <Chip icon={<WorkRoundedIcon />} label={display(profile.position)} size="small" />
-                  <Chip label={profile.active === false ? 'Inactive employee' : 'Active employee'} size="small" color={profile.active === false ? 'warning' : 'success'} />
-                  <Chip label={profile.enabled ? 'User enabled' : 'User disabled'} size="small" color={profile.enabled ? 'success' : 'default'} />
                 </Stack>
               </Box>
               <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} flexWrap="wrap" useFlexGap sx={{ width: { xs: '100%', md: 'auto' } }}>

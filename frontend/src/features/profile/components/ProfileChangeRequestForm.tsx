@@ -1,31 +1,32 @@
+import { useEffect, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  Alert,
   Box,
   Button,
   Card,
   CardContent,
   Divider,
   Grid,
+  MenuItem,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useCitiesByCountry } from '../../cities/hooks/useCities';
+import { useActiveCountries } from '../../countries/hooks/useCountries';
 import { useCreateProfileChangeRequest } from '../hooks/useCreateProfileChangeRequest';
 import type { ProfileResponse } from '../types/profile.types';
 import type { EmployeeProfileChangeRequestCreate } from '../types/profileChangeRequest.types';
 import { profileChangeRequestSchema, type ProfileChangeRequestFormValues } from '../validation/profileChangeRequestSchema';
 
 const defaultValues: ProfileChangeRequestFormValues = {
-  phoneCode: '',
+  firstName: '',
+  lastName: '',
   phoneNumber: '',
-  email: '',
   address: '',
-  postalCode: '',
   cityId: '',
   countryId: '',
-  timezoneId: '',
   reason: '',
 };
 
@@ -52,14 +53,12 @@ function addIdChange(target: Record<string, unknown>, field: string, value: unkn
 function toPayload(values: ProfileChangeRequestFormValues): EmployeeProfileChangeRequestCreate {
   const requestedChanges: Record<string, unknown> = {};
 
-  addStringChange(requestedChanges, 'phoneCode', values.phoneCode);
+  addStringChange(requestedChanges, 'firstName', values.firstName);
+  addStringChange(requestedChanges, 'lastName', values.lastName);
   addStringChange(requestedChanges, 'phoneNumber', values.phoneNumber);
-  addStringChange(requestedChanges, 'email', values.email);
   addStringChange(requestedChanges, 'address', values.address);
-  addStringChange(requestedChanges, 'postalCode', values.postalCode);
-  addIdChange(requestedChanges, 'cityId', values.cityId);
   addIdChange(requestedChanges, 'countryId', values.countryId);
-  addIdChange(requestedChanges, 'timezoneId', values.timezoneId);
+  addIdChange(requestedChanges, 'cityId', values.cityId);
 
   return {
     requestedChanges,
@@ -74,17 +73,56 @@ type Props = {
 
 export default function ProfileChangeRequestForm({ profile, disabled = false }: Props) {
   const createMutation = useCreateProfileChangeRequest();
+  const countriesQuery = useActiveCountries();
 
   const {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProfileChangeRequestFormValues>({
     resolver: zodResolver(profileChangeRequestSchema) as never,
     defaultValues,
     mode: 'onBlur',
   });
+
+  const requestedCountryId = useWatch({ control, name: 'countryId' });
+  const requestedCityId = useWatch({ control, name: 'cityId' });
+  const effectiveCountryId = Number(requestedCountryId || profile.countryId || 0) || null;
+  const citiesQuery = useCitiesByCountry(effectiveCountryId, Boolean(effectiveCountryId));
+
+  const countryOptions = useMemo(
+    () => (countriesQuery.data ?? []).map((country) => ({
+      value: String(country.id),
+      label: country.name,
+      phoneCode: country.phoneCode,
+    })),
+    [countriesQuery.data],
+  );
+
+  const cityOptions = useMemo(
+    () => (citiesQuery.data ?? []).map((city) => ({
+      value: String(city.id),
+      label: city.postalCode ? `${city.name} (${city.postalCode})` : city.name,
+      countryId: city.countryId,
+      postalCode: city.postalCode,
+    })),
+    [citiesQuery.data],
+  );
+
+  const selectedCountry = (countriesQuery.data ?? []).find((country) => country.id === Number(requestedCountryId));
+  const selectedCity = (citiesQuery.data ?? []).find((city) => city.id === Number(requestedCityId));
+
+  useEffect(() => {
+    if (!requestedCityId) {
+      return;
+    }
+    const selectedCityBelongsToCountry = cityOptions.some((city) => city.value === String(requestedCityId));
+    if (!selectedCityBelongsToCountry) {
+      setValue('cityId', '', { shouldDirty: true, shouldValidate: true });
+    }
+  }, [cityOptions, requestedCityId, setValue]);
 
   const submitting = isSubmitting || createMutation.isPending;
 
@@ -102,34 +140,47 @@ export default function ProfileChangeRequestForm({ profile, disabled = false }: 
               Submit new profile change request
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Enter only the fields that should be corrected. Approved requests are applied by HR/Admin.
+              Enter only the fields that should be corrected. Approved name changes automatically update the employee and user email.
             </Typography>
           </Box>
 
-          <Alert severity="info">
-            Current values are shown as helper text. Position, salary, role, warehouse assignment and status cannot be changed from this form.
-          </Alert>
-
           <Box component="form" onSubmit={onSubmit} noValidate>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Controller
-                  name="phoneCode"
+                  name="firstName"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
-                      label="New phone code"
+                      label="New first name"
                       fullWidth
                       disabled={disabled || submitting}
-                      error={Boolean(errors.phoneCode)}
-                      helperText={errors.phoneCode?.message || `Current: ${profile.phoneCode || '-'}`}
+                      error={Boolean(errors.firstName)}
+                      helperText={errors.firstName?.message || `Current: ${profile.employeeFirstName || profile.firstName || '-'}`}
                     />
                   )}
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 8 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Controller
+                  name="lastName"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="New last name"
+                      fullWidth
+                      disabled={disabled || submitting}
+                      error={Boolean(errors.lastName)}
+                      helperText={errors.lastName?.message || `Current: ${profile.employeeLastName || profile.lastName || '-'}`}
+                    />
+                  )}
+                />
+              </Grid>
+
+              <Grid size={{ xs: 12 }}>
                 <Controller
                   name="phoneNumber"
                   control={control}
@@ -141,41 +192,6 @@ export default function ProfileChangeRequestForm({ profile, disabled = false }: 
                       disabled={disabled || submitting}
                       error={Boolean(errors.phoneNumber)}
                       helperText={errors.phoneNumber?.message || `Current: ${profile.phoneNumber || '-'}`}
-                    />
-                  )}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Controller
-                  name="email"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="New employee email"
-                      type="email"
-                      fullWidth
-                      disabled={disabled || submitting}
-                      error={Boolean(errors.email)}
-                      helperText={errors.email?.message || `Current: ${profile.employeeEmail || profile.email || '-'}`}
-                    />
-                  )}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <Controller
-                  name="postalCode"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="New postal code"
-                      fullWidth
-                      disabled={disabled || submitting}
-                      error={Boolean(errors.postalCode)}
-                      helperText={errors.postalCode?.message || `Current: ${profile.postalCode || '-'}`}
                     />
                   )}
                 />
@@ -198,53 +214,54 @@ export default function ProfileChangeRequestForm({ profile, disabled = false }: 
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Controller
-                  name="cityId"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="New city ID"
-                      fullWidth
-                      disabled={disabled || submitting}
-                      error={Boolean(errors.cityId)}
-                      helperText={errors.cityId?.message || `Current: ${profile.cityName || profile.cityId || '-'}`}
-                    />
-                  )}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Controller
                   name="countryId"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
-                      label="New country ID"
+                      select
+                      label="New country"
                       fullWidth
-                      disabled={disabled || submitting}
+                      disabled={disabled || submitting || countriesQuery.isLoading}
                       error={Boolean(errors.countryId)}
-                      helperText={errors.countryId?.message || `Current: ${profile.countryName || profile.countryId || '-'}`}
-                    />
+                      helperText={
+                        errors.countryId?.message
+                        || (selectedCountry?.phoneCode ? `Phone code will be set automatically: +${selectedCountry.phoneCode}` : `Current: ${profile.countryName || '-'}`)
+                      }
+                    >
+                      <MenuItem value="">No country change</MenuItem>
+                      {countryOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                      ))}
+                    </TextField>
                   )}
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Controller
-                  name="timezoneId"
+                  name="cityId"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
-                      label="New timezone ID"
+                      select
+                      label="New city"
                       fullWidth
-                      disabled={disabled || submitting}
-                      error={Boolean(errors.timezoneId)}
-                      helperText={errors.timezoneId?.message || `Current: ${profile.timezoneDisplayName || profile.timezoneName || profile.timezoneId || '-'}`}
-                    />
+                      disabled={disabled || submitting || !effectiveCountryId || citiesQuery.isLoading}
+                      error={Boolean(errors.cityId)}
+                      helperText={
+                        errors.cityId?.message
+                        || (selectedCity?.postalCode ? `Postal code will be set automatically: ${selectedCity.postalCode}` : `Current: ${profile.cityName || '-'}`)
+                      }
+                    >
+                      <MenuItem value="">No city change</MenuItem>
+                      {cityOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                      ))}
+                    </TextField>
                   )}
                 />
               </Grid>

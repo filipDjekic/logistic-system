@@ -1,11 +1,9 @@
 package rs.logistics.logistics_system.service.implementation;
 
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.time.LocalDateTime;
 
 import org.springframework.data.domain.Page;
@@ -22,7 +20,6 @@ import rs.logistics.logistics_system.entity.City;
 import rs.logistics.logistics_system.entity.Country;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.EmployeeProfileChangeRequest;
-import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.enums.EmployeeProfileChangeRequestStatus;
 import rs.logistics.logistics_system.enums.NotificationCategory;
@@ -40,7 +37,6 @@ import rs.logistics.logistics_system.repository.CityRepository;
 import rs.logistics.logistics_system.repository.CountryRepository;
 import rs.logistics.logistics_system.repository.EmployeeProfileChangeRequestRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
-import rs.logistics.logistics_system.repository.TimezoneRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
@@ -48,50 +44,45 @@ import rs.logistics.logistics_system.service.definition.EmployeeProfileChangeReq
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
 import rs.logistics.logistics_system.service.support.EmployeeProfileChangeRequestRateLimiter;
+import rs.logistics.logistics_system.service.support.EmployeeEmailGenerator;
 
 @Service
 @RequiredArgsConstructor
 public class EmployeeProfileChangeRequestService implements EmployeeProfileChangeRequestServiceDefinition {
 
     private static final Set<String> ALLOWED_FIELDS = Set.of(
-            "phoneCode",
+            "firstName",
+            "lastName",
             "phoneNumber",
-            "email",
             "address",
             "cityId",
-            "postalCode",
-            "countryId",
-            "timezoneId"
+            "countryId"
     );
 
     private static final Set<String> STRING_FIELDS = Set.of(
-            "phoneCode",
+            "firstName",
+            "lastName",
             "phoneNumber",
-            "email",
-            "address",
-            "postalCode"
+            "address"
     );
 
     private static final Set<String> ID_FIELDS = Set.of(
             "cityId",
-            "countryId",
-            "timezoneId"
+            "countryId"
     );
-
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
     private final EmployeeProfileChangeRequestRepository repository;
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final CityRepository cityRepository;
     private final CountryRepository countryRepository;
-    private final TimezoneRepository timezoneRepository;
     private final EmployeeProfileChangeRequestMapper mapper;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final AuditFacadeDefinition auditFacade;
     private final NotificationServiceDefinition notificationService;
     private final DomainEventServiceDefinition domainEventService;
     private final EmployeeProfileChangeRequestRateLimiter rateLimiter;
+    private final EmployeeEmailGenerator employeeEmailGenerator;
 
     @Override
     @Transactional
@@ -315,21 +306,36 @@ public class EmployeeProfileChangeRequestService implements EmployeeProfileChang
             throw new BadRequestException("Profile change request is not linked to an employee");
         }
 
+        boolean nameChanged = false;
         for (Map.Entry<String, Object> entry : requestedChanges.entrySet()) {
             String field = normalizeFieldName(entry.getKey());
             Object value = entry.getValue();
 
             switch (field) {
-                case "phoneCode" -> applyEmployeeField(request, employee, field, employee.getPhoneCode(), value, v -> employee.setPhoneCode(asNullableString(v)));
-                case "phoneNumber" -> applyEmployeeField(request, employee, field, employee.getPhoneNumber(), value, v -> employee.setPhoneNumber(asRequiredString(field, v)));
-                case "address" -> applyEmployeeField(request, employee, field, employee.getAddress(), value, v -> employee.setAddress(asNullableString(v)));
-                case "postalCode" -> applyEmployeeField(request, employee, field, employee.getPostalCode(), value, v -> employee.setPostalCode(asNullableString(v)));
-                case "email" -> applyEmailChange(request, employee, value);
-                case "cityId" -> applyCityChange(request, employee, value);
-                case "countryId" -> applyCountryChange(request, employee, value);
-                case "timezoneId" -> applyTimezoneChange(request, employee, value);
+                case "firstName" -> nameChanged |= applyEmployeeStringField(employee, field, employee.getFirstName(), value, v -> {
+                    employee.setFirstName(v);
+                    User linkedUser = employee.getUser();
+                    if (linkedUser != null) {
+                        linkedUser.setFirstName(v);
+                    }
+                });
+                case "lastName" -> nameChanged |= applyEmployeeStringField(employee, field, employee.getLastName(), value, v -> {
+                    employee.setLastName(v);
+                    User linkedUser = employee.getUser();
+                    if (linkedUser != null) {
+                        linkedUser.setLastName(v);
+                    }
+                });
+                case "phoneNumber" -> applyEmployeeStringField(employee, field, employee.getPhoneNumber(), value, employee::setPhoneNumber);
+                case "address" -> applyEmployeeStringField(employee, field, employee.getAddress(), value, employee::setAddress);
+                case "cityId" -> applyCityChange(employee, value);
+                case "countryId" -> applyCountryChange(employee, value);
                 default -> throw new BadRequestException("Unsupported profile change field: " + field);
             }
+        }
+
+        if (nameChanged) {
+            regenerateEmployeeAndUserEmail(employee);
         }
 
         employeeRepository.save(employee);
@@ -339,85 +345,96 @@ public class EmployeeProfileChangeRequestService implements EmployeeProfileChang
         }
     }
 
-    private void applyEmailChange(EmployeeProfileChangeRequest request, Employee employee, Object value) {
-        String newEmail = asRequiredString("email", value).toLowerCase(Locale.ROOT);
-        String oldEmployeeEmail = employee.getEmail();
-        if (Objects.equals(oldEmployeeEmail, newEmail)) {
-            return;
+    private boolean applyEmployeeStringField(Employee employee, String field, String oldValue, Object newValue, java.util.function.Consumer<String> setter) {
+        String normalizedNewValue = asNullableString(newValue);
+        if (requiresNonBlankString(field) && normalizedNewValue == null) {
+            throw new BadRequestException("Profile field cannot be empty: " + field);
         }
-
-        Long companyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
-        if (companyId != null && employeeRepository.existsByEmailIgnoreCaseAndCompany_IdAndIdNot(newEmail, companyId, employee.getId())) {
-            throw new ConflictException("Employee email already exists in this company");
+        if (Objects.equals(oldValue, normalizedNewValue)) {
+            return false;
         }
-
         User linkedUser = employee.getUser();
-        if (linkedUser != null && linkedUser.getId() != null && userRepository.existsByEmailIgnoreCaseAndIdNot(newEmail, linkedUser.getId())) {
-            throw new ConflictException("User email already exists");
+        String oldUserValue = null;
+        if (("firstName".equals(field) || "lastName".equals(field)) && linkedUser != null && linkedUser.getId() != null) {
+            oldUserValue = "firstName".equals(field) ? linkedUser.getFirstName() : linkedUser.getLastName();
         }
-        if (linkedUser == null && userRepository.existsByEmailIgnoreCase(newEmail)) {
-            throw new ConflictException("User email already exists");
+        setter.accept(normalizedNewValue);
+        auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), field, oldValue, normalizedNewValue);
+        if (("firstName".equals(field) || "lastName".equals(field)) && linkedUser != null && linkedUser.getId() != null) {
+            auditFacade.recordFieldChange("User", linkedUser.getId(), userIdentifier(linkedUser), field, oldUserValue, normalizedNewValue);
         }
+        return true;
+    }
 
-        employee.setEmail(newEmail);
-        employee.setEmailManuallyOverridden(true);
-        employee.setAutoGeneratedEmail(false);
-        employee.setEmailGenerationSource("PROFILE_CHANGE_REQUEST");
-        auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "email", oldEmployeeEmail, newEmail);
+    private boolean requiresNonBlankString(String field) {
+        return "firstName".equals(field) || "lastName".equals(field) || "phoneNumber".equals(field);
+    }
+
+    private void regenerateEmployeeAndUserEmail(Employee employee) {
+        User linkedUser = employee.getUser();
+        Long excludedUserId = linkedUser != null ? linkedUser.getId() : null;
+        String generatedEmail = employeeEmailGenerator.generateUniqueExcluding(
+                employee.getFirstName(),
+                employee.getLastName(),
+                employee.getCompany(),
+                employee.getPosition(),
+                employee.getCountry(),
+                excludedUserId,
+                employee.getId()
+        );
+
+        String oldEmployeeEmail = employee.getEmail();
+        if (!Objects.equals(oldEmployeeEmail, generatedEmail)) {
+            employee.setEmail(generatedEmail);
+            employee.setAutoGeneratedEmail(true);
+            employee.setEmailManuallyOverridden(false);
+            employee.setEmailGenerationSource("PROFILE_CHANGE_REQUEST_NAME_UPDATE");
+            auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "email", oldEmployeeEmail, generatedEmail);
+        }
 
         if (linkedUser != null && linkedUser.getId() != null) {
             String oldUserEmail = linkedUser.getEmail();
-            linkedUser.setEmail(newEmail);
-            auditFacade.recordFieldChange("User", linkedUser.getId(), userIdentifier(linkedUser), "email", oldUserEmail, newEmail);
+            if (!Objects.equals(oldUserEmail, generatedEmail)) {
+                linkedUser.setEmail(generatedEmail);
+                auditFacade.recordFieldChange("User", linkedUser.getId(), userIdentifier(linkedUser), "email", oldUserEmail, generatedEmail);
+            }
         }
     }
 
-    private void applyCityChange(EmployeeProfileChangeRequest request, Employee employee, Object value) {
+    private void applyCityChange(Employee employee, Object value) {
         Long cityId = asNullableLong(value);
         City newCity = cityId == null ? null : cityRepository.findById(cityId)
                 .orElseThrow(() -> new ResourceNotFoundException("City not found"));
         Long oldId = employee.getCity() != null ? employee.getCity().getId() : null;
-        if (Objects.equals(oldId, cityId)) {
-            return;
+        String oldPostalCode = employee.getPostalCode();
+        String newPostalCode = newCity != null ? newCity.getPostalCode() : null;
+
+        if (!Objects.equals(oldId, cityId)) {
+            employee.setCity(newCity);
+            auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "cityId", oldId, cityId);
         }
-        employee.setCity(newCity);
-        auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "cityId", oldId, cityId);
+        if (!Objects.equals(oldPostalCode, newPostalCode)) {
+            employee.setPostalCode(newPostalCode);
+            auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "postalCode", oldPostalCode, newPostalCode);
+        }
     }
 
-    private void applyCountryChange(EmployeeProfileChangeRequest request, Employee employee, Object value) {
+    private void applyCountryChange(Employee employee, Object value) {
         Long countryId = asNullableLong(value);
         Country newCountry = countryId == null ? null : countryRepository.findById(countryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Country not found"));
         Long oldId = employee.getCountry() != null ? employee.getCountry().getId() : null;
-        if (Objects.equals(oldId, countryId)) {
-            return;
-        }
-        employee.setCountry(newCountry);
-        auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "countryId", oldId, countryId);
-    }
+        String oldPhoneCode = employee.getPhoneCode();
+        String newPhoneCode = newCountry != null ? newCountry.getPhoneCode() : null;
 
-    private void applyTimezoneChange(EmployeeProfileChangeRequest request, Employee employee, Object value) {
-        Long timezoneId = asNullableLong(value);
-        Timezone newTimezone = timezoneId == null ? null : timezoneRepository.findById(timezoneId)
-                .orElseThrow(() -> new ResourceNotFoundException("Timezone not found"));
-        Long oldId = employee.getTimezone() != null ? employee.getTimezone().getId() : null;
-        if (Objects.equals(oldId, timezoneId)) {
-            return;
+        if (!Objects.equals(oldId, countryId)) {
+            employee.setCountry(newCountry);
+            auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "countryId", oldId, countryId);
         }
-        employee.setTimezone(newTimezone);
-        auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "timezoneId", oldId, timezoneId);
-    }
-
-    private void applyEmployeeField(EmployeeProfileChangeRequest request, Employee employee, String field, Object oldValue, Object newValue, java.util.function.Consumer<Object> setter) {
-        String normalizedNewValue = newValue == null ? null : String.valueOf(newValue).trim();
-        if (normalizedNewValue != null && normalizedNewValue.isBlank()) {
-            normalizedNewValue = null;
+        if (!Objects.equals(oldPhoneCode, newPhoneCode)) {
+            employee.setPhoneCode(newPhoneCode);
+            auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), "phoneCode", oldPhoneCode, newPhoneCode);
         }
-        if (Objects.equals(oldValue, normalizedNewValue)) {
-            return;
-        }
-        setter.accept(normalizedNewValue);
-        auditFacade.recordFieldChange("Employee", employee.getId(), employeeIdentifier(employee), field, oldValue, normalizedNewValue);
     }
 
     private String asNullableString(Object value) {
@@ -592,19 +609,10 @@ public class EmployeeProfileChangeRequestService implements EmployeeProfileChang
             return null;
         }
 
-        if ("email".equals(field)) {
-            normalized = normalized.toLowerCase(Locale.ROOT);
-            if (normalized.length() > 255 || !EMAIL_PATTERN.matcher(normalized).matches()) {
-                throw new BadRequestException("Email is not valid");
-            }
-            return normalized;
-        }
-
         return switch (field) {
-            case "phoneCode" -> limit(normalized, 10, field);
+            case "firstName", "lastName" -> limit(normalized, 60, field);
             case "phoneNumber" -> limit(normalized, 30, field);
             case "address" -> limit(normalized, 200, field);
-            case "postalCode" -> limit(normalized, 20, field);
             default -> throw new BadRequestException("Unsupported string profile field: " + field);
         };
     }

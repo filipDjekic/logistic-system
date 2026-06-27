@@ -39,6 +39,9 @@ import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.ShiftMapper;
+import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
+import rs.logistics.logistics_system.lifecycle.LifecycleTransitionContext;
+import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
@@ -63,6 +66,7 @@ public class ShiftService implements ShiftServiceDefinition {
     private final TimezoneServiceDefinition timezoneService;
     private final TimeServiceDefinition timeService;
     private final DomainScopeValidator domainScopeValidator;
+    private final LifecycleTransitionEngine lifecycleTransitionEngine;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
@@ -463,21 +467,34 @@ public class ShiftService implements ShiftServiceDefinition {
         validateShiftCanBeCancelled(shift);
 
         ShiftStatus oldStatus = shift.getStatus();
-        shift.setStatus(ShiftStatus.CANCELLED);
-        _shiftRepository.save(shift);
+        LifecycleTransitionContext<ShiftStatus> lifecycleContext = lifecycleTransitionEngine.validate(
+                LifecycleEntityType.SHIFT,
+                shift.getId(),
+                ShiftStatus.class,
+                oldStatus,
+                ShiftStatus.CANCELLED,
+                "Shift cancelled",
+                null,
+                null
+        );
 
-        auditFacade.recordStatusChange("SHIFT", id, "status", oldStatus, ShiftStatus.CANCELLED);
+        shift.setStatus(ShiftStatus.CANCELLED);
+        Shift saved = _shiftRepository.save(shift);
+
+        auditFacade.recordStatusChange("SHIFT", saved.getId(), "status", oldStatus, saved.getStatus());
         auditFacade.log(
                 "SHIFT_CANCELLED",
                 "SHIFT",
-                id,
-                "SHIFT " + id + " is cancelled"
+                saved.getId(),
+                "SHIFT " + saved.getId() + " is cancelled"
         );
 
+        lifecycleTransitionEngine.afterTransition(lifecycleContext, ShiftStatus.class);
+
         notifyEmployee(
-                shift.getEmployee(),
+                saved.getEmployee(),
                 "Shift cancelled",
-                "Your shift from " + shift.getStartTime() + " to " + shift.getEndTime() + " has been cancelled.",
+                "Your shift from " + saved.getStartTime() + " to " + saved.getEndTime() + " has been cancelled.",
                 NotificationType.WARNING
         );
     }
@@ -557,50 +574,74 @@ public class ShiftService implements ShiftServiceDefinition {
 
         List<Shift> shiftsToActivate = _shiftRepository.findPlannedShiftsToActivate(now);
         for (Shift shift : shiftsToActivate) {
-            ShiftStatus oldStatus = shift.getStatus();
-            shift.setStatus(ShiftStatus.ACTIVE);
-            Shift saved = _shiftRepository.save(shift);
-
-            auditFacade.recordSystemStatusChange("SHIFT", saved.getId(), null, "status", oldStatus, saved.getStatus());
-            auditFacade.logSystem(
+            moveShiftBySystem(
+                    shift,
+                    ShiftStatus.ACTIVE,
+                    "Shift started automatically",
                     "SHIFT_AUTO_ACTIVATED",
-                    "SHIFT",
-                    saved.getId(),
-                    null,
-                    "SHIFT " + saved.getId() + " automatically changed from PLANNED to ACTIVE using timezone " + (saved.getTimezone() != null ? saved.getTimezone().getName() : null)
-            );
-
-            notifyEmployee(
-                    saved.getEmployee(),
+                    "automatically changed from PLANNED to ACTIVE",
                     "Shift started",
-                    "Your shift from " + saved.getStartTime() + " to " + saved.getEndTime() + " is now active.",
-                    NotificationType.INFO
+                    "is now active."
             );
         }
 
         List<Shift> shiftsToFinish = _shiftRepository.findActiveShiftsToFinish(now);
         for (Shift shift : shiftsToFinish) {
-            ShiftStatus oldStatus = shift.getStatus();
-            shift.setStatus(ShiftStatus.FINISHED);
-            Shift saved = _shiftRepository.save(shift);
-
-            auditFacade.recordSystemStatusChange("SHIFT", saved.getId(), null, "status", oldStatus, saved.getStatus());
-            auditFacade.logSystem(
+            moveShiftBySystem(
+                    shift,
+                    ShiftStatus.FINISHED,
+                    "Shift finished automatically",
                     "SHIFT_AUTO_FINISHED",
-                    "SHIFT",
-                    saved.getId(),
-                    null,
-                    "SHIFT " + saved.getId() + " automatically changed from ACTIVE to FINISHED using timezone " + (saved.getTimezone() != null ? saved.getTimezone().getName() : null)
-            );
-
-            notifyEmployee(
-                    saved.getEmployee(),
+                    "automatically changed from ACTIVE to FINISHED",
                     "Shift finished",
-                    "Your shift from " + saved.getStartTime() + " to " + saved.getEndTime() + " is now finished.",
-                    NotificationType.INFO
+                    "is now finished."
             );
         }
     }
+    private Shift moveShiftBySystem(
+            Shift shift,
+            ShiftStatus targetStatus,
+            String reason,
+            String auditAction,
+            String auditMessage,
+            String notificationTitle,
+            String notificationSuffix
+    ) {
+        ShiftStatus oldStatus = shift.getStatus();
+        LifecycleTransitionContext<ShiftStatus> lifecycleContext = lifecycleTransitionEngine.validateSystem(
+                LifecycleEntityType.SHIFT,
+                shift.getId(),
+                ShiftStatus.class,
+                oldStatus,
+                targetStatus,
+                reason,
+                null
+        );
+
+        shift.setStatus(targetStatus);
+        Shift saved = _shiftRepository.save(shift);
+
+        auditFacade.recordSystemStatusChange("SHIFT", saved.getId(), null, "status", oldStatus, saved.getStatus());
+        auditFacade.logSystem(
+                auditAction,
+                "SHIFT",
+                saved.getId(),
+                null,
+                "SHIFT " + saved.getId() + " " + auditMessage + " using timezone " + (saved.getTimezone() != null ? saved.getTimezone().getName() : null)
+        );
+
+        lifecycleTransitionEngine.afterTransition(lifecycleContext, ShiftStatus.class);
+
+        notifyEmployee(
+                saved.getEmployee(),
+                notificationTitle,
+                "Your shift from " + saved.getStartTime() + " to " + saved.getEndTime() + " " + notificationSuffix,
+                NotificationType.INFO
+        );
+
+        return saved;
+    }
+
     private void notifyEmployee(Employee employee, String title, String message, NotificationType type) {
         if (employee == null || employee.getUser() == null) {
             return;

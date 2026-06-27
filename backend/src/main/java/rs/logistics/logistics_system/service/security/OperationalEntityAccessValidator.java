@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.entity.Employee;
+import rs.logistics.logistics_system.entity.InventoryCountSession;
 import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
@@ -14,6 +15,7 @@ import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.EmployeeWarehouseAssignmentRepository;
 import rs.logistics.logistics_system.repository.InternalWarehouseMovementRepository;
+import rs.logistics.logistics_system.repository.InventoryCountSessionRepository;
 import rs.logistics.logistics_system.repository.NotificationRepository;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
@@ -41,6 +43,7 @@ public class OperationalEntityAccessValidator {
     private final EmployeeRepository employeeRepository;
     private final EmployeeWarehouseAssignmentRepository employeeWarehouseAssignmentRepository;
     private final InternalWarehouseMovementRepository internalWarehouseMovementRepository;
+    private final InventoryCountSessionRepository inventoryCountSessionRepository;
     private final NotificationRepository notificationRepository;
     private final ProductRepository productRepository;
     private final ShiftRepository shiftRepository;
@@ -81,6 +84,11 @@ public class OperationalEntityAccessValidator {
             case INTERNAL_WAREHOUSE_MOVEMENT -> canCreateInternalWarehouseMovementOperationalContent(entityId);
             case WAREHOUSE_INVENTORY -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
                     && hasWarehouseManageAccess(entityId);
+            case INVENTORY_COUNT -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                    && inventoryCountSessionRepository.findById(entityId)
+                            .map(InventoryCountSession::getWarehouse)
+                            .map(warehouse -> hasWarehouseManageAccess(warehouse.getId()))
+                            .orElse(false);
             default -> true;
         };
     }
@@ -110,6 +118,9 @@ public class OperationalEntityAccessValidator {
                     .orElse(null);
             case INTERNAL_WAREHOUSE_MOVEMENT -> internalWarehouseMovementRepository.findById(entityId)
                     .map(movement -> movement.getWarehouse() != null && movement.getWarehouse().getCompany() != null ? movement.getWarehouse().getCompany().getId() : null)
+                    .orElse(null);
+            case INVENTORY_COUNT -> inventoryCountSessionRepository.findById(entityId)
+                    .map(session -> session.getWarehouse() != null && session.getWarehouse().getCompany() != null ? session.getWarehouse().getCompany().getId() : null)
                     .orElse(null);
             case TASK -> taskRepository.findById(entityId)
                     .map(task -> task.getAssignedEmployee() != null && task.getAssignedEmployee().getCompany() != null ? task.getAssignedEmployee().getCompany().getId() : null)
@@ -172,6 +183,7 @@ public class OperationalEntityAccessValidator {
                                 || authenticatedUserProvider.hasRole("DISPATCHER")
                                 || hasWarehouseAccess(movement.getWarehouse().getId())))
                     .orElse(false);
+            case INVENTORY_COUNT -> canAccessInventoryCount(entityId, companyId);
             case TASK -> canAccessTask(entityId, companyId, currentUserId);
             case TRANSPORT_ORDER -> canAccessTransportOrder(entityId, companyId, currentUserId);
             case VEHICLE -> vehicleRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
@@ -186,6 +198,17 @@ public class OperationalEntityAccessValidator {
             case WAREHOUSE_INVENTORY -> canAccessWarehouseInventory(entityId, companyId);
             case GENERAL -> false;
         };
+    }
+
+    private boolean canAccessInventoryCount(Long inventoryCountSessionId, Long companyId) {
+        return inventoryCountSessionRepository.findById(inventoryCountSessionId)
+                .map(session -> session.getWarehouse() != null
+                        && session.getWarehouse().getCompany() != null
+                        && companyId.equals(session.getWarehouse().getCompany().getId())
+                        && (authenticatedUserProvider.isCompanyAdmin()
+                            || authenticatedUserProvider.hasRole("DISPATCHER")
+                            || hasWarehouseAccess(session.getWarehouse().getId())))
+                .orElse(false);
     }
 
     private boolean canAccessTask(Long taskId, Long companyId, Long currentUserId) {
@@ -402,6 +425,7 @@ public class OperationalEntityAccessValidator {
             case SHIFT -> shiftRepository.existsById(entityId);
             case STOCK_MOVEMENT -> stockMovementRepository.existsById(entityId);
             case INTERNAL_WAREHOUSE_MOVEMENT -> internalWarehouseMovementRepository.existsById(entityId);
+            case INVENTORY_COUNT -> inventoryCountSessionRepository.existsById(entityId);
             case TASK -> taskRepository.existsById(entityId);
             case TRANSPORT_ORDER -> transportOrderRepository.existsById(entityId);
             case VEHICLE -> vehicleRepository.existsById(entityId);

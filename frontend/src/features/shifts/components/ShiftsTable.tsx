@@ -1,9 +1,11 @@
 import { Button, Stack, Typography } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { ShiftEmployeeOption, ShiftResponse } from '../types/shift.types';
 import ShiftStatusChip from './ShiftStatusChip';
 import { formatTemporalView } from '../../../core/utils/timezoneFormat';
+import { isShiftCancellable, isShiftEditable } from '../utils/shiftLifecycle';
 
 type ShiftsTableProps = {
   rows: ShiftResponse[];
@@ -18,6 +20,7 @@ type ShiftsTableProps = {
   emptyDescription?: string;
   showEmployeeColumn?: boolean;
   showActions?: boolean;
+  showDetailsAction?: boolean;
 };
 
 
@@ -34,6 +37,7 @@ export default function ShiftsTable({
   emptyDescription,
   showEmployeeColumn = true,
   showActions = false,
+  showDetailsAction = false,
 }: ShiftsTableProps) {
   const columns: DataTableColumn<ShiftResponse>[] = [
     ...(showEmployeeColumn
@@ -78,6 +82,12 @@ export default function ShiftsTable({
       render: (row) => formatTemporalView(row.endTimeView, row.endTime),
     },
     {
+      id: 'warehouse',
+      header: 'Warehouse',
+      minWidth: 180,
+      render: (row) => row.warehouseName ?? (row.warehouseId ? `Warehouse #${row.warehouseId}` : '—'),
+    },
+    {
       id: 'status',
       header: 'Status',
       minWidth: 140,
@@ -89,7 +99,7 @@ export default function ShiftsTable({
       minWidth: 240,
       render: (row) => row.notes?.trim() || '—',
     },
-    ...(showActions
+    ...(showActions || showDetailsAction
       ? [
           {
             id: 'actions',
@@ -99,22 +109,34 @@ export default function ShiftsTable({
             render: (row: ShiftResponse) => (
               <Stack direction="row" spacing={1} justifyContent="flex-end">
                 <Button
+                  component={RouterLink}
+                  to={`/shifts/${row.id}`}
                   variant="text"
                   size="small"
-                  onClick={() => onEdit?.(row)}
-                  disabled={row.status !== 'PLANNED'}
                 >
-                  Edit
+                  Open
                 </Button>
-                <Button
-                  variant="text"
-                  color="warning"
-                  size="small"
-                  onClick={() => onCancel?.(row)}
-                  disabled={row.status !== 'PLANNED' || cancelLoading}
-                >
-                  Cancel
-                </Button>
+                {showActions ? (
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={() => onEdit?.(row)}
+                    disabled={!isShiftEditable(row)}
+                  >
+                    Edit
+                  </Button>
+                ) : null}
+                {showActions ? (
+                  <Button
+                    variant="text"
+                    color="warning"
+                    size="small"
+                    onClick={() => onCancel?.(row)}
+                    disabled={!isShiftCancellable(row) || cancelLoading}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
               </Stack>
             ),
           },
@@ -132,7 +154,7 @@ export default function ShiftsTable({
       onRetry={onRetry}
       emptyTitle={emptyTitle}
       emptyDescription={emptyDescription}
-      minWidth={showEmployeeColumn ? 980 : 760}
+      minWidth={showEmployeeColumn ? 1120 : 900}
     />
   );
 }

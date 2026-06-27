@@ -73,7 +73,7 @@ export default function MyShiftsPage() {
             error={myShiftsQuery.isError}
             onRetry={() => { void myShiftsQuery.refetch(); }}
             showEmployeeColumn={false}
-            showActions={false}
+            showDetailsAction
             emptyTitle="No assigned shifts"
             emptyDescription="You do not have any shifts in the current view."
           />

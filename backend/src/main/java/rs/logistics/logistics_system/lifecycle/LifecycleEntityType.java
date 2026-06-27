@@ -4,5 +4,7 @@ public enum LifecycleEntityType {
     TASK,
     TRANSPORT_ORDER,
     VEHICLE,
-    STOCK_MOVEMENT
+    STOCK_MOVEMENT,
+    INVENTORY_COUNT,
+    SHIFT
 }

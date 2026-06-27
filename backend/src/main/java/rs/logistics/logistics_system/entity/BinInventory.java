@@ -14,7 +14,8 @@ import java.time.LocalDateTime;
         name = "BIN_INVENTORY",
         indexes = {
                 @Index(name = "idx_bin_inventory_bin_location", columnList = "bin_location_id"),
-                @Index(name = "idx_bin_inventory_product", columnList = "product_id")
+                @Index(name = "idx_bin_inventory_product", columnList = "product_id"),
+                @Index(name = "idx_bin_inventory_product_bin", columnList = "product_id, bin_location_id")
         }
 )
 @Getter

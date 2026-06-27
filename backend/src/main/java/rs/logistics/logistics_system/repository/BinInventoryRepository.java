@@ -14,9 +14,29 @@ import rs.logistics.logistics_system.entity.BinInventory;
 import rs.logistics.logistics_system.entity.BinInventoryId;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 public interface BinInventoryRepository extends JpaRepository<BinInventory, BinInventoryId> {
+
+    interface InventoryCountSnapshotRow {
+        Long getProductId();
+        Long getBinLocationId();
+        java.math.BigDecimal getQuantity();
+    }
+
+    @Query("""
+            select p.id as productId,
+                   b.id as binLocationId,
+                   bi.quantity as quantity
+            from BinInventory bi
+            join bi.binLocation b
+            join b.warehouse w
+            join bi.product p
+            where w.id = :warehouseId
+            order by b.code asc, p.name asc
+            """)
+    List<InventoryCountSnapshotRow> findInventoryCountSnapshotRowsByWarehouseId(@Param("warehouseId") Long warehouseId);
     Optional<BinInventory> findByBinLocation_IdAndProduct_Id(Long binLocationId, Long productId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -31,6 +51,19 @@ public interface BinInventoryRepository extends JpaRepository<BinInventory, BinI
             and product.id = :productId
             """)
     Optional<BinInventory> findForUpdate(@Param("binLocationId") Long binLocationId, @Param("productId") Long productId);
+
+
+    @EntityGraph(attributePaths = {"binLocation", "binLocation.warehouse", "binLocation.zone", "product"})
+    @Query("""
+            select bi
+            from BinInventory bi
+            join bi.binLocation b
+            join b.warehouse w
+            join bi.product p
+            where w.id = :warehouseId
+            order by b.code asc, p.name asc
+            """)
+    List<BinInventory> findSnapshotRowsByWarehouseId(@Param("warehouseId") Long warehouseId);
 
     @Query("""
             select coalesce(sum(bi.quantity), 0)

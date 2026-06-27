@@ -16,7 +16,8 @@ import java.util.List;
 @Entity
 @Table(name = "INVENTORY_COUNT_SESSIONS", indexes = {
         @Index(name = "idx_inventory_count_sessions_warehouse_status", columnList = "warehouse_id, status"),
-        @Index(name = "idx_inventory_count_sessions_created_at", columnList = "created_at")
+        @Index(name = "idx_inventory_count_sessions_created_at", columnList = "created_at"),
+        @Index(name = "idx_inventory_count_sessions_warehouse_created_at", columnList = "warehouse_id, created_at")
 })
 @Getter
 @Setter
@@ -37,15 +38,15 @@ public class InventoryCountSession {
     @Column(name = "status", nullable = false, length = 30)
     private InventoryCountSessionStatus status = InventoryCountSessionStatus.OPEN;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by_user_id", nullable = false)
     private User createdBy;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by_user_id")
     private User reviewedBy;
 
@@ -59,6 +60,10 @@ public class InventoryCountSession {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InventoryCountLine> lines = new ArrayList<>();

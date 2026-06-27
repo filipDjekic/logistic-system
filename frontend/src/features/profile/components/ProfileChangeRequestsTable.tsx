@@ -13,7 +13,10 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import { useCities } from '../../cities/hooks/useCities';
+import { useActiveCountries } from '../../countries/hooks/useCountries';
 import type { EmployeeProfileChangeRequestResponse } from '../types/profileChangeRequest.types';
+import { formatProfileChangeFieldName, formatProfileChangeValue } from '../utils/profileChangeRequestFormatters';
 import ProfileChangeRequestStatusChip from './ProfileChangeRequestStatusChip';
 
 function formatDateTime(value: string | null | undefined) {
@@ -23,27 +26,15 @@ function formatDateTime(value: string | null | undefined) {
   return new Date(value).toLocaleString();
 }
 
-function formatFieldName(field: string) {
-  return field
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/[_-]+/g, ' ')
-    .replace(/^./, (char) => char.toUpperCase());
-}
-
-function formatValue(value: unknown) {
-  if (value === null || value === undefined || value === '') {
-    return '-';
-  }
-  if (typeof value === 'boolean') {
-    return value ? 'Yes' : 'No';
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-
-function RequestedChanges({ request }: { request: EmployeeProfileChangeRequestResponse }) {
+function RequestedChanges({
+  request,
+  countries,
+  cities,
+}: {
+  request: EmployeeProfileChangeRequestResponse;
+  countries?: ReturnType<typeof useActiveCountries>['data'];
+  cities?: ReturnType<typeof useCities>['data'];
+}) {
   const entries = Object.entries(request.requestedChanges ?? {});
 
   if (entries.length === 0) {
@@ -54,8 +45,8 @@ function RequestedChanges({ request }: { request: EmployeeProfileChangeRequestRe
     <Stack spacing={0.5}>
       {entries.map(([field, value]) => (
         <Typography key={field} variant="body2">
-          <Box component="span" sx={{ fontWeight: 700 }}>{formatFieldName(field)}:</Box>{' '}
-          {formatValue(value)}
+          <Box component="span" sx={{ fontWeight: 700 }}>{formatProfileChangeFieldName(field)}:</Box>{' '}
+          {formatProfileChangeValue(field, value, { countries, cities })}
         </Typography>
       ))}
     </Stack>
@@ -69,6 +60,8 @@ type Props = {
 };
 
 export default function ProfileChangeRequestsTable({ requests, isLoading = false, error }: Props) {
+  const countriesQuery = useActiveCountries();
+  const citiesQuery = useCities();
   if (isLoading) {
     return (
       <Stack spacing={1.5}>
@@ -114,7 +107,7 @@ export default function ProfileChangeRequestsTable({ requests, isLoading = false
             <TableRow key={request.id} hover>
               <TableCell>{formatDateTime(request.createdAt)}</TableCell>
               <TableCell><ProfileChangeRequestStatusChip status={request.status} /></TableCell>
-              <TableCell><RequestedChanges request={request} /></TableCell>
+              <TableCell><RequestedChanges request={request} countries={countriesQuery.data} cities={citiesQuery.data} /></TableCell>
               <TableCell>{request.reason || '-'}</TableCell>
               <TableCell>
                 <Stack spacing={0.25}>

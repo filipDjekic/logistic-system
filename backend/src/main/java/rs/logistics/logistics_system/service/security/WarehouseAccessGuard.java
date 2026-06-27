@@ -6,9 +6,11 @@ import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.EmployeeWarehouseAssignmentRepository;
+import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 
 import java.time.LocalDate;
@@ -23,6 +25,7 @@ public class WarehouseAccessGuard {
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final EmployeeRepository employeeRepository;
     private final EmployeeWarehouseAssignmentRepository employeeWarehouseAssignmentRepository;
+    private final WarehouseRepository warehouseRepository;
 
     public void ensureCanReadWarehouse(Warehouse warehouse) {
         ensureWarehouseAccess(warehouse, false);
@@ -67,6 +70,47 @@ public class WarehouseAccessGuard {
                 .toList();
     }
 
+    public List<Long> mutationWarehouseIdsForScopedUser() {
+        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
+            return null;
+        }
+
+        Optional<Employee> employee = employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId());
+        if (employee.isEmpty()) {
+            return List.of();
+        }
+
+        Long employeeId = employee.get().getId();
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        java.util.LinkedHashSet<Long> warehouseIds = new java.util.LinkedHashSet<>();
+
+        if (employee.get().getPrimaryWarehouse() != null && employee.get().getPrimaryWarehouse().getId() != null) {
+            warehouseIds.add(employee.get().getPrimaryWarehouse().getId());
+        }
+
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            warehouseRepository.findByManagerIdAndCompany_Id(employeeId, companyId).stream()
+                    .map(Warehouse::getId)
+                    .filter(java.util.Objects::nonNull)
+                    .forEach(warehouseIds::add);
+            employeeWarehouseAssignmentRepository.findActiveWarehouseIdsByAccessTypes(
+                    employeeId,
+                    companyId,
+                    List.of(EmployeeWarehouseAccessType.PRIMARY, EmployeeWarehouseAccessType.MANAGER),
+                    LocalDate.now()
+            ).forEach(warehouseIds::add);
+        } else if (authenticatedUserProvider.hasRole("WORKER")) {
+            employeeWarehouseAssignmentRepository.findActiveWarehouseIdsByAccessTypes(
+                    employeeId,
+                    companyId,
+                    List.of(EmployeeWarehouseAccessType.PRIMARY, EmployeeWarehouseAccessType.WORKER),
+                    LocalDate.now()
+            ).forEach(warehouseIds::add);
+        }
+
+        return java.util.List.copyOf(warehouseIds);
+    }
+
     public boolean canReadAllWarehouses() {
         return authenticatedUserProvider.isOverlord()
                 || authenticatedUserProvider.isCompanyAdmin()
@@ -86,15 +130,83 @@ public class WarehouseAccessGuard {
             return;
         }
 
+        if (write) {
+            if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+                if (hasAssignedWarehouseManagerMutationAccess(warehouse)) {
+                    return;
+                }
+                throw new ForbiddenException("You cannot modify this warehouse");
+            }
+
+            if (authenticatedUserProvider.hasRole("WORKER")
+                    && hasAssignedWarehouseWorkerMutationAccess(warehouse.getId())) {
+                return;
+            }
+
+            throw new ForbiddenException("You cannot modify this warehouse");
+        }
+
         if ((authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || authenticatedUserProvider.hasRole("WORKER"))
-                && hasAssignedWarehouseAccess(warehouse.getId())) {
+                && hasAssignedWarehouseReadAccess(warehouse.getId())) {
             return;
         }
 
         throw new ResourceNotFoundException("Warehouse not found");
     }
 
-    private boolean hasAssignedWarehouseAccess(Long warehouseId) {
+    private boolean hasAssignedWarehouseReadAccess(Long warehouseId) {
+        return hasAssignedWarehouseAccess(
+                warehouseId,
+                List.of(
+                        EmployeeWarehouseAccessType.PRIMARY,
+                        EmployeeWarehouseAccessType.MANAGER,
+                        EmployeeWarehouseAccessType.WORKER,
+                        EmployeeWarehouseAccessType.DISPATCH,
+                        EmployeeWarehouseAccessType.VIEW_ONLY
+                )
+        );
+    }
+
+    private boolean hasAssignedWarehouseManagerMutationAccess(Warehouse warehouse) {
+        Long warehouseId = warehouse.getId();
+        return employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
+                .map(employee -> {
+                    if (employee.getPrimaryWarehouse() != null
+                            && warehouseId.equals(employee.getPrimaryWarehouse().getId())) {
+                        return true;
+                    }
+
+                    if (warehouse.getManager() != null
+                            && employee.getId() != null
+                            && employee.getId().equals(warehouse.getManager().getId())) {
+                        return true;
+                    }
+
+                    return employeeWarehouseAssignmentRepository.hasActiveAccess(
+                            employee.getId(),
+                            warehouseId,
+                            List.of(
+                                    EmployeeWarehouseAccessType.PRIMARY,
+                                    EmployeeWarehouseAccessType.MANAGER
+                            ),
+                            LocalDate.now()
+                    );
+                })
+                .orElse(false);
+    }
+
+
+    private boolean hasAssignedWarehouseWorkerMutationAccess(Long warehouseId) {
+        return hasAssignedWarehouseAccess(
+                warehouseId,
+                List.of(
+                        EmployeeWarehouseAccessType.PRIMARY,
+                        EmployeeWarehouseAccessType.WORKER
+                )
+        );
+    }
+
+    private boolean hasAssignedWarehouseAccess(Long warehouseId, List<EmployeeWarehouseAccessType> accessTypes) {
         return employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
                 .map(employee -> {
                     if (employee.getPrimaryWarehouse() != null
@@ -105,13 +217,7 @@ public class WarehouseAccessGuard {
                     return employeeWarehouseAssignmentRepository.hasActiveAccess(
                             employee.getId(),
                             warehouseId,
-                            List.of(
-                                    EmployeeWarehouseAccessType.PRIMARY,
-                                    EmployeeWarehouseAccessType.MANAGER,
-                                    EmployeeWarehouseAccessType.WORKER,
-                                    EmployeeWarehouseAccessType.DISPATCH,
-                                    EmployeeWarehouseAccessType.VIEW_ONLY
-                            ),
+                            accessTypes,
                             LocalDate.now()
                     );
                 })

@@ -28,6 +28,7 @@ const UserDetailsPage = lazy(() => import('../../features/users/pages/UserDetail
 const EmployeesPage = lazy(() => import('../../features/employees/pages/EmployeesPage'));
 const EmployeeDetailsPage = lazy(() => import('../../features/employees/pages/EmployeeDetailsPage'));
 const ShiftsPage = lazy(() => import('../../features/shifts/pages/ShiftsPage'));
+const ShiftDetailsPage = lazy(() => import('../../features/shifts/pages/ShiftDetailsPage'));
 const MyShiftsPage = lazy(() => import('../../features/shifts/pages/MyShiftsPage'));
 const TransportOrdersPage = lazy(() => import('../../features/transport-orders/pages/TransportOrdersPage'));
 const TransportOrderCreatePage = lazy(() => import('../../features/transport-orders/pages/TransportOrderCreatePage'));
@@ -90,6 +91,7 @@ export const routes = [
           { path: '/notifications', element: lazyPage(<NotificationsPage />) },
           { path: '/profile', element: lazyPage(<ProfilePage />) },
           { path: '/my-shifts', element: lazyPage(<MyShiftsPage />) },
+          { path: '/shifts/:id', element: lazyPage(<ShiftDetailsPage />) },
         ],
       },
     ],

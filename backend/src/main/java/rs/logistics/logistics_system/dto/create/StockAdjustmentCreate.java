@@ -22,9 +22,9 @@ public class StockAdjustmentCreate {
     @NotNull @Positive
     private BigDecimal quantity;
 
-    @Positive
+    @PositiveOrZero
     private BigDecimal expectedQuantity;
-    @Positive
+    @PositiveOrZero
     private BigDecimal actualQuantity;
     private rs.logistics.logistics_system.enums.StockMovementDiscrepancyReason discrepancyReason;
     @Size(max = 255)

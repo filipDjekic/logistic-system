@@ -6,7 +6,7 @@ import rs.logistics.logistics_system.dto.response.PageResponse;
 
 public interface LookupServiceDefinition {
 
-    PageResponse<LookupOptionResponse> warehouses(String search, Pageable pageable);
+    PageResponse<LookupOptionResponse> warehouses(String search, String accessMode, Pageable pageable);
 
     PageResponse<LookupOptionResponse> products(String search, Pageable pageable);
 

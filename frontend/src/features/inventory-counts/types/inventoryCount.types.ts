@@ -1,10 +1,24 @@
-export type InventoryCountSessionStatus = 'OPEN' | 'COUNTING' | 'REVIEW' | 'ADJUSTMENTS_CREATED' | 'CANCELLED';
+export type InventoryCountSessionStatus =
+  | 'OPEN'
+  | 'COUNTING'
+  | 'REVIEW'
+  | 'APPROVED'
+  | 'ADJUSTMENTS_CREATED'
+  | 'CLOSED'
+  | 'REJECTED'
+  | 'CANCELLED';
 
 export type InventoryCountLineResponse = {
   id: number;
   productId: number;
   productName: string;
   productSku?: string | null;
+  binLocationId?: number | null;
+  binLocationCode?: string | null;
+  binLocationName?: string | null;
+  warehouseZoneId?: number | null;
+  warehouseZoneCode?: string | null;
+  warehouseZoneName?: string | null;
   systemQuantity: number;
   countedQuantity?: number | null;
   differenceQuantity: number;
@@ -12,7 +26,7 @@ export type InventoryCountLineResponse = {
   adjustmentMovementId?: number | null;
 };
 
-export type InventoryCountSessionResponse = {
+export type InventoryCountSessionSummaryResponse = {
   id: number;
   code: string;
   description?: string | null;
@@ -27,8 +41,13 @@ export type InventoryCountSessionResponse = {
   lineCount: number;
   countedLineCount: number;
   discrepancyLineCount: number;
-  lines: InventoryCountLineResponse[];
 };
+
+export type InventoryCountSessionResponse = InventoryCountSessionSummaryResponse & {
+  lines?: InventoryCountLineResponse[];
+};
+
+export type InventoryCountLineStatusFilter = 'COUNTED' | 'UNCOUNTED' | 'DISCREPANCY' | 'MATCHED' | 'ADJUSTED';
 
 export type InventoryCountSessionCreate = {
   warehouseId: number;
@@ -36,6 +55,13 @@ export type InventoryCountSessionCreate = {
 };
 
 export type InventoryCountLineUpdate = {
+  binLocationId?: number | null;
   countedQuantity: number;
   note?: string;
+};
+
+export type AllowedStatusTransitionsResponse = {
+  currentStatus: InventoryCountSessionStatus;
+  allowedStatuses: InventoryCountSessionStatus[];
+  version?: number | null;
 };

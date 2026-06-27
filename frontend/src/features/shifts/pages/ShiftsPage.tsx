@@ -178,6 +178,7 @@ export default function ShiftsPage() {
               cancelLoading={saveShiftMutation.isPending}
               showEmployeeColumn
               showActions={canManageShifts}
+              showDetailsAction
               emptyTitle="No shifts found"
               emptyDescription="There are no shifts for the current filter combination."
             />

@@ -283,9 +283,11 @@ export default function CompanyRegistrationPage() {
         {activeStep === 0 ? <Divider /> : null}
 
         <Stack spacing={3.5} component="form" onSubmit={submit} noValidate sx={{ p: { xs: 2.5, md: 4 }}}>
-          <Stepper activeStep={activeStep} alternativeLabel sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center', maxWidth: 760, mx: 'auto', width: '100%'}}>
-            {steps.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
-          </Stepper>
+          <Box sx={{ display: 'flex', justifyContent:'center' }}>
+            <Stepper activeStep={activeStep} alternativeLabel sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center', maxWidth: 760, mx: 'auto', width: '100%'}}>
+              {steps.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
+            </Stepper>
+          </Box>
           <LinearProgress variant="determinate" value={((activeStep + 1) / steps.length) * 100} sx={{ display: { md: 'none' } }} />
           {submitMutation.isError ? <Alert severity="error">{getErrorMessage(submitMutation.error)}</Alert> : null}
           {validationQuery.data ? (

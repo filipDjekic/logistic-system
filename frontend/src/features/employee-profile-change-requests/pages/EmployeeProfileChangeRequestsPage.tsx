@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
-  Button,
   Card,
   CardContent,
   Chip,
@@ -25,7 +24,10 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import PageContainer from '../../../app/layout/PageContainer';
+import { useCities } from '../../cities/hooks/useCities';
+import { useActiveCountries } from '../../countries/hooks/useCountries';
 import ProfileChangeRequestStatusChip from '../../profile/components/ProfileChangeRequestStatusChip';
+import { formatProfileChangeSummary } from '../../profile/utils/profileChangeRequestFormatters';
 import { profileChangeRequestStatuses } from '../api/employeeProfileChangeRequestsApi';
 import { useEmployeeProfileChangeRequests } from '../hooks/useEmployeeProfileChangeRequests';
 import {
@@ -43,12 +45,6 @@ function formatDateTime(value: string | null | undefined) {
   return new Date(value).toLocaleString();
 }
 
-function formatChanges(changes: Record<string, unknown>) {
-  const keys = Object.keys(changes ?? {});
-  if (!keys.length) return '-';
-  return keys.join(', ');
-}
-
 export default function EmployeeProfileChangeRequestsPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
@@ -58,6 +54,8 @@ export default function EmployeeProfileChangeRequestsPage() {
 
   const params = useMemo(() => ({ page, size, sort: 'createdAt,desc', status }), [page, size, status]);
   const query = useEmployeeProfileChangeRequests(params);
+  const countriesQuery = useActiveCountries();
+  const citiesQuery = useCities();
   const approveMutation = useApproveEmployeeProfileChangeRequest();
   const rejectMutation = useRejectEmployeeProfileChangeRequest();
 
@@ -170,7 +168,11 @@ export default function EmployeeProfileChangeRequestsPage() {
                           </TableCell>
                           <TableCell>{request.companyName ?? '-'}</TableCell>
                           <TableCell>
-                            <Chip label={formatChanges(request.requestedChanges)} size="small" variant="outlined" />
+                            <Chip
+                              label={formatProfileChangeSummary(request.requestedChanges, { countries: countriesQuery.data, cities: citiesQuery.data })}
+                              size="small"
+                              variant="outlined"
+                            />
                           </TableCell>
                           <TableCell><ProfileChangeRequestStatusChip status={request.status} /></TableCell>
                           <TableCell>{formatDateTime(request.createdAt)}</TableCell>

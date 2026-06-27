@@ -50,4 +50,21 @@ public interface EmployeeWarehouseAssignmentRepository extends JpaRepository<Emp
             @Param("accessTypes") Collection<EmployeeWarehouseAccessType> accessTypes,
             @Param("today") LocalDate today
     );
+
+    @Query("""
+        select distinct a.warehouse.id
+        from EmployeeWarehouseAssignment a
+        where a.employee.id = :employeeId
+        and a.company.id = :companyId
+        and a.active = true
+        and a.accessType in :accessTypes
+        and (:today is null or a.validFrom is null or a.validFrom <= :today)
+        and (:today is null or a.validTo is null or a.validTo >= :today)
+    """)
+    List<Long> findActiveWarehouseIdsByAccessTypes(
+            @Param("employeeId") Long employeeId,
+            @Param("companyId") Long companyId,
+            @Param("accessTypes") Collection<EmployeeWarehouseAccessType> accessTypes,
+            @Param("today") LocalDate today
+    );
 }

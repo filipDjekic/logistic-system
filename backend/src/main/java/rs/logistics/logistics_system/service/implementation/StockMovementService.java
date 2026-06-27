@@ -30,6 +30,7 @@ import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
 import rs.logistics.logistics_system.enums.DomainEventType;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
+import rs.logistics.logistics_system.enums.InventoryCountSessionStatus;
 import rs.logistics.logistics_system.enums.StockAdjustmentDirection;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementDiscrepancyReason;
@@ -45,6 +46,7 @@ import rs.logistics.logistics_system.mapper.StockMovementMapper;
 import rs.logistics.logistics_system.repository.BinInventoryRepository;
 import rs.logistics.logistics_system.repository.BinLocationRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.InventoryCountSessionRepository;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
@@ -91,6 +93,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final LifecycleNotificationService lifecycleNotificationService;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
     private final WarehouseAccessGuard warehouseAccessGuard;
+    private final InventoryCountSessionRepository inventoryCountSessionRepository;
 
 
     @Override
@@ -698,14 +701,21 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
 
         User currentUser = authenticatedUserProvider.getAuthenticatedUser();
-        BigDecimal movementQuantity = positiveQuantity(actualQuantity != null ? actualQuantity : quantity, "Actual movement quantity must be greater than zero");
-        BigDecimal normalizedExpectedQuantity = positiveQuantity(expectedQuantity != null ? expectedQuantity : movementQuantity, "Expected movement quantity must be greater than zero");
-        BigDecimal normalizedActualQuantity = movementQuantity;
+        BigDecimal movementQuantity = movementType == StockMovementType.ADJUSTMENT
+                ? positiveQuantity(quantity, "Adjustment quantity must be greater than zero")
+                : positiveQuantity(actualQuantity != null ? actualQuantity : quantity, "Actual movement quantity must be greater than zero");
+        BigDecimal normalizedExpectedQuantity = movementType == StockMovementType.ADJUSTMENT
+                ? QueryParameterNormalizer.zeroIfNull(expectedQuantity)
+                : positiveQuantity(expectedQuantity != null ? expectedQuantity : movementQuantity, "Expected movement quantity must be greater than zero");
+        BigDecimal normalizedActualQuantity = movementType == StockMovementType.ADJUSTMENT
+                ? QueryParameterNormalizer.zeroIfNull(actualQuantity)
+                : movementQuantity;
         BigDecimal discrepancyQuantity = normalizedActualQuantity.subtract(normalizedExpectedQuantity);
         validateDiscrepancy(discrepancyQuantity, discrepancyReason, discrepancyNote, transportOrder, referenceType);
         validateMovementContext(movementType, reasonCode, referenceType, referenceId, transferGroupId, adjustmentDirection, transportOrder);
         validateMovementReason(movementType, reasonCode, adjustmentDirection);
         binIntegrityValidator.ensureBinSelectionMatchesWarehouseMode(warehouse, binLocationId);
+        ensureStockMovementAllowedDuringInventoryCount(warehouse, product, binLocationId, movementType, referenceType);
 
         BigDecimal quantityBefore = inventory.getSafeQuantity();
         BigDecimal reservedBefore = inventory.getSafeReservedQuantity();
@@ -773,6 +783,47 @@ public class StockMovementService implements StockMovementServiceDefinition {
         recordStockMovementAudit(saved, warehouse, product, transportOrder);
         lifecycleNotificationService.notifyStockMovementCreated(saved);
         return saved;
+    }
+
+    private void ensureStockMovementAllowedDuringInventoryCount(
+            Warehouse warehouse,
+            Product product,
+            Long binLocationId,
+            StockMovementType movementType,
+            StockMovementReferenceType referenceType
+    ) {
+        if (isInventoryCountAdjustment(movementType, referenceType)) {
+            return;
+        }
+
+        List<InventoryCountSessionStatus> blockingStatuses = List.of(
+                InventoryCountSessionStatus.OPEN,
+                InventoryCountSessionStatus.COUNTING,
+                InventoryCountSessionStatus.REVIEW,
+                InventoryCountSessionStatus.APPROVED
+        );
+
+        boolean blocked = binLocationId != null
+                ? inventoryCountSessionRepository.existsBlockingStockChangeForBinProduct(
+                        warehouse.getId(),
+                        product.getId(),
+                        binLocationId,
+                        blockingStatuses
+                )
+                : inventoryCountSessionRepository.existsBlockingStockChangeForWarehouseProduct(
+                        warehouse.getId(),
+                        product.getId(),
+                        blockingStatuses
+                );
+
+        if (blocked) {
+            throw new BadRequestException("Stock movement is blocked because an inventory count is active for this warehouse/product/location");
+        }
+    }
+
+    private boolean isInventoryCountAdjustment(StockMovementType movementType, StockMovementReferenceType referenceType) {
+        return movementType == StockMovementType.ADJUSTMENT
+                && referenceType == StockMovementReferenceType.INVENTORY_COUNT;
     }
 
     private BinLocation resolveMovementBinForDraft(Warehouse warehouse, Long binLocationId) {

@@ -5,6 +5,7 @@ public enum OperationalEntityType {
     TASK,
     WAREHOUSE,
     WAREHOUSE_INVENTORY,
+    INVENTORY_COUNT,
     STOCK_MOVEMENT,
     INTERNAL_WAREHOUSE_MOVEMENT,
     SHIFT,

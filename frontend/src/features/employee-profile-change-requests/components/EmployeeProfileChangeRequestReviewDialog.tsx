@@ -12,7 +12,10 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useCities } from '../../cities/hooks/useCities';
+import { useActiveCountries } from '../../countries/hooks/useCountries';
 import ProfileChangeRequestStatusChip from '../../profile/components/ProfileChangeRequestStatusChip';
+import { formatProfileChangeFieldName, formatProfileChangeValue } from '../../profile/utils/profileChangeRequestFormatters';
 import type { EmployeeProfileChangeRequestResponse } from '../types/employeeProfileChangeRequest.types';
 
 function formatDateTime(value: string | null | undefined) {
@@ -20,12 +23,15 @@ function formatDateTime(value: string | null | undefined) {
   return new Date(value).toLocaleString();
 }
 
-function formatValue(value: unknown) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
-
-function FieldChanges({ changes }: { changes: Record<string, unknown> }) {
+function FieldChanges({
+  changes,
+  countries,
+  cities,
+}: {
+  changes: Record<string, unknown>;
+  countries?: ReturnType<typeof useActiveCountries>['data'];
+  cities?: ReturnType<typeof useCities>['data'];
+}) {
   const entries = Object.entries(changes ?? {});
   if (!entries.length) {
     return <Typography color="text.secondary">No requested changes.</Typography>;
@@ -35,8 +41,8 @@ function FieldChanges({ changes }: { changes: Record<string, unknown> }) {
     <Stack spacing={1}>
       {entries.map(([field, value]) => (
         <Box key={field} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, py: 0.75, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="body2" color="text.secondary">{field}</Typography>
-          <Typography variant="body2" fontWeight={700} textAlign="right">{formatValue(value)}</Typography>
+          <Typography variant="body2" color="text.secondary">{formatProfileChangeFieldName(field)}</Typography>
+          <Typography variant="body2" fontWeight={700} textAlign="right">{formatProfileChangeValue(field, value, { countries, cities })}</Typography>
         </Box>
       ))}
     </Stack>
@@ -61,6 +67,8 @@ export default function EmployeeProfileChangeRequestReviewDialog({
   onReject: (id: number, rejectionReason: string) => void;
 }) {
   const [rejectionReason, setRejectionReason] = useState('');
+  const countriesQuery = useActiveCountries(open);
+  const citiesQuery = useCities(open);
 
   useEffect(() => {
     if (open) setRejectionReason('');
@@ -108,7 +116,7 @@ export default function EmployeeProfileChangeRequestReviewDialog({
 
             <Box>
               <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 1 }}>Requested changes</Typography>
-              <FieldChanges changes={request.requestedChanges} />
+              <FieldChanges changes={request.requestedChanges} countries={countriesQuery.data} cities={citiesQuery.data} />
             </Box>
 
             {action === 'approve' && pending ? (

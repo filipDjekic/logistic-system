@@ -50,10 +50,17 @@ public class LookupService implements LookupServiceDefinition {
     private static final int MAX_SEARCH_LENGTH = 80;
 
     @Override
-    public PageResponse<LookupOptionResponse> warehouses(String search, Pageable pageable) {
+    public PageResponse<LookupOptionResponse> warehouses(String search, String accessMode, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "name"));
         Page<Warehouse> page;
-        if (shouldLimitToAssignedWarehouses()) {
+        if ("mutate".equalsIgnoreCase(accessMode) || "mutation".equalsIgnoreCase(accessMode)) {
+            List<Long> warehouseIds = warehouseAccessGuard.mutationWarehouseIdsForScopedUser();
+            page = warehouseIds == null
+                    ? warehouseRepository.search(currentCompanyScope(), normalize(search), null, true, null, safePageable)
+                    : warehouseIds.isEmpty()
+                        ? Page.empty(safePageable)
+                        : warehouseRepository.searchWarehouseIds(currentCompanyScope(), warehouseIds, normalize(search), null, true, null, safePageable);
+        } else if (shouldLimitToAssignedWarehouses()) {
             Long employeeId = employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
                     .map(Employee::getId)
                     .orElse(null);

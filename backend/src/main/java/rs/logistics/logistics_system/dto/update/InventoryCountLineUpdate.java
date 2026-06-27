@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 @Setter
 @NoArgsConstructor
 public class InventoryCountLineUpdate {
+    private Long binLocationId;
+
     @NotNull @PositiveOrZero
     private BigDecimal countedQuantity;
     @Size(max = 255)

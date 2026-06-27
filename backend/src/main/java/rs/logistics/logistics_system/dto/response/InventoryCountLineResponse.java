@@ -16,6 +16,12 @@ public class InventoryCountLineResponse {
     private Long productId;
     private String productName;
     private String productSku;
+    private Long binLocationId;
+    private String binLocationCode;
+    private String binLocationName;
+    private Long warehouseZoneId;
+    private String warehouseZoneCode;
+    private String warehouseZoneName;
     private BigDecimal systemQuantity;
     private BigDecimal countedQuantity;
     private BigDecimal differenceQuantity;

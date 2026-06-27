@@ -22,6 +22,7 @@ export type EntityLookupFieldProps = {
   sort?: string;
   activeOnly?: boolean;
   warehouseId?: number | string | null;
+  accessMode?: 'read' | 'mutate';
 };
 
 export function EntityLookupField({
@@ -41,6 +42,7 @@ export function EntityLookupField({
   sort,
   activeOnly,
   warehouseId,
+  accessMode,
 }: EntityLookupFieldProps) {
   const [open, setOpen] = useState(false);
 
@@ -145,6 +147,7 @@ export function EntityLookupField({
         sort={sort}
         activeOnly={activeOnly}
         warehouseId={warehouseId}
+        accessMode={accessMode}
       />
     </Box>
   );

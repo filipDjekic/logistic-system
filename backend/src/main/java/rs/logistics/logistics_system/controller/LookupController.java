@@ -25,9 +25,10 @@ public class LookupController {
     @GetMapping("/warehouses/lookup")
     public ResponseEntity<PageResponse<LookupOptionResponse>> warehouses(
             @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "read") String accessMode,
             @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return ResponseEntity.ok(lookupService.warehouses(search, pageable));
+        return ResponseEntity.ok(lookupService.warehouses(search, accessMode, pageable));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")

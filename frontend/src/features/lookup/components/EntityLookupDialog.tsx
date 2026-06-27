@@ -47,6 +47,7 @@ export type EntityLookupDialogProps = {
   sort?: string;
   activeOnly?: boolean;
   warehouseId?: number | string | null;
+  accessMode?: 'read' | 'mutate';
 };
 
 export function EntityLookupDialog({
@@ -62,6 +63,7 @@ export function EntityLookupDialog({
   sort,
   activeOnly,
   warehouseId,
+  accessMode,
 }: EntityLookupDialogProps) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -76,6 +78,7 @@ export function EntityLookupDialog({
       ...(sort ? { sort } : {}),
       ...(activeOnly !== undefined ? { activeOnly } : {}),
       ...(warehouseId ? { warehouseId } : {}),
+      ...(accessMode ? { accessMode } : {}),
     },
     open,
   );

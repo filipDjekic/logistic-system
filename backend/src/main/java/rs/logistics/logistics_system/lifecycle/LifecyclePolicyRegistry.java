@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
 
 import rs.logistics.logistics_system.config.AppProperties;
 import rs.logistics.logistics_system.enums.TaskStatus;
+import rs.logistics.logistics_system.enums.InventoryCountSessionStatus;
 import rs.logistics.logistics_system.enums.StockMovementStatus;
+import rs.logistics.logistics_system.enums.ShiftStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 
@@ -44,6 +46,12 @@ public class LifecyclePolicyRegistry {
                 toEnumTransitionMap(VehicleStatus.class, appProperties.getStatusTransitions().getVehicle()),
                 vehicleRoleMatrix(),
                 List.of(new TransitionReasonLifecycleHook<>())
+        ));
+        policies.put(LifecycleEntityType.INVENTORY_COUNT, InventoryCountLifecyclePolicy.create(
+                toEnumTransitionMap(InventoryCountSessionStatus.class, appProperties.getStatusTransitions().getInventoryCount())
+        ));
+        policies.put(LifecycleEntityType.SHIFT, ShiftLifecyclePolicy.create(
+                toEnumTransitionMap(ShiftStatus.class, appProperties.getStatusTransitions().getShift())
         ));
     }
 
