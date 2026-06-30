@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import type { PageResponse } from '../../../core/api/pagination';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -23,11 +22,10 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import DataTable from '../../../shared/components/DataTable/DataTable';
-import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
+import useDetailsPagination from '../../../shared/hooks/useDetailsPagination';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import ArchivedEntityAlert from '../../../shared/components/archive/ArchivedEntityAlert';
-import { LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
 import {
   DetailsField,
   DetailsMetadataCard,
@@ -66,6 +64,8 @@ import type { InventoryListRow } from '../../inventory/types/inventory.types';
 import { useStockMovements } from '../../stock-movements/hooks/useStockMovements';
 import type { StockMovementResponse } from '../../stock-movements/types/stockMovement.types';
 import { warehouseLocationRoutes } from '../../warehouse-locations/utils/warehouseLocationRoutes';
+
+const warehouseStatusOptions: WarehouseStatus[] = ['ACTIVE', 'FULL', 'UNDER_MAINTENANCE', 'INACTIVE'];
 
 type WarehouseDetailsTab =
   | 'overview'
@@ -192,21 +192,8 @@ function QuantityBar({ value, total }: { value: number | string | null | undefin
 }
 
 
-function usePagedState(defaultSize = 10) {
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(defaultSize);
-  const pagination = (data: PageResponse<unknown> | undefined) => (
-    <ServerTablePagination
-      page={data}
-      onPageChange={setPage}
-      onSizeChange={(nextSize) => {
-        setPage(0);
-        setSize(nextSize);
-      }}
-    />
-  );
-
-  return { page, size, setPage, pagination };
+function usePagedState<T = unknown>(defaultSize = 10) {
+  return useDetailsPagination<T>(defaultSize);
 }
 
 function ZonesTable({ rows, onOpenZone }: { rows: WarehouseZoneResponse[]; onOpenZone: (zone: WarehouseZoneResponse) => void }) {
@@ -704,7 +691,7 @@ export default function WarehouseDetailsPage() {
   const [transitionTarget, setTransitionTarget] = useState<WarehouseStatus | null>(null);
 
   const changeStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: WarehouseStatus; reason?: string }) =>
+    mutationFn: ({ id, status }: { id: number; status: WarehouseStatus }) =>
       warehousesApi.changeStatus(id, status),
     onSuccess: async (_, variables) => {
       showSnackbar({
@@ -797,6 +784,8 @@ export default function WarehouseDetailsPage() {
     );
   }
 
+  const availableWarehouseStatusTargets = warehouseStatusOptions.filter((status) => status !== warehouse.status);
+
   const tabItems: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
     { value: 'locations', label: `Zones${zoneQuery.data ? ` (${zoneQuery.data.totalElements})` : ''}` },
@@ -886,6 +875,27 @@ export default function WarehouseDetailsPage() {
             ]}
           />
 
+          {canManage ? (
+            <DetailsMetadataCard
+              title="Warehouse status controls"
+              description="Warehouse status is a direct operational flag. It is not a lifecycle workflow and does not store transition reasons."
+            >
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {availableWarehouseStatusTargets.map((status) => (
+                  <Button
+                    key={status}
+                    variant="outlined"
+                    size="small"
+                    disabled={changeStatusMutation.isPending || !warehouse.active}
+                    onClick={() => setTransitionTarget(status)}
+                  >
+                    Mark {status.replaceAll('_', ' ').toLowerCase()}
+                  </Button>
+                ))}
+              </Stack>
+            </DetailsMetadataCard>
+          ) : null}
+
           <DetailsMetadataCard
             title="Ownership and assignment"
             description="Warehouse ownership belongs in metadata, not in the primary overview card."
@@ -931,7 +941,7 @@ export default function WarehouseDetailsPage() {
             />
             <ZonesTable rows={zones} onOpenZone={(zone) => navigate(warehouseLocationRoutes.warehouseLocationDetails(warehouse.id, zone.id))} />
           </Stack>
-          {zonePage.pagination(zoneQuery.data)}
+          {zonePage.pagination(zoneQuery.data, zoneQuery.isFetching)}
         </RelatedDataSection>
       ) : null}
 
@@ -963,7 +973,7 @@ export default function WarehouseDetailsPage() {
             />
             <WarehouseBinsTable rows={bins} onOpenBin={(bin) => navigate(warehouseLocationRoutes.binDetails(warehouse.id, bin.zoneId, bin.id))} />
           </Stack>
-          {binPage.pagination(binQuery.data)}
+          {binPage.pagination(binQuery.data, binQuery.isFetching)}
         </RelatedDataSection>
       ) : null}
 
@@ -989,7 +999,7 @@ export default function WarehouseDetailsPage() {
             />
             <WarehouseInventoryTable rows={inventory} onOpenInventory={(row) => navigate(warehouseLocationRoutes.inventoryDetails(row.warehouseId, row.productId))} />
           </Stack>
-          {inventoryPage.pagination(inventoryQuery.data)}
+          {inventoryPage.pagination(inventoryQuery.data, inventoryQuery.isFetching)}
         </RelatedDataSection>
       ) : null}
 
@@ -1015,7 +1025,7 @@ export default function WarehouseDetailsPage() {
             />
             <InternalMovementsTable rows={internalMovements} />
           </Stack>
-          {internalMovementPage.pagination(internalMovementQuery.data)}
+          {internalMovementPage.pagination(internalMovementQuery.data, internalMovementQuery.isFetching)}
         </RelatedDataSection>
       ) : null}
 
@@ -1068,7 +1078,7 @@ export default function WarehouseDetailsPage() {
               </Grid>
               <StockMovementsTable rows={stockMovements} onOpenMovement={(movement) => navigate(warehouseLocationRoutes.stockMovementDetails(movement.id))} />
             </Stack>
-            {stockMovementPage.pagination(stockMovementQuery.data)}
+            {stockMovementPage.pagination(stockMovementQuery.data, stockMovementQuery.isFetching)}
           </RelatedDataSection>
         </Stack>
       ) : null}
@@ -1095,19 +1105,32 @@ export default function WarehouseDetailsPage() {
         onSubmit={(payload) => createLocationMutation.mutate(payload)}
       />
 
-      <LifecycleTransitionDialog
-        open={transitionTarget != null}
-        entityLabel="warehouse"
-        fromStatus={warehouse.status}
-        toStatus={transitionTarget}
-        loading={changeStatusMutation.isPending}
-        requireReason={transitionTarget === 'INACTIVE' || transitionTarget === 'UNDER_MAINTENANCE'}
-        onClose={() => setTransitionTarget(null)}
-        onConfirm={(reason) => {
-          if (!transitionTarget) return;
-          changeStatusMutation.mutate({ id: warehouse.id, status: transitionTarget, reason });
-        }}
-      />
+      <Dialog open={transitionTarget != null} onClose={() => setTransitionTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Change warehouse status</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography color="text.secondary">
+              Change warehouse status from {warehouse.status} to {transitionTarget}.
+            </Typography>
+            <Alert severity="info">
+              Warehouse status is not handled by the lifecycle engine, so this action does not collect or store a transition reason.
+            </Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTransitionTarget(null)} disabled={changeStatusMutation.isPending}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!transitionTarget || changeStatusMutation.isPending}
+            onClick={() => {
+              if (!transitionTarget) return;
+              changeStatusMutation.mutate({ id: warehouse.id, status: transitionTarget });
+            }}
+          >
+            Change status
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </EntityDetailsLayout>
   );

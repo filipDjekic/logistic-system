@@ -264,7 +264,7 @@ public class VehicleService implements VehicleServiceDefinition {
         Vehicle vehicle = findVehicleById(id);
         return new AllowedStatusTransitionsResponse(
                 vehicle.getStatus().name(),
-                lifecycleTransitionEngine.allowedStatuses(LifecycleEntityType.VEHICLE, VehicleStatus.class, vehicle.getStatus()).stream().map(Enum::name).toList(),
+                lifecycleTransitionEngine.allowedStatusesForCurrentUser(LifecycleEntityType.VEHICLE, VehicleStatus.class, vehicle.getStatus()).stream().map(Enum::name).toList(),
                 vehicle.getVersion()
         );
     }

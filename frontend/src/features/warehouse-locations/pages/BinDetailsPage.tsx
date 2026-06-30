@@ -1,27 +1,26 @@
 import { useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import {
-  Alert,
   Box,
   Button,
   Chip,
   Grid,
   Stack,
-  TablePagination,
   TextField,
   Typography,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import SectionCard from "../../../shared/components/SectionCard/SectionCard";
+import ErrorState from "../../../shared/components/ErrorState/ErrorState";
 import DataTable from "../../../shared/components/DataTable/DataTable";
 import type { DataTableColumn } from "../../../shared/types/common.types";
 import {
   buildSortParam,
-  type PageResponse,
 } from "../../../core/api/pagination";
 import { EntityLookupField, type LookupOption } from "../../lookup";
 import { EntityDetailsLayout } from "../../../shared/components/EntityDetails";
 import { ChangeHistoryPanel } from "../../../shared/components/OperationalPanels";
+import useDetailsPagination from "../../../shared/hooks/useDetailsPagination";
 import { stockMovementsApi } from "../../stock-movements/api/stockMovementsApi";
 import type { StockMovementResponse } from "../../stock-movements/types/stockMovement.types";
 import {
@@ -47,24 +46,8 @@ function toNumber(value: string | undefined) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-function usePagedState(defaultSize = 10) {
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(defaultSize);
-  const pagination = (data: PageResponse<unknown> | undefined) => (
-    <TablePagination
-      component="div"
-      count={data?.totalElements ?? 0}
-      page={data?.number ?? page}
-      rowsPerPage={data?.size ?? size}
-      rowsPerPageOptions={[5, 10, 20, 50]}
-      onPageChange={(_, nextPage) => setPage(nextPage)}
-      onRowsPerPageChange={(event) => {
-        setPage(0);
-        setSize(Number(event.target.value));
-      }}
-    />
-  );
-  return { page, size, reset: () => setPage(0), pagination };
+function usePagedState<T = unknown>(defaultSize = 10) {
+  return useDetailsPagination<T>(defaultSize);
 }
 
 function formatDate(value: string | null | undefined) {
@@ -347,7 +330,7 @@ export default function BinDetailsPage() {
   ];
 
   if (!warehouseId || !zoneId || !binId) {
-    return <Alert severity="error">Invalid bin route.</Alert>;
+    return <ErrorState title="Invalid bin route" description="The warehouse, zone or bin ID in the route is not valid." />;
   }
 
   return (
@@ -364,6 +347,11 @@ export default function BinDetailsPage() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as TabKey)}
+      loading={binQuery.isLoading}
+      loadingText="Loading bin details..."
+      error={binQuery.isError ? binQuery.error : null}
+      errorTitle="Bin could not be loaded"
+      onRetry={() => void binQuery.refetch()}
       actions={
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button
@@ -494,7 +482,7 @@ export default function BinDetailsPage() {
               loading={inventoryQuery.isLoading}
               error={inventoryQuery.isError}
               onRetry={() => inventoryQuery.refetch()}
-              pagination={inventoryPage.pagination(inventoryQuery.data)}
+              pagination={inventoryPage.pagination(inventoryQuery.data, inventoryQuery.isFetching)}
             />
           </Stack>
         </SectionCard>
@@ -538,7 +526,7 @@ export default function BinDetailsPage() {
               loading={stockMovementsQuery.isLoading}
               error={stockMovementsQuery.isError}
               onRetry={() => stockMovementsQuery.refetch()}
-              pagination={stockPage.pagination(stockMovementsQuery.data)}
+              pagination={stockPage.pagination(stockMovementsQuery.data, stockMovementsQuery.isFetching)}
             />
           </Stack>
         </SectionCard>

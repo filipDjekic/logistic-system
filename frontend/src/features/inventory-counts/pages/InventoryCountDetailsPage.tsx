@@ -25,6 +25,12 @@ import {
 } from '../../../shared/components/EntityDetails';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import {
+  canCountInventoryCountLines,
+  canManageInventoryCountLifecycle,
+  filterAllowedStatusesByRole,
+  getAllowedInventoryCountLifecycleStatuses,
+} from '../../../core/permissions/operationGuards';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { lookupApi } from '../../lookup/api/lookupApi';
 import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
@@ -51,6 +57,7 @@ function statusLabel(status: string) {
 
 
 const inventoryCountLifecycleOrder: InventoryCountSessionStatus[] = [
+  'DRAFT',
   'OPEN',
   'COUNTING',
   'REVIEW',
@@ -74,8 +81,8 @@ export default function InventoryCountDetailsPage() {
   const { showSnackbar } = useAppSnackbar();
   const auth = useAuthStore();
   const userRole = auth.user?.role ?? null;
-  const canManageInventoryCount = userRole === ROLES.OVERLORD || userRole === ROLES.COMPANY_ADMIN || userRole === ROLES.WAREHOUSE_MANAGER;
-  const canCountInventoryLines = canManageInventoryCount || userRole === ROLES.WORKER;
+  const canManageInventoryCount = canManageInventoryCountLifecycle(userRole);
+  const canCountInventoryLines = canCountInventoryCountLines(userRole);
   const [editingLine, setEditingLine] = useState<InventoryCountLineResponse | null>(null);
   const [countedQuantity, setCountedQuantity] = useState('');
   const [note, setNote] = useState('');
@@ -144,7 +151,8 @@ export default function InventoryCountDetailsPage() {
   };
 
   const actionMutation = useMutation({
-    mutationFn: (action: 'start' | 'submitReview' | 'approve' | 'reject' | 'createAdjustments' | 'close' | 'cancel') => {
+    mutationFn: (action: 'open' | 'start' | 'submitReview' | 'approve' | 'reject' | 'createAdjustments' | 'close' | 'cancel') => {
+      if (action === 'open') return inventoryCountsApi.open(id);
       if (action === 'start') return inventoryCountsApi.start(id);
       if (action === 'submitReview') return inventoryCountsApi.submitReview(id);
       if (action === 'approve') return inventoryCountsApi.approve(id);
@@ -174,7 +182,10 @@ export default function InventoryCountDetailsPage() {
 
   const zones = zonesQuery.data?.content ?? [];
   const bins = binsQuery.data?.content ?? [];
-  const allowed = (allowedTransitionsQuery.data?.allowedStatuses ?? []) as InventoryCountSessionStatus[];
+  const allowed = filterAllowedStatusesByRole(
+    allowedTransitionsQuery.data?.allowedStatuses as InventoryCountSessionStatus[] | undefined,
+    getAllowedInventoryCountLifecycleStatuses(userRole),
+  );
   const canMutateSelectedWarehouse = Boolean(
     session && (
       userRole === ROLES.OVERLORD
@@ -225,6 +236,7 @@ export default function InventoryCountDetailsPage() {
       actions={session ? (
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button component={RouterLink} to="/inventory-counts" variant="outlined">Back</Button>
+          {allowed.includes('OPEN') ? <Button variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('open')}>Open</Button> : null}
           {allowed.includes('COUNTING') ? <Button variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('start')}>Start</Button> : null}
           {allowed.includes('REVIEW') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('submitReview')}>Submit review</Button> : null}
           {allowed.includes('APPROVED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('approve')}>Approve</Button> : null}
@@ -347,7 +359,7 @@ export default function InventoryCountDetailsPage() {
           description="Backend-controlled status workflow for this inventory count."
           currentStatus={session.status}
           statuses={session.status === 'REJECTED' || session.status === 'CANCELLED'
-            ? ['OPEN', 'COUNTING', 'REVIEW', session.status]
+            ? ['DRAFT', 'OPEN', 'COUNTING', 'REVIEW', session.status]
             : inventoryCountLifecycleOrder}
           allowedNextStatuses={allowed}
           terminalStatuses={inventoryCountTerminalStatuses}

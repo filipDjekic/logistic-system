@@ -73,6 +73,6 @@ public class InventoryCountSession {
         this.description = description;
         this.warehouse = warehouse;
         this.createdBy = createdBy;
-        this.status = InventoryCountSessionStatus.OPEN;
+        this.status = InventoryCountSessionStatus.DRAFT;
     }
 }

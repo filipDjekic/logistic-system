@@ -31,8 +31,7 @@ public final class StockMovementLifecyclePolicy {
                 "OVERLORD",
                 "COMPANY_ADMIN",
                 "WAREHOUSE_MANAGER",
-                "DISPATCHER",
-                "WORKER"
+                "DISPATCHER"
         );
         Set<String> approvers = Set.of(
                 "OVERLORD",

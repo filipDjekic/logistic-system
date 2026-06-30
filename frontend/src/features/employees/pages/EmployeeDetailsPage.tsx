@@ -76,7 +76,7 @@ export default function EmployeeDetailsPage() {
     Boolean(validEmployeeId) && activeTab === 'transportActivity',
   );
 
-  const terminateMutation = useMutation({
+  const archiveMutation = useMutation({
     mutationFn: (id: number) => employeesApi.archive(id),
     onSuccess: async () => {
       showSnackbar({ message: 'Employee archived successfully.', severity: 'success' });
@@ -167,7 +167,7 @@ export default function EmployeeDetailsPage() {
 
   const employee = employeeQuery.data;
   const linkedUser = employee.userId ? usersById[employee.userId] : null;
-  const canTerminateEmployee = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+  const canArchiveEmployee = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
   const canViewHistory = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canManageOperationalNotes = canViewHistory || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
@@ -196,8 +196,8 @@ export default function EmployeeDetailsPage() {
       }}
       actionItems={[
         { key: 'back', label: 'Back to list', to: '/employees' },
-        ...(canTerminateEmployee && employee.active ? [{ key: 'archive', label: 'Archive employee', color: 'warning' as const, variant: 'contained' as const, disabled: terminateMutation.isPending, onClick: () => terminateMutation.mutate(employee.id) }] : []),
-        ...(canTerminateEmployee && !employee.active ? [{ key: 'restore', label: 'Restore employee', color: 'success' as const, variant: 'contained' as const, disabled: restoreMutation.isPending, onClick: () => restoreMutation.mutate(employee.id) }] : []),
+        ...(canArchiveEmployee && employee.active ? [{ key: 'archive', label: 'Archive employee', color: 'warning' as const, variant: 'contained' as const, disabled: archiveMutation.isPending, onClick: () => archiveMutation.mutate(employee.id) }] : []),
+        ...(canArchiveEmployee && !employee.active ? [{ key: 'restore', label: 'Restore employee', color: 'success' as const, variant: 'contained' as const, disabled: restoreMutation.isPending, onClick: () => restoreMutation.mutate(employee.id) }] : []),
       ]}
       tabs={tabs}
       activeTab={activeTab}

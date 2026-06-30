@@ -23,6 +23,10 @@ export const inventoryCountsApi = {
   create(payload: InventoryCountSessionCreate) {
     return apiClient.post<InventoryCountSessionResponse>('/api/inventory-counts', payload).then((response) => response.data);
   },
+  open(id: number) {
+    return apiClient.post<InventoryCountSessionResponse>(`/api/inventory-counts/${id}/open`).then((response) => response.data);
+  },
+
   start(id: number) {
     return apiClient.post<InventoryCountSessionResponse>(`/api/inventory-counts/${id}/start`).then((response) => response.data);
   },

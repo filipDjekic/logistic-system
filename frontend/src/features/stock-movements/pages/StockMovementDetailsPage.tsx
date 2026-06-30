@@ -12,6 +12,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { buildSortParam } from '../../../core/api/pagination';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import {
+  canApproveStockMovementLifecycle,
+  canExecuteStockMovementLifecycle,
+  filterAllowedStatusesByRole,
+  getAllowedStockMovementLifecycleStatuses,
+} from '../../../core/permissions/operationGuards';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -128,7 +134,16 @@ export default function StockMovementDetailsPage() {
 
   const movement = stockMovementQuery.data;
   const currentStatus = statusTransitionsQuery.data?.currentStatus ?? movement?.status ?? 'EXECUTED';
-  const allowedNextStatuses = statusTransitionsQuery.data?.allowedStatuses ?? movement?.allowedNextStatuses ?? [];
+  const fallbackAllowedNextStatuses = movement?.allowedNextStatuses?.length
+    ? filterAllowedStatusesByRole(
+        movement.allowedNextStatuses as string[],
+        getAllowedStockMovementLifecycleStatuses(auth.user?.role, movement),
+      )
+    : getAllowedStockMovementLifecycleStatuses(auth.user?.role, movement);
+  const allowedNextStatuses = filterAllowedStatusesByRole(
+    statusTransitionsQuery.data?.allowedStatuses as string[] | undefined,
+    fallbackAllowedNextStatuses,
+  );
 
   const refreshStockMovementDetails = async () => {
     if (!validMovementId) {
@@ -201,15 +216,8 @@ export default function StockMovementDetailsPage() {
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
-  const canExecuteLifecycleAction =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER ||
-    auth.user?.role === ROLES.DISPATCHER;
-  const canApproveLifecycleAction =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canExecuteLifecycleAction = canExecuteStockMovementLifecycle(auth.user?.role);
+  const canApproveLifecycleAction = canApproveStockMovementLifecycle(auth.user?.role);
   const lifecycleActionPending = executeMutation.isPending || cancelMutation.isPending || approveMutation.isPending || rejectMutation.isPending || reverseMutation.isPending;
   const currentLifecycleStatus = normalizeStockMovementStatus(currentStatus);
   const visibleLifecycleActions = movement

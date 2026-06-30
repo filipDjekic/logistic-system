@@ -129,12 +129,9 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TaskResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TaskStatusUpdate dto) {
-        if (authenticatedUserProvider.hasRole("DRIVER")) {
-            throw new ForbiddenException("DRIVER can access assigned tasks read-only");
-        }
         TaskResponse response = taskService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

@@ -15,7 +15,9 @@ import { ROLES } from "../../../core/constants/roles";
 import {
   canEditTransportOrder,
   canManageTransportOrders,
+  canReadTransportOrderStatusTransitions,
   canMutateTransportOrderItems,
+  filterAllowedStatusesByRole,
   getAllowedTransportOrderStatusTransitions,
 } from "../../../core/permissions/operationGuards";
 import SectionCard from "../../../shared/components/SectionCard/SectionCard";
@@ -92,6 +94,7 @@ export default function TransportOrderDetailsPage() {
 
   const currentRole = auth.user?.role;
   const canManageOrder = canManageTransportOrders(currentRole);
+  const canReadStatusTransitions = canReadTransportOrderStatusTransitions(currentRole);
 
   const canReadItems =
     auth.user?.role === ROLES.OVERLORD ||
@@ -173,7 +176,7 @@ export default function TransportOrderDetailsPage() {
     queryKey: ["transport-orders", transportOrderId, "status-transitions"],
     queryFn: () =>
       transportOrdersApi.getAllowedStatusTransitions(transportOrderId),
-    enabled: isValidTransportOrderId && transportOrderQuery.data != null,
+    enabled: isValidTransportOrderId && transportOrderQuery.data != null && canReadStatusTransitions,
     staleTime: 15_000,
     refetchOnWindowFocus: false,
   });
@@ -385,8 +388,10 @@ export default function TransportOrderDetailsPage() {
           transportOrder.status,
         )
       : [];
-  const nextStatuses =
-    allowedTransitionsQuery.data?.allowedStatuses ?? fallbackNextStatuses;
+  const nextStatuses = filterAllowedStatusesByRole(
+    allowedTransitionsQuery.data?.allowedStatuses,
+    fallbackNextStatuses,
+  );
   const canChangeStatus = transportOrder != null && nextStatuses.length > 0;
   const isEditableItems = canMutateTransportOrderItems(
     currentRole,

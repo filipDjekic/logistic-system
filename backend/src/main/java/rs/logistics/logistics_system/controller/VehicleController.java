@@ -107,13 +107,13 @@ public class VehicleController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
     @GetMapping("/{id}/status-transitions")
     public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
         return ResponseEntity.ok(vehicleService.allowedStatusTransitions(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<VehicleResponse> changeStatus(@PathVariable Long id, @Valid @RequestBody VehicleStatusUpdate dto) {
         return ResponseEntity.ok(vehicleService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion()));

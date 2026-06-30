@@ -58,6 +58,12 @@ public class InventoryCountController {
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PostMapping("/{id}/open")
+    public ResponseEntity<InventoryCountSessionResponse> open(@PathVariable Long id) {
+        return ResponseEntity.ok(inventoryCountService.open(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/start")
     public ResponseEntity<InventoryCountSessionResponse> start(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.start(id));

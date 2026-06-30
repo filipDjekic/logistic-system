@@ -674,7 +674,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         TransportOrder transportOrder = getTransportOrderOrThrow(id);
         return new AllowedStatusTransitionsResponse(
                 transportOrder.getStatus().name(),
-                lifecycleTransitionEngine.allowedStatuses(LifecycleEntityType.TRANSPORT_ORDER, TransportOrderStatus.class, transportOrder.getStatus()).stream().map(Enum::name).toList(),
+                lifecycleTransitionEngine.allowedStatusesForCurrentUser(LifecycleEntityType.TRANSPORT_ORDER, TransportOrderStatus.class, transportOrder.getStatus()).stream().map(Enum::name).toList(),
                 transportOrder.getVersion()
         );
     }
@@ -683,7 +683,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private TransportOrderResponse toResponseWithLifecycle(TransportOrder transportOrder) {
         TransportOrderResponse response = TransportOrderMapper.toResponse(transportOrder, timeService);
         response.setAllowedNextStatuses(
-                lifecycleTransitionEngine.allowedStatuses(
+                lifecycleTransitionEngine.allowedStatusesForCurrentUser(
                         LifecycleEntityType.TRANSPORT_ORDER,
                         TransportOrderStatus.class,
                         transportOrder.getStatus()

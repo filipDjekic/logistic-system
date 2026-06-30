@@ -114,6 +114,20 @@ public class LifecycleTransitionEngine {
         return policy.allowedStatuses(currentStatus);
     }
 
+    public <S extends Enum<S>> Set<S> allowedStatusesForCurrentUser(LifecycleEntityType entityType, Class<S> statusType, S currentStatus) {
+        if (currentStatus == null) {
+            return Set.of();
+        }
+        LifecycleTransitionPolicy<S> policy = policyRegistry.getPolicy(entityType, statusType);
+        Set<String> roles = currentUserRoles();
+        return policy.allowedStatuses(currentStatus).stream()
+                .filter(status -> {
+                    Set<String> allowedRoles = policy.allowedRoles(status);
+                    return allowedRoles.isEmpty() || roles.stream().anyMatch(allowedRoles::contains);
+                })
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
     public <S extends Enum<S>> boolean isTransitionAllowed(
             LifecycleEntityType entityType,
             Class<S> statusType,

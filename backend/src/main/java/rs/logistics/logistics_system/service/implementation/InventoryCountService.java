@@ -91,6 +91,7 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
         warehouseAccessGuard.ensureCanMutateWarehouse(warehouse);
         if (sessionRepository.existsByWarehouse_IdAndStatusIn(warehouse.getId(), List.of(
+                InventoryCountSessionStatus.DRAFT,
                 InventoryCountSessionStatus.OPEN,
                 InventoryCountSessionStatus.COUNTING,
                 InventoryCountSessionStatus.REVIEW,
@@ -197,6 +198,17 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
                 .map(InventoryCountMapper::toLineResponse)
                 .toList();
         return PageResponse.fromContent(content, page);
+    }
+
+    @Override
+    @Transactional
+    public InventoryCountSessionResponse open(Long id) {
+        InventoryCountSession session = getSessionHeaderForUpdate(id);
+        requireInventoryCountManager();
+        warehouseAccessGuard.ensureCanMutateWarehouse(session.getWarehouse());
+        requireStatus(session, InventoryCountSessionStatus.DRAFT);
+        transition(session, InventoryCountSessionStatus.OPEN, "Inventory count opened");
+        return toHeaderResponse(sessionRepository.saveAndFlush(session));
     }
 
     @Override

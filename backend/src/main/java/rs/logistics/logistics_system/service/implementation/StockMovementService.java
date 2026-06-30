@@ -1621,7 +1621,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
         StockMovement stockMovement = getAccessibleStockMovement(id);
         return new AllowedStatusTransitionsResponse(
                 stockMovement.getStatus().name(),
-                lifecycleTransitionEngine.allowedStatuses(
+                lifecycleTransitionEngine.allowedStatusesForCurrentUser(
                         LifecycleEntityType.STOCK_MOVEMENT,
                         StockMovementStatus.class,
                         stockMovement.getStatus()

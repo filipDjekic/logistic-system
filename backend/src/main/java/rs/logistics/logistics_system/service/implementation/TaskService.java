@@ -244,7 +244,7 @@ public class TaskService implements TaskServiceDefinition {
         validateWarehouseManagerTaskAccess(task);
         return new AllowedStatusTransitionsResponse(
                 task.getStatus().name(),
-                lifecycleTransitionEngine.allowedStatuses(LifecycleEntityType.TASK, TaskStatus.class, task.getStatus()).stream().map(Enum::name).toList(),
+                lifecycleTransitionEngine.allowedStatusesForCurrentUser(LifecycleEntityType.TASK, TaskStatus.class, task.getStatus()).stream().map(Enum::name).toList(),
                 task.getVersion()
         );
     }

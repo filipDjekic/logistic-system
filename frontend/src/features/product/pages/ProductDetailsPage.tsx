@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { Button, Chip } from '@mui/material';
-import { EntityDetailsLayout, DetailsOverviewCard, DetailsMetadataCard } from '../../../shared/components/EntityDetails';
-import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
+import { EntityDetailsLayout, DetailsOverviewCard, DetailsMetadataCard, OperationalDetailsTabPanels, buildOperationalTabs } from '../../../shared/components/EntityDetails';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import ArchivedEntityAlert from '../../../shared/components/archive/ArchivedEntityAlert';
@@ -20,7 +19,7 @@ import type { BinInventoryResponse } from '../../warehouse-locations/types/wareh
 import type { TransportOrderItemResponse } from '../../transport-orders/types/transportOrder.types';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 
-type ProductDetailsTab = 'overview' | 'inventoryByWarehouse' | 'binDistribution' | 'stockMovements' | 'transportUsage' | 'changeHistory';
+type ProductDetailsTab = 'overview' | 'inventoryByWarehouse' | 'binDistribution' | 'stockMovements' | 'transportUsage' | 'attachments' | 'comments' | 'audit' | 'history';
 
 function ProductInventoryByWarehouse({ productId }: { productId: number }) {
   const query = useQuery({
@@ -247,7 +246,13 @@ export default function ProductDetailsPage() {  const params = useParams();
     { value: 'binDistribution', label: 'Bin distribution' },
     { value: 'stockMovements', label: 'Stock movements' },
     { value: 'transportUsage', label: 'Transport usage' },
-    { value: 'changeHistory', label: 'Change history' },
+    ...buildOperationalTabs({
+      entityType: 'PRODUCT',
+      entityName: 'PRODUCT',
+      entityId: product.id,
+      allowCreateAttachments: product.active,
+      allowCreateComments: product.active,
+    }),
   ];
 
   return (
@@ -298,14 +303,14 @@ export default function ProductDetailsPage() {  const params = useParams();
       {activeTab === 'stockMovements' ? <ProductStockMovements productId={product.id} /> : null}
       {activeTab === 'transportUsage' ? <ProductTransportUsage productId={product.id} /> : null}
 
-      {activeTab === 'changeHistory' ? (
-        <ChangeHistoryPanel
-          entityName="PRODUCT"
-          entityId={product.id}
-          title="Product change history"
-          description="Audit trail for product data, status and catalog changes."
-        />
-      ) : null}
+      <OperationalDetailsTabPanels
+        activeTab={activeTab}
+        entityType="PRODUCT"
+        entityName="PRODUCT"
+        entityId={product.id}
+        allowCreateAttachments={product.active}
+        allowCreateComments={product.active}
+      />
     </EntityDetailsLayout>
   );
 }

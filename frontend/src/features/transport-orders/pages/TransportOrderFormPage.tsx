@@ -16,7 +16,7 @@ import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import { useAuthStore } from '../../../core/auth/authStore';
-import { ROLES } from '../../../core/constants/roles';
+import { canManageTransportOrders } from '../../../core/permissions/operationGuards';
 import { EntityLookupField } from '../../lookup';
 import type { LookupOption } from '../../lookup';
 import { useCreateTransportOrder } from '../hooks/useCreateTransportOrder';
@@ -54,7 +54,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
   const navigate = useNavigate();
   const params = useParams();
   const auth = useAuthStore();
-  const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DISPATCHER;
+  const canManage = canManageTransportOrders(auth.user?.role);
   const orderId = useMemo(() => Number(params.id), [params.id]);
   const isEdit = mode === 'edit';
   const isValidEditRoute = !isEdit || (Number.isInteger(orderId) && orderId > 0);
@@ -98,7 +98,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
   }, [isEdit, orderQuery.data]);
 
   if (!canManage) {
-    return <ErrorState title="Access denied" description="Transport orders can be created and edited only by overlord, company admin or dispatcher roles." />;
+    return <ErrorState title="Access denied" description="Transport orders can be created and edited only by overlord or dispatcher roles." />;
   }
 
   if (!isValidEditRoute) {

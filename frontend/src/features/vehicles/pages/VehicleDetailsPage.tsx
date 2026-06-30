@@ -22,6 +22,11 @@ import VehicleStatusChip from "../components/VehicleStatusChip";
 import { useAppSnackbar } from "../../../app/providers/useSnackbar";
 import { useAuthStore } from "../../../core/auth/authStore";
 import { ROLES } from "../../../core/constants/roles";
+import {
+  canReadVehicleStatusTransitions,
+  filterAllowedStatusesByRole,
+  getAllowedVehicleStatusTransitions,
+} from "../../../core/permissions/operationGuards";
 import { getErrorMessage } from "../../../core/utils/getErrorMessage";
 import { invalidateVehicleState } from "../../../core/utils/invalidateAppState";
 import { useTransportOrders } from "../../transport-orders/hooks/useTransportOrders";
@@ -74,6 +79,7 @@ export default function VehicleDetailsPage() {
   const canManage =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canReadLifecycleTransitions = canReadVehicleStatusTransitions(auth.user?.role);
 
   const vehicleQuery = useVehicle(validVehicleId);
   const vehicle = vehicleQuery.data;
@@ -90,7 +96,7 @@ export default function VehicleDetailsPage() {
     queryKey: ["vehicles", validVehicleId, "status-transitions"],
     queryFn: () =>
       vehiclesApi.getAllowedStatusTransitions(Number(validVehicleId)),
-    enabled: Boolean(validVehicleId) && canManage,
+    enabled: Boolean(validVehicleId) && canReadLifecycleTransitions,
     staleTime: 15000,
     refetchOnWindowFocus: false,
   });
@@ -195,7 +201,8 @@ export default function VehicleDetailsPage() {
     );
   }
 
-  const allowedVehicleStatuses = allowedTransitionsQuery.data?.allowedStatuses ?? [];
+  const fallbackVehicleStatuses = getAllowedVehicleStatusTransitions(auth.user?.role, vehicle);
+  const allowedVehicleStatuses = filterAllowedStatusesByRole(allowedTransitionsQuery.data?.allowedStatuses, fallbackVehicleStatuses);
   const vehicleLifecycleStatuses: VehicleStatus[] = vehicle.status === "OUT_OF_SERVICE"
     ? ["AVAILABLE", "MAINTENANCE", "OUT_OF_SERVICE"]
     : ["AVAILABLE", "RESERVED", "IN_USE", "MAINTENANCE"];
@@ -363,8 +370,8 @@ export default function VehicleDetailsPage() {
           statuses={vehicleLifecycleStatuses}
           allowedNextStatuses={allowedVehicleStatuses}
           terminalStatuses={["OUT_OF_SERVICE"]}
-          actions={canManage ? vehicleLifecycleActions : []}
-          noActionsText={canManage ? "No lifecycle transition is currently available." : "Your role cannot change vehicle lifecycle status."}
+          actions={canReadLifecycleTransitions ? vehicleLifecycleActions : []}
+          noActionsText={canReadLifecycleTransitions ? "No lifecycle transition is currently available." : "Your role cannot change vehicle lifecycle status."}
           historyEntityName="VEHICLE"
           historyEntityId={vehicle.id}
         />

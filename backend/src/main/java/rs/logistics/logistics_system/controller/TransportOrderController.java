@@ -114,13 +114,13 @@ public class TransportOrderController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
     @GetMapping("/{id}/status-transitions")
     public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
         return ResponseEntity.ok(transportOrderService.allowedStatusTransitions(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TransportOrderResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TransportOrderStatusUpdate dto) {
         TransportOrderResponse response = transportOrderService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion());

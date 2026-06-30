@@ -8,6 +8,7 @@ type Props = {
 };
 
 const lifecycleOrder: InventoryCountSessionStatus[] = [
+  'DRAFT',
   'OPEN',
   'COUNTING',
   'REVIEW',
@@ -20,6 +21,8 @@ const terminalStatuses: InventoryCountSessionStatus[] = ['REJECTED', 'CANCELLED'
 
 function statusDescription(status: InventoryCountSessionStatus, session: InventoryCountSessionResponse) {
   switch (status) {
+    case 'DRAFT':
+      return 'Session snapshot was created and is waiting to be opened for counting preparation.';
     case 'OPEN':
       return 'Session is prepared and the warehouse/bin inventory snapshot is available.';
     case 'COUNTING':

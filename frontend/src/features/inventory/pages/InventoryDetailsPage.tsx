@@ -11,14 +11,13 @@ import {
   Typography,
 } from '@mui/material';
 import { normalizeApiError } from '../../../core/api/apiError';
-import type { PageResponse } from '../../../core/api/pagination';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
 import DataTable from '../../../shared/components/DataTable/DataTable';
-import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
+import useDetailsPagination from '../../../shared/hooks/useDetailsPagination';
 import {
   DetailsMetadataCard,
   DetailsOverviewCard,
@@ -57,21 +56,8 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function usePagedState(defaultSize = 10) {
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(defaultSize);
-  const pagination = (data: PageResponse<unknown> | undefined) => (
-    <ServerTablePagination
-      page={data}
-      onPageChange={setPage}
-      onSizeChange={(nextSize) => {
-        setPage(0);
-        setSize(nextSize);
-      }}
-    />
-  );
-
-  return { page, size, pagination };
+function usePagedState<T = unknown>(defaultSize = 10) {
+  return useDetailsPagination<T>(defaultSize);
 }
 
 function QuantityShare({ value, total }: { value: number | string | null | undefined; total: number }) {
@@ -383,7 +369,7 @@ export default function InventoryDetailsPage() {
               emptyTitle="No bin distribution"
               emptyDescription="This inventory record is not distributed across bins yet."
             />
-            {binDistributionPage.pagination(binInventoryQuery.data)}
+            {binDistributionPage.pagination(binInventoryQuery.data, binInventoryQuery.isFetching)}
           </Stack>
         </RelatedDataSection>
       ) : null}
@@ -418,7 +404,7 @@ export default function InventoryDetailsPage() {
                 emptyTitle="No stock movements"
                 emptyDescription="No stock movements have been recorded for this inventory record yet."
               />
-              {stockMovementPage.pagination(stockMovementsQuery.data)}
+              {stockMovementPage.pagination(stockMovementsQuery.data, stockMovementsQuery.isFetching)}
             </Stack>
           </RelatedDataSection>
 
@@ -448,7 +434,7 @@ export default function InventoryDetailsPage() {
                 emptyTitle="No bin-to-bin movements"
                 emptyDescription="No internal warehouse movements are linked with this inventory record."
               />
-              {internalMovementPage.pagination(internalMovementsQuery.data)}
+              {internalMovementPage.pagination(internalMovementsQuery.data, internalMovementsQuery.isFetching)}
             </Stack>
           </RelatedDataSection>
         </Stack>

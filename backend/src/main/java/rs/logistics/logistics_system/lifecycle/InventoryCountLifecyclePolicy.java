@@ -29,6 +29,7 @@ public final class InventoryCountLifecyclePolicy {
         Set<String> managers = Set.of("OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
         Set<String> counters = Set.of("OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "WORKER");
 
+        matrix.put(InventoryCountSessionStatus.DRAFT, managers);
         matrix.put(InventoryCountSessionStatus.OPEN, managers);
         matrix.put(InventoryCountSessionStatus.COUNTING, counters);
         matrix.put(InventoryCountSessionStatus.REVIEW, managers);

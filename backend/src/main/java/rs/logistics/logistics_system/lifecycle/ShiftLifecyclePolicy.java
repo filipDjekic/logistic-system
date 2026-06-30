@@ -26,7 +26,7 @@ public final class ShiftLifecyclePolicy {
 
     private static Map<ShiftStatus, Set<String>> roleMatrix() {
         Map<ShiftStatus, Set<String>> matrix = new EnumMap<>(ShiftStatus.class);
-        Set<String> shiftManagers = Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER");
+        Set<String> shiftManagers = Set.of("OVERLORD", "HR_MANAGER");
 
         matrix.put(ShiftStatus.PLANNED, shiftManagers);
         matrix.put(ShiftStatus.ACTIVE, Set.of("SYSTEM"));

@@ -16,6 +16,7 @@ public interface InventoryCountServiceDefinition {
     List<InventoryCountSessionSummaryResponse> getAll(Long warehouseId);
     InventoryCountSessionResponse getById(Long id);
     PageResponse<InventoryCountLineResponse> getLines(Long id, String search, Long zoneId, Long binLocationId, String status, Pageable pageable);
+    InventoryCountSessionResponse open(Long id);
     InventoryCountSessionResponse start(Long id);
     InventoryCountSessionResponse updateLine(Long sessionId, Long lineId, InventoryCountLineUpdate dto);
     InventoryCountSessionResponse submitReview(Long id);

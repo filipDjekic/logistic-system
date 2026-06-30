@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Link, Stack, TablePagination, TextField, Typography } from '@mui/material';
+import { Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Link, Stack, TextField, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { buildSortParam, type PageResponse } from '../../../core/api/pagination';
+import { buildSortParam } from '../../../core/api/pagination';
 import { EntityDetailsLayout } from '../../../shared/components/EntityDetails';
 import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
+import useDetailsPagination from '../../../shared/hooks/useDetailsPagination';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { warehouseLocationsApi } from '../api/warehouseLocationsApi';
@@ -101,21 +103,8 @@ function CreateBinDialog({
   );
 }
 
-function usePagedState(defaultSize = 10) {
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(defaultSize);
-  const pagination = (data: PageResponse<unknown> | undefined) => (
-    <TablePagination
-      component="div"
-      count={data?.totalElements ?? 0}
-      page={data?.number ?? page}
-      rowsPerPage={data?.size ?? size}
-      rowsPerPageOptions={[5, 10, 20, 50]}
-      onPageChange={(_, nextPage) => setPage(nextPage)}
-      onRowsPerPageChange={(event) => { setPage(0); setSize(Number(event.target.value)); }}
-    />
-  );
-  return { page, size, reset: () => setPage(0), pagination };
+function usePagedState<T = unknown>(defaultSize = 10) {
+  return useDetailsPagination<T>(defaultSize);
 }
 
 function formatDate(value: string | null | undefined) {
@@ -214,7 +203,7 @@ export default function ZoneDetailsPage() {
   ];
 
   if (!warehouseId || !zoneId) {
-    return <Alert severity="error">Invalid warehouse location route.</Alert>;
+    return <ErrorState title="Invalid warehouse location route" description="The warehouse or zone ID in the route is not valid." />;
   }
 
   return (
@@ -225,13 +214,16 @@ export default function ZoneDetailsPage() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as TabKey)}
+      loading={zoneQuery.isLoading}
+      loadingText="Loading warehouse location details..."
+      error={zoneQuery.isError ? zoneQuery.error : null}
+      errorTitle="Warehouse location could not be loaded"
+      onRetry={() => void zoneQuery.refetch()}
       actionItems={[
         { key: 'warehouse', label: 'Warehouse', to: warehouseLocationRoutes.warehouseDetails(warehouseId) },
         { key: 'create-bin', label: 'Create bin', variant: 'contained', onClick: () => setCreateBinOpen(true) },
       ]}
     >
-      {zoneQuery.isError ? <Alert severity="error">Location could not be loaded.</Alert> : null}
-
       {activeTab === 'overview' ? (
         <Stack spacing={2}>
           <Grid container spacing={2}>
@@ -285,7 +277,7 @@ export default function ZoneDetailsPage() {
         <SectionCard title="Bins" action={<Button size="small" variant="outlined" onClick={() => setCreateBinOpen(true)}>Create bin</Button>}>
           <Stack spacing={2}>
             <TextField label="Search bin" value={binSearch} onChange={(event) => { setBinSearch(event.target.value); binPage.reset(); }} size="small" fullWidth />
-            <DataTable columns={binColumns} rows={binsQuery.data?.content ?? []} getRowId={(row) => row.id} loading={binsQuery.isLoading} error={binsQuery.isError} onRetry={() => binsQuery.refetch()} pagination={binPage.pagination(binsQuery.data)} />
+            <DataTable columns={binColumns} rows={binsQuery.data?.content ?? []} getRowId={(row) => row.id} loading={binsQuery.isLoading} error={binsQuery.isError} onRetry={() => binsQuery.refetch()} pagination={binPage.pagination(binsQuery.data, binsQuery.isFetching)} />
           </Stack>
         </SectionCard>
       ) : null}
@@ -294,7 +286,7 @@ export default function ZoneDetailsPage() {
         <SectionCard title="Recent movement trace">
           <Stack spacing={2}>
             <TextField label="Search movement" value={movementSearch} onChange={(event) => { setMovementSearch(event.target.value); movementPage.reset(); }} size="small" fullWidth />
-            <DataTable columns={movementColumns} rows={movementsQuery.data?.content ?? []} getRowId={(row) => row.id} loading={movementsQuery.isLoading} error={movementsQuery.isError} onRetry={() => movementsQuery.refetch()} pagination={movementPage.pagination(movementsQuery.data)} />
+            <DataTable columns={movementColumns} rows={movementsQuery.data?.content ?? []} getRowId={(row) => row.id} loading={movementsQuery.isLoading} error={movementsQuery.isError} onRetry={() => movementsQuery.refetch()} pagination={movementPage.pagination(movementsQuery.data, movementsQuery.isFetching)} />
           </Stack>
         </SectionCard>
       ) : null}
