@@ -4,18 +4,11 @@ import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import ArchivedEntityAlert from '../../../shared/components/archive/ArchivedEntityAlert';
-import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
-import {
-  AttachmentsPanel,
-  ChangeHistoryPanel,
-  CommentsPanel,
-  DomainEventsPanel,
-} from '../../../shared/components/OperationalPanels';
+import { EntityDetailsLayout, DetailsField, DetailsOverviewCard, DetailsMetadataCard, RelatedDataSection, OperationalDetailsTabPanels, buildOperationalTabs } from '../../../shared/components/EntityDetails';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
@@ -32,20 +25,7 @@ import type {
 } from '../types/employee.types';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 
-type EmployeeDetailsTab = 'overview' | 'tasks' | 'shifts' | 'assignments' | 'transportActivity' | 'commentsAttachments' | 'domainEvents' | 'changeHistory';
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600}>
-        {value ?? '—'}
-      </Typography>
-    </Stack>
-  );
-}
+type EmployeeDetailsTab = 'overview' | 'tasks' | 'shifts' | 'assignments' | 'transportActivity' | 'attachments' | 'comments' | 'audit' | 'history';
 
 
 function formatDateTime(value: string | null | undefined) {
@@ -168,7 +148,7 @@ export default function EmployeeDetailsPage() {
       <EntityDetailsLayout
         overline="Workforce"
         title="Employee details"
-        actions={<Button variant="outlined" onClick={() => navigate('/employees')}>Back to list</Button>}
+        actionItems={[{ key: 'back', label: 'Back to list', to: '/employees' }]}
       >
         <SectionCard><Typography color="text.secondary">Loading employee details...</Typography></SectionCard>
       </EntityDetailsLayout>
@@ -191,72 +171,70 @@ export default function EmployeeDetailsPage() {
   const canViewHistory = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canManageOperationalNotes = canViewHistory || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
-  const tabs: { value: EmployeeDetailsTab; label: ReactNode }[] = [
+  const tabs: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
     { value: 'tasks', label: `Tasks${tasksQuery.data ? ` (${tasksQuery.data.length})` : ''}` },
     { value: 'shifts', label: `Shifts${shiftsQuery.data ? ` (${shiftsQuery.data.length})` : ''}` },
     { value: 'transportActivity', label: `Transport activity${transportOrdersQuery.data ? ` (${transportOrdersQuery.data.totalElements})` : ''}` },
-    { value: 'commentsAttachments', label: 'Comments & attachments' },
-    { value: 'domainEvents', label: 'Domain events' },
-    { value: 'changeHistory', label: 'Change history' },
+    ...buildOperationalTabs({ entityType: 'EMPLOYEE', entityName: 'EMPLOYEE', entityId: employee.id, allowCreateAttachments: canManageOperationalNotes, allowCreateComments: canManageOperationalNotes }),
   ];
 
   return (
     <EntityDetailsLayout
-      overline="Workforce"
       title={`${employee.firstName} ${employee.lastName}`}
-      description={`${employee.position} • ${employee.companyName ?? 'No company'}`}
+      breadcrumbs={[{ label: 'Employees', to: '/employees' }, { label: `${employee.firstName} ${employee.lastName}` }]}
+      hero={{
+        overline: 'Workforce',
+        title: `${employee.firstName} ${employee.lastName}`,
+        subtitle: `${employee.position} • ${employee.companyName ?? 'No company'}`,
+        status: employee.active ? 'ACTIVE' : 'INACTIVE',
+        primaryInfo: [
+          { label: 'Email', value: employee.email },
+          { label: 'Phone', value: `${employee.phoneCode ?? ''} ${employee.phoneNumber}`.trim() },
+          { label: 'Primary warehouse', value: employee.primaryWarehouseName ?? (employee.primaryWarehouseId ? `Warehouse #${employee.primaryWarehouseId}` : '—') },
+        ],
+      }}
+      actionItems={[
+        { key: 'back', label: 'Back to list', to: '/employees' },
+        ...(canTerminateEmployee && employee.active ? [{ key: 'archive', label: 'Archive employee', color: 'warning' as const, variant: 'contained' as const, disabled: terminateMutation.isPending, onClick: () => terminateMutation.mutate(employee.id) }] : []),
+        ...(canTerminateEmployee && !employee.active ? [{ key: 'restore', label: 'Restore employee', color: 'success' as const, variant: 'contained' as const, disabled: restoreMutation.isPending, onClick: () => restoreMutation.mutate(employee.id) }] : []),
+      ]}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as EmployeeDetailsTab)}
-      actions={
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button component={RouterLink} to="/employees" variant="outlined">Back to list</Button>
-          {canTerminateEmployee && employee.active ? (
-            <Button variant="contained" color="warning" disabled={terminateMutation.isPending} onClick={() => terminateMutation.mutate(employee.id)}>
-              Archive employee
-            </Button>
-          ) : null}
-          {canTerminateEmployee && !employee.active ? (
-            <Button variant="contained" color="success" disabled={restoreMutation.isPending} onClick={() => restoreMutation.mutate(employee.id)}>
-              Restore employee
-            </Button>
-          ) : null}
-        </Stack>
-      }
     >
       {!employee.active ? <ArchivedEntityAlert entityLabel="Employee" /> : null}
 
       {activeTab === 'overview' ? (
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, lg: 7 }}>
-            <SectionCard title="Employee overview">
+            <DetailsOverviewCard title="Employee overview" description="Employment, contact and assignment data.">
               <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="First name" value={employee.firstName} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Last name" value={employee.lastName} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Email" value={employee.email} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Phone number" value={`${employee.phoneCode ?? ''} ${employee.phoneNumber}`.trim()} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="JMBG" value={employee.jmbg} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Position" value={employee.position} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Employment date" value={employee.employmentDate} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Salary" value={formatSalary(employee.salary, employee.salaryCurrencyCode)} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Active" value={<StatusChip value={employee.active ? 'ACTIVE' : 'INACTIVE'} />} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Company" value={employee.companyName ?? '—'} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Primary warehouse" value={employee.primaryWarehouseId ? <Button component={RouterLink} to={`/warehouses/${employee.primaryWarehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{employee.primaryWarehouseName ?? `Warehouse #${employee.primaryWarehouseId}`}</Button> : '—'} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Location" value={`${employee.cityName ?? employee.city ?? '—'}${employee.countryCode ? `, ${employee.countryCode}` : ''}`} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="First name" value={employee.firstName} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Last name" value={employee.lastName} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Email" value={employee.email} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Phone number" value={`${employee.phoneCode ?? ''} ${employee.phoneNumber}`.trim()} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="JMBG" value={employee.jmbg} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Position" value={employee.position} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Employment date" value={employee.employmentDate} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Salary" value={formatSalary(employee.salary, employee.salaryCurrencyCode)} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Active" value={<StatusChip value={employee.active ? 'ACTIVE' : 'INACTIVE'} />} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Company" value={employee.companyName ?? '—'} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Primary warehouse" value={employee.primaryWarehouseId ? <Button component={RouterLink} to={`/warehouses/${employee.primaryWarehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{employee.primaryWarehouseName ?? `Warehouse #${employee.primaryWarehouseId}`}</Button> : '—'} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Location" value={`${employee.cityName ?? employee.city ?? '—'}${employee.countryCode ? `, ${employee.countryCode}` : ''}`} /></Grid>
               </Grid>
-            </SectionCard>
+            </DetailsOverviewCard>
           </Grid>
 
           <Grid size={{ xs: 12, lg: 5 }}>
-            <SectionCard title="Linked user details">
+            <DetailsMetadataCard title="Linked user details" description="Account connected to this employee record.">
               <Stack spacing={2}>
-                <InfoRow label="Linked user" value={employee.userId == null ? '—' : <Button component={RouterLink} to={`/users/${employee.userId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{linkedUser ? `${linkedUser.firstName} ${linkedUser.lastName} (${linkedUser.email})` : `User #${employee.userId}`}</Button>} />
-                <InfoRow label="Role" value={linkedUser?.roleName ?? '—'} />
-                <InfoRow label="Enabled" value={linkedUser ? <StatusChip value={linkedUser.enabled ? 'ACTIVE' : 'INACTIVE'} /> : '—'} />
-                <InfoRow label="User status" value={linkedUser?.status ?? '—'} />
+                <DetailsField label="Linked user" value={employee.userId == null ? '—' : <Button component={RouterLink} to={`/users/${employee.userId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{linkedUser ? `${linkedUser.firstName} ${linkedUser.lastName} (${linkedUser.email})` : `User #${employee.userId}`}</Button>} />
+                <DetailsField label="Role" value={linkedUser?.roleName ?? '—'} />
+                <DetailsField label="Enabled" value={linkedUser ? <StatusChip value={linkedUser.enabled ? 'ACTIVE' : 'INACTIVE'} /> : '—'} />
+                <DetailsField label="User status" value={linkedUser?.status ?? '—'} />
               </Stack>
-            </SectionCard>
+            </DetailsMetadataCard>
           </Grid>
         </Grid>
       ) : null}
@@ -317,16 +295,14 @@ export default function EmployeeDetailsPage() {
         </RelatedDataSection>
       ) : null}
 
-      {activeTab === 'commentsAttachments' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 6 }}><CommentsPanel entityType="EMPLOYEE" entityId={employee.id} allowCreate={canManageOperationalNotes} /></Grid>
-          <Grid size={{ xs: 12, lg: 6 }}><AttachmentsPanel entityType="EMPLOYEE" entityId={employee.id} allowCreate={canManageOperationalNotes} /></Grid>
-        </Grid>
-      ) : null}
-
-      {activeTab === 'domainEvents' ? <DomainEventsPanel entityType="EMPLOYEE" entityId={employee.id} /> : null}
-
-      {activeTab === 'changeHistory' ? <ChangeHistoryPanel entityName="EMPLOYEE" entityId={employee.id} /> : null}
+      <OperationalDetailsTabPanels
+        activeTab={activeTab}
+        entityType="EMPLOYEE"
+        entityName="EMPLOYEE"
+        entityId={employee.id}
+        allowCreateAttachments={canManageOperationalNotes}
+        allowCreateComments={canManageOperationalNotes}
+      />
     </EntityDetailsLayout>
   );
 }

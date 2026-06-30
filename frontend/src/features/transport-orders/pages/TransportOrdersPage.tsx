@@ -12,7 +12,6 @@ import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
-import StatusOverview from '../../../shared/components/StatusOverview/StatusOverview';
 import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { EntityLookupField } from '../../lookup';
 import type { LookupOption } from '../../lookup';
@@ -63,14 +62,6 @@ export default function TransportOrdersPage() {
     });
   }, [searchParams]);
 
-  const transportOrderStatusCountParams = {
-    search: filters.search,
-    priority: filters.priority,
-    sourceWarehouseId: sourceWarehouseFilter?.id ?? null,
-    destinationWarehouseId: destinationWarehouseFilter?.id ?? null,
-    vehicleId: vehicleFilter?.id ?? null,
-    assignedEmployeeId: driverFilter?.id ?? null,
-  };
   const transportOrdersQuery = useTransportOrders({
     ...filters,
     sourceWarehouseId: sourceWarehouseFilter?.id ?? null,
@@ -81,12 +72,6 @@ export default function TransportOrdersPage() {
     size,
     sort: buildSortParam(sort),
   }, true);
-  const transportStatusCountsQuery = useQuery({
-    queryKey: queryKeys.transportOrders.statusCounts(transportOrderStatusCountParams),
-    queryFn: () => transportOrdersApi.getStatusCounts(transportOrderStatusCountParams),
-    enabled: canReadAll,
-    staleTime: 30_000,
-  });
   const warehousesQuery = useQuery({
     queryKey: queryKeys.transportOrders.warehouses(),
     queryFn: transportOrdersApi.getWarehouses,
@@ -133,19 +118,6 @@ export default function TransportOrdersPage() {
   );
 
   const rows = transportOrdersQuery.data?.content ?? [];
-  const statusOverviewItems = useMemo(
-    () => {
-      const countsByStatus = new Map((transportStatusCountsQuery.data ?? []).map((item) => [item.status, item.count]));
-
-      return statusOptions
-        .filter((status) => status !== 'ALL')
-        .map((status) => ({
-          value: status,
-          count: countsByStatus.get(status) ?? rows.filter((row) => row.status === status).length,
-        }));
-    },
-    [rows, transportStatusCountsQuery.data],
-  );
   const isLookupsLoading = (canResolveWarehouses && warehousesQuery.isLoading) || (canResolveVehicles && vehiclesQuery.isLoading) || (canResolveEmployees && employeesQuery.isLoading);
   const availableVehiclesCount = (vehiclesQuery.data ?? []).filter((vehicle) => vehicle.status === 'AVAILABLE').length;
   const setupItems = [

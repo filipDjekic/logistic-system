@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Chip, Grid, Stack, Typography } from '@mui/material';
-import { EntityDetailsLayout } from '../../../shared/components/EntityDetails';
+import { Chip, Grid, Stack, Typography } from '@mui/material';
+import { EntityDetailsLayout, DetailsField, DetailsOverviewCard } from '../../../shared/components/EntityDetails';
 import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
@@ -27,7 +27,7 @@ export default function RoleDetailsPage() {
 
   if (roleQuery.isLoading) {
     return (
-      <EntityDetailsLayout overline="Security" title="Role Details" actions={<Button variant="outlined" onClick={() => navigate('/roles')}>Back to list</Button>}>
+      <EntityDetailsLayout overline="Security" title="Role Details" actionItems={[{ key: 'back', label: 'Back to list', to: '/roles' }]}>
         <SectionCard><Typography color="text.secondary">Loading role details...</Typography></SectionCard>
       </EntityDetailsLayout>
     );
@@ -52,40 +52,34 @@ export default function RoleDetailsPage() {
 
   return (
     <EntityDetailsLayout
-      overline="Security"
       title={normalizeRoleName(role.name)}
-      description={`Role #${role.id} • ${role.name}`}
+      breadcrumbs={[{ label: 'Roles', to: '/roles' }, { label: normalizeRoleName(role.name) }]}
+      hero={{
+        overline: 'Security',
+        title: normalizeRoleName(role.name),
+        subtitle: `Role #${role.id} • ${role.name}`,
+        primaryInfo: [
+          { label: 'System name', value: role.name },
+          { label: 'Display label', value: normalizeRoleName(role.name) },
+        ],
+      }}
+      actionItems={[
+        { key: 'history', label: 'View history', onClick: () => setActiveTab('changeHistory') },
+        { key: 'back', label: 'Back to list', onClick: () => navigate('/roles') },
+      ]}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as RoleDetailsTab)}
-      actions={
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button variant="outlined" onClick={() => setActiveTab('changeHistory')}>View history</Button>
-          <Button variant="outlined" onClick={() => navigate('/roles')}>Back to list</Button>
-        </Stack>
-      }
     >
       {activeTab === 'overview' ? (
-        <SectionCard title="Role overview" description="Role identity used by authorization guards and access checks.">
+        <DetailsOverviewCard title="Role overview" description="Role identity used by authorization guards and access checks.">
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">ID</Typography>
-              <Typography fontWeight={700}>{role.id}</Typography>
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">System name</Typography>
-              <Typography fontWeight={700}>{role.name}</Typography>
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">Display label</Typography>
-              <Typography fontWeight={700}>{normalizeRoleName(role.name)}</Typography>
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <Typography variant="caption" color="text.secondary">Description</Typography>
-              <Typography>{role.description || '—'}</Typography>
-            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}><DetailsField label="ID" value={role.id} /></Grid>
+            <Grid size={{ xs: 12, md: 4 }}><DetailsField label="System name" value={role.name} /></Grid>
+            <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Display label" value={normalizeRoleName(role.name)} /></Grid>
+            <Grid size={{ xs: 12 }}><DetailsField label="Description" value={role.description || '—'} /></Grid>
           </Grid>
-        </SectionCard>
+        </DetailsOverviewCard>
       ) : null}
 
       {activeTab === 'permissions' ? (

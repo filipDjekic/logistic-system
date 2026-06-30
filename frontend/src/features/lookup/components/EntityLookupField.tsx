@@ -3,7 +3,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { Box, Button, Chip, FormHelperText, IconButton, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { EntityLookupDialog } from './EntityLookupDialog';
-import type { LookupEntityType, LookupOption } from '../types/lookup.types';
+import type { LookupEntityType, LookupOption, LookupParams } from '../types/lookup.types';
 
 export type EntityLookupFieldProps = {
   label: string;
@@ -23,6 +23,7 @@ export type EntityLookupFieldProps = {
   activeOnly?: boolean;
   warehouseId?: number | string | null;
   accessMode?: 'read' | 'mutate';
+  lookupParams?: Omit<LookupParams, 'search' | 'page' | 'size' | 'sort'>;
 };
 
 export function EntityLookupField({
@@ -43,6 +44,7 @@ export function EntityLookupField({
   activeOnly,
   warehouseId,
   accessMode,
+  lookupParams,
 }: EntityLookupFieldProps) {
   const [open, setOpen] = useState(false);
 
@@ -148,6 +150,7 @@ export function EntityLookupField({
         activeOnly={activeOnly}
         warehouseId={warehouseId}
         accessMode={accessMode}
+        lookupParams={lookupParams}
       />
     </Box>
   );

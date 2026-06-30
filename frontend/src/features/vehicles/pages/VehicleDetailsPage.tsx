@@ -1,57 +1,59 @@
-import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import { Button, Grid, Stack, Typography } from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
-import { LifecycleHistoryTimeline, LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
-import ErrorState from '../../../shared/components/ErrorState/ErrorState';
-import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-import ArchivedEntityAlert from '../../../shared/components/archive/ArchivedEntityAlert';
-import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
+import { useEffect, useState, type ReactNode } from "react";
+import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
+import { Button, Stack } from "@mui/material";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { LifecycleTransitionDialog } from "../../../shared/components/Lifecycle";
+import ErrorState from "../../../shared/components/ErrorState/ErrorState";
+import DataTable from "../../../shared/components/DataTable/DataTable";
+import ServerTablePagination from "../../../shared/components/ServerTablePagination/ServerTablePagination";
+import StatusChip from "../../../shared/components/StatusChip/StatusChip";
+import ArchivedEntityAlert from "../../../shared/components/archive/ArchivedEntityAlert";
 import {
-  AttachmentsPanel,
-  ChangeHistoryPanel,
-  CommentsPanel,
-  DomainEventsPanel,
-} from '../../../shared/components/OperationalPanels';
-import VehicleStatusChip from '../components/VehicleStatusChip';
-import { useAppSnackbar } from '../../../app/providers/useSnackbar';
-import { useAuthStore } from '../../../core/auth/authStore';
-import { ROLES } from '../../../core/constants/roles';
-import { getErrorMessage } from '../../../core/utils/getErrorMessage';
-import { invalidateVehicleState } from '../../../core/utils/invalidateAppState';
-import { useTransportOrders } from '../../transport-orders/hooks/useTransportOrders';
-import VehicleMaintenanceSection from '../../vehicle-maintenance/components/VehicleMaintenanceSection';
-import { vehiclesApi } from '../api/vehiclesApi';
-import { useVehicle } from '../hooks/useVehicle';
-import type { VehicleStatus } from '../types/vehicle.types';
+  DetailsLifecycleCard,
+  DetailsMetadataCard,
+  DetailsOverviewCard,
+  DetailsStatisticsCard,
+  EntityDetailsLayout,
+  OperationalDetailsTabPanels,
+  RelatedDataSection,
+  buildOperationalTabs,
+} from "../../../shared/components/EntityDetails";
+import VehicleStatusChip from "../components/VehicleStatusChip";
+import { useAppSnackbar } from "../../../app/providers/useSnackbar";
+import { useAuthStore } from "../../../core/auth/authStore";
+import { ROLES } from "../../../core/constants/roles";
+import { getErrorMessage } from "../../../core/utils/getErrorMessage";
+import { invalidateVehicleState } from "../../../core/utils/invalidateAppState";
+import { useTransportOrders } from "../../transport-orders/hooks/useTransportOrders";
+import VehicleMaintenanceSection from "../../vehicle-maintenance/components/VehicleMaintenanceSection";
+import { vehiclesApi } from "../api/vehiclesApi";
+import { useVehicle } from "../hooks/useVehicle";
+import type { VehicleStatus } from "../types/vehicle.types";
 
-type VehicleDetailsTab = 'overview' | 'lifecycle' | 'transports' | 'maintenance' | 'commentsAttachments' | 'domainEvents' | 'changeHistory';
+type VehicleDetailsTab =
+  | "overview"
+  | "lifecycle"
+  | "transports"
+  | "maintenance"
+  | "attachments"
+  | "comments"
+  | "audit"
+  | "history";
 
 function formatCapacity(value: number) {
   return `${value} kg`;
 }
 
-function formatOptionalNumber(value: number | null | undefined, suffix = '') {
-  return value == null ? '—' : `${value}${suffix}`;
+function formatOptionalNumber(value: number | null | undefined, suffix = "") {
+  return value == null ? "—" : `${value}${suffix}`;
 }
 
 function formatDateTime(value: string | null | undefined) {
-  if (!value) return '—';
+  if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value.replace('T', ' ') : date.toLocaleString();
-}
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600}>{value ?? '—'}</Typography>
-    </Stack>
-  );
+  return Number.isNaN(date.getTime())
+    ? value.replace("T", " ")
+    : date.toLocaleString();
 }
 
 export default function VehicleDetailsPage() {
@@ -63,20 +65,31 @@ export default function VehicleDetailsPage() {
 
   const vehicleId = Number(params.id);
   const validVehicleId = Number.isFinite(vehicleId) ? vehicleId : null;
-  const [activeTab, setActiveTab] = useState<VehicleDetailsTab>('overview');
-  const [transitionTarget, setTransitionTarget] = useState<VehicleStatus | null>(null);
+  const [activeTab, setActiveTab] = useState<VehicleDetailsTab>("overview");
+  const [transportPage, setTransportPage] = useState(0);
+  const [transportSize, setTransportSize] = useState(10);
+  const [transitionTarget, setTransitionTarget] =
+    useState<VehicleStatus | null>(null);
 
-  const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManage =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const vehicleQuery = useVehicle(validVehicleId);
   const vehicle = vehicleQuery.data;
   const transportOrdersQuery = useTransportOrders(
-    { vehicleId: validVehicleId, page: 0, size: 10, sort: 'departureTime,desc' },
-    Boolean(validVehicleId) && activeTab === 'transports',
+    {
+      vehicleId: validVehicleId,
+      page: transportPage,
+      size: transportSize,
+      sort: "departureTime,desc",
+    },
+    Boolean(validVehicleId) && activeTab === "transports",
   );
   const allowedTransitionsQuery = useQuery({
-    queryKey: ['vehicles', validVehicleId, 'status-transitions'],
-    queryFn: () => vehiclesApi.getAllowedStatusTransitions(Number(validVehicleId)),
+    queryKey: ["vehicles", validVehicleId, "status-transitions"],
+    queryFn: () =>
+      vehiclesApi.getAllowedStatusTransitions(Number(validVehicleId)),
     enabled: Boolean(validVehicleId) && canManage,
     staleTime: 15000,
     refetchOnWindowFocus: false,
@@ -85,36 +98,57 @@ export default function VehicleDetailsPage() {
   const archiveMutation = useMutation({
     mutationFn: (id: number) => vehiclesApi.archive(id),
     onSuccess: async () => {
-      showSnackbar({ message: 'Vehicle archived successfully.', severity: 'success' });
+      showSnackbar({
+        message: "Vehicle archived successfully.",
+        severity: "success",
+      });
       await invalidateVehicleState(queryClient, vehicleId);
     },
-    onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
+    onError: (error) =>
+      showSnackbar({ message: getErrorMessage(error), severity: "error" }),
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => vehiclesApi.restore(id),
     onSuccess: async () => {
-      showSnackbar({ message: 'Vehicle restored successfully.', severity: 'success' });
+      showSnackbar({
+        message: "Vehicle restored successfully.",
+        severity: "success",
+      });
       await invalidateVehicleState(queryClient, vehicleId);
     },
-    onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
+    onError: (error) =>
+      showSnackbar({ message: getErrorMessage(error), severity: "error" }),
   });
 
   const changeStatusMutation = useMutation({
-    mutationFn: ({ id, status, reason, expectedVersion }: { id: number; status: VehicleStatus; reason?: string; expectedVersion?: number }) => vehiclesApi.changeStatus(id, status, reason, expectedVersion),
+    mutationFn: ({
+      id,
+      status,
+      reason,
+      expectedVersion,
+    }: {
+      id: number;
+      status: VehicleStatus;
+      reason?: string;
+      expectedVersion?: number;
+    }) => vehiclesApi.changeStatus(id, status, reason, expectedVersion),
     onSuccess: async (_, variables) => {
-      showSnackbar({ message: `Vehicle status updated to ${variables.status}.`, severity: 'success' });
+      showSnackbar({
+        message: `Vehicle status updated to ${variables.status}.`,
+        severity: "success",
+      });
       await invalidateVehicleState(queryClient, variables.id);
       setTransitionTarget(null);
       await allowedTransitionsQuery.refetch();
     },
     onError: (error) => {
-      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+      showSnackbar({ message: getErrorMessage(error), severity: "error" });
     },
   });
 
   useEffect(() => {
-    if (!vehicle || ['AVAILABLE', 'OUT_OF_SERVICE'].includes(vehicle.status)) {
+    if (!vehicle || ["AVAILABLE", "OUT_OF_SERVICE"].includes(vehicle.status)) {
       return undefined;
     }
 
@@ -127,7 +161,12 @@ export default function VehicleDetailsPage() {
   }, [vehicle, vehicleQuery, allowedTransitionsQuery]);
 
   if (!Number.isFinite(vehicleId)) {
-    return <ErrorState title="Invalid vehicle" description="The vehicle ID in the route is not valid." />;
+    return (
+      <ErrorState
+        title="Invalid vehicle"
+        description="The vehicle ID in the route is not valid."
+      />
+    );
   }
 
   if (vehicleQuery.isLoading) {
@@ -135,13 +174,13 @@ export default function VehicleDetailsPage() {
       <EntityDetailsLayout
         overline="Fleet"
         title="Vehicle details"
-        actions={
-          <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => navigate('/vehicles')}>Back to list</Button>
-          </Stack>
-        }
+        loading
+        loadingText="Loading vehicle details..."
+        actionItems={[
+          { label: "Back to list", onClick: () => navigate("/vehicles") },
+        ]}
       >
-        <SectionCard><Typography color="text.secondary">Loading vehicle details...</Typography></SectionCard>
+        <></>
       </EntityDetailsLayout>
     );
   }
@@ -156,14 +195,27 @@ export default function VehicleDetailsPage() {
     );
   }
 
-  const tabs: { value: VehicleDetailsTab; label: ReactNode }[] = [
-    { value: 'overview', label: 'Overview' },
-    { value: 'lifecycle', label: 'Lifecycle' },
-    { value: 'transports', label: `Transport history${transportOrdersQuery.data ? ` (${transportOrdersQuery.data.totalElements})` : ''}` },
-    { value: 'maintenance', label: 'Maintenance' },
-    { value: 'commentsAttachments', label: 'Comments & attachments' },
-    { value: 'domainEvents', label: 'Domain events' },
-    { value: 'changeHistory', label: 'Change history' },
+  const allowedVehicleStatuses = allowedTransitionsQuery.data?.allowedStatuses ?? [];
+  const vehicleLifecycleStatuses: VehicleStatus[] = vehicle.status === "OUT_OF_SERVICE"
+    ? ["AVAILABLE", "MAINTENANCE", "OUT_OF_SERVICE"]
+    : ["AVAILABLE", "RESERVED", "IN_USE", "MAINTENANCE"];
+  const vehicleLifecycleActions = allowedVehicleStatuses.map((status) => ({
+    key: status,
+    label: status === "AVAILABLE" ? "Mark available" : status === "MAINTENANCE" ? "Send to maintenance" : status === "OUT_OF_SERVICE" ? "Take out of service" : `Set status to ${status}`,
+    variant: "contained" as const,
+    disabled: changeStatusMutation.isPending,
+    onClick: () => setTransitionTarget(status),
+  }));
+
+  const tabs: { value: string; label: ReactNode; disabled?: boolean }[] = [
+    { value: "overview", label: "Overview" },
+    { value: "lifecycle", label: "Lifecycle" },
+    {
+      value: "transports",
+      label: `Related data${transportOrdersQuery.data ? ` (${transportOrdersQuery.data.totalElements})` : ""}`,
+    },
+    { value: "maintenance", label: "Maintenance" },
+    ...buildOperationalTabs({ entityType: "VEHICLE", entityName: "VEHICLE", entityId: vehicle.id, allowCreateAttachments: canManage, allowCreateComments: canManage }),
   ];
 
   return (
@@ -174,85 +226,196 @@ export default function VehicleDetailsPage() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as VehicleDetailsTab)}
-      actions={
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {canManage && vehicle.status !== 'OUT_OF_SERVICE' ? (
-            <Button variant="outlined" color="warning" disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(vehicle.id)}>Archive</Button>
-          ) : null}
-          {canManage && vehicle.status === 'OUT_OF_SERVICE' ? (
-            <Button variant="contained" color="success" disabled={restoreMutation.isPending} onClick={() => restoreMutation.mutate(vehicle.id)}>Restore</Button>
-          ) : null}
-          <Button variant="outlined" onClick={() => navigate('/vehicles')}>Back to list</Button>
-        </Stack>
-      }
+      breadcrumbs={[
+        { label: "Vehicles", to: "/vehicles" },
+        { label: vehicle.registrationNumber },
+      ]}
+      hero={{
+        overline: "Fleet",
+        title: `${vehicle.brand} ${vehicle.model}`,
+        subtitle: vehicle.registrationNumber,
+        description: `Vehicle #${vehicle.id} used for transport order execution and fleet operations.`,
+        avatar: vehicle.registrationNumber.slice(0, 2).toUpperCase(),
+        statusNode: <VehicleStatusChip status={vehicle.status} />,
+        primaryInfo: [
+          { label: "Type", value: vehicle.type },
+          { label: "Capacity", value: formatCapacity(vehicle.capacity) },
+          { label: "Fuel", value: vehicle.fuelType },
+          { label: "Company", value: vehicle.companyName ?? "—" },
+        ],
+      }}
+      actionItems={[
+        ...(canManage && vehicle.status !== "OUT_OF_SERVICE"
+          ? [
+              {
+                label: "Archive",
+                color: "warning" as const,
+                disabled: archiveMutation.isPending,
+                onClick: () => archiveMutation.mutate(vehicle.id),
+              },
+            ]
+          : []),
+        ...(canManage && vehicle.status === "OUT_OF_SERVICE"
+          ? [
+              {
+                label: "Restore",
+                variant: "contained" as const,
+                color: "success" as const,
+                disabled: restoreMutation.isPending,
+                onClick: () => restoreMutation.mutate(vehicle.id),
+              },
+            ]
+          : []),
+        { label: "Back to list", onClick: () => navigate("/vehicles") },
+      ]}
     >
-      {(vehicle.status === 'OUT_OF_SERVICE' || vehicle.active === false) ? <ArchivedEntityAlert entityLabel="Vehicle" /> : null}
+      {vehicle.status === "OUT_OF_SERVICE" || vehicle.active === false ? (
+        <ArchivedEntityAlert entityLabel="Vehicle" />
+      ) : null}
 
-      {activeTab === 'overview' ? (
+      {activeTab === "overview" ? (
         <Stack spacing={3}>
-          <SectionCard title="Vehicle overview" description="Confirmed backend fields for the selected vehicle.">
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Registration number" value={vehicle.registrationNumber} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Brand" value={vehicle.brand} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Model" value={vehicle.model} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Type" value={vehicle.type} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Fuel type" value={vehicle.fuelType} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Year of production" value={vehicle.yearOfProduction} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Capacity" value={formatCapacity(vehicle.capacity)} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Max weight" value={formatOptionalNumber(vehicle.maxWeight, ' kg')} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Max volume" value={formatOptionalNumber(vehicle.maxVolume)} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Max items" value={formatOptionalNumber(vehicle.maxItems)} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Stack spacing={0.5} alignItems="flex-start">
-                  <Typography variant="caption" color="text.secondary">Status</Typography>
-                  <VehicleStatusChip status={vehicle.status} />
-                </Stack>
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Company" value={vehicle.companyName ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Active maintenance" value={vehicle.hasActiveMaintenance ? 'Yes' : 'No'} /></Grid>
-            </Grid>
-          </SectionCard>
+          <DetailsStatisticsCard
+            title="Fleet snapshot"
+            description="Quick operational indicators for this vehicle."
+            statistics={[
+              {
+                title: "Capacity",
+                value: formatCapacity(vehicle.capacity),
+                subtitle: "Nominal payload capacity",
+              },
+              {
+                title: "Max weight",
+                value: formatOptionalNumber(vehicle.maxWeight, " kg"),
+                subtitle: "Weight constraint",
+              },
+              {
+                title: "Max volume",
+                value: formatOptionalNumber(vehicle.maxVolume),
+                subtitle: "Volume constraint",
+              },
+              {
+                title: "Maintenance",
+                value: vehicle.hasActiveMaintenance ? "Active" : "Clear",
+                subtitle: "Current maintenance state",
+                accent: vehicle.hasActiveMaintenance ? "warning" : "success",
+              },
+            ]}
+          />
+
+          <DetailsOverviewCard
+            title="Overview"
+            description="Most important vehicle information used by dispatch and transport planning."
+            fields={[
+              {
+                label: "Registration number",
+                value: vehicle.registrationNumber,
+              },
+              { label: "Brand", value: vehicle.brand },
+              { label: "Model", value: vehicle.model },
+              { label: "Type", value: vehicle.type },
+              { label: "Fuel type", value: vehicle.fuelType },
+              { label: "Year of production", value: vehicle.yearOfProduction },
+              { label: "Capacity", value: formatCapacity(vehicle.capacity) },
+              {
+                label: "Max weight",
+                value: formatOptionalNumber(vehicle.maxWeight, " kg"),
+              },
+              {
+                label: "Max volume",
+                value: formatOptionalNumber(vehicle.maxVolume),
+              },
+              {
+                label: "Max items",
+                value: formatOptionalNumber(vehicle.maxItems),
+              },
+              {
+                label: "Status",
+                value: <VehicleStatusChip status={vehicle.status} />,
+              },
+              {
+                label: "Active maintenance",
+                value: vehicle.hasActiveMaintenance ? "Yes" : "No",
+              },
+            ]}
+          />
+
+          <DetailsMetadataCard
+            fields={[
+              { label: "Vehicle ID", value: vehicle.id },
+              { label: "Version", value: vehicle.version },
+              { label: "Company", value: vehicle.companyName ?? "—" },
+              { label: "Company ID", value: vehicle.companyId ?? "—" },
+              {
+                label: "Active",
+                value: vehicle.active === false ? "No" : "Yes",
+              },
+            ]}
+          />
         </Stack>
       ) : null}
 
-
-      {activeTab === 'lifecycle' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12 }}>
-            <LifecycleHistoryTimeline entityName="VEHICLE" entityId={vehicle.id} />
-          </Grid>
-        </Grid>
+      {activeTab === "lifecycle" ? (
+        <DetailsLifecycleCard
+          currentStatus={vehicle.status}
+          statusNode={<VehicleStatusChip status={vehicle.status} />}
+          statusDescription="Vehicle lifecycle controls dispatch availability, maintenance and service state."
+          statuses={vehicleLifecycleStatuses}
+          allowedNextStatuses={allowedVehicleStatuses}
+          terminalStatuses={["OUT_OF_SERVICE"]}
+          actions={canManage ? vehicleLifecycleActions : []}
+          noActionsText={canManage ? "No lifecycle transition is currently available." : "Your role cannot change vehicle lifecycle status."}
+          historyEntityName="VEHICLE"
+          historyEntityId={vehicle.id}
+        />
       ) : null}
 
-      {activeTab === 'transports' ? (
+      {activeTab === "transports" ? (
         <RelatedDataSection
           title="Transport history"
           description="Transport orders where this vehicle is assigned."
           loading={transportOrdersQuery.isLoading}
           error={transportOrdersQuery.isError}
-          onRetry={() => { void transportOrdersQuery.refetch(); }}
-          empty={!transportOrdersQuery.isLoading && !transportOrdersQuery.isError && (transportOrdersQuery.data?.content ?? []).length === 0}
+          onRetry={() => {
+            void transportOrdersQuery.refetch();
+          }}
+          empty={
+            !transportOrdersQuery.isLoading &&
+            !transportOrdersQuery.isError &&
+            (transportOrdersQuery.data?.content ?? []).length === 0
+          }
           emptyTitle="No transport history"
         >
-          <Stack spacing={1.25}>
-            {(transportOrdersQuery.data?.content ?? []).map((order) => (
-              <Stack key={order.id} spacing={0.5} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                <Button component={RouterLink} to={`/transport-orders/${order.id}`} size="small" sx={{ alignSelf: 'flex-start', px: 0, minWidth: 0, fontWeight: 800 }}>
-                  {order.orderNumber}
-                </Button>
-                <Typography variant="body2" color="text.secondary">{order.description}</Typography>
-                <Typography variant="caption" color="text.secondary">Departure: {formatDateTime(order.departureTime)}</Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <StatusChip value={order.status} />
-                  <Button size="small" component={RouterLink} to={`/transport-orders/${order.id}`}>Open</Button>
-                </Stack>
-              </Stack>
-            ))}
-          </Stack>
+          <DataTable
+            columns={[
+              { id: "orderNumber", header: "Order", render: (order) => <Button component={RouterLink} to={`/transport-orders/${order.id}`} size="small" sx={{ px: 0, minWidth: 0, fontWeight: 800 }}>{order.orderNumber}</Button> },
+              { id: "description", header: "Description", render: (order) => order.description ?? "—" },
+              { id: "departure", header: "Departure", render: (order) => formatDateTime(order.departureTime) },
+              { id: "status", header: "Status", render: (order) => <StatusChip value={order.status} /> },
+              { id: "actions", header: "Action", align: "right", render: (order) => <Button size="small" component={RouterLink} to={`/transport-orders/${order.id}`}>Open</Button> },
+            ]}
+            rows={transportOrdersQuery.data?.content ?? []}
+            getRowId={(order) => order.id}
+            loading={transportOrdersQuery.isLoading}
+            error={transportOrdersQuery.isError}
+            onRetry={() => { void transportOrdersQuery.refetch(); }}
+            size="small"
+            minWidth={840}
+            emptyTitle="No transport history"
+            emptyDescription="This vehicle is not assigned to any transport orders yet."
+            pagination={
+              <ServerTablePagination
+                page={transportOrdersQuery.data}
+                disabled={transportOrdersQuery.isFetching}
+                onPageChange={setTransportPage}
+                onSizeChange={(nextSize) => { setTransportSize(nextSize); setTransportPage(0); }}
+              />
+            }
+          />
         </RelatedDataSection>
       ) : null}
 
-      {activeTab === 'maintenance' ? (
+      {activeTab === "maintenance" ? (
         <VehicleMaintenanceSection
           fixedVehicle={{
             id: vehicle.id,
@@ -262,16 +425,14 @@ export default function VehicleDetailsPage() {
         />
       ) : null}
 
-      {activeTab === 'commentsAttachments' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 6 }}><CommentsPanel entityType="VEHICLE" entityId={vehicle.id} allowCreate={canManage} /></Grid>
-          <Grid size={{ xs: 12, lg: 6 }}><AttachmentsPanel entityType="VEHICLE" entityId={vehicle.id} allowCreate={canManage} /></Grid>
-        </Grid>
-      ) : null}
-
-      {activeTab === 'domainEvents' ? <DomainEventsPanel entityType="VEHICLE" entityId={vehicle.id} /> : null}
-
-      {activeTab === 'changeHistory' ? <ChangeHistoryPanel entityName="VEHICLE" entityId={vehicle.id} /> : null}
+      <OperationalDetailsTabPanels
+        activeTab={activeTab}
+        entityType="VEHICLE"
+        entityName="VEHICLE"
+        entityId={vehicle.id}
+        allowCreateAttachments={canManage}
+        allowCreateComments={canManage}
+      />
 
       <LifecycleTransitionDialog
         open={transitionTarget != null}
@@ -283,7 +444,12 @@ export default function VehicleDetailsPage() {
         onClose={() => setTransitionTarget(null)}
         onConfirm={(reason) => {
           if (!transitionTarget) return;
-          changeStatusMutation.mutate({ id: vehicle.id, status: transitionTarget, reason, expectedVersion: vehicle.version });
+          changeStatusMutation.mutate({
+            id: vehicle.id,
+            status: transitionTarget,
+            reason,
+            expectedVersion: vehicle.version,
+          });
         }}
       />
     </EntityDetailsLayout>

@@ -225,12 +225,10 @@ export default function ZoneDetailsPage() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as TabKey)}
-      actions={(
-        <Stack direction="row" spacing={1}>
-          <Button component={RouterLink} to={warehouseLocationRoutes.warehouseDetails(warehouseId)} variant="outlined">Warehouse</Button>
-          <Button variant="contained" onClick={() => setCreateBinOpen(true)}>Create bin</Button>
-        </Stack>
-      )}
+      actionItems={[
+        { key: 'warehouse', label: 'Warehouse', to: warehouseLocationRoutes.warehouseDetails(warehouseId) },
+        { key: 'create-bin', label: 'Create bin', variant: 'contained', onClick: () => setCreateBinOpen(true) },
+      ]}
     >
       {zoneQuery.isError ? <Alert severity="error">Location could not be loaded.</Alert> : null}
 

@@ -23,4 +23,8 @@ export type LookupParams = {
   activeOnly?: boolean;
   warehouseId?: number | string | null;
   accessMode?: 'read' | 'mutate';
+  position?: string;
+  active?: boolean;
+  availableFrom?: string;
+  availableTo?: string;
 };

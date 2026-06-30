@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -9,23 +8,24 @@ import {
   Grid,
   LinearProgress,
   Stack,
-  Table,
-  TablePagination,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from '@mui/material';
 import { normalizeApiError } from '../../../core/api/apiError';
+import type { PageResponse } from '../../../core/api/pagination';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
-import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import RecommendedNextStep from '../../../shared/components/NextStep/RecommendedNextStep';
+import DataTable from '../../../shared/components/DataTable/DataTable';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
-import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
+import {
+  DetailsMetadataCard,
+  DetailsOverviewCard,
+  DetailsStatisticsCard,
+  EntityDetailsLayout,
+  RelatedDataSection,
+} from '../../../shared/components/EntityDetails';
 import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
 import InventoryStatusChip from '../components/InventoryStatusChip';
 import { useInventoryRecord } from '../hooks/useInventoryRecord';
@@ -33,25 +33,6 @@ import { useBinInventory, useInternalWarehouseMovements } from '../../warehouse-
 import { useStockMovements } from '../../stock-movements/hooks/useStockMovements';
 
 type InventoryDetailsTab = 'overview' | 'binDistribution' | 'stockMovements' | 'activity';
-
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number | boolean | null | undefined | ReactNode;
-}) {
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600} component="div">
-        {value === null || value === undefined || value === '' ? '—' : value}
-      </Typography>
-    </Stack>
-  );
-}
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -79,17 +60,13 @@ function toNumber(value: number | string | null | undefined) {
 function usePagedState(defaultSize = 10) {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(defaultSize);
-  const pagination = (data: { totalElements: number; number: number; size: number } | undefined) => (
-    <TablePagination
-      component="div"
-      count={data?.totalElements ?? 0}
-      page={data?.number ?? page}
-      rowsPerPage={data?.size ?? size}
-      rowsPerPageOptions={[5, 10, 20, 50]}
-      onPageChange={(_, nextPage) => setPage(nextPage)}
-      onRowsPerPageChange={(event) => {
+  const pagination = (data: PageResponse<unknown> | undefined) => (
+    <ServerTablePagination
+      page={data}
+      onPageChange={setPage}
+      onSizeChange={(nextSize) => {
         setPage(0);
-        setSize(Number(event.target.value));
+        setSize(nextSize);
       }}
     />
   );
@@ -299,49 +276,59 @@ export default function InventoryDetailsPage() {
             </Alert>
           ) : null}
 
-          <SectionCard title="Inventory overview">
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Quantity" value={record.quantity} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Reserved" value={record.reservedQuantity} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Available" value={record.availableQuantity} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}>
-                <Stack spacing={0.5} alignItems="flex-start">
-                  <Typography variant="caption" color="text.secondary">Status</Typography>
-                  <InventoryStatusChip status={record.derivedStatus} />
-                </Stack>
-              </Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Minimum stock" value={record.minStockLevel} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Average unit cost" value={formatMoney(record.averageUnitCost, record.currency)} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Total value" value={formatMoney(record.totalValue, record.currency)} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Currency" value={record.currency ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Warehouse" value={<Button size="small" component={RouterLink} to={`/warehouses/${record.warehouseId}`}>{record.warehouseName}</Button>} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Product" value={<Button size="small" component={RouterLink} to={`/products/${record.productId}`}>{record.productName}</Button>} /></Grid>
-            </Grid>
-          </SectionCard>
+          <DetailsStatisticsCard
+            title="Inventory quantities"
+            description="Current stock position for this warehouse/product pair."
+            statistics={[
+              { key: 'quantity', title: 'Quantity', value: record.quantity, subtitle: `Minimum ${record.minStockLevel}` },
+              { key: 'reserved', title: 'Reserved', value: record.reservedQuantity, subtitle: 'Blocked for operations' },
+              { key: 'available', title: 'Available', value: record.availableQuantity, subtitle: 'Usable quantity' },
+              { key: 'value', title: 'Total value', value: formatMoney(record.totalValue, record.currency), subtitle: record.currency ?? 'No currency' },
+            ]}
+          />
+
+          <DetailsOverviewCard
+            title="Inventory overview"
+            description="Operational identity, status and valuation fields."
+            fields={[
+              { key: 'status', label: 'Status', value: <InventoryStatusChip status={record.derivedStatus} /> },
+              { key: 'minimumStock', label: 'Minimum stock', value: record.minStockLevel },
+              { key: 'averageCost', label: 'Average unit cost', value: formatMoney(record.averageUnitCost, record.currency) },
+              { key: 'currency', label: 'Currency', value: record.currency ?? '—' },
+              { key: 'warehouse', label: 'Warehouse', value: <Button size="small" component={RouterLink} to={`/warehouses/${record.warehouseId}`}>{record.warehouseName}</Button> },
+              { key: 'product', label: 'Product', value: <Button size="small" component={RouterLink} to={`/products/${record.productId}`}>{record.productName}</Button> },
+            ]}
+          />
 
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <SectionCard title="Warehouse">
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Name" value={warehouse?.name ?? record.warehouseName} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="City" value={warehouse?.city ?? record.warehouseCity} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Status" value={warehouse?.status ?? record.warehouseStatus} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Bin tracking" value={warehouse?.binTrackingEnabled ? 'Enabled' : 'Disabled'} /></Grid>
-                  <Grid size={{ xs: 12 }}><InfoRow label="Address" value={warehouse?.address ?? null} /></Grid>
-                </Grid>
-              </SectionCard>
+              <DetailsMetadataCard
+                title="Warehouse"
+                description="Warehouse context for this inventory record."
+                columns={{ xs: 12, sm: 6 }}
+                fields={[
+                  { key: 'name', label: 'Name', value: warehouse?.name ?? record.warehouseName },
+                  { key: 'city', label: 'City', value: warehouse?.city ?? record.warehouseCity },
+                  { key: 'status', label: 'Status', value: warehouse?.status ?? record.warehouseStatus },
+                  { key: 'binTracking', label: 'Bin tracking', value: warehouse?.binTrackingEnabled ? 'Enabled' : 'Disabled' },
+                  { key: 'address', label: 'Address', value: warehouse?.address ?? null, size: { xs: 12 } },
+                ]}
+              />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <SectionCard title="Product">
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Name" value={product?.name ?? record.productName} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="SKU" value={product?.sku ?? record.productSku} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Unit" value={product?.unit ?? record.productUnit} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Weight" value={product?.weight ?? null} /></Grid>
-                  <Grid size={{ xs: 12, md: 6 }}><InfoRow label="Fragile" value={product == null ? null : product.fragile ? 'Yes' : 'No'} /></Grid>
-                </Grid>
-              </SectionCard>
+              <DetailsMetadataCard
+                title="Product"
+                description="Product context for this inventory record."
+                columns={{ xs: 12, sm: 6 }}
+                fields={[
+                  { key: 'name', label: 'Name', value: product?.name ?? record.productName },
+                  { key: 'sku', label: 'SKU', value: product?.sku ?? record.productSku },
+                  { key: 'unit', label: 'Unit', value: product?.unit ?? record.productUnit },
+                  { key: 'weight', label: 'Weight', value: product?.weight ?? null },
+                  { key: 'fragile', label: 'Fragile', value: product == null ? null : product.fragile ? 'Yes' : 'No' },
+                ]}
+              />
             </Grid>
           </Grid>
         </Stack>
@@ -381,34 +368,21 @@ export default function InventoryDetailsPage() {
                 </Box>
               </Grid>
             </Grid>
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Zone</TableCell>
-                    <TableCell>Bin</TableCell>
-                    <TableCell align="right">Quantity share</TableCell>
-                    <TableCell>Updated</TableCell>
-                    <TableCell align="right">Action</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {binRows.map((row) => (
-                    <TableRow key={`${row.binLocationId}-${row.productId}`} hover>
-                      <TableCell>{row.zoneCode}</TableCell>
-                      <TableCell>{row.binLocationCode} · {row.binLocationName}</TableCell>
-                      <TableCell align="right" sx={{ minWidth: 180 }}><QuantityShare value={row.quantity} total={totalBinQuantity} /></TableCell>
-                      <TableCell>{formatDate(row.lastUpdated)}</TableCell>
-                      <TableCell align="right">
-                        <Button size="small" component={RouterLink} to={binDetailsPath(row.warehouseId, row.zoneId, row.binLocationId)}>
-                          Open bin
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <DataTable
+              columns={[
+                { id: 'zone', header: 'Zone', accessor: 'zoneCode' },
+                { id: 'bin', header: 'Bin', render: (row) => `${row.binLocationCode} · ${row.binLocationName}` },
+                { id: 'quantity', header: 'Quantity share', align: 'right', minWidth: 180, render: (row) => <QuantityShare value={row.quantity} total={totalBinQuantity} /> },
+                { id: 'updated', header: 'Updated', render: (row) => formatDate(row.lastUpdated) },
+                { id: 'actions', header: 'Action', align: 'right', render: (row) => <Button size="small" component={RouterLink} to={binDetailsPath(row.warehouseId, row.zoneId, row.binLocationId)}>Open bin</Button> },
+              ]}
+              rows={binRows}
+              getRowId={(row) => `${row.binLocationId}-${row.productId}`}
+              size="small"
+              minWidth={760}
+              emptyTitle="No bin distribution"
+              emptyDescription="This inventory record is not distributed across bins yet."
+            />
             {binDistributionPage.pagination(binInventoryQuery.data)}
           </Stack>
         </RelatedDataSection>
@@ -427,36 +401,23 @@ export default function InventoryDetailsPage() {
             emptyDescription="No stock movements have been recorded for this inventory record yet."
           >
             <Stack spacing={2}>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Type</TableCell>
-                      <TableCell>Reason</TableCell>
-                      <TableCell align="right">Quantity</TableCell>
-                      <TableCell>Balance</TableCell>
-                      <TableCell align="right">Value</TableCell>
-                      <TableCell align="right">Action</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {stockMovementRows.map((movement) => (
-                      <TableRow key={movement.id} hover>
-                        <TableCell>{formatDate(movement.createdAt)}</TableCell>
-                        <TableCell>{movement.movementType}</TableCell>
-                        <TableCell>{movement.reasonCode ?? '—'}</TableCell>
-                        <TableCell align="right">{movement.quantity}</TableCell>
-                        <TableCell>{movement.quantityBefore} → {movement.quantityAfter}</TableCell>
-                        <TableCell align="right">{formatMoney(movement.totalCost, movement.currency)}</TableCell>
-                        <TableCell align="right">
-                          <Button size="small" component={RouterLink} to={`/stock-movements/${movement.id}`}>Open</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <DataTable
+                columns={[
+                  { id: 'date', header: 'Date', render: (movement) => formatDate(movement.createdAt) },
+                  { id: 'type', header: 'Type', accessor: 'movementType' },
+                  { id: 'reason', header: 'Reason', render: (movement) => movement.reasonCode ?? '—' },
+                  { id: 'quantity', header: 'Quantity', align: 'right', accessor: 'quantity' },
+                  { id: 'balance', header: 'Balance', render: (movement) => `${movement.quantityBefore} → ${movement.quantityAfter}` },
+                  { id: 'value', header: 'Value', align: 'right', render: (movement) => formatMoney(movement.totalCost, movement.currency) },
+                  { id: 'actions', header: 'Action', align: 'right', render: (movement) => <Button size="small" component={RouterLink} to={`/stock-movements/${movement.id}`}>Open</Button> },
+                ]}
+                rows={stockMovementRows}
+                getRowId={(movement) => movement.id}
+                size="small"
+                minWidth={900}
+                emptyTitle="No stock movements"
+                emptyDescription="No stock movements have been recorded for this inventory record yet."
+              />
               {stockMovementPage.pagination(stockMovementsQuery.data)}
             </Stack>
           </RelatedDataSection>
@@ -472,38 +433,21 @@ export default function InventoryDetailsPage() {
             emptyDescription="No internal warehouse movements are linked with this inventory record."
           >
             <Stack spacing={2}>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Source bin</TableCell>
-                      <TableCell>Destination bin</TableCell>
-                      <TableCell align="right">Quantity</TableCell>
-                      <TableCell>Status</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {internalMovementRows.map((movement) => (
-                      <TableRow key={movement.id} hover>
-                        <TableCell>{formatDate(movement.createdAt)}</TableCell>
-                        <TableCell>
-                          <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>
-                            {movement.sourceBinCode}
-                          </Button>
-                        </TableCell>
-                        <TableCell>
-                          <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>
-                            {movement.destinationBinCode}
-                          </Button>
-                        </TableCell>
-                        <TableCell align="right">{movement.quantity}</TableCell>
-                        <TableCell>{movement.status}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <DataTable
+                columns={[
+                  { id: 'date', header: 'Date', render: (movement) => formatDate(movement.createdAt) },
+                  { id: 'sourceBin', header: 'Source bin', render: (movement) => <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>{movement.sourceBinCode}</Button> },
+                  { id: 'destinationBin', header: 'Destination bin', render: (movement) => <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>{movement.destinationBinCode}</Button> },
+                  { id: 'quantity', header: 'Quantity', align: 'right', accessor: 'quantity' },
+                  { id: 'status', header: 'Status', accessor: 'status' },
+                ]}
+                rows={internalMovementRows}
+                getRowId={(movement) => movement.id}
+                size="small"
+                minWidth={760}
+                emptyTitle="No bin-to-bin movements"
+                emptyDescription="No internal warehouse movements are linked with this inventory record."
+              />
               {internalMovementPage.pagination(internalMovementsQuery.data)}
             </Stack>
           </RelatedDataSection>

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import { Button, Chip, Grid, Stack, Typography } from '@mui/material';
-import { EntityDetailsLayout } from '../../../shared/components/EntityDetails';
+import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Button, Chip } from '@mui/material';
+import { EntityDetailsLayout, DetailsOverviewCard, DetailsMetadataCard } from '../../../shared/components/EntityDetails';
 import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
@@ -21,19 +21,6 @@ import type { TransportOrderItemResponse } from '../../transport-orders/types/tr
 import type { DataTableColumn } from '../../../shared/types/common.types';
 
 type ProductDetailsTab = 'overview' | 'inventoryByWarehouse' | 'binDistribution' | 'stockMovements' | 'transportUsage' | 'changeHistory';
-
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600}>
-        {value ?? '—'}
-      </Typography>
-    </Stack>
-  );
-}
 
 function ProductInventoryByWarehouse({ productId }: { productId: number }) {
   const query = useQuery({
@@ -199,9 +186,7 @@ function ProductTransportUsage({ productId }: { productId: number }) {
   );
 }
 
-export default function ProductDetailsPage() {
-  const navigate = useNavigate();
-  const params = useParams();
+export default function ProductDetailsPage() {  const params = useParams();
   const productId = Number(params.id);
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
@@ -233,8 +218,14 @@ export default function ProductDetailsPage() {
 
   if (productQuery.isLoading) {
     return (
-      <EntityDetailsLayout overline="Catalog" title="Product Details" actions={<Button variant="outlined" onClick={() => navigate('/products')}>Back to list</Button>}>
-        <SectionCard><Typography color="text.secondary">Loading product details...</Typography></SectionCard>
+      <EntityDetailsLayout
+        overline="Catalog"
+        title="Product Details"
+        loading
+        loadingText="Loading product details..."
+        actionItems={[{ key: 'back', label: 'Back to list', to: '/products' }]}
+      >
+        <></>
       </EntityDetailsLayout>
     );
   }
@@ -267,38 +258,39 @@ export default function ProductDetailsPage() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as ProductDetailsTab)}
-      actions={(
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {product.active ? (
-            <Button variant="outlined" color="warning" disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(product.id)}>Archive</Button>
-          ) : (
-            <Button variant="contained" color="success" disabled={restoreMutation.isPending} onClick={() => restoreMutation.mutate(product.id)}>Restore</Button>
-          )}
-          <Button variant="outlined" onClick={() => navigate('/products')}>Back to list</Button>
-        </Stack>
-      )}
+      actionItems={[
+        product.active
+          ? { key: 'archive', label: 'Archive', color: 'warning', disabled: archiveMutation.isPending, onClick: () => archiveMutation.mutate(product.id) }
+          : { key: 'restore', label: 'Restore', variant: 'contained', color: 'success', disabled: restoreMutation.isPending, onClick: () => restoreMutation.mutate(product.id) },
+        { key: 'back', label: 'Back to list', to: '/products' },
+      ]}
     >
       {!product.active ? <ArchivedEntityAlert entityLabel="Product" /> : null}
 
       {activeTab === 'overview' ? (
-        <SectionCard title="Product overview" description="Catalog identity, logistics attributes and lifecycle status.">
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Name" value={product.name} /></Grid>
-            <Grid size={{ xs: 12, md: 4 }}><InfoRow label="SKU" value={product.sku} /></Grid>
-            <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Unit" value={<Chip size="small" label={product.unit} />} /></Grid>
-            <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Price" value={product.price} /></Grid>
-            <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Weight" value={product.weight} /></Grid>
-            <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Fragile" value={product.fragile ? 'Yes' : 'No'} /></Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Stack spacing={0.5}>
-                <Typography variant="caption" color="text.secondary">Status</Typography>
-                <Stack alignItems="flex-start"><StatusChip value={product.active ? 'ACTIVE' : 'INACTIVE'} /></Stack>
-              </Stack>
-            </Grid>
-            <Grid size={{ xs: 12, md: 8 }}><InfoRow label="Company" value={product.companyName ?? '—'} /></Grid>
-            <Grid size={{ xs: 12 }}><InfoRow label="Description" value={product.description || '—'} /></Grid>
-          </Grid>
-        </SectionCard>
+        <>
+          <DetailsOverviewCard
+            title="Product overview"
+            description="Catalog identity, logistics attributes and lifecycle status."
+            fields={[
+              { label: 'Name', value: product.name },
+              { label: 'SKU', value: product.sku },
+              { label: 'Unit', value: <Chip size="small" label={product.unit} /> },
+              { label: 'Price', value: product.price },
+              { label: 'Weight', value: product.weight },
+              { label: 'Fragile', value: product.fragile ? 'Yes' : 'No' },
+              { label: 'Status', value: <StatusChip value={product.active ? 'ACTIVE' : 'INACTIVE'} /> },
+              { label: 'Company', value: product.companyName },
+              { label: 'Description', value: product.description, size: { xs: 12 } },
+            ]}
+          />
+          <DetailsMetadataCard
+            fields={[
+              { label: 'Product ID', value: product.id },
+              { label: 'Company', value: product.companyName },
+            ]}
+          />
+        </>
       ) : null}
 
       {activeTab === 'inventoryByWarehouse' ? <ProductInventoryByWarehouse productId={product.id} /> : null}

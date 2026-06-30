@@ -53,10 +53,7 @@ public class SecurityConfig {
                                 "/api/company-registration-requests/*/status",
                                 "/api/countries/**",
                                 "/api/cities/**",
-                                "/api/timezones/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html").permitAll()
+                                "/api/timezones/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sessionManagement ->

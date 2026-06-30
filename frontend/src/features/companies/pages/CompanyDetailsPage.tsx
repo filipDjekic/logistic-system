@@ -4,13 +4,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Button, Grid, Stack, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
-import {
-  AttachmentsPanel,
-  ChangeHistoryPanel,
-  CommentsPanel,
-  DomainEventsPanel,
-} from '../../../shared/components/OperationalPanels';
+import { EntityDetailsLayout, DetailsField, DetailsOverviewCard, DetailsMetadataCard, RelatedDataSection, OperationalDetailsTabPanels, buildOperationalTabs } from '../../../shared/components/EntityDetails';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { useEmployees } from '../../employees/hooks/useEmployees';
@@ -18,20 +12,8 @@ import { useVehicles } from '../../vehicles/hooks/useVehicles';
 import { useWarehouses } from '../../warehouses/hooks/useWarehouses';
 import { useCompany } from '../hooks/useCompany';
 
-type CompanyDetailsTab = 'overview' | 'resources' | 'commentsAttachments' | 'domainEvents' | 'changeHistory';
+type CompanyDetailsTab = 'overview' | 'resources' | 'attachments' | 'comments' | 'audit' | 'history';
 
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600}>
-        {value ?? '—'}
-      </Typography>
-    </Stack>
-  );
-}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—';
@@ -65,7 +47,7 @@ export default function CompanyDetailsPage() {
         overline="Organization"
         title="Company details"
         description="Loading company details..."
-        actions={<Button variant="outlined" onClick={() => navigate('/companies')}>Back to list</Button>}
+        actionItems={[{ key: 'back', label: 'Back to list', to: '/companies' }]}
       >
         <SectionCard>
           <Typography color="text.secondary">Loading company details...</Typography>
@@ -80,7 +62,7 @@ export default function CompanyDetailsPage() {
         overline="Organization"
         title="Company details"
         description="The requested company could not be loaded."
-        actions={<Button variant="outlined" onClick={() => navigate('/companies')}>Back to list</Button>}
+        actionItems={[{ key: 'back', label: 'Back to list', to: '/companies' }]}
       >
         <SectionCard>
           <Typography color="text.secondary">Company details are not available.</Typography>
@@ -94,73 +76,75 @@ export default function CompanyDetailsPage() {
   const employees = (employeesQuery.data?.content ?? []).filter((employee) => employee.companyId === company.id);
   const vehicles = (vehiclesQuery.data?.content ?? []).filter((vehicle) => vehicle.companyId === company.id || vehicle.companyId == null);
 
-  const tabs: { value: CompanyDetailsTab; label: ReactNode }[] = [
+  const tabs: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
-    { value: 'resources', label: 'Resources' },
-    { value: 'commentsAttachments', label: 'Comments & attachments' },
-    { value: 'domainEvents', label: 'Domain events' },
-    { value: 'changeHistory', label: 'Change history' },
+    { value: 'resources', label: 'Related data' },
+    ...buildOperationalTabs({ entityType: 'COMPANY', entityName: 'COMPANY', entityId: company.id, allowCreateAttachments: canManage, allowCreateComments: canManage }),
   ];
 
   return (
     <EntityDetailsLayout
-      overline="Organization"
       title={company.name}
-      description={`Company #${company.id} • ${company.countryName ?? company.countryCode ?? 'No country'}`}
+      breadcrumbs={[{ label: 'Companies', to: '/companies' }, { label: company.name }]}
+      hero={{
+        overline: 'Organization',
+        title: company.name,
+        subtitle: `Company #${company.id} • ${company.countryName ?? company.countryCode ?? 'No country'}`,
+        status: company.active ? 'ACTIVE' : 'INACTIVE',
+        primaryInfo: [
+          { label: 'Country', value: `${company.countryName ?? '—'}${company.countryCode ? ` (${company.countryCode})` : ''}` },
+          { label: 'Currency', value: company.effectiveCurrencyCode ?? company.currencyCode ?? '—' },
+          { label: 'Timezone', value: company.effectiveTimezone ?? company.timezoneDisplayName ?? company.timezone ?? '—' },
+        ],
+      }}
+      actionItems={[
+        { key: 'history', label: 'Full history', onClick: () => navigate(`/change-history?entityName=COMPANY&entityId=${company.id}`) },
+        { key: 'back', label: 'Back to list', onClick: () => navigate('/companies') },
+      ]}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as CompanyDetailsTab)}
-      actions={
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button variant="outlined" onClick={() => navigate(`/change-history?entityName=COMPANY&entityId=${company.id}`)}>
-            Full history
-          </Button>
-          <Button variant="outlined" onClick={() => navigate('/companies')}>
-            Back to list
-          </Button>
-        </Stack>
-      }
     >
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
-          <SectionCard title="General information" description="Core company identity, location and scoping data.">
+          <DetailsOverviewCard title="Company overview" description="Core company identity, location and scoping data.">
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="ID" value={company.id} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Name" value={company.name} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="ID" value={company.id} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Name" value={company.name} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <Stack spacing={0.5} alignItems="flex-start">
                   <Typography variant="caption" color="text.secondary">Status</Typography>
                   <StatusChip value={company.active ? 'ACTIVE' : 'INACTIVE'} />
                 </Stack>
               </Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Country" value={`${company.countryName ?? '—'}${company.countryCode ? ` (${company.countryCode})` : ''}`} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Currency" value={company.effectiveCurrencyCode ?? company.currencyCode ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Timezone" value={company.effectiveTimezone ?? company.timezoneDisplayName ?? company.timezone ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Address" value={company.address ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="City" value={company.cityName ?? company.city ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Postal code" value={company.postalCode ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Phone" value={company.phoneNumber ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Email" value={company.email ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Tax number" value={company.taxNumber ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Registration number" value={company.registrationNumber ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Created at" value={formatDate(company.createdAt)} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Updated at" value={formatDate(company.updatedAt)} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Country" value={`${company.countryName ?? '—'}${company.countryCode ? ` (${company.countryCode})` : ''}`} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Currency" value={company.effectiveCurrencyCode ?? company.currencyCode ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Timezone" value={company.effectiveTimezone ?? company.timezoneDisplayName ?? company.timezone ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Address" value={company.address ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="City" value={company.cityName ?? company.city ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Postal code" value={company.postalCode ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Phone" value={company.phoneNumber ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Email" value={company.email ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Tax number" value={company.taxNumber ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Registration number" value={company.registrationNumber ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Created at" value={formatDate(company.createdAt)} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Updated at" value={formatDate(company.updatedAt)} /></Grid>
             </Grid>
-          </SectionCard>
+          </DetailsOverviewCard>
 
-          <SectionCard title="Bootstrap company admin">
+          <DetailsMetadataCard title="Bootstrap company admin" description="Generated admin and employee bootstrap references.">
             <Stack spacing={2}>
               <Alert severity="info">
                 This company can be connected with an automatically generated COMPANY_ADMIN account.
               </Alert>
               <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Admin user ID" value={company.adminUserId ?? '—'} /></Grid>
-                <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Admin employee ID" value={company.adminEmployeeId ?? '—'} /></Grid>
-                <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Admin full name" value={company.adminFullName ?? '—'} /></Grid>
-                <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Admin email" value={company.adminEmail ?? '—'} /></Grid>
+                <Grid size={{ xs: 12, md: 3 }}><DetailsField label="Admin user ID" value={company.adminUserId ?? '—'} /></Grid>
+                <Grid size={{ xs: 12, md: 3 }}><DetailsField label="Admin employee ID" value={company.adminEmployeeId ?? '—'} /></Grid>
+                <Grid size={{ xs: 12, md: 3 }}><DetailsField label="Admin full name" value={company.adminFullName ?? '—'} /></Grid>
+                <Grid size={{ xs: 12, md: 3 }}><DetailsField label="Admin email" value={company.adminEmail ?? '—'} /></Grid>
               </Grid>
             </Stack>
-          </SectionCard>
+          </DetailsMetadataCard>
         </Stack>
       ) : null}
 
@@ -246,20 +230,14 @@ export default function CompanyDetailsPage() {
         </Grid>
       ) : null}
 
-      {activeTab === 'commentsAttachments' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <CommentsPanel entityType="COMPANY" entityId={company.id} allowCreate={canManage} />
-          </Grid>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <AttachmentsPanel entityType="COMPANY" entityId={company.id} allowCreate={canManage} />
-          </Grid>
-        </Grid>
-      ) : null}
-
-      {activeTab === 'domainEvents' ? <DomainEventsPanel entityType="COMPANY" entityId={company.id} /> : null}
-
-      {activeTab === 'changeHistory' ? <ChangeHistoryPanel entityName="COMPANY" entityId={company.id} /> : null}
+      <OperationalDetailsTabPanels
+        activeTab={activeTab}
+        entityType="COMPANY"
+        entityName="COMPANY"
+        entityId={company.id}
+        allowCreateAttachments={canManage}
+        allowCreateComments={canManage}
+      />
     </EntityDetailsLayout>
   );
 }

@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import { Button, Grid, Stack, Typography } from '@mui/material';
+import { Button, Grid, Typography } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { invalidateShiftState } from '../../../core/utils/invalidateAppState';
 import { formatTemporalView } from '../../../core/utils/timezoneFormat';
 import { normalizeApiError } from '../../../core/api/apiError';
-import { EntityDetailsLayout } from '../../../shared/components/EntityDetails';
-import { ChangeHistoryPanel, DomainEventsPanel } from '../../../shared/components/OperationalPanels';
-import { ForbiddenTransitionHint, LifecycleHistoryTimeline } from '../../../shared/components/Lifecycle';
-import EmptyState from '../../../shared/components/EmptyState/EmptyState';
+import { EntityDetailsLayout, DetailsField, DetailsOverviewCard, OperationalDetailsTabPanels, buildOperationalTabs } from '../../../shared/components/EntityDetails';
+import { ForbiddenTransitionHint } from '../../../shared/components/Lifecycle';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import { employeesApi } from '../../employees/api/employeesApi';
@@ -22,7 +20,7 @@ import { useCreateShift } from '../hooks/useCreateShift';
 import { useShift } from '../hooks/useShift';
 import { isShiftCancellable, isShiftEditable } from '../utils/shiftLifecycle';
 
-type ShiftDetailsTab = 'overview' | 'lifecycle' | 'domainEvents' | 'changeHistory';
+type ShiftDetailsTab = 'overview' | 'lifecycle' | 'attachments' | 'comments' | 'audit' | 'history';
 
 export default function ShiftDetailsPage() {
   const params = useParams();
@@ -65,7 +63,7 @@ export default function ShiftDetailsPage() {
 
   if (shiftQuery.isLoading) {
     return (
-      <EntityDetailsLayout overline="Workforce" title="Shift Details" actions={<Button variant="outlined" onClick={() => navigate('/shifts')}>Back to list</Button>}>
+      <EntityDetailsLayout overline="Workforce" title="Shift Details" actionItems={[{ key: 'back', label: 'Back to list', to: '/shifts' }]}>
         <SectionCard><Typography color="text.secondary">Loading shift details...</Typography></SectionCard>
       </EntityDetailsLayout>
     );
@@ -74,7 +72,7 @@ export default function ShiftDetailsPage() {
   if (shiftQuery.isError || !shiftQuery.data) {
     const error = normalizeApiError(shiftQuery.error, 'The shift could not be loaded from the backend.');
     return (
-      <EntityDetailsLayout overline="Workforce" title="Shift Details" actions={<Button variant="outlined" onClick={() => navigate('/shifts')}>Back to list</Button>}>
+      <EntityDetailsLayout overline="Workforce" title="Shift Details" actionItems={[{ key: 'back', label: 'Back to list', to: '/shifts' }]}>
         <ErrorState title={error.status === 403 ? 'Access denied' : error.status === 404 ? 'Shift not found' : 'Shift could not be loaded'} description={error.message} details={error.fieldErrors} onRetry={() => void shiftQuery.refetch()} />
       </EntityDetailsLayout>
     );
@@ -89,35 +87,42 @@ export default function ShiftDetailsPage() {
   const tabs = [
     { value: 'overview', label: 'Overview' },
     { value: 'lifecycle', label: 'Lifecycle' },
-    { value: 'domainEvents', label: 'Domain events' },
-    { value: 'changeHistory', label: 'Change history', disabled: !canViewHistory },
+    ...buildOperationalTabs({ entityType: 'SHIFT', entityName: 'SHIFT', entityId: shift.id, canViewAudit: canViewHistory }),
   ];
 
   return (
     <EntityDetailsLayout
-      overline="Workforce"
       title={`Shift #${shift.id}`}
-      description="Review employee shift timing, assignment, warehouse coverage and lifecycle state."
+      breadcrumbs={[{ label: 'Shifts', to: '/shifts' }, { label: `Shift #${shift.id}` }]}
+      hero={{
+        overline: 'Workforce',
+        title: `Shift #${shift.id}`,
+        subtitle: 'Review employee shift timing, assignment, warehouse coverage and lifecycle state.',
+        statusNode: <ShiftStatusChip value={shift.status} />,
+        primaryInfo: [
+          { label: 'Employee', value: employee ? `${employee.firstName} ${employee.lastName}` : `Employee #${shift.employeeId}` },
+          { label: 'Warehouse', value: shift.warehouseId ? (warehouse?.name ?? shift.warehouseName ?? `Warehouse #${shift.warehouseId}`) : '—' },
+          { label: 'Timezone', value: shift.timezoneDisplayName ? `${shift.timezoneDisplayName} (${shift.timezoneName ?? shift.timezone ?? 'timezone'})` : shift.timezoneName ?? shift.timezone ?? `Timezone #${shift.timezoneId}` },
+        ],
+      }}
+      actionItems={[
+        { key: 'back', label: 'Back to list', onClick: () => navigate('/shifts') },
+        ...(canManageShifts ? [{ key: 'edit', label: 'Edit', disabled: !canEdit, onClick: () => setEditOpen(true) }] : []),
+        ...(canManageShifts ? [{ key: 'cancel', label: 'Cancel shift', color: 'warning' as const, variant: 'contained' as const, disabled: !canCancel || saveShiftMutation.isPending, onClick: () => saveShiftMutation.mutate({ mode: 'cancel', id: shift.id }) }] : []),
+      ]}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as ShiftDetailsTab)}
-      actions={(
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button variant="outlined" onClick={() => navigate('/shifts')}>Back to list</Button>
-          {canManageShifts ? <Button variant="outlined" disabled={!canEdit} onClick={() => setEditOpen(true)}>Edit</Button> : null}
-          {canManageShifts ? <Button variant="contained" color="warning" disabled={!canCancel || saveShiftMutation.isPending} onClick={() => saveShiftMutation.mutate({ mode: 'cancel', id: shift.id })}>Cancel shift</Button> : null}
-        </Stack>
-      )}
-    >
+   >
       {activeTab === 'overview' ? (
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, lg: 8 }}>
-            <SectionCard title="Shift overview" description="Core scheduling data and operational assignment.">
+            <DetailsOverviewCard title="Shift overview" description="Core scheduling data and operational assignment.">
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 6 }}><Typography variant="subtitle2" color="text.secondary">Status</Typography><ShiftStatusChip value={shift.status} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><Typography variant="subtitle2" color="text.secondary">Timezone</Typography><Typography>{shift.timezoneDisplayName ? `${shift.timezoneDisplayName} (${shift.timezoneName ?? shift.timezone ?? 'timezone'})` : shift.timezoneName ?? shift.timezone ?? `Timezone #${shift.timezoneId}`}</Typography></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><Typography variant="subtitle2" color="text.secondary">Start</Typography><Typography>{formatTemporalView(shift.startTimeView, shift.startTime)}</Typography></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><Typography variant="subtitle2" color="text.secondary">End</Typography><Typography>{formatTemporalView(shift.endTimeView, shift.endTime)}</Typography></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Status" value={<ShiftStatusChip value={shift.status} />} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Timezone" value={shift.timezoneDisplayName ? `${shift.timezoneDisplayName} (${shift.timezoneName ?? shift.timezone ?? 'timezone'})` : shift.timezoneName ?? shift.timezone ?? `Timezone #${shift.timezoneId}`} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Start" value={formatTemporalView(shift.startTimeView, shift.startTime)} /></Grid>
+                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="End" value={formatTemporalView(shift.endTimeView, shift.endTime)} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary">Employee</Typography>
                   <Button component={RouterLink} to={`/employees/${shift.employeeId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{employee ? `${employee.firstName} ${employee.lastName}` : `Employee #${shift.employeeId}`}</Button>
@@ -128,19 +133,25 @@ export default function ShiftDetailsPage() {
                   {shift.warehouseId ? <Button component={RouterLink} to={`/warehouses/${shift.warehouseId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{warehouse?.name ?? shift.warehouseName ?? `Warehouse #${shift.warehouseId}`}</Button> : <Typography>—</Typography>}
                   <Typography variant="body2" color="text.secondary">{warehouse?.status ?? '—'}</Typography>
                 </Grid>
-                <Grid size={{ xs: 12 }}><Typography variant="subtitle2" color="text.secondary">Notes</Typography><Typography>{shift.notes?.trim() || '—'}</Typography></Grid>
+                <Grid size={{ xs: 12 }}><DetailsField label="Notes" value={shift.notes?.trim() || '—'} /></Grid>
               </Grid>
-            </SectionCard>
+            </DetailsOverviewCard>
           </Grid>
           <Grid size={{ xs: 12, lg: 4 }}><ShiftLifecycleCard shift={shift} /></Grid>
           {canManageShifts && !canEdit ? <Grid size={{ xs: 12 }}><SectionCard title="Mutation guard" description="Shift edit and cancel actions are available only while the shift is planned."><ForbiddenTransitionHint visible message="This shift is not PLANNED, so the edit and cancel actions are disabled by lifecycle rules." /></SectionCard></Grid> : null}
         </Grid>
       ) : null}
 
-      {activeTab === 'lifecycle' ? <Grid container spacing={3}><Grid size={{ xs: 12 }}><ShiftLifecycleCard shift={shift} /></Grid><Grid size={{ xs: 12 }}><LifecycleHistoryTimeline entityName="SHIFT" entityId={shift.id} title="Shift lifecycle history" /></Grid></Grid> : null}
-      {activeTab === 'domainEvents' ? <DomainEventsPanel entityType="SHIFT" entityId={shift.id} /> : null}
-      {activeTab === 'changeHistory' && canViewHistory ? <ChangeHistoryPanel entityName="SHIFT" entityId={shift.id} /> : null}
-      {activeTab === 'changeHistory' && !canViewHistory ? <EmptyState title="History unavailable" description="Your role cannot view shift change history." /> : null}
+      {activeTab === 'lifecycle' ? <ShiftLifecycleCard shift={shift} showHistory /> : null}
+      <OperationalDetailsTabPanels
+        activeTab={activeTab}
+        entityType="SHIFT"
+        entityName="SHIFT"
+        entityId={shift.id}
+        canViewAudit={canViewHistory}
+        auditUnavailableTitle="Audit unavailable"
+        auditUnavailableDescription="Your role cannot view shift audit data."
+      />
 
       {canManageShifts ? (
         <ShiftFormDialog

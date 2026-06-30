@@ -1,27 +1,28 @@
 import { useState } from 'react';
 import {
-  Alert,
   Button,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   MenuItem,
+  Grid,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import PageHeader from '../../../shared/components/PageHeader/PageHeader';
+import {
+  DetailsLifecycleCard,
+  DetailsMetadataCard,
+  DetailsOverviewCard,
+  DetailsStatisticsCard,
+  EntityDetailsLayout,
+  RelatedDataSection,
+} from '../../../shared/components/EntityDetails';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { queryKeys } from '../../../core/constants/queryKeys';
@@ -33,7 +34,10 @@ import type { InventoryCountLineResponse, InventoryCountSessionStatus } from '..
 import InventoryCountLifecycleTimeline from '../components/InventoryCountLifecycleTimeline';
 import InventoryCountAuditPanel from '../components/InventoryCountAuditPanel';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
+import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { InventoryCountLineStatusFilter } from '../types/inventoryCount.types';
+
+type InventoryCountDetailsTab = 'overview' | 'lines' | 'lifecycle' | 'audit';
 
 function DifferenceCell({ value }: { value: number }) {
   const label = value > 0 ? `+${value}` : `${value}`;
@@ -44,6 +48,18 @@ function DifferenceCell({ value }: { value: number }) {
 function statusLabel(status: string) {
   return status.replaceAll('_', ' ');
 }
+
+
+const inventoryCountLifecycleOrder: InventoryCountSessionStatus[] = [
+  'OPEN',
+  'COUNTING',
+  'REVIEW',
+  'APPROVED',
+  'ADJUSTMENTS_CREATED',
+  'CLOSED',
+];
+
+const inventoryCountTerminalStatuses: InventoryCountSessionStatus[] = ['CLOSED', 'REJECTED', 'CANCELLED'];
 
 function locationLabel(line: InventoryCountLineResponse) {
   const zone = line.warehouseZoneCode ? `${line.warehouseZoneCode}${line.warehouseZoneName ? ` · ${line.warehouseZoneName}` : ''}` : 'No zone';
@@ -69,6 +85,7 @@ export default function InventoryCountDetailsPage() {
   const [lineStatusFilter, setLineStatusFilter] = useState<InventoryCountLineStatusFilter | ''>('');
   const [linesPage, setLinesPage] = useState(0);
   const [linesSize, setLinesSize] = useState(50);
+  const [activeTab, setActiveTab] = useState<InventoryCountDetailsTab>('overview');
 
   const query = useQuery({
     queryKey: queryKeys.inventoryCounts.detail(id),
@@ -137,7 +154,7 @@ export default function InventoryCountDetailsPage() {
       return inventoryCountsApi.cancel(id);
     },
     onSuccess: () => {
-      showSnackbar('Inventory count updated.', 'success');
+      showSnackbar({ message: 'Inventory count updated.', severity: 'success' });
       invalidate();
     },
   });
@@ -149,7 +166,7 @@ export default function InventoryCountDetailsPage() {
       note,
     }),
     onSuccess: () => {
-      showSnackbar('Count line saved.', 'success');
+      showSnackbar({ message: 'Count line saved.', severity: 'success' });
       closeCountDialog();
       invalidate();
     },
@@ -185,129 +202,168 @@ export default function InventoryCountDetailsPage() {
       : 'You can view this inventory count, but cannot mutate count lines or lifecycle status for this warehouse.';
   const canTriggerManagerAction = canManageInventoryCount && canMutateSelectedWarehouse && !actionMutation.isPending;
 
+  const tabs: { value: InventoryCountDetailsTab; label: string }[] = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'lines', label: session ? `Count lines (${session.lineCount})` : 'Count lines' },
+    { value: 'lifecycle', label: 'Lifecycle' },
+    { value: 'audit', label: 'Audit' },
+  ];
+
   return (
-    <Stack spacing={2}>
-      <PageHeader
-        title={session ? `Inventory count ${session.code}` : 'Inventory count'}
-        description={session ? `${session.warehouseName} • ${session.lineCount} bin/product lines • ${session.discrepancyLineCount} discrepancies` : undefined}
-        actions={session ? (
-          <>
-            <Button component={RouterLink} to="/inventory-counts" variant="outlined">Back</Button>
-            {allowed.includes('COUNTING') ? <Button variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('start')}>Start</Button> : null}
-            {allowed.includes('REVIEW') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('submitReview')}>Submit review</Button> : null}
-            {allowed.includes('APPROVED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('approve')}>Approve</Button> : null}
-            {allowed.includes('REJECTED') ? <Button color="warning" variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('reject')}>Reject</Button> : null}
-            {allowed.includes('ADJUSTMENTS_CREATED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('createAdjustments')}>Create adjustments</Button> : null}
-            {allowed.includes('CLOSED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('close')}>Close</Button> : null}
-            {allowed.includes('CANCELLED') ? <Button color="error" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('cancel')}>Cancel</Button> : null}
-          </>
-        ) : null}
-      />
-      {session ? (
-        <>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={2}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
-                <Chip label={statusLabel(session.status)} />
-                <Typography variant="body2" color="text.secondary">
-                  Location-aware count: every line is tied to one product and one bin. Adjustments are created only after approval.
-                </Typography>
-              </Stack>
-              <Divider />
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                <Paper variant="outlined" sx={{ p: 1.5, flex: 1 }}><Typography variant="caption" color="text.secondary">Progress</Typography><Typography variant="h6">{session.countedLineCount}/{session.lineCount} ({countedPercent}%)</Typography></Paper>
-                <Paper variant="outlined" sx={{ p: 1.5, flex: 1 }}><Typography variant="caption" color="text.secondary">Discrepancy lines</Typography><Typography variant="h6">{session.discrepancyLineCount}</Typography></Paper>
-                <Paper variant="outlined" sx={{ p: 1.5, flex: 1 }}><Typography variant="caption" color="text.secondary">Current page absolute delta</Typography><Typography variant="h6">{totalAbsoluteDifference}</Typography></Paper>
-              </Stack>
-            </Stack>
-          </Paper>
+    <EntityDetailsLayout
+      overline="Inventory"
+      title={session ? `Inventory count ${session.code}` : 'Inventory count'}
+      description={session ? `${session.warehouseName} • ${session.lineCount} bin/product lines • ${session.discrepancyLineCount} discrepancies` : 'Location-aware warehouse inventory count session.'}
+      loading={query.isLoading}
+      loadingText="Loading inventory count..."
+      error={!Number.isFinite(id) ? 'Invalid inventory count ID.' : query.isError ? query.error : undefined}
+      errorTitle={!Number.isFinite(id) ? 'Invalid inventory count' : 'Inventory count could not be loaded'}
+      onRetry={() => { void query.refetch(); }}
+      tabs={session ? tabs : undefined}
+      activeTab={session ? activeTab : undefined}
+      onTabChange={session ? (value) => setActiveTab(value as InventoryCountDetailsTab) : undefined}
+      actions={session ? (
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Button component={RouterLink} to="/inventory-counts" variant="outlined">Back</Button>
+          {allowed.includes('COUNTING') ? <Button variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('start')}>Start</Button> : null}
+          {allowed.includes('REVIEW') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('submitReview')}>Submit review</Button> : null}
+          {allowed.includes('APPROVED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('approve')}>Approve</Button> : null}
+          {allowed.includes('REJECTED') ? <Button color="warning" variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('reject')}>Reject</Button> : null}
+          {allowed.includes('ADJUSTMENTS_CREATED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('createAdjustments')}>Create adjustments</Button> : null}
+          {allowed.includes('CLOSED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('close')}>Close</Button> : null}
+          {allowed.includes('CANCELLED') ? <Button color="error" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('cancel')}>Cancel</Button> : null}
+        </Stack>
+      ) : null}
+    >
+      {session && activeTab === 'overview' ? (
+        <Stack spacing={3}>
+          <DetailsStatisticsCard
+            title="Count progress"
+            description="Current inventory count progress and discrepancy summary."
+            statistics={[
+              { key: 'progress', title: 'Progress', value: `${session.countedLineCount}/${session.lineCount}`, subtitle: `${countedPercent}% counted`, progress: countedPercent },
+              { key: 'discrepancies', title: 'Discrepancy lines', value: session.discrepancyLineCount, subtitle: 'Lines requiring review' },
+              { key: 'pageDelta', title: 'Current page delta', value: totalAbsoluteDifference, subtitle: 'Absolute quantity difference' },
+            ]}
+          />
 
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={2}>
-              <Typography variant="h6">Lifecycle</Typography>
-              <Alert severity={canManageInventoryCount ? 'info' : canCountInventoryLines ? 'warning' : 'info'}>{roleHint}</Alert>
-              <InventoryCountLifecycleTimeline session={session} allowedNextStatuses={allowed} />
-            </Stack>
-          </Paper>
+          <DetailsOverviewCard
+            title="Inventory count overview"
+            description="Session identity, warehouse scope and current status."
+            fields={[
+              { key: 'status', label: 'Status', value: <Chip label={statusLabel(session.status)} /> },
+              { key: 'code', label: 'Code', value: session.code },
+              { key: 'warehouse', label: 'Warehouse', value: <Button size="small" component={RouterLink} to={`/warehouses/${session.warehouseId}`}>{session.warehouseName}</Button> },
+              { key: 'lines', label: 'Lines', value: session.lineCount },
+              { key: 'counted', label: 'Counted lines', value: session.countedLineCount },
+              { key: 'discrepancy', label: 'Discrepancy lines', value: session.discrepancyLineCount },
+            ]}
+          />
 
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={2}>
-              <Typography variant="h6">Review by location</Typography>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                <TextField label="Search product/bin" value={search} onChange={(event) => { setSearch(event.target.value); setLinesPage(0); }} fullWidth />
-                <TextField select label="Zone" value={zoneFilter} onChange={(event) => { setZoneFilter(event.target.value); setBinFilter(''); setLinesPage(0); }} fullWidth>
-                  <MenuItem value="">All zones</MenuItem>
-                  {zones.map((zone) => <MenuItem key={zone.id} value={zone.id}>{zone.code} · {zone.name}</MenuItem>)}
-                </TextField>
-                <TextField select label="Bin" value={binFilter} onChange={(event) => { setBinFilter(event.target.value); setLinesPage(0); }} fullWidth>
-                  <MenuItem value="">All bins</MenuItem>
-                  {bins.map((bin) => <MenuItem key={bin.id} value={bin.id}>{bin.code} · {bin.name}</MenuItem>)}
-                </TextField>
-                <TextField select label="Line status" value={lineStatusFilter} onChange={(event) => { setLineStatusFilter(event.target.value as InventoryCountLineStatusFilter | ''); setLinesPage(0); }} fullWidth>
-                  <MenuItem value="">All lines</MenuItem>
-                  <MenuItem value="UNCOUNTED">Uncounted</MenuItem>
-                  <MenuItem value="COUNTED">Counted</MenuItem>
-                  <MenuItem value="DISCREPANCY">Discrepancy</MenuItem>
-                  <MenuItem value="MATCHED">Matched</MenuItem>
-                  <MenuItem value="ADJUSTED">Adjusted</MenuItem>
-                </TextField>
-              </Stack>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Product</TableCell>
-                    <TableCell>Zone</TableCell>
-                    <TableCell>Bin</TableCell>
-                    <TableCell align="right">System</TableCell>
-                    <TableCell align="right">Counted</TableCell>
-                    <TableCell align="right">Difference</TableCell>
-                    <TableCell>Note</TableCell>
-                    <TableCell align="right">Adjustment</TableCell>
-                    <TableCell />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {lines.map((line) => {
-                    const location = locationLabel(line);
-                    return (
-                      <TableRow key={line.id} hover>
-                        <TableCell>{line.productName}<Typography variant="caption" color="text.secondary" display="block">{line.productSku}</Typography></TableCell>
-                        <TableCell>{location.zone}</TableCell>
-                        <TableCell>{location.bin}</TableCell>
-                        <TableCell align="right">{line.systemQuantity}</TableCell>
-                        <TableCell align="right">{line.countedQuantity ?? '-'}</TableCell>
-                        <TableCell align="right"><DifferenceCell value={line.differenceQuantity ?? 0} /></TableCell>
-                        <TableCell>{line.note ?? '-'}</TableCell>
-                        <TableCell align="right">{line.adjustmentMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${line.adjustmentMovementId}`}>Open</Button> : '-'}</TableCell>
-                        <TableCell align="right">
-                          {canEditLines ? (
-                            <Button size="small" onClick={() => { setEditingLine(line); setCountedQuantity(String(line.countedQuantity ?? line.systemQuantity ?? 0)); setNote(line.note ?? ''); }}>Count</Button>
-                          ) : null}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!linesQuery.isFetching && lines.length === 0 ? (
-                    <TableRow><TableCell colSpan={9}><Typography color="text.secondary">No count lines match selected filters.</Typography></TableCell></TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-              <ServerTablePagination
-                page={linesQuery.data}
-                disabled={linesQuery.isFetching}
-                onPageChange={setLinesPage}
-                onSizeChange={(nextSize) => { setLinesSize(nextSize); setLinesPage(0); }}
-              />
-            </Stack>
-          </Paper>
+          <DetailsMetadataCard
+            title="Operational metadata"
+            description="Rules and access context for this count session."
+            fields={[
+              { key: 'locationAware', label: 'Location-aware count', value: 'Every line is tied to one product and one bin.' },
+              { key: 'adjustments', label: 'Adjustments', value: 'Created only after approval.' },
+              { key: 'permissions', label: 'Current access', value: roleHint, size: { xs: 12 } },
+            ]}
+          />
+        </Stack>
+      ) : null}
 
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={2}>
-              <Typography variant="h6">Audit</Typography>
-              <InventoryCountAuditPanel sessionId={session.id} code={session.code} allowAttachmentsCreate={canMutateSelectedWarehouse} />
+      {session && activeTab === 'lines' ? (
+        <RelatedDataSection
+          title="Inventory count lines"
+          description="Location-aware product/bin lines for this count session."
+          loading={linesQuery.isLoading || linesQuery.isFetching}
+          error={linesQuery.isError}
+          onRetry={() => { void linesQuery.refetch(); }}
+          empty={!linesQuery.isLoading && !linesQuery.isFetching && !linesQuery.isError && lines.length === 0}
+          emptyTitle="No count lines"
+          emptyDescription="No count lines match selected filters."
+        >
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <TextField label="Search product/bin" value={search} onChange={(event) => { setSearch(event.target.value); setLinesPage(0); }} fullWidth />
+              <TextField select label="Zone" value={zoneFilter} onChange={(event) => { setZoneFilter(event.target.value); setBinFilter(''); setLinesPage(0); }} fullWidth>
+                <MenuItem value="">All zones</MenuItem>
+                {zones.map((zone) => <MenuItem key={zone.id} value={zone.id}>{zone.code} · {zone.name}</MenuItem>)}
+              </TextField>
+              <TextField select label="Bin" value={binFilter} onChange={(event) => { setBinFilter(event.target.value); setLinesPage(0); }} fullWidth>
+                <MenuItem value="">All bins</MenuItem>
+                {bins.map((bin) => <MenuItem key={bin.id} value={bin.id}>{bin.code} · {bin.name}</MenuItem>)}
+              </TextField>
+              <TextField select label="Line status" value={lineStatusFilter} onChange={(event) => { setLineStatusFilter(event.target.value as InventoryCountLineStatusFilter | ''); setLinesPage(0); }} fullWidth>
+                <MenuItem value="">All lines</MenuItem>
+                <MenuItem value="UNCOUNTED">Uncounted</MenuItem>
+                <MenuItem value="COUNTED">Counted</MenuItem>
+                <MenuItem value="DISCREPANCY">Discrepancy</MenuItem>
+                <MenuItem value="MATCHED">Matched</MenuItem>
+                <MenuItem value="ADJUSTED">Adjusted</MenuItem>
+              </TextField>
             </Stack>
-          </Paper>
-        </>
+            <DataTable<InventoryCountLineResponse>
+              columns={[
+                {
+                  id: 'product',
+                  header: 'Product',
+                  render: (line) => (
+                    <>
+                      {line.productName}
+                      <Typography variant="caption" color="text.secondary" display="block">{line.productSku}</Typography>
+                    </>
+                  ),
+                },
+                { id: 'zone', header: 'Zone', render: (line) => locationLabel(line).zone },
+                { id: 'bin', header: 'Bin', render: (line) => locationLabel(line).bin },
+                { id: 'systemQuantity', header: 'System', align: 'right', accessor: 'systemQuantity' },
+                { id: 'countedQuantity', header: 'Counted', align: 'right', render: (line) => line.countedQuantity ?? '-' },
+                { id: 'difference', header: 'Difference', align: 'right', render: (line) => <DifferenceCell value={line.differenceQuantity ?? 0} /> },
+                { id: 'note', header: 'Note', render: (line) => line.note ?? '-' },
+                { id: 'adjustment', header: 'Adjustment', align: 'right', render: (line) => line.adjustmentMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${line.adjustmentMovementId}`}>Open</Button> : '-' },
+                { id: 'actions', header: '', align: 'right', render: (line) => canEditLines ? <Button size="small" onClick={() => { setEditingLine(line); setCountedQuantity(String(line.countedQuantity ?? line.systemQuantity ?? 0)); setNote(line.note ?? ''); }}>Count</Button> : null },
+              ]}
+              rows={lines}
+              getRowId={(line) => line.id}
+              size="small"
+              minWidth={1040}
+              emptyTitle="No count lines"
+              emptyDescription="No inventory count lines match the current filters."
+            />
+            <ServerTablePagination
+              page={linesQuery.data}
+              disabled={linesQuery.isFetching}
+              onPageChange={setLinesPage}
+              onSizeChange={(nextSize) => { setLinesSize(nextSize); setLinesPage(0); }}
+            />
+          </Stack>
+        </RelatedDataSection>
+      ) : null}
+
+      {session && activeTab === 'lifecycle' ? (
+        <DetailsLifecycleCard
+          title="Lifecycle"
+          description="Backend-controlled status workflow for this inventory count."
+          currentStatus={session.status}
+          statuses={session.status === 'REJECTED' || session.status === 'CANCELLED'
+            ? ['OPEN', 'COUNTING', 'REVIEW', session.status]
+            : inventoryCountLifecycleOrder}
+          allowedNextStatuses={allowed}
+          terminalStatuses={inventoryCountTerminalStatuses}
+          info={canManageInventoryCount ? roleHint : undefined}
+          warning={!canManageInventoryCount && canCountInventoryLines ? roleHint : undefined}
+        >
+          <InventoryCountLifecycleTimeline session={session} allowedNextStatuses={allowed} />
+        </DetailsLifecycleCard>
+      ) : null}
+
+      {session && activeTab === 'audit' ? (
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12 }}>
+            <InventoryCountAuditPanel sessionId={session.id} code={session.code} allowAttachmentsCreate={canMutateSelectedWarehouse} />
+          </Grid>
+        </Grid>
       ) : null}
 
       <Dialog open={Boolean(editingLine)} onClose={closeCountDialog} fullWidth maxWidth="sm">
@@ -350,6 +406,6 @@ export default function InventoryCountDetailsPage() {
           <Button variant="contained" disabled={!editingLine || countedQuantity === '' || updateLineMutation.isPending} onClick={() => updateLineMutation.mutate()}>Save</Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </EntityDetailsLayout>
   );
 }

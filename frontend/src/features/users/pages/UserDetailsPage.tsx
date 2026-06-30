@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import { Button, Grid, Stack, Typography } from '@mui/material';
+import { useParams } from 'react-router-dom';
+import { Grid, Typography } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { EntityDetailsLayout } from '../../../shared/components/EntityDetails';
+import { EntityDetailsLayout, DetailsField, DetailsOverviewCard, DetailsMetadataCard } from '../../../shared/components/EntityDetails';
 import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
@@ -22,24 +22,6 @@ import { useUser } from '../hooks/useUser';
 import { useUpdateUser } from '../hooks/useUpdateUser';
 import type { UpdateUserFormValues } from '../types/user.types';
 
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600}>
-        {value ?? '—'}
-      </Typography>
-    </Stack>
-  );
-}
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
@@ -59,9 +41,7 @@ function formatDate(value: string | null | undefined) {
 
 export default function UserDetailsPage() {
   const auth = useAuthStore();
-  const params = useParams();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const params = useParams();  const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -121,7 +101,7 @@ export default function UserDetailsPage() {
       <EntityDetailsLayout
         overline="Access control"
         title="User details"
-        actions={<Button variant="outlined" onClick={() => navigate('/users')}>Back to list</Button>}
+        actionItems={[{ key: 'back', label: 'Back to list', to: '/users' }]}
       >
         <SectionCard>
           <Typography color="text.secondary">Loading user details...</Typography>
@@ -152,69 +132,57 @@ export default function UserDetailsPage() {
 
   return (
     <EntityDetailsLayout
-      overline="Access control"
       title={`${user.firstName} ${user.lastName}`}
-      description={`User #${user.id}`}
+      breadcrumbs={[{ label: 'Users', to: '/users' }, { label: `${user.firstName} ${user.lastName}` }]}
+      hero={{
+        overline: 'Access control',
+        title: `${user.firstName} ${user.lastName}`,
+        subtitle: `User #${user.id}`,
+        status: user.status,
+        primaryInfo: [
+          { label: 'Email', value: user.email },
+          { label: 'Role', value: user.roleName },
+          { label: 'Company', value: user.company?.name ?? '—' },
+        ],
+      }}
+      actionItems={[
+        { key: 'back', label: 'Back to list', to: '/users' },
+        ...(canEdit ? [{ key: 'edit', label: 'Edit user', onClick: () => setEditOpen(true) }] : []),
+        ...(canToggle ? [{ key: 'toggle', label: user.enabled ? 'Disable user' : 'Enable user', color: user.enabled ? 'warning' as const : 'success' as const, variant: 'contained' as const, disabled: enableDisableMutation.isPending, onClick: () => enableDisableMutation.mutate(user.enabled) }] : []),
+      ]}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as 'overview' | 'linkedEmployee' | 'changeHistory')}
-      actions={
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button component={RouterLink} to="/users" variant="outlined">
-            Back to list
-          </Button>
-
-          {canEdit && (
-            <Button variant="outlined" onClick={() => setEditOpen(true)}>
-              Edit user
-            </Button>
-          )}
-
-          {canToggle && (
-            <Button
-              variant="contained"
-              color={user.enabled ? 'warning' : 'success'}
-              disabled={enableDisableMutation.isPending}
-              onClick={() => enableDisableMutation.mutate(user.enabled)}
-            >
-              {user.enabled ? 'Disable user' : 'Enable user'}
-            </Button>
-          )}
-        </Stack>
-      }
     >
       {activeTab === 'overview' ? (
-        <SectionCard
-            title="User overview"
-            description="User, company and linked employee fields returned by the backend."
-          >
+        <DetailsOverviewCard title="User overview" description="User, company and linked employee fields returned by the backend.">
           <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow label="First name" value={user.firstName} />
+                <DetailsField label="First name" value={user.firstName} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow label="Last name" value={user.lastName} />
+                <DetailsField label="Last name" value={user.lastName} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow label="Email" value={user.email} />
+                <DetailsField label="Email" value={user.email} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow label="Role" value={user.roleName} />
+                <DetailsField label="Role" value={user.roleName} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow label="Status" value={<UserStatusChip value={user.status} />} />
+                <DetailsField label="Status" value={<UserStatusChip value={user.status} />} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow
+                <DetailsField
                   label="Enabled"
                   value={<StatusChip value={user.enabled ? 'ACTIVE' : 'INACTIVE'} />}
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow label="Company" value={user.company?.name ?? '—'} />
+                <DetailsField label="Company" value={user.company?.name ?? '—'} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow
+                <DetailsField
                   label="Company active"
                   value={
                     user.company ? (
@@ -226,38 +194,38 @@ export default function UserDetailsPage() {
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow label="Created at" value={formatDateTime(user.createdAt)} />
+                <DetailsField label="Created at" value={formatDateTime(user.createdAt)} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <InfoRow label="Updated at" value={formatDateTime(user.updatedAt)} />
+                <DetailsField label="Updated at" value={formatDateTime(user.updatedAt)} />
               </Grid>
             </Grid>
-          </SectionCard>
+          </DetailsOverviewCard>
       ) : null}
 
       {activeTab === 'linkedEmployee' ? (
-        <SectionCard
+        <DetailsMetadataCard
           title="Linked employee"
           description="Employee profile created together with the user."
         >
           <Grid container spacing={3}>
               <Grid size={{ xs: 12 }}>
-                <InfoRow label="JMBG" value={user.employee?.jmbg ?? '—'} />
+                <DetailsField label="JMBG" value={user.employee?.jmbg ?? '—'} />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <InfoRow label="Phone number" value={user.employee?.phoneNumber ?? '—'} />
+                <DetailsField label="Phone number" value={user.employee?.phoneNumber ?? '—'} />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <InfoRow label="Position" value={user.employee?.position ?? '—'} />
+                <DetailsField label="Position" value={user.employee?.position ?? '—'} />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <InfoRow
+                <DetailsField
                   label="Employment date"
                   value={formatDate(user.employee?.employmentDate)}
                 />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <InfoRow
+                <DetailsField
                   label="Salary"
                   value={
                     formatSalary(user.employee?.salary, user.employee?.salaryCurrencyCode)
@@ -265,7 +233,7 @@ export default function UserDetailsPage() {
                 />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <InfoRow
+                <DetailsField
                   label="Employee active"
                   value={
                     user.employee ? (
@@ -277,7 +245,7 @@ export default function UserDetailsPage() {
                 />
               </Grid>
           </Grid>
-        </SectionCard>
+        </DetailsMetadataCard>
       ) : null}
 
       {activeTab === 'changeHistory' ? (

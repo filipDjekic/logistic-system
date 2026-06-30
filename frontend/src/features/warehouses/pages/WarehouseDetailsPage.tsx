@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import type { PageResponse } from '../../../core/api/pagination';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -13,33 +14,30 @@ import {
   Divider,
   Grid,
   LinearProgress,
-  Link,
   MenuItem,
   Paper,
   Stack,
-  Table,
-  TablePagination,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import DataTable from '../../../shared/components/DataTable/DataTable';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 import ArchivedEntityAlert from '../../../shared/components/archive/ArchivedEntityAlert';
 import { LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
-import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
 import {
-  AttachmentsPanel,
-  ChangeHistoryPanel,
-  CommentsPanel,
-  DomainEventsPanel,
-} from '../../../shared/components/OperationalPanels';
+  DetailsField,
+  DetailsMetadataCard,
+  DetailsOverviewCard,
+  DetailsStatisticsCard,
+  EntityDetailsLayout,
+  OperationalDetailsTabPanels,
+  RelatedDataSection,
+  buildOperationalTabs,
+} from '../../../shared/components/EntityDetails';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { EntityLookupField } from '../../lookup';
@@ -58,10 +56,10 @@ import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { invalidateWarehouseState } from '../../../core/utils/invalidateAppState';
 import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
-import { useBinLocations, useWarehouseZones } from '../../warehouse-locations/hooks/useWarehouseLocations';
+import { useBinLocations, useInternalWarehouseMovements, useWarehouseZones } from '../../warehouse-locations/hooks/useWarehouseLocations';
 import { warehousesApi } from '../api/warehousesApi';
 import { useWarehouse } from '../hooks/useWarehouse';
-import type { BinLocationResponse, WarehouseZoneResponse, WarehouseZoneType } from '../../warehouse-locations/types/warehouseLocation.types';
+import type { BinLocationResponse, InternalWarehouseMovementResponse, WarehouseZoneResponse, WarehouseZoneType } from '../../warehouse-locations/types/warehouseLocation.types';
 import type { WarehouseStatus } from '../types/warehouse.types';
 import { useInventory } from '../../inventory/hooks/useInventory';
 import type { InventoryListRow } from '../../inventory/types/inventory.types';
@@ -74,23 +72,13 @@ type WarehouseDetailsTab =
   | 'locations'
   | 'bins'
   | 'inventory'
+  | 'internalMovements'
   | 'stockMovements'
   | 'access'
-  | 'commentsAttachments'
-  | 'eventsHistory';
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600}>
-        {value ?? '—'}
-      </Typography>
-    </Stack>
-  );
-}
+  | 'attachments'
+  | 'comments'
+  | 'audit'
+  | 'history';
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -203,20 +191,17 @@ function QuantityBar({ value, total }: { value: number | string | null | undefin
   );
 }
 
+
 function usePagedState(defaultSize = 10) {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(defaultSize);
-  const pagination = (data: { totalElements: number; number: number; size: number } | undefined) => (
-    <TablePagination
-      component="div"
-      count={data?.totalElements ?? 0}
-      page={data?.number ?? page}
-      rowsPerPage={data?.size ?? size}
-      rowsPerPageOptions={[5, 10, 20, 50]}
-      onPageChange={(_, nextPage) => setPage(nextPage)}
-      onRowsPerPageChange={(event) => {
+  const pagination = (data: PageResponse<unknown> | undefined) => (
+    <ServerTablePagination
+      page={data}
+      onPageChange={setPage}
+      onSizeChange={(nextSize) => {
         setPage(0);
-        setSize(Number(event.target.value));
+        setSize(nextSize);
       }}
     />
   );
@@ -226,77 +211,62 @@ function usePagedState(defaultSize = 10) {
 
 function ZonesTable({ rows, onOpenZone }: { rows: WarehouseZoneResponse[]; onOpenZone: (zone: WarehouseZoneResponse) => void }) {
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Code</TableCell>
-            <TableCell>Name</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell align="right">Capacity</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Updated</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id} hover onClick={() => onOpenZone(row)} sx={{ cursor: 'pointer' }}>
-              <TableCell>
-                <Typography fontWeight={800}>{row.code}</Typography>
-              </TableCell>
-              <TableCell>{row.name}</TableCell>
-              <TableCell>
-                <Chip size="small" variant="outlined" label={row.type} />
-              </TableCell>
-              <TableCell align="right">{row.capacity ?? '—'}</TableCell>
-              <TableCell>
-                <StatusChip value={row.active ? 'ACTIVE' : 'INACTIVE'} />
-              </TableCell>
-              <TableCell>{formatDate(row.updatedAt ?? row.createdAt)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <DataTable<WarehouseZoneResponse>
+      columns={[
+        { id: 'code', header: 'Code', render: (row) => <Typography fontWeight={800}>{row.code}</Typography> },
+        { id: 'name', header: 'Name', accessor: 'name' },
+        { id: 'type', header: 'Type', render: (row) => <Chip size="small" variant="outlined" label={row.type} /> },
+        { id: 'capacity', header: 'Capacity', align: 'right', render: (row) => row.capacity ?? '—' },
+        { id: 'status', header: 'Status', render: (row) => <StatusChip value={row.active ? 'ACTIVE' : 'INACTIVE'} /> },
+        { id: 'updated', header: 'Updated', render: (row) => formatDate(row.updatedAt ?? row.createdAt) },
+      ]}
+      rows={rows}
+      getRowId={(row) => row.id}
+      size="small"
+      minWidth={760}
+      onRowClick={onOpenZone}
+      emptyTitle="No zones"
+      emptyDescription="This warehouse does not have configured zones yet."
+    />
   );
 }
 
-
 function WarehouseBinsTable({ rows, onOpenBin }: { rows: BinLocationResponse[]; onOpenBin: (bin: BinLocationResponse) => void }) {
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Bin</TableCell>
-            <TableCell>Location / zone</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell align="right">Capacity</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Updated</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id} hover onClick={() => onOpenBin(row)} sx={{ cursor: 'pointer' }}>
-              <TableCell>
-                <Typography fontWeight={800}>{row.code}</Typography>
-                <Typography variant="caption" color="text.secondary">{row.name}</Typography>
-              </TableCell>
-              <TableCell>
-                <Button size="small" component={RouterLink} to={warehouseLocationRoutes.warehouseLocationDetails(row.warehouseId, row.zoneId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
-                  {row.zoneCode} · {row.zoneName}
-                </Button>
-              </TableCell>
-              <TableCell><Chip size="small" variant="outlined" label={row.zoneType} /></TableCell>
-              <TableCell align="right">{row.capacity ?? '—'}</TableCell>
-              <TableCell><StatusChip value={row.active ? 'ACTIVE' : 'INACTIVE'} /></TableCell>
-              <TableCell>{formatDate(row.updatedAt ?? row.createdAt)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <DataTable<BinLocationResponse>
+      columns={[
+        {
+          id: 'bin',
+          header: 'Bin',
+          render: (row) => (
+            <Stack spacing={0.25}>
+              <Typography fontWeight={800}>{row.code}</Typography>
+              <Typography variant="caption" color="text.secondary">{row.name}</Typography>
+            </Stack>
+          ),
+        },
+        {
+          id: 'zone',
+          header: 'Location / zone',
+          render: (row) => (
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.warehouseLocationDetails(row.warehouseId, row.zoneId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+              {row.zoneCode} · {row.zoneName}
+            </Button>
+          ),
+        },
+        { id: 'type', header: 'Type', render: (row) => <Chip size="small" variant="outlined" label={row.zoneType} /> },
+        { id: 'capacity', header: 'Capacity', align: 'right', render: (row) => row.capacity ?? '—' },
+        { id: 'status', header: 'Status', render: (row) => <StatusChip value={row.active ? 'ACTIVE' : 'INACTIVE'} /> },
+        { id: 'updated', header: 'Updated', render: (row) => formatDate(row.updatedAt ?? row.createdAt) },
+      ]}
+      rows={rows}
+      getRowId={(row) => row.id}
+      size="small"
+      minWidth={860}
+      onRowClick={onOpenBin}
+      emptyTitle="No bins"
+      emptyDescription="This warehouse does not have configured bins yet."
+    />
   );
 }
 
@@ -304,95 +274,136 @@ function WarehouseInventoryTable({ rows, onOpenInventory }: { rows: InventoryLis
   const totalQuantity = rows.reduce((sum, row) => sum + toNumber(row.quantity), 0);
 
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Product</TableCell>
-            <TableCell>SKU</TableCell>
-            <TableCell align="right">Quantity</TableCell>
-            <TableCell align="right">Reserved</TableCell>
-            <TableCell align="right">Available</TableCell>
-            <TableCell>Status</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={`${row.warehouseId}-${row.productId}`} hover onClick={() => onOpenInventory(row)} sx={{ cursor: 'pointer' }}>
-              <TableCell>
-                <Typography fontWeight={800}>{row.productName}</Typography>
-                <Typography variant="caption" color="text.secondary">Product #{row.productId}</Typography>
-              </TableCell>
-              <TableCell>{row.productSku ?? '—'}</TableCell>
-              <TableCell align="right" sx={{ minWidth: 180 }}>
-                <QuantityBar value={row.quantity} total={totalQuantity} />
-              </TableCell>
-              <TableCell align="right">{row.reservedQuantity}</TableCell>
-              <TableCell align="right">{row.availableQuantity}</TableCell>
-              <TableCell><StatusChip value={row.derivedStatus} /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <DataTable<InventoryListRow>
+      columns={[
+        {
+          id: 'product',
+          header: 'Product',
+          render: (row) => (
+            <Stack spacing={0.25}>
+              <Typography fontWeight={800}>{row.productName}</Typography>
+              <Typography variant="caption" color="text.secondary">Product #{row.productId}</Typography>
+            </Stack>
+          ),
+        },
+        { id: 'sku', header: 'SKU', render: (row) => row.productSku ?? '—' },
+        { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 180, render: (row) => <QuantityBar value={row.quantity} total={totalQuantity} /> },
+        { id: 'reserved', header: 'Reserved', align: 'right', accessor: 'reservedQuantity' },
+        { id: 'available', header: 'Available', align: 'right', accessor: 'availableQuantity' },
+        { id: 'status', header: 'Status', render: (row) => <StatusChip value={row.derivedStatus} /> },
+      ]}
+      rows={rows}
+      getRowId={(row) => `${row.warehouseId}-${row.productId}`}
+      size="small"
+      minWidth={840}
+      onRowClick={onOpenInventory}
+      emptyTitle="No inventory"
+      emptyDescription="This warehouse does not currently have product stock records."
+    />
   );
 }
 
 function StockMovementsTable({ rows, onOpenMovement }: { rows: StockMovementResponse[]; onOpenMovement: (row: StockMovementResponse) => void }) {
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>ID</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell>Product</TableCell>
-            <TableCell>Bins</TableCell>
-            <TableCell>Transport</TableCell>
-            <TableCell align="right">Quantity</TableCell>
-            <TableCell>Reason</TableCell>
-            <TableCell>Created</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id} hover onClick={() => onOpenMovement(row)} sx={{ cursor: 'pointer' }}>
-              <TableCell>#{row.id}</TableCell>
-              <TableCell><Chip size="small" variant="outlined" label={row.movementType} /></TableCell>
-              <TableCell>
-                <Button size="small" component={RouterLink} to={warehouseLocationRoutes.productDetails(row.productId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
-                  {row.productName}
+    <DataTable<StockMovementResponse>
+      columns={[
+        { id: 'id', header: 'ID', render: (row) => `#${row.id}` },
+        { id: 'type', header: 'Type', render: (row) => <Chip size="small" variant="outlined" label={row.movementType} /> },
+        {
+          id: 'product',
+          header: 'Product',
+          render: (row) => (
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.productDetails(row.productId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+              {row.productName}
+            </Button>
+          ),
+        },
+        {
+          id: 'bins',
+          header: 'Bins',
+          render: (row) => (
+            <Stack spacing={0.25} alignItems="flex-start">
+              {row.sourceBinId && row.sourceBinZoneId ? (
+                <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(row.warehouseId, row.sourceBinZoneId, row.sourceBinId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                  Source: {row.sourceBinCode ?? `#${row.sourceBinId}`}
                 </Button>
-              </TableCell>
-              <TableCell>
-                <Stack spacing={0.25} alignItems="flex-start">
-                  {row.sourceBinId && row.sourceBinZoneId ? (
-                    <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(row.warehouseId, row.sourceBinZoneId, row.sourceBinId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
-                      Source: {row.sourceBinCode ?? `#${row.sourceBinId}`}
-                    </Button>
-                  ) : <Typography variant="caption" color="text.secondary">Source: —</Typography>}
-                  {row.destinationBinId && row.destinationBinZoneId ? (
-                    <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(row.warehouseId, row.destinationBinZoneId, row.destinationBinId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
-                      Destination: {row.destinationBinCode ?? `#${row.destinationBinId}`}
-                    </Button>
-                  ) : <Typography variant="caption" color="text.secondary">Destination: —</Typography>}
-                </Stack>
-              </TableCell>
-              <TableCell>
-                {row.transportOrderId ? (
-                  <Button size="small" component={RouterLink} to={warehouseLocationRoutes.transportOrderDetails(row.transportOrderId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
-                    #{row.transportOrderId}
-                  </Button>
-                ) : '—'}
-              </TableCell>
-              <TableCell align="right">{row.quantity}</TableCell>
-              <TableCell>{row.reasonCode ?? '—'}</TableCell>
-              <TableCell>{formatDate(row.createdAt)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+              ) : <Typography variant="caption" color="text.secondary">Source: —</Typography>}
+              {row.destinationBinId && row.destinationBinZoneId ? (
+                <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(row.warehouseId, row.destinationBinZoneId, row.destinationBinId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+                  Destination: {row.destinationBinCode ?? `#${row.destinationBinId}`}
+                </Button>
+              ) : <Typography variant="caption" color="text.secondary">Destination: —</Typography>}
+            </Stack>
+          ),
+        },
+        {
+          id: 'transport',
+          header: 'Transport',
+          render: (row) => row.transportOrderId ? (
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.transportOrderDetails(row.transportOrderId)} onClick={(event) => event.stopPropagation()} sx={{ px: 0, minWidth: 0 }}>
+              #{row.transportOrderId}
+            </Button>
+          ) : '—',
+        },
+        { id: 'quantity', header: 'Quantity', align: 'right', accessor: 'quantity' },
+        { id: 'reason', header: 'Reason', render: (row) => row.reasonCode ?? '—' },
+        { id: 'created', header: 'Created', render: (row) => formatDate(row.createdAt) },
+      ]}
+      rows={rows}
+      getRowId={(row) => row.id}
+      size="small"
+      minWidth={1080}
+      onRowClick={onOpenMovement}
+      emptyTitle="No stock movements"
+      emptyDescription="No stock movements have been recorded for this warehouse yet."
+    />
+  );
+}
+
+function InternalMovementsTable({ rows }: { rows: InternalWarehouseMovementResponse[] }) {
+  return (
+    <DataTable<InternalWarehouseMovementResponse>
+      columns={[
+        { id: 'id', header: 'ID', render: (row) => `#${row.id}` },
+        {
+          id: 'product',
+          header: 'Product',
+          render: (row) => (
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.productDetails(row.productId)} sx={{ px: 0, minWidth: 0 }}>
+              {row.productName} ({row.sku})
+            </Button>
+          ),
+        },
+        {
+          id: 'sourceBin',
+          header: 'Source bin',
+          render: (row) => (
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(row.warehouseId, row.sourceBinZoneId, row.sourceBinId)} sx={{ px: 0, minWidth: 0 }}>
+              {row.sourceBinCode}
+            </Button>
+          ),
+        },
+        {
+          id: 'destinationBin',
+          header: 'Destination bin',
+          render: (row) => (
+            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(row.warehouseId, row.destinationBinZoneId, row.destinationBinId)} sx={{ px: 0, minWidth: 0 }}>
+              {row.destinationBinCode}
+            </Button>
+          ),
+        },
+        { id: 'quantity', header: 'Quantity', align: 'right', accessor: 'quantity' },
+        { id: 'status', header: 'Status', render: (row) => <Chip size="small" label={row.status} color={row.status === 'COMPLETED' ? 'success' : 'default'} /> },
+        { id: 'createdBy', header: 'Created by', render: (row) => row.createdByEmail ?? '—' },
+        { id: 'created', header: 'Created', render: (row) => formatDate(row.createdAt) },
+      ]}
+      rows={rows}
+      getRowId={(row) => row.id}
+      size="small"
+      minWidth={1040}
+      emptyTitle="No internal movements"
+      emptyDescription="No bin-to-bin internal movements have been recorded for this warehouse yet."
+    />
   );
 }
 
@@ -459,13 +470,13 @@ function WarehouseAccessCard({
         <Divider />
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
-            <InfoRow label="Permission scope" value={accessTypeDescriptions[assignment.accessType]} />
+            <DetailsField label="Permission scope" value={accessTypeDescriptions[assignment.accessType]} />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <InfoRow label="Validity" value={`${assignment.validFrom ?? 'Immediately'} → ${assignment.validTo ?? 'No end date'}`} />
+            <DetailsField label="Validity" value={`${assignment.validFrom ?? 'Immediately'} → ${assignment.validTo ?? 'No end date'}`} />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <InfoRow label="Explanation" value={assignment.notes ?? '—'} />
+            <DetailsField label="Explanation" value={assignment.notes ?? '—'} />
           </Grid>
         </Grid>
       </Stack>
@@ -646,11 +657,13 @@ export default function WarehouseDetailsPage() {
   const binPage = usePagedState();
   const inventoryPage = usePagedState();
   const stockMovementPage = usePagedState();
+  const internalMovementPage = usePagedState();
   const [zoneSearch, setZoneSearch] = useState('');
   const [binSearch, setBinSearch] = useState('');
   const [inventorySearch, setInventorySearch] = useState('');
   const [movementSearch, setMovementSearch] = useState('');
   const [movementTypeFilter, setMovementTypeFilter] = useState<string>('ALL');
+  const [internalMovementSearch, setInternalMovementSearch] = useState('');
 
   const canManage =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
@@ -680,11 +693,13 @@ export default function WarehouseDetailsPage() {
     Boolean(validWarehouseId) && canViewInventoryTab && activeTab === 'inventory',
   );
   const stockMovementQuery = useStockMovements({ search: movementSearch, movementType: movementTypeFilter as any, warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', transportOrderId: 'ALL', fromDate: '', toDate: '', page: stockMovementPage.page, size: stockMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'stockMovements');
+  const internalMovementQuery = useInternalWarehouseMovements({ warehouseId: scopedWarehouseId, search: internalMovementSearch.trim() || undefined, page: internalMovementPage.page, size: internalMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'internalMovements');
 
   const zones = zoneQuery.data?.content ?? [];
   const bins = binQuery.data?.content ?? [];
   const inventory = activeTab === 'inventory' ? inventoryQuery.data?.content ?? [] : [];
   const stockMovements = stockMovementQuery.data?.content ?? [];
+  const internalMovements = internalMovementQuery.data?.content ?? [];
 
   const [transitionTarget, setTransitionTarget] = useState<WarehouseStatus | null>(null);
 
@@ -782,14 +797,15 @@ export default function WarehouseDetailsPage() {
     );
   }
 
-  const tabItems: { value: WarehouseDetailsTab; label: ReactNode }[] = [
+  const tabItems: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
-    { value: 'locations', label: `Locations${zoneQuery.data ? ` (${zoneQuery.data.totalElements})` : ''}` },
+    { value: 'locations', label: `Zones${zoneQuery.data ? ` (${zoneQuery.data.totalElements})` : ''}` },
+    { value: 'bins', label: `Bins${binQuery.data ? ` (${binQuery.data.totalElements})` : ''}` },
     ...(canViewInventoryTab ? [{ value: 'inventory' as WarehouseDetailsTab, label: `Inventory${inventoryQuery.data ? ` (${inventoryQuery.data.totalElements})` : ''}` }] : []),
-    { value: 'stockMovements', label: `Movements${stockMovementQuery.data ? ` (${stockMovementQuery.data.totalElements})` : ''}` },
+    { value: 'internalMovements', label: `Internal movements${internalMovementQuery.data ? ` (${internalMovementQuery.data.totalElements})` : ''}` },
+    { value: 'stockMovements', label: `Stock movements${stockMovementQuery.data ? ` (${stockMovementQuery.data.totalElements})` : ''}` },
     ...(canManageAccess ? [{ value: 'access' as WarehouseDetailsTab, label: 'Access' }] : []),
-    { value: 'commentsAttachments', label: 'Attachments & comments' },
-    { value: 'eventsHistory', label: 'Events & history' },
+    ...buildOperationalTabs({ entityType: 'WAREHOUSE', entityName: 'WAREHOUSE', entityId: warehouse.id, allowCreateAttachments: canManageStorage, allowCreateComments: canManageStorage }),
   ];
 
   return (
@@ -797,6 +813,21 @@ export default function WarehouseDetailsPage() {
       overline="Storage"
       title={warehouse.name}
       description={`Warehouse #${warehouse.id} • ${warehouse.city}`}
+      breadcrumbs={[{ label: 'Warehouses', to: warehouseLocationRoutes.warehouses() }, { label: warehouse.name }]}
+      hero={{
+        overline: 'Warehouse',
+        title: warehouse.name,
+        subtitle: `${warehouse.address}, ${warehouse.city}`,
+        description: `Central workspace for zones, bins, inventory, movements and warehouse access.`,
+        status: warehouse.status,
+        lifecycleStatus: warehouse.active ? 'ACTIVE' : 'INACTIVE',
+        primaryInfo: [
+          { label: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity },
+          { label: 'Company', value: warehouse.companyName ?? '—' },
+          { label: 'Manager', value: warehouse.managerName ?? '—' },
+          { label: 'Bin tracking', value: warehouse.binTrackingEnabled ? 'Enabled' : 'Warehouse only' },
+        ],
+      }}
       tabs={tabItems}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as WarehouseDetailsTab)}
@@ -826,89 +857,76 @@ export default function WarehouseDetailsPage() {
 
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
-          <SectionCard title="Warehouse overview">
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <InfoRow label="Name" value={warehouse.name} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <InfoRow label="City" value={warehouse.city} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <InfoRow label="Address" value={warehouse.address} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <InfoRow label="Capacity" value={warehouse.capacity} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Status
-                  </Typography>
-                  <Stack alignItems="flex-start">
-                    <StatusChip value={warehouse.status} />
-                  </Stack>
-                </Stack>
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Active
-                  </Typography>
-                  <Stack alignItems="flex-start">
-                    <StatusChip value={warehouse.active ? 'ACTIVE' : 'INACTIVE'} />
-                  </Stack>
-                </Stack>
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">Bin tracking</Typography>
-                  <Chip size="small" color={warehouse.binTrackingEnabled ? 'success' : 'default'} label={warehouse.binTrackingEnabled ? 'ENABLED' : 'WAREHOUSE ONLY'} sx={{ alignSelf: 'flex-start' }} />
-                </Stack>
-              </Grid>
-            </Grid>
-          </SectionCard>
+          <DetailsStatisticsCard
+            title="Warehouse statistics"
+            description="Fast operational snapshot for this warehouse. Counts are loaded from the related tabs when those tabs are opened."
+            statistics={[
+              { key: 'capacity', title: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity, subtitle: 'Configured storage capacity' },
+              { key: 'status', title: 'Status', value: warehouse.status, subtitle: warehouse.active ? 'Warehouse is active' : 'Warehouse is archived' },
+              { key: 'zones', title: 'Zones', value: zoneQuery.data?.totalElements ?? '—', subtitle: 'Open Zones tab for live count' },
+              { key: 'bins', title: 'Bins', value: binQuery.data?.totalElements ?? '—', subtitle: 'Open Bins tab for live count' },
+            ]}
+          />
 
+          <DetailsOverviewCard
+            title="Warehouse overview"
+            description="Business and location data that identifies this warehouse."
+            fields={[
+              { key: 'name', label: 'Name', value: warehouse.name },
+              { key: 'city', label: 'City', value: warehouse.cityName ?? warehouse.city },
+              { key: 'address', label: 'Address', value: warehouse.address },
+              { key: 'postalCode', label: 'Postal code', value: warehouse.postalCode },
+              { key: 'country', label: 'Country', value: warehouse.countryName ?? warehouse.countryCode },
+              { key: 'timezone', label: 'Timezone', value: warehouse.timezoneDisplayName ?? warehouse.timezoneName ?? warehouse.timezone },
+              { key: 'capacity', label: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity },
+              { key: 'status', label: 'Status', value: <StatusChip value={warehouse.status} /> },
+              { key: 'active', label: 'Active', value: <StatusChip value={warehouse.active ? 'ACTIVE' : 'INACTIVE'} /> },
+              { key: 'binTracking', label: 'Bin tracking', value: <Chip size="small" color={warehouse.binTrackingEnabled ? 'success' : 'default'} label={warehouse.binTrackingEnabled ? 'ENABLED' : 'WAREHOUSE ONLY'} /> },
+              { key: 'coordinates', label: 'Coordinates', value: warehouse.latitude != null && warehouse.longitude != null ? `${warehouse.latitude}, ${warehouse.longitude}` : '—' },
+            ]}
+          />
 
-          <SectionCard title="Ownership and assignment">
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <InfoRow label="Manager employee" value={warehouse.employeeId ? <Button component={RouterLink} to={`/employees/${warehouse.employeeId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{warehouse.managerName ?? `Employee #${warehouse.employeeId}`}</Button> : '—'} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <InfoRow label="Manager name" value={warehouse.managerName ?? '—'} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <InfoRow label="Company" value={warehouse.companyName ?? '—'} />
-              </Grid>
-            </Grid>
-          </SectionCard>
+          <DetailsMetadataCard
+            title="Ownership and assignment"
+            description="Warehouse ownership belongs in metadata, not in the primary overview card."
+            fields={[
+              {
+                key: 'managerEmployee',
+                label: 'Manager employee',
+                value: warehouse.employeeId ? <Button component={RouterLink} to={`/employees/${warehouse.employeeId}`} size="small" sx={{ px: 0, minWidth: 0 }}>{warehouse.managerName ?? `Employee #${warehouse.employeeId}`}</Button> : '—',
+              },
+              { key: 'managerName', label: 'Manager name', value: warehouse.managerName },
+              { key: 'company', label: 'Company', value: warehouse.companyName },
+              { key: 'companyId', label: 'Company ID', value: warehouse.companyId ? `#${warehouse.companyId}` : '—' },
+              { key: 'warehouseId', label: 'Warehouse ID', value: `#${warehouse.id}` },
+            ]}
+          />
         </Stack>
       ) : null}
 
       {activeTab === 'locations' ? (
         <RelatedDataSection
-          title="Locations"
-          description="Warehouse physical layout starts here: open a location/zone, then drill down into its bins and bin inventory."
+          title="Zones"
+          description="Warehouse physical layout starts here: open a zone, then drill down into its bins and bin inventory."
           action={canManageStorage ? (
             <Button variant="outlined" onClick={() => setCreateLocationOpen(true)}>
-              Create location
+              Create zone
             </Button>
           ) : undefined}
           loading={zoneQuery.isLoading}
           error={zoneQuery.isError}
           onRetry={() => void zoneQuery.refetch()}
           empty={!zoneQuery.isLoading && !zoneQuery.isError && zones.length === 0}
-          emptyTitle="No bin locations"
-          emptyDescription="This warehouse does not have configured locations/zones yet. Create locations before managing bins and bin inventory."
+          emptyTitle="No zones"
+          emptyDescription="This warehouse does not have configured zones yet. Create zones before managing bins and bin inventory."
         >
           <Stack spacing={2}>
             <TextField
               size="small"
-              label="Search locations"
+              label="Search zones"
               value={zoneSearch}
               onChange={(event) => { setZoneSearch(event.target.value); zonePage.setPage(0) }}
-              placeholder="Search by code, name or type"
+              placeholder="Search by zone code, name or type"
               fullWidth
             />
             <ZonesTable rows={zones} onOpenZone={(zone) => navigate(warehouseLocationRoutes.warehouseLocationDetails(warehouse.id, zone.id))} />
@@ -975,6 +993,32 @@ export default function WarehouseDetailsPage() {
         </RelatedDataSection>
       ) : null}
 
+      {activeTab === 'internalMovements' ? (
+        <RelatedDataSection
+          title="Internal movements"
+          description="Bin-to-bin movements inside this warehouse. Use this tab for physical relocation inside the same warehouse, not global stock movement history."
+          loading={internalMovementQuery.isLoading}
+          error={internalMovementQuery.isError}
+          onRetry={() => void internalMovementQuery.refetch()}
+          empty={!internalMovementQuery.isLoading && !internalMovementQuery.isError && internalMovements.length === 0}
+          emptyTitle="No internal movements"
+          emptyDescription="No bin-to-bin internal movements have been recorded for this warehouse yet."
+        >
+          <Stack spacing={2}>
+            <TextField
+              size="small"
+              label="Search internal movements"
+              value={internalMovementSearch}
+              onChange={(event) => { setInternalMovementSearch(event.target.value); internalMovementPage.setPage(0); }}
+              placeholder="Search by product, SKU, bin code or note"
+              fullWidth
+            />
+            <InternalMovementsTable rows={internalMovements} />
+          </Stack>
+          {internalMovementPage.pagination(internalMovementQuery.data)}
+        </RelatedDataSection>
+      ) : null}
+
       {activeTab === 'stockMovements' ? (
         <Stack spacing={3}>
           <RelatedDataSection
@@ -1033,30 +1077,14 @@ export default function WarehouseDetailsPage() {
         <WarehouseAccessPanel warehouseId={warehouse.id} warehouseName={warehouse.name} />
       ) : null}
 
-      {activeTab === 'commentsAttachments' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <CommentsPanel entityType="WAREHOUSE" entityId={warehouse.id} allowCreate={canManageStorage} />
-          </Grid>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <AttachmentsPanel entityType="WAREHOUSE" entityId={warehouse.id} allowCreate={canManageStorage} />
-          </Grid>
-        </Grid>
-      ) : null}
-
-      {activeTab === 'eventsHistory' ? (
-        <Stack spacing={3}>
-          <DomainEventsPanel entityType="WAREHOUSE" entityId={warehouse.id} />
-          <Stack spacing={2}>
-            <ChangeHistoryPanel entityName="WAREHOUSE" entityId={warehouse.id} />
-            <Stack alignItems="flex-end">
-              <Link component="button" variant="body2" onClick={() => navigate(`/change-history?entityName=WAREHOUSE&entityId=${warehouse.id}`)}>
-                Open full change history
-              </Link>
-            </Stack>
-          </Stack>
-        </Stack>
-      ) : null}
+      <OperationalDetailsTabPanels
+        activeTab={activeTab}
+        entityType="WAREHOUSE"
+        entityName="WAREHOUSE"
+        entityId={warehouse.id}
+        allowCreateAttachments={canManageStorage}
+        allowCreateComments={canManageStorage}
+      />
 
       <CreateWarehouseLocationDialog
         open={createLocationOpen}

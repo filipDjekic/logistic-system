@@ -1,22 +1,60 @@
 import { Grid } from '@mui/material';
-import SectionCard from '../../../../shared/components/SectionCard/SectionCard';
+import { DetailsLifecycleCard } from '../../../../shared/components/EntityDetails';
 import OperationalTimeline from '../../../../shared/components/OperationalTimeline/OperationalTimeline';
-import { LifecycleHistoryTimeline } from '../../../../shared/components/Lifecycle';
 import { formatTemporalView } from '../../../../core/utils/timezoneFormat';
+import TransportOrderStatusChip from '../TransportOrderStatusChip';
 import type { TransportOrderResponse, TransportOrderStatus } from '../../types/transportOrder.types';
+import { getStatusActionLabel } from './transportOrderDetailsUtils';
 
 type TransportOrderLifecycleTabProps = {
   transportOrder: TransportOrderResponse;
   nextStatuses: TransportOrderStatus[];
+  statusMutationPending?: boolean;
+  onSelectTransition?: (status: TransportOrderStatus) => void;
 };
+
+const transportOrderLifecycleStatuses: TransportOrderStatus[] = [
+  'DRAFT',
+  'ASSIGNED',
+  'PICKING',
+  'PACKING',
+  'READY_FOR_LOADING',
+  'LOADING',
+  'IN_TRANSIT',
+  'DELIVERED',
+  'FAILED',
+  'RETURNING',
+  'RESCHEDULED',
+  'CANCELLED',
+];
 
 export default function TransportOrderLifecycleTab({
   transportOrder,
+  nextStatuses,
+  statusMutationPending = false,
+  onSelectTransition,
 }: TransportOrderLifecycleTabProps) {
   return (
     <Grid container spacing={3}>
       <Grid size={{ xs: 12 }}>
-        <SectionCard title="Live workflow state" description="This panel refreshes active transport context every 30 seconds while the order is not terminal.">
+        <DetailsLifecycleCard
+          title="Live workflow state"
+          description="This panel refreshes active transport context every 30 seconds while the order is not terminal."
+          currentStatus={transportOrder.status}
+          statusNode={<TransportOrderStatusChip status={transportOrder.status} />}
+          statuses={transportOrderLifecycleStatuses}
+          allowedNextStatuses={nextStatuses}
+          terminalStatuses={['DELIVERED', 'FAILED', 'CANCELLED']}
+          actions={nextStatuses.map((status) => ({
+            key: status,
+            label: getStatusActionLabel(status),
+            variant: 'contained' as const,
+            disabled: statusMutationPending || !onSelectTransition,
+            onClick: () => onSelectTransition?.(status),
+          }))}
+          historyEntityName="TRANSPORT_ORDER"
+          historyEntityId={transportOrder.id}
+        >
           <OperationalTimeline
             items={(transportOrder.timeline ?? []).map((entry) => ({
               id: `${entry.status}-${entry.label}`,
@@ -28,10 +66,7 @@ export default function TransportOrderLifecycleTab({
               current: entry.current,
             }))}
           />
-        </SectionCard>
-      </Grid>
-      <Grid size={{ xs: 12 }}>
-        <LifecycleHistoryTimeline entityName="TRANSPORT_ORDER" entityId={transportOrder.id} />
+        </DetailsLifecycleCard>
       </Grid>
     </Grid>
   );

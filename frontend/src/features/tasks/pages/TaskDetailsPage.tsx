@@ -6,18 +6,11 @@ import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { getAllowedTaskStatusTransitions } from '../../../core/permissions/operationGuards';
-import { EntityDetailsLayout } from '../../../shared/components/EntityDetails';
-import {
-  AttachmentsPanel,
-  ChangeHistoryPanel,
-  CommentsPanel,
-  DomainEventsPanel,
-} from '../../../shared/components/OperationalPanels';
+import { DetailsLifecycleCard, EntityDetailsLayout, OperationalDetailsTabPanels, buildOperationalTabs } from '../../../shared/components/EntityDetails';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import { StickyMobileActions } from '../../../shared/components/Mobile';
-import { ForbiddenTransitionHint, LifecycleHistoryTimeline, LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
+import { ForbiddenTransitionHint, LifecycleTransitionDialog } from '../../../shared/components/Lifecycle';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
-import EmptyState from '../../../shared/components/EmptyState/EmptyState';
 import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
 import { transportOrdersApi } from '../../transport-orders/api/transportOrdersApi';
 import { employeesApi } from '../../employees/api/employeesApi';
@@ -28,7 +21,7 @@ import { useUpdateTaskStatus } from '../hooks/useUpdateTaskStatus';
 import { normalizeApiError } from '../../../core/api/apiError';
 import type { TaskStatus } from '../types/task.types';
 
-type TaskDetailsTab = 'overview' | 'lifecycle' | 'linkedProcess' | 'commentsAttachments' | 'domainEvents' | 'changeHistory';
+type TaskDetailsTab = 'overview' | 'lifecycle' | 'linkedProcess' | 'attachments' | 'comments' | 'audit' | 'history';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -106,7 +99,7 @@ export default function TaskDetailsPage() {
 
   if (taskQuery.isLoading) {
     return (
-      <EntityDetailsLayout overline="Operations" title="Task Details" actions={<Button variant="outlined" onClick={() => navigate('/tasks')}>Back to list</Button>}>
+      <EntityDetailsLayout overline="Operations" title="Task Details" actionItems={[{ key: 'back', label: 'Back to list', to: '/tasks' }]}>
         <SectionCard><Typography color="text.secondary">Loading task details...</Typography></SectionCard>
       </EntityDetailsLayout>
     );
@@ -115,7 +108,7 @@ export default function TaskDetailsPage() {
   if (taskQuery.isError || !taskQuery.data) {
     const error = normalizeApiError(taskQuery.error, 'The task could not be loaded from the backend.');
     return (
-      <EntityDetailsLayout overline="Operations" title="Task Details" actions={<Button variant="outlined" onClick={() => navigate('/tasks')}>Back to list</Button>}>
+      <EntityDetailsLayout overline="Operations" title="Task Details" actionItems={[{ key: 'back', label: 'Back to list', to: '/tasks' }]}>
         <ErrorState
           title={error.status === 403 ? 'Access denied' : error.status === 404 ? 'Task not found' : 'Task could not be loaded'}
           description={error.message}
@@ -129,18 +122,28 @@ export default function TaskDetailsPage() {
   const task = taskQuery.data;
   const fallbackAllowedStatuses = getAllowedTaskStatusTransitions(auth.user?.role, task);
   const allowedStatuses = allowedTransitionsQuery.data?.allowedStatuses ?? fallbackAllowedStatuses;
+  const taskLifecycleStatuses: TaskStatus[] = task.status === 'CANCELLED'
+    ? ['NEW', 'OPEN', 'CANCELLED']
+    : ['NEW', 'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'];
+
   const statusActions = allowedStatuses.map((status) => ({
     label: status === 'ASSIGNED' ? 'Assign lifecycle state' : status === 'IN_PROGRESS' ? 'Start task' : status === 'BLOCKED' ? 'Block task' : status === 'COMPLETED' ? 'Complete task' : status === 'CANCELLED' ? 'Cancel task' : `Set status to ${status}`,
     status,
+  }));
+
+  const lifecycleActionItems = statusActions.map((action) => ({
+    key: action.status,
+    label: action.label,
+    variant: 'contained' as const,
+    disabled: updateTaskStatusMutation.isPending,
+    onClick: () => setTransitionTarget(action.status),
   }));
 
   const tabs = [
     { value: 'overview', label: 'Overview' },
     { value: 'lifecycle', label: 'Lifecycle' },
     { value: 'linkedProcess', label: 'Linked process' },
-    { value: 'commentsAttachments', label: 'Comments & attachments' },
-    { value: 'domainEvents', label: 'Domain events' },
-    { value: 'changeHistory', label: 'Change history', disabled: !canViewHistory },
+    ...buildOperationalTabs({ entityType: 'TASK', entityName: 'TASK', entityId: task.id, allowCreateAttachments: auth.user?.role !== ROLES.DRIVER, allowCreateComments: auth.user?.role !== ROLES.DRIVER, canViewAudit: canViewHistory }),
   ];
 
   return (
@@ -196,38 +199,37 @@ export default function TaskDetailsPage() {
             </SectionCard>
           </Grid>
           <Grid size={{ xs: 12, lg: 4 }}>
-            <SectionCard title="Status actions" description="Allowed transitions follow role and lifecycle guards.">
-              {statusActions.length === 0 ? (
-                <>
-                  <EmptyState title="No status actions" description="This task cannot be moved by your current role or status." />
-                  <ForbiddenTransitionHint visible />
-                </>
-              ) : (
-                <Stack spacing={1.5}>
-                  {statusActions.map((action) => (
-                    <Button
-                      key={action.status}
-                      variant="contained"
-                      disabled={updateTaskStatusMutation.isPending}
-                      onClick={() => setTransitionTarget(action.status)}
-                    >
-                      {action.label}
-                    </Button>
-                  ))}
-                </Stack>
-              )}
-            </SectionCard>
+            <DetailsLifecycleCard
+              title="Status actions"
+              description="Allowed transitions follow role and lifecycle guards."
+              currentStatus={task.status}
+              statusNode={<TaskStatusChip status={task.status} />}
+              statuses={taskLifecycleStatuses}
+              allowedNextStatuses={allowedStatuses}
+              terminalStatuses={['COMPLETED', 'CANCELLED']}
+              actions={lifecycleActionItems}
+              noActionsText="This task cannot be moved by your current role or status."
+            >
+              {statusActions.length === 0 ? <ForbiddenTransitionHint visible /> : null}
+            </DetailsLifecycleCard>
           </Grid>
         </Grid>
       ) : null}
 
 
       {activeTab === 'lifecycle' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12 }}>
-            <LifecycleHistoryTimeline entityName="TASK" entityId={task.id} />
-          </Grid>
-        </Grid>
+        <DetailsLifecycleCard
+          currentStatus={task.status}
+          statusNode={<TaskStatusChip status={task.status} />}
+          statuses={taskLifecycleStatuses}
+          allowedNextStatuses={allowedStatuses}
+          terminalStatuses={['COMPLETED', 'CANCELLED']}
+          actions={lifecycleActionItems}
+          historyEntityName="TASK"
+          historyEntityId={task.id}
+        >
+          {statusActions.length === 0 ? <ForbiddenTransitionHint visible /> : null}
+        </DetailsLifecycleCard>
       ) : null}
 
       {activeTab === 'linkedProcess' ? (
@@ -248,18 +250,17 @@ export default function TaskDetailsPage() {
         </SectionCard>
       ) : null}
 
-      {activeTab === 'commentsAttachments' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 6 }}><CommentsPanel entityType="TASK" entityId={task.id} allowCreate={auth.user?.role !== ROLES.DRIVER} /></Grid>
-          <Grid size={{ xs: 12, lg: 6 }}><AttachmentsPanel entityType="TASK" entityId={task.id} allowCreate={auth.user?.role !== ROLES.DRIVER} /></Grid>
-        </Grid>
-      ) : null}
-
-      {activeTab === 'domainEvents' ? <DomainEventsPanel entityType="TASK" entityId={task.id} /> : null}
-
-      {activeTab === 'changeHistory' ? (
-        <ChangeHistoryPanel entityName="TASK" entityId={task.id} title="Task change history" description="Audit trail for status, assignment and process-link changes made to this task." />
-      ) : null}
+      <OperationalDetailsTabPanels
+        activeTab={activeTab}
+        entityType="TASK"
+        entityName="TASK"
+        entityId={task.id}
+        allowCreateAttachments={auth.user?.role !== ROLES.DRIVER}
+        allowCreateComments={auth.user?.role !== ROLES.DRIVER}
+        canViewAudit={canViewHistory}
+        auditUnavailableTitle="Audit unavailable"
+        auditUnavailableDescription="Your role cannot view task audit data."
+      />
 
       <StickyMobileActions
         title="Task quick actions"

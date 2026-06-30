@@ -5,7 +5,7 @@ import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { SearchSelectPanel, useDebouncedValue } from '../../../shared/search-select';
 import type { SearchSelectColumn } from '../../../shared/search-select';
 import { useEntityLookup } from '../hooks/useEntityLookup';
-import type { LookupEntityType, LookupOption } from '../types/lookup.types';
+import type { LookupEntityType, LookupOption, LookupParams } from '../types/lookup.types';
 
 const nonSelectableStatuses = new Set(['INACTIVE', 'ARCHIVED', 'DISABLED', 'DELETED']);
 
@@ -48,6 +48,7 @@ export type EntityLookupDialogProps = {
   activeOnly?: boolean;
   warehouseId?: number | string | null;
   accessMode?: 'read' | 'mutate';
+  lookupParams?: Omit<LookupParams, 'search' | 'page' | 'size' | 'sort'>;
 };
 
 export function EntityLookupDialog({
@@ -64,6 +65,7 @@ export function EntityLookupDialog({
   activeOnly,
   warehouseId,
   accessMode,
+  lookupParams,
 }: EntityLookupDialogProps) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -79,6 +81,7 @@ export function EntityLookupDialog({
       ...(activeOnly !== undefined ? { activeOnly } : {}),
       ...(warehouseId ? { warehouseId } : {}),
       ...(accessMode ? { accessMode } : {}),
+      ...(lookupParams ?? {}),
     },
     open,
   );

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
-  Alert,
   Button,
   Chip,
   Grid,
@@ -18,13 +17,17 @@ import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-import { EntityDetailsLayout, RelatedDataSection } from '../../../shared/components/EntityDetails';
 import {
-  AttachmentsPanel,
-  ChangeHistoryPanel,
-  CommentsPanel,
-  DomainEventsPanel,
-} from '../../../shared/components/OperationalPanels';
+  DetailsField,
+  DetailsLifecycleCard,
+  DetailsMetadataCard,
+  DetailsOverviewCard,
+  DetailsStatisticsCard,
+  EntityDetailsLayout,
+  OperationalDetailsTabPanels,
+  RelatedDataSection,
+  buildOperationalTabs,
+} from '../../../shared/components/EntityDetails';
 import { useTasks } from '../../tasks/hooks/useTasks';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
@@ -34,6 +37,7 @@ import {
   canUseLifecycleAction,
   normalizeStockMovementStatus,
   stockMovementLifecycleActions,
+  stockMovementLifecycleOrder,
   type StockMovementLifecycleAction,
 } from '../utils/stockMovementLifecycle';
 
@@ -48,20 +52,7 @@ const stockMovementAttachmentTypeOptions = [
   { value: 'OTHER', label: 'Other' },
 ] as const;
 
-type StockMovementDetailsTab = 'overview' | 'relatedEntities' | 'movementTrace' | 'activity';
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body1" fontWeight={600} component="div">
-        {value ?? '—'}
-      </Typography>
-    </Stack>
-  );
-}
+type StockMovementDetailsTab = 'overview' | 'relatedEntities' | 'movementTrace' | 'attachments' | 'comments' | 'audit' | 'history';
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
@@ -262,7 +253,7 @@ export default function StockMovementDetailsPage() {
         overline="Inventory"
         title="Stock movement details"
         description="Loading stock movement details..."
-        actions={<Button variant="outlined" onClick={() => navigate('/stock-movements')}>Back to list</Button>}
+        actionItems={[{ key: 'back', label: 'Back to list', to: '/stock-movements' }]}
       >
         <SectionCard>
           <Typography color="text.secondary">Loading stock movement details...</Typography>
@@ -281,11 +272,23 @@ export default function StockMovementDetailsPage() {
     );
   }
 
-  const tabs: { value: StockMovementDetailsTab; label: ReactNode }[] = [
+  const tabs: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
     { value: 'relatedEntities', label: `Related entities${relatedTasksQuery.data ? ` (${relatedTasksQuery.data.totalElements})` : ''}` },
     { value: 'movementTrace', label: `Movement trace${traceQuery.data ? ` (${traceQuery.data.movements.length})` : ''}` },
-    { value: 'activity', label: 'Activity' },
+    ...buildOperationalTabs({
+      entityType: 'STOCK_MOVEMENT',
+      entityName: 'STOCK_MOVEMENT',
+      entityId: movement.id,
+      allowCreateAttachments: canManageOperationalNotes,
+      allowCreateComments: canManageOperationalNotes,
+      attachmentPanelProps: {
+        title: 'Movement evidence',
+        description: 'Upload delivery notes, reports, damage photos and write-off/adjustment evidence connected with this stock movement.',
+        attachmentTypeOptions: stockMovementAttachmentTypeOptions,
+        defaultAttachmentType: 'DELIVERY_NOTE',
+      },
+    }),
   ];
 
   return (
@@ -318,106 +321,90 @@ export default function StockMovementDetailsPage() {
 
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
-          <SectionCard title="Movement overview">
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 3 }}>
-                <Stack spacing={0.5} alignItems="flex-start">
-                  <Typography variant="caption" color="text.secondary">Movement type</Typography>
-                  <StatusChip value={movement.movementType} />
-                </Stack>
-              </Grid>
-              <Grid size={{ xs: 12, md: 3 }}>
-                <Stack spacing={0.5} alignItems="flex-start">
-                  <Typography variant="caption" color="text.secondary">Lifecycle status</Typography>
-                  <StatusChip value={currentStatus} emphasis="strong" />
-                </Stack>
-              </Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Movement ID" value={movement.id} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Quantity" value={movement.quantity} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Created at" value={formatDateTime(movement.createdAt)} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Warehouse" value={<Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>{movement.warehouseName}</Button>} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Product" value={<Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button>} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Reason code" value={movement.reasonCode ?? '—'} /></Grid>
-              <Grid size={{ xs: 12 }}><InfoRow label="Reason description" value={movement.reasonDescription ?? '—'} /></Grid>
-            </Grid>
-          </SectionCard>
+          <DetailsStatisticsCard
+            title="Inventory impact"
+            description="Quantity, valuation and balance impact created by this movement."
+            statistics={[
+              { key: 'quantity', title: 'Quantity', value: movement.quantity, subtitle: `${movement.quantityBefore} → ${movement.quantityAfter}` },
+              { key: 'reserved', title: 'Reserved', value: `${formatOptionalNumber(movement.reservedBefore)} → ${formatOptionalNumber(movement.reservedAfter)}`, subtitle: 'Reservation balance' },
+              { key: 'available', title: 'Available', value: `${formatOptionalNumber(movement.availableBefore)} → ${formatOptionalNumber(movement.availableAfter)}`, subtitle: 'Available stock balance' },
+              { key: 'cost', title: 'Total cost', value: formatMoney(movement.totalCost, movement.currency), subtitle: movement.currency ?? 'No currency' },
+            ]}
+          />
 
-          <SectionCard title="Lifecycle workflow" description="Status is controlled by backend actions. Users do not edit status manually.">
-            <Stack spacing={2}>
-              {statusTransitionsQuery.isError ? (
-                <Alert severity="warning">Allowed lifecycle transitions could not be loaded.</Alert>
-              ) : null}
+          <DetailsOverviewCard
+            title="Movement overview"
+            description="Core identity, lifecycle and operation reason for this stock movement."
+            fields={[
+              { key: 'movementType', label: 'Movement type', value: <StatusChip value={movement.movementType} /> },
+              { key: 'status', label: 'Lifecycle status', value: <StatusChip value={currentStatus} emphasis="strong" /> },
+              { key: 'id', label: 'Movement ID', value: movement.id },
+              { key: 'createdAt', label: 'Created at', value: formatDateTime(movement.createdAt) },
+              { key: 'warehouse', label: 'Warehouse', value: <Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>{movement.warehouseName}</Button> },
+              { key: 'product', label: 'Product', value: <Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button> },
+              { key: 'reasonCode', label: 'Reason code', value: movement.reasonCode ?? '—' },
+              { key: 'reasonDescription', label: 'Reason description', value: movement.reasonDescription ?? '—', size: { xs: 12 } },
+            ]}
+          />
 
-              <StockMovementLifecycleTimeline
-                movement={movement}
-                currentStatus={currentLifecycleStatus}
-                allowedNextStatuses={allowedNextStatuses}
-              />
-
-              <Stack spacing={1}>
-                <Typography variant="subtitle2" fontWeight={800}>Available actions</Typography>
-                {visibleLifecycleActions.length > 0 ? (
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {visibleLifecycleActions.map((action) => (
-                      <Button
-                        key={action.key}
-                        variant={action.variant}
-                        color={action.color}
-                        onClick={() => setPendingLifecycleAction(action.key)}
-                        disabled={lifecycleActionPending}
-                      >
-                        {action.label}
-                      </Button>
-                    ))}
-                  </Stack>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">No lifecycle action is currently available for your role and this status.</Typography>
-                )}
-              </Stack>
-            </Stack>
-          </SectionCard>
+          <DetailsLifecycleCard
+            title="Lifecycle workflow"
+            description="Status is controlled by backend actions. Users do not edit status manually."
+            currentStatus={currentLifecycleStatus}
+            statusNode={<StatusChip value={currentStatus} emphasis="strong" />}
+            statuses={stockMovementLifecycleOrder}
+            allowedNextStatuses={allowedNextStatuses}
+            terminalStatuses={['EXECUTED', 'REJECTED', 'CANCELLED', 'REVERSED']}
+            warning={statusTransitionsQuery.isError ? 'Allowed lifecycle transitions could not be loaded.' : undefined}
+            actions={visibleLifecycleActions.map((action) => ({
+              key: action.key,
+              label: action.label,
+              variant: action.variant,
+              color: action.color,
+              onClick: () => setPendingLifecycleAction(action.key),
+              disabled: lifecycleActionPending,
+            }))}
+          >
+            <StockMovementLifecycleTimeline
+              movement={movement}
+              currentStatus={currentLifecycleStatus}
+              allowedNextStatuses={allowedNextStatuses}
+            />
+          </DetailsLifecycleCard>
 
 
 
           <SectionCard title="Batch and serial tracking" description="Shows batch/lot, expiration and serialized stock trace data captured with this movement.">
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Batch / lot" value={movement.batchLotNumber ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Expiration date" value={movement.batchExpirationDate ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Serial numbers" value={movement.serialNumbers ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Batch / lot" value={movement.batchLotNumber ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Expiration date" value={movement.batchExpirationDate ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Serial numbers" value={movement.serialNumbers ?? '—'} /></Grid>
             </Grid>
           </SectionCard>
 
           <SectionCard title="Expected vs actual" description="Shows operational quantity variance for transport, receiving, damage and shortage scenarios.">
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Expected quantity" value={formatOptionalNumber(movement.expectedQuantity)} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Actual quantity" value={formatOptionalNumber(movement.actualQuantity)} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Discrepancy" value={formatOptionalNumber(movement.discrepancyQuantity)} /></Grid>
-              <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Discrepancy reason" value={movement.discrepancyReason ?? '—'} /></Grid>
-              <Grid size={{ xs: 12 }}><InfoRow label="Discrepancy note" value={movement.discrepancyNote ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Transport link" value={movement.transportOrderId ? <Button size="small" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`}>Transport order #{movement.transportOrderId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference" value={movement.referenceType ? `${movement.referenceType}${movement.referenceId ? ` #${movement.referenceId}` : ''}` : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference code" value={movement.referenceCode ?? movement.referenceNumber ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><DetailsField label="Expected quantity" value={formatOptionalNumber(movement.expectedQuantity)} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><DetailsField label="Actual quantity" value={formatOptionalNumber(movement.actualQuantity)} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><DetailsField label="Discrepancy" value={formatOptionalNumber(movement.discrepancyQuantity)} /></Grid>
+              <Grid size={{ xs: 12, md: 3 }}><DetailsField label="Discrepancy reason" value={movement.discrepancyReason ?? '—'} /></Grid>
+              <Grid size={{ xs: 12 }}><DetailsField label="Discrepancy note" value={movement.discrepancyNote ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Transport link" value={movement.transportOrderId ? <Button size="small" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`}>Transport order #{movement.transportOrderId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reference" value={movement.referenceType ? `${movement.referenceType}${movement.referenceId ? ` #${movement.referenceId}` : ''}` : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reference code" value={movement.referenceCode ?? movement.referenceNumber ?? '—'} /></Grid>
             </Grid>
           </SectionCard>
 
 
-          <SectionCard title="Cost and valuation" description="Cost fields are captured on the movement and used by backend inventory valuation when available.">
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Unit cost" value={formatMoney(movement.unitCost, movement.currency)} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Total cost" value={formatMoney(movement.totalCost, movement.currency)} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Currency" value={movement.currency ?? '—'} /></Grid>
-            </Grid>
-          </SectionCard>
-
-          <SectionCard title="Inventory impact">
-            <Stack spacing={2}>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Quantity" value={`${movement.quantityBefore} → ${movement.quantityAfter}`} /></Grid>
-                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reserved" value={`${formatOptionalNumber(movement.reservedBefore)} → ${formatOptionalNumber(movement.reservedAfter)}`} /></Grid>
-                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Available" value={`${formatOptionalNumber(movement.availableBefore)} → ${formatOptionalNumber(movement.availableAfter)}`} /></Grid>
-              </Grid>
-            </Stack>
-          </SectionCard>
+          <DetailsMetadataCard
+            title="Cost and valuation"
+            description="Cost fields captured on the movement and used by backend inventory valuation when available."
+            fields={[
+              { key: 'unitCost', label: 'Unit cost', value: formatMoney(movement.unitCost, movement.currency) },
+              { key: 'totalCost', label: 'Total cost', value: formatMoney(movement.totalCost, movement.currency) },
+              { key: 'currency', label: 'Currency', value: movement.currency ?? '—' },
+            ]}
+          />
         </Stack>
       ) : null}
 
@@ -425,28 +412,28 @@ export default function StockMovementDetailsPage() {
         <Stack spacing={3}>
           <SectionCard title="Related entities">
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Warehouse" value={<Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>{movement.warehouseName}</Button>} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Product" value={<Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button>} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Inventory record" value={<Button size="small" component={RouterLink} to={`/inventory/${movement.warehouseId}/${movement.productId}`}>Open inventory</Button>} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Transport order" value={movement.transportOrderId ? <Button size="small" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`}>#{movement.transportOrderId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Source bin" value={movement.sourceBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>{movement.sourceBinCode ?? `#${movement.sourceBinId}`}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Destination bin" value={movement.destinationBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>{movement.destinationBinCode ?? `#${movement.destinationBinId}`}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Parent movement" value={movement.parentMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.parentMovementId}`}>#{movement.parentMovementId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Root movement" value={movement.rootMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.rootMovementId}`}>#{movement.rootMovementId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reversal of" value={movement.reversalOfMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.reversalOfMovementId}`}>#{movement.reversalOfMovementId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reversed by" value={movement.reversedByMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.reversedByMovementId}`}>#{movement.reversedByMovementId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Transfer group" value={movement.transferGroupId ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Warehouse" value={<Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>{movement.warehouseName}</Button>} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Product" value={<Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button>} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Inventory record" value={<Button size="small" component={RouterLink} to={`/inventory/${movement.warehouseId}/${movement.productId}`}>Open inventory</Button>} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Transport order" value={movement.transportOrderId ? <Button size="small" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`}>#{movement.transportOrderId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Source bin" value={movement.sourceBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>{movement.sourceBinCode ?? `#${movement.sourceBinId}`}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Destination bin" value={movement.destinationBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>{movement.destinationBinCode ?? `#${movement.destinationBinId}`}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Parent movement" value={movement.parentMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.parentMovementId}`}>#{movement.parentMovementId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Root movement" value={movement.rootMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.rootMovementId}`}>#{movement.rootMovementId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reversal of" value={movement.reversalOfMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.reversalOfMovementId}`}>#{movement.reversalOfMovementId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reversed by" value={movement.reversedByMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.reversedByMovementId}`}>#{movement.reversedByMovementId}</Button> : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Transfer group" value={movement.transferGroupId ?? '—'} /></Grid>
             </Grid>
           </SectionCard>
 
           <SectionCard title="Reference">
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference type" value={movement.referenceType ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference ID" value={movement.referenceId ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference code" value={movement.referenceCode ?? movement.referenceNumber ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Source" value={movement.sourceType ? `${movement.sourceType}${movement.sourceId ? ` #${movement.sourceId}` : ''}` : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference number" value={movement.referenceNumber ?? '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Reference note" value={movement.referenceNote ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reference type" value={movement.referenceType ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reference ID" value={movement.referenceId ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reference code" value={movement.referenceCode ?? movement.referenceNumber ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Source" value={movement.sourceType ? `${movement.sourceType}${movement.sourceId ? ` #${movement.sourceId}` : ''}` : '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reference number" value={movement.referenceNumber ?? '—'} /></Grid>
+              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reference note" value={movement.referenceNote ?? '—'} /></Grid>
             </Grid>
           </SectionCard>
 
@@ -523,30 +510,20 @@ export default function StockMovementDetailsPage() {
         </RelatedDataSection>
       ) : null}
 
-      {activeTab === 'activity' ? (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <Stack spacing={3}>
-              <CommentsPanel entityType="STOCK_MOVEMENT" entityId={movement.id} allowCreate={canManageOperationalNotes} />
-              <AttachmentsPanel
-                entityType="STOCK_MOVEMENT"
-                entityId={movement.id}
-                allowCreate={canManageOperationalNotes}
-                title="Movement evidence"
-                description="Upload delivery notes, reports, damage photos and write-off/adjustment evidence connected with this stock movement."
-                attachmentTypeOptions={stockMovementAttachmentTypeOptions}
-                defaultAttachmentType="DELIVERY_NOTE"
-              />
-            </Stack>
-          </Grid>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <Stack spacing={3}>
-              <DomainEventsPanel entityType="STOCK_MOVEMENT" entityId={movement.id} />
-              <ChangeHistoryPanel entityName="STOCK_MOVEMENT" entityId={movement.id} />
-            </Stack>
-          </Grid>
-        </Grid>
-      ) : null}
+      <OperationalDetailsTabPanels
+        activeTab={activeTab}
+        entityType="STOCK_MOVEMENT"
+        entityName="STOCK_MOVEMENT"
+        entityId={movement.id}
+        allowCreateAttachments={canManageOperationalNotes}
+        allowCreateComments={canManageOperationalNotes}
+        attachmentPanelProps={{
+          title: 'Movement evidence',
+          description: 'Upload delivery notes, reports, damage photos and write-off/adjustment evidence connected with this stock movement.',
+          attachmentTypeOptions: stockMovementAttachmentTypeOptions,
+          defaultAttachmentType: 'DELIVERY_NOTE',
+        }}
+      />
 
       <ConfirmDialog
         open={Boolean(pendingActionDefinition)}

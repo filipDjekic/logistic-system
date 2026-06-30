@@ -18,7 +18,6 @@ import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { EntityLookupField } from '../../lookup';
-import { EmployeeSearchSelect } from '../../search-select';
 import type { LookupOption } from '../../lookup';
 import { useCreateTransportOrder } from '../hooks/useCreateTransportOrder';
 import { useTransportOrder } from '../hooks/useTransportOrder';
@@ -256,10 +255,10 @@ export default function TransportOrderFormPage({ mode }: Props) {
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
               <EntityLookupField
-                title="Driver"
+                label="Driver"
                 value={assignedEmployee}
                 onChange={setAssignedEmployee}
-                entityType="employee"
+                entityType="employees"
                 disabled={
                   isSubmitting ||
                   !departureTime ||

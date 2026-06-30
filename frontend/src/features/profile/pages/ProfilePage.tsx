@@ -39,6 +39,7 @@ import WorkRoundedIcon from '@mui/icons-material/WorkRounded';
 import { Link as RouterLink } from 'react-router-dom';
 import PageContainer from '../../../app/layout/PageContainer';
 import EmptyState from '../../../shared/components/EmptyState/EmptyState';
+import { DetailsField as InfoRow } from '../../../shared/components/EntityDetails';
 import { ROLES } from '../../../core/constants/roles';
 import { useProfile } from '../hooks/useProfile';
 import { useMyProfileChangeRequests } from '../hooks/useMyProfileChangeRequests';
@@ -86,24 +87,6 @@ function initialsOf(fullName: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('') || '?';
-}
-
-function InfoRow({ label, value, icon }: { label: string; value: unknown; icon?: ReactNode }) {
-  return (
-    <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ py: 1 }}>
-      {icon ? (
-        <Box sx={{ color: 'text.secondary', display: 'flex', pt: 0.2 }}>{icon}</Box>
-      ) : null}
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-        <Typography variant="body2" sx={{ fontWeight: 750, overflowWrap: 'anywhere' }}>
-          {display(value)}
-        </Typography>
-      </Box>
-    </Stack>
-  );
 }
 
 function SummaryCard({ title, value, description, icon, loading }: { title: string; value: unknown; description?: string; icon: ReactNode; loading?: boolean }) {

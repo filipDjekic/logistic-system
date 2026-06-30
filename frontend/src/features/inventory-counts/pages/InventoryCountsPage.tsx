@@ -64,7 +64,7 @@ export default function InventoryCountsPage() {
   const createMutation = useMutation({
     mutationFn: inventoryCountsApi.create,
     onSuccess: (session) => {
-      showSnackbar('Inventory count session created.', 'success');
+      showSnackbar({ message: 'Inventory count session created.', severity: 'success' });
       queryClient.invalidateQueries({ queryKey: queryKeys.inventoryCounts.root() });
       setDialogOpen(false);
       setSelectedWarehouse(null);
