@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -52,6 +53,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     List<Vehicle> findByActiveAndCompany_Id(Boolean active, Long companyId);
 
+    @EntityGraph(attributePaths = {"company", "company.timezone", "vehicleModel", "vehicleModel.brand"})
     @Query("""
         select distinct v from Vehicle v
         where (:companyId is null or v.company.id = :companyId)
@@ -73,14 +75,16 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             or lower(v.vehicleModel.name) like lower(concat('%', :search, '%'))
             or lower(v.type) like lower(concat('%', :search, '%'))
             or lower(v.fuelType) like lower(concat('%', :search, '%'))
-            or lower(str(v.yearOfProduction)) like lower(concat('%', :search, '%'))
-            or lower(str(v.id)) like lower(concat('%', :search, '%'))
+            or (:searchYear is not null and v.yearOfProduction = :searchYear)
+            or (:searchId is not null and v.id = :searchId)
         )
     """)
     Page<Vehicle> searchVehicles(
             @Param("companyId") Long companyId,
             @Param("driverUserId") Long driverUserId,
             @Param("search") String search,
+            @Param("searchId") Long searchId,
+            @Param("searchYear") Integer searchYear,
             @Param("status") VehicleStatus status,
             @Param("type") String type,
             @Param("available") Boolean available,
@@ -146,14 +150,16 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             or lower(v.vehicleModel.name) like lower(concat('%', :search, '%'))
             or lower(v.type) like lower(concat('%', :search, '%'))
             or lower(v.fuelType) like lower(concat('%', :search, '%'))
-            or lower(str(v.yearOfProduction)) like lower(concat('%', :search, '%'))
-            or lower(str(v.id)) like lower(concat('%', :search, '%'))
+            or (:searchYear is not null and v.yearOfProduction = :searchYear)
+            or (:searchId is not null and v.id = :searchId)
         )
         group by v.status
     """)
     List<Object[]> countGroupedByStatusFiltered(
             @Param("companyId") Long companyId,
             @Param("search") String search,
+            @Param("searchId") Long searchId,
+            @Param("searchYear") Integer searchYear,
             @Param("type") String type,
             @Param("available") Boolean available,
             @Param("capacityFrom") BigDecimal capacityFrom,

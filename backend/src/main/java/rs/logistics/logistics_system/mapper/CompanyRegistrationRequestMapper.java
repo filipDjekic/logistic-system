@@ -40,6 +40,7 @@ public class CompanyRegistrationRequestMapper {
 
         CompanyRegistrationRequestResponse response = new CompanyRegistrationRequestResponse();
         response.setId(request.getId());
+        response.setPublicTrackingToken(request.getPublicTrackingToken());
         response.setCompanyName(request.getCompanyName());
         response.setRegistrationNumber(request.getRegistrationNumber());
         response.setTaxNumber(request.getTaxNumber());

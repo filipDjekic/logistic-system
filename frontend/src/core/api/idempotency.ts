@@ -1,7 +1,7 @@
 import type { InternalAxiosRequestConfig } from 'axios';
 
 const IDEMPOTENCY_HEADER = 'X-Idempotency-Key';
-const TTL_MS = 3_000;
+const TTL_MS = 30_000;
 const mutatingMethods = new Set(['post', 'put', 'patch', 'delete']);
 const keyCache = new Map<string, { key: string; expiresAt: number }>();
 

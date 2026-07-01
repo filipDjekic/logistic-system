@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -67,6 +68,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("select e.position, count(e) from Employee e where e.company.id = :companyId group by e.position")
     List<Object[]> countGroupedByPositionAndCompany(@Param("companyId") Long companyId);
 
+    @EntityGraph(attributePaths = {"company", "company.timezone", "user", "user.role", "timezone", "primaryWarehouse", "primaryWarehouse.timezone"})
     @Query("""
             select e
             from Employee e
@@ -99,8 +101,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
                 or lower(e.email) like lower(concat('%', :search, '%'))
                 or lower(e.jmbg) like lower(concat('%', :search, '%'))
                 or lower(e.phoneNumber) like lower(concat('%', :search, '%'))
-                or lower(str(e.id)) like lower(concat('%', :search, '%'))
-                or lower(str(e.user.id)) like lower(concat('%', :search, '%'))
+                or (:searchId is not null and e.id = :searchId)
+                or (:searchId is not null and e.user.id = :searchId)
                 or lower(str(e.position)) like lower(concat('%', :search, '%'))
                 or lower(str(u.status)) like lower(concat('%', :search, '%'))
                 or lower(r.name) like lower(concat('%', :search, '%'))
@@ -109,6 +111,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Page<Employee> searchEmployees(
             @Param("companyId") Long companyId,
             @Param("search") String search,
+            @Param("searchId") Long searchId,
             @Param("position") EmployeePosition position,
             @Param("active") Boolean active,
             @Param("linkedUser") String linkedUser,

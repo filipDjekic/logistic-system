@@ -29,6 +29,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.LookupServiceDefinition;
 import rs.logistics.logistics_system.service.support.PageableSortMapper;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
+import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 import java.util.List;
 
 @Service
@@ -52,23 +53,25 @@ public class LookupService implements LookupServiceDefinition {
     @Override
     public PageResponse<LookupOptionResponse> warehouses(String search, String accessMode, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "name"));
+        String normalizedSearch = normalize(search);
+        Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
         Page<Warehouse> page;
         if ("mutate".equalsIgnoreCase(accessMode) || "mutation".equalsIgnoreCase(accessMode)) {
             List<Long> warehouseIds = warehouseAccessGuard.mutationWarehouseIdsForScopedUser();
             page = warehouseIds == null
-                    ? warehouseRepository.search(currentCompanyScope(), normalize(search), null, true, null, safePageable)
+                    ? warehouseRepository.search(currentCompanyScope(), normalizedSearch, searchId, null, true, null, safePageable)
                     : warehouseIds.isEmpty()
                         ? Page.empty(safePageable)
-                        : warehouseRepository.searchWarehouseIds(currentCompanyScope(), warehouseIds, normalize(search), null, true, null, safePageable);
+                        : warehouseRepository.searchWarehouseIds(currentCompanyScope(), warehouseIds, normalizedSearch, searchId, null, true, null, safePageable);
         } else if (shouldLimitToAssignedWarehouses()) {
             Long employeeId = employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
                     .map(Employee::getId)
                     .orElse(null);
             page = employeeId == null
                     ? Page.empty(safePageable)
-                    : warehouseRepository.searchAssignedWarehouses(currentCompanyScope(), employeeId, normalize(search), null, true, null, safePageable);
+                    : warehouseRepository.searchAssignedWarehouses(currentCompanyScope(), employeeId, normalizedSearch, searchId, null, true, null, safePageable);
         } else {
-            page = warehouseRepository.search(currentCompanyScope(), normalize(search), null, true, null, safePageable);
+            page = warehouseRepository.search(currentCompanyScope(), normalizedSearch, searchId, null, true, null, safePageable);
         }
         return PageResponse.fromContent(page.getContent().stream().map(this::warehouseOption).toList(), page);
     }
@@ -76,21 +79,52 @@ public class LookupService implements LookupServiceDefinition {
     @Override
     public PageResponse<LookupOptionResponse> products(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "name"));
-        Page<Product> page = productRepository.searchProducts(currentCompanyScope(), normalize(search), true, safePageable);
+        String normalizedSearch = normalize(search);
+        Page<Product> page = productRepository.searchProducts(
+                currentCompanyScope(),
+                normalizedSearch,
+                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                true,
+                safePageable
+        );
         return PageResponse.fromContent(page.getContent().stream().map(this::productOption).toList(), page);
     }
 
     @Override
     public PageResponse<LookupOptionResponse> vehicles(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "registrationNumber"));
-        Page<Vehicle> page = vehicleRepository.searchVehicles(currentCompanyScope(), null, normalize(search), null, null, true, null, null, safePageable);
+        String normalizedSearch = normalize(search);
+        Page<Vehicle> page = vehicleRepository.searchVehicles(
+                currentCompanyScope(),
+                null,
+                normalizedSearch,
+                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                QueryParameterNormalizer.parseIntegerOrNull(normalizedSearch),
+                null,
+                null,
+                true,
+                null,
+                null,
+                safePageable
+        );
         return PageResponse.fromContent(page.getContent().stream().map(this::vehicleOption).toList(), page);
     }
 
     @Override
     public PageResponse<LookupOptionResponse> employees(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "lastName"));
-        Page<Employee> page = employeeRepository.searchEmployees(currentCompanyScope(), normalize(search), null, true, null, null, null, safePageable);
+        String normalizedSearch = normalize(search);
+        Page<Employee> page = employeeRepository.searchEmployees(
+                currentCompanyScope(),
+                normalizedSearch,
+                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                null,
+                true,
+                null,
+                null,
+                null,
+                safePageable
+        );
         return PageResponse.fromContent(page.getContent().stream().map(this::employeeOption).toList(), page);
     }
 
@@ -217,7 +251,13 @@ public class LookupService implements LookupServiceDefinition {
     public PageResponse<LookupOptionResponse> companies(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "name"));
         Long companyId = authenticatedUserProvider.isOverlord() ? null : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
-        Page<Company> page = companyRepository.searchLookup(companyId, normalize(search), safePageable);
+        String normalizedSearch = normalize(search);
+        Page<Company> page = companyRepository.searchLookup(
+                companyId,
+                normalizedSearch,
+                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                safePageable
+        );
         return PageResponse.fromContent(page.getContent().stream().map(this::companyOption).toList(), page);
     }
 

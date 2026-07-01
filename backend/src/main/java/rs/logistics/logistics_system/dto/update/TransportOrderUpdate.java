@@ -15,6 +15,9 @@ import rs.logistics.logistics_system.enums.PriorityLevel;
 @Setter
 @NoArgsConstructor
 public class TransportOrderUpdate {
+
+    @NotNull(message = "Version is required")
+    private Long expectedVersion;
     @NotBlank
     @Size(min = 1, max = 50)
     private String orderNumber;

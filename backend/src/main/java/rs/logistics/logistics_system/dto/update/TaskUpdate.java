@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class TaskUpdate {
 
+    @NotNull(message = "Version is required")
+    private Long expectedVersion;
+
     @NotBlank
     @Size(min = 1, max = 100)
     private String title;

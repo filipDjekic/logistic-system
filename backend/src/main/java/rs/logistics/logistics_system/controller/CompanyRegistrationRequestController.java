@@ -34,9 +34,9 @@ public class CompanyRegistrationRequestController {
         return ResponseEntity.ok(registrationRequestService.getAll(status));
     }
 
-    @GetMapping("/{id}/status")
-    public ResponseEntity<CompanyRegistrationPublicStatusResponse> getPublicStatus(@PathVariable Long id) {
-        return ResponseEntity.ok(registrationRequestService.getPublicStatus(id));
+    @GetMapping("/status/{trackingToken}")
+    public ResponseEntity<CompanyRegistrationPublicStatusResponse> getPublicStatus(@PathVariable String trackingToken) {
+        return ResponseEntity.ok(registrationRequestService.getPublicStatus(trackingToken));
     }
 
     @GetMapping("/validate")

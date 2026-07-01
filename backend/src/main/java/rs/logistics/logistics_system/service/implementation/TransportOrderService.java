@@ -55,6 +55,7 @@ import rs.logistics.logistics_system.repository.VehicleMaintenanceRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
 import rs.logistics.logistics_system.service.definition.DriverWorkloadServiceDefinition;
@@ -170,6 +171,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         TransportOrder transportOrder = getTransportOrderOrThrow(id);
+        OptimisticLockGuard.requireExpectedVersion(dto.getExpectedVersion(), transportOrder.getVersion(), "Transport order");
 
         validateUniqueOrderNumberForUpdate(transportOrder.getId(), dto.getOrderNumber());
 

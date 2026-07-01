@@ -6,8 +6,10 @@ import rs.logistics.logistics_system.enums.CompanyRegistrationRequestStatus;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface CompanyRegistrationRequestRepository extends JpaRepository<CompanyRegistrationRequest, Long> {
+    Optional<CompanyRegistrationRequest> findByPublicTrackingToken(String publicTrackingToken);
     List<CompanyRegistrationRequest> findAllByOrderBySubmittedAtDesc();
     List<CompanyRegistrationRequest> findByStatusOrderBySubmittedAtDesc(CompanyRegistrationRequestStatus status);
     boolean existsByCompanyNameIgnoreCaseAndStatus(String companyName, CompanyRegistrationRequestStatus status);

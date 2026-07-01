@@ -6,9 +6,11 @@ import Topbar from './Topbar';
 import PageContainer from './PageContainer';
 import BreadcrumbsBar from './BreadcrumbsBar';
 import { OfflineAwarenessBanner } from '../../shared/components/OfflineAwareness';
+import { useSessionExpiredRedirect } from '../../core/auth/useSessionExpiredRedirect';
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  useSessionExpiredRedirect();
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>

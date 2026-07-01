@@ -259,11 +259,11 @@ export default function TaskFormPage({ mode }: Props) {
                 return;
               }
 
-              if (!taskId) {
+              if (!taskId || !taskQuery.data) {
                 return;
               }
 
-              updateTask.mutate({ id: taskId, data: payload }, {
+              updateTask.mutate({ id: taskId, data: { ...payload, expectedVersion: taskQuery.data.version } }, {
                 onSuccess: (updated) => navigate(`/tasks/${updated.id}`),
               });
             })}

@@ -43,6 +43,7 @@ export type TaskCreateRequest = {
 };
 
 export type TaskUpdateRequest = {
+  expectedVersion: number;
   title: string;
   description?: string;
   dueDate: string;

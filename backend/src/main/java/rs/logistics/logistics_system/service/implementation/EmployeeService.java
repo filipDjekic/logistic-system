@@ -316,6 +316,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         return PageResponse.from(_employeeRepository.searchEmployees(
                 companyId,
                 normalizedSearch,
+                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
                 position,
                 active,
                 normalizedLinkedUser,

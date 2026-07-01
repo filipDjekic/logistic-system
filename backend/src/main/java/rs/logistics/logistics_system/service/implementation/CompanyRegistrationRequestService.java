@@ -110,12 +110,15 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
 
     @Override
     @Transactional(readOnly = true)
-    public CompanyRegistrationPublicStatusResponse getPublicStatus(Long id) {
-        CompanyRegistrationRequest request = getRequired(id);
+    public CompanyRegistrationPublicStatusResponse getPublicStatus(String publicTrackingToken) {
+        if (!hasText(publicTrackingToken)) {
+            throw new ResourceNotFoundException("Company registration request not found");
+        }
+        CompanyRegistrationRequest request = requestRepository.findByPublicTrackingToken(publicTrackingToken.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Company registration request not found"));
         return new CompanyRegistrationPublicStatusResponse(
-                request.getId(),
+                request.getPublicTrackingToken(),
                 request.getCompanyName(),
-                request.getAdminEmail(),
                 request.getStatus(),
                 CompanyRegistrationRequestMapper.statusLabel(request.getStatus()),
                 CompanyRegistrationRequestMapper.statusDescription(request.getStatus()),
@@ -124,8 +127,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
                         || request.getStatus() == CompanyRegistrationRequestStatus.CANCELLED,
                 request.getSubmittedAt(),
                 request.getReviewedAt(),
-                request.getStatus() == CompanyRegistrationRequestStatus.REJECTED ? request.getRejectionReason() : null,
-                request.getCreatedCompany() != null ? request.getCreatedCompany().getId() : null
+                request.getStatus() == CompanyRegistrationRequestStatus.REJECTED ? request.getRejectionReason() : null
         );
     }
 

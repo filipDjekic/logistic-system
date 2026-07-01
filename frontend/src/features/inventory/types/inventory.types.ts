@@ -1,6 +1,7 @@
 export type WarehouseStatus = 'ACTIVE' | 'INACTIVE' | 'FULL' | 'UNDER_MAINTENANCE';
 
 export type WarehouseInventoryResponse = {
+  version: number;
   warehouseId: number;
   warehouseName: string;
   warehouseCompanyId: number | null;
@@ -26,6 +27,7 @@ export type WarehouseInventoryCreateRequest = {
 };
 
 export type WarehouseInventoryUpdateRequest = {
+  expectedVersion: number;
   warehouseId: number;
   productId: number;
   quantity: number;

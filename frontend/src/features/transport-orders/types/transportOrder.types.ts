@@ -70,6 +70,7 @@ export type TransportOrderCreateRequest = {
 };
 
 export type TransportOrderUpdateRequest = {
+  expectedVersion: number;
   orderNumber: string;
   description: string;
   orderDate: string;

@@ -11,6 +11,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class WarehouseInventoryResponse {
 
+    private Long version;
+
     private Long warehouseId;
     private String warehouseName;
     private Long warehouseCompanyId;
@@ -28,6 +30,7 @@ public class WarehouseInventoryResponse {
     private String currency;
 
     public WarehouseInventoryResponse(
+            Long version,
             Long warehouseId,
             String warehouseName,
             Long warehouseCompanyId,
@@ -42,6 +45,7 @@ public class WarehouseInventoryResponse {
             BigDecimal totalValue,
             String currency
     ) {
+        this.version = version;
         this.warehouseId = warehouseId;
         this.warehouseName = warehouseName;
         this.warehouseCompanyId = warehouseCompanyId;

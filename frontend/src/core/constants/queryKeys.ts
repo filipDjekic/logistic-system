@@ -188,7 +188,7 @@ export const queryKeys = {
   companyRegistrationRequests: {
     root: () => ['company-registration-requests'] as const,
     list: (status: unknown) => ['company-registration-requests', 'list', status] as const,
-    publicStatus: (id: number) => ['company-registration-requests', 'public-status', id] as const,
+    publicStatus: (trackingToken: string) => ['company-registration-requests', 'public-status', trackingToken] as const,
   },
 
   employeeWarehouseAssignments: {

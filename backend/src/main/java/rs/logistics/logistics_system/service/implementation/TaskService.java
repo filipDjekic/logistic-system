@@ -41,6 +41,7 @@ import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
@@ -111,6 +112,7 @@ public class TaskService implements TaskServiceDefinition {
     @Transactional
     public TaskResponse update(Long id, TaskUpdate dto) {
         Task task = getTaskOrThrow(id);
+        OptimisticLockGuard.requireExpectedVersion(dto.getExpectedVersion(), task.getVersion(), "Task");
 
         validateTaskUpdatable(task);
         validateDueDate(dto.getDueDate());
@@ -530,6 +532,7 @@ public class TaskService implements TaskServiceDefinition {
                         companyId,
                         assignedEmployeeId,
                         QueryParameterNormalizer.trimToNull(search),
+                        QueryParameterNormalizer.parseLongOrNull(search),
                         priority,
                         transportOrderId,
                         stockMovementId,
@@ -845,6 +848,7 @@ public class TaskService implements TaskServiceDefinition {
                 companyId,
                 assignedEmployeeId,
                 search,
+                QueryParameterNormalizer.parseLongOrNull(search),
                 status,
                 priority,
                 transportOrderId,

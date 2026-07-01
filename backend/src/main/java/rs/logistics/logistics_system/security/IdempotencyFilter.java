@@ -22,6 +22,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ErrorResponse;
+import rs.logistics.logistics_system.observability.RequestCorrelation;
 
 @Component
 @RequiredArgsConstructor
@@ -98,6 +99,11 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         response.getOutputStream().write(cached.body());
     }
 
+    private String traceId(HttpServletRequest request) {
+        Object traceId = request.getAttribute(RequestCorrelation.TRACE_ID_ATTRIBUTE);
+        return traceId == null ? null : traceId.toString();
+    }
+
     private void writeConflict(HttpServletResponse response, HttpServletRequest request, String message) throws IOException {
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
@@ -106,10 +112,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 "WRITE_REQUEST_BLOCKED",
                 message == null || message.isBlank() ? "Write request blocked" : message,
                 request.getRequestURI(),
+                traceId(request),
                 List.of()
         );
 
         response.setStatus(HttpStatus.CONFLICT.value());
+        response.setHeader(RequestCorrelation.REQUEST_ID_HEADER, traceId(request));
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.getWriter().write(objectMapper.writeValueAsString(error));

@@ -13,7 +13,7 @@ public interface CompanyRegistrationRequestServiceDefinition {
     CompanyRegistrationRequestResponse submit(CompanyRegistrationRequestCreate dto);
     List<CompanyRegistrationRequestResponse> getAll(CompanyRegistrationRequestStatus status);
     CompanyRegistrationRequestResponse getById(Long id);
-    CompanyRegistrationPublicStatusResponse getPublicStatus(Long id);
+    CompanyRegistrationPublicStatusResponse getPublicStatus(String publicTrackingToken);
     CompanyRegistrationValidationResponse validateAvailability(String companyName, String registrationNumber, String taxNumber, String adminEmail);
     CompanyRegistrationRequestResponse markUnderReview(Long id);
     CompanyRegistrationRequestResponse approve(Long id);

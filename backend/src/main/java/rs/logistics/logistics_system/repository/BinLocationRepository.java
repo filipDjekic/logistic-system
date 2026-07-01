@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +19,7 @@ public interface BinLocationRepository extends JpaRepository<BinLocation, Long> 
     List<BinLocation> findByWarehouse_IdOrderByCodeAsc(Long warehouseId);
     List<BinLocation> findByZone_IdOrderByCodeAsc(Long zoneId);
 
+    @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "warehouse.timezone", "zone"})
     @Query("""
             select b
             from BinLocation b
@@ -45,6 +47,7 @@ public interface BinLocationRepository extends JpaRepository<BinLocation, Long> 
                              Pageable pageable);
 
 
+    @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "warehouse.timezone", "zone"})
     @Query("""
             select b
             from BinLocation b

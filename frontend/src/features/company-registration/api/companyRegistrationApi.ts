@@ -14,9 +14,9 @@ export const companyRegistrationApi = {
       .then((response) => response.data);
   },
 
-  getPublicStatus(id: number) {
+  getPublicStatus(trackingToken: string) {
     return apiClient
-      .get<CompanyRegistrationPublicStatus>(`/api/company-registration-requests/${id}/status`)
+      .get<CompanyRegistrationPublicStatus>(`/api/company-registration-requests/status/${encodeURIComponent(trackingToken)}`)
       .then((response) => response.data);
   },
 

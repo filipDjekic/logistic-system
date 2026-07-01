@@ -24,6 +24,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.security.IdempotencyFilter;
 import rs.logistics.logistics_system.security.JwtAuthenticationFilter;
+import rs.logistics.logistics_system.security.PublicStatusRateLimitFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -33,6 +34,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final IdempotencyFilter idempotencyFilter;
+    private final PublicStatusRateLimitFilter publicStatusRateLimitFilter;
 
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
@@ -50,7 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login",
                                 "/api/company-registration-requests",
-                                "/api/company-registration-requests/*/status",
+                                "/api/company-registration-requests/status/**",
                                 "/api/countries/**",
                                 "/api/cities/**",
                                 "/api/timezones/**").permitAll()
@@ -58,6 +60,10 @@ public class SecurityConfig {
                 )
                 .sessionManagement(sessionManagement ->
                         sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .addFilterBefore(
+                        publicStatusRateLimitFilter,
+                        org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class
                 )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
@@ -96,7 +102,12 @@ public class SecurityConfig {
                 "Content-Disposition",
                 "Content-Type",
                 "X-Idempotency-Key",
+                "X-Request-Id",
                 "X-Requested-With"
+        ));
+        configuration.setExposedHeaders(List.of(
+                "Content-Disposition",
+                "X-Request-Id"
         ));
         configuration.setAllowCredentials(true);
 

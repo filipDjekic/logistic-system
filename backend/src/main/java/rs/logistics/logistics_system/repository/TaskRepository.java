@@ -415,9 +415,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 or lower(t.title) like lower(concat('%', :search, '%'))
                 or lower(coalesce(t.description, '')) like lower(concat('%', :search, '%'))
                 or lower(concat(assignedEmployee.firstName, ' ', assignedEmployee.lastName)) like lower(concat('%', :search, '%'))
-                or str(t.id) like concat('%', :search, '%')
-                or str(transportOrder.id) like concat('%', :search, '%')
-                or str(stockMovement.id) like concat('%', :search, '%')
+                or (:searchId is not null and t.id = :searchId)
+                or (:searchId is not null and transportOrder.id = :searchId)
+                or (:searchId is not null and stockMovement.id = :searchId)
             )
             """)
     @EntityGraph(attributePaths = {
@@ -425,7 +425,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             "transportOrder", "transportOrder.sourceWarehouse", "transportOrder.sourceWarehouse.timezone", "transportOrder.sourceWarehouse.company", "transportOrder.sourceWarehouse.company.timezone", "transportOrder.destinationWarehouse", "transportOrder.destinationWarehouse.timezone", "transportOrder.destinationWarehouse.company", "transportOrder.destinationWarehouse.company.timezone",
             "stockMovement", "stockMovement.warehouse", "stockMovement.warehouse.timezone", "stockMovement.warehouse.company", "stockMovement.warehouse.company.timezone", "stockMovement.product"
     })
-    Page<Task> searchTasks(@Param("companyId") Long companyId, @Param("assignedEmployeeId") Long assignedEmployeeId, @Param("search") String search, @Param("status") TaskStatus status, @Param("priority") TaskPriority priority, @Param("transportOrderId") Long transportOrderId, @Param("stockMovementId") Long stockMovementId, @Param("excludeTransportOrders") boolean excludeTransportOrders, @Param("requireTransportOrder") boolean requireTransportOrder, @Param("restrictManagedWarehouses") boolean restrictManagedWarehouses, @Param("managedWarehouseIds") Collection<Long> managedWarehouseIds, @Param("linkedProcessType") String linkedProcessType, Pageable pageable);
+    Page<Task> searchTasks(@Param("companyId") Long companyId, @Param("assignedEmployeeId") Long assignedEmployeeId, @Param("search") String search, @Param("searchId") Long searchId, @Param("status") TaskStatus status, @Param("priority") TaskPriority priority, @Param("transportOrderId") Long transportOrderId, @Param("stockMovementId") Long stockMovementId, @Param("excludeTransportOrders") boolean excludeTransportOrders, @Param("requireTransportOrder") boolean requireTransportOrder, @Param("restrictManagedWarehouses") boolean restrictManagedWarehouses, @Param("managedWarehouseIds") Collection<Long> managedWarehouseIds, @Param("linkedProcessType") String linkedProcessType, Pageable pageable);
 
 
 
@@ -513,13 +513,13 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 or lower(t.title) like lower(concat('%', :search, '%'))
                 or lower(coalesce(t.description, '')) like lower(concat('%', :search, '%'))
                 or lower(concat(assignedEmployee.firstName, ' ', assignedEmployee.lastName)) like lower(concat('%', :search, '%'))
-                or str(t.id) like concat('%', :search, '%')
-                or str(transportOrder.id) like concat('%', :search, '%')
-                or str(stockMovement.id) like concat('%', :search, '%')
+                or (:searchId is not null and t.id = :searchId)
+                or (:searchId is not null and transportOrder.id = :searchId)
+                or (:searchId is not null and stockMovement.id = :searchId)
             )
             group by t.status
             """)
-    List<Object[]> countGroupedByStatusFiltered(@Param("companyId") Long companyId, @Param("assignedEmployeeId") Long assignedEmployeeId, @Param("search") String search, @Param("priority") TaskPriority priority, @Param("transportOrderId") Long transportOrderId, @Param("stockMovementId") Long stockMovementId, @Param("excludeTransportOrders") boolean excludeTransportOrders, @Param("requireTransportOrder") boolean requireTransportOrder, @Param("restrictManagedWarehouses") boolean restrictManagedWarehouses, @Param("managedWarehouseIds") Collection<Long> managedWarehouseIds, @Param("linkedProcessType") String linkedProcessType);
+    List<Object[]> countGroupedByStatusFiltered(@Param("companyId") Long companyId, @Param("assignedEmployeeId") Long assignedEmployeeId, @Param("search") String search, @Param("searchId") Long searchId, @Param("priority") TaskPriority priority, @Param("transportOrderId") Long transportOrderId, @Param("stockMovementId") Long stockMovementId, @Param("excludeTransportOrders") boolean excludeTransportOrders, @Param("requireTransportOrder") boolean requireTransportOrder, @Param("restrictManagedWarehouses") boolean restrictManagedWarehouses, @Param("managedWarehouseIds") Collection<Long> managedWarehouseIds, @Param("linkedProcessType") String linkedProcessType);
 
 
     long countByDueDateBetweenAndStatusIn(LocalDateTime start, LocalDateTime end, Collection<TaskStatus> statuses);

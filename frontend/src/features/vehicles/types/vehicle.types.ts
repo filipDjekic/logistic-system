@@ -74,6 +74,7 @@ export type VehicleCreateRequest = {
 };
 
 export type VehicleUpdateRequest = {
+  expectedVersion: number;
   registrationNumber: string;
   vehicleModelId: number;
   type: string;

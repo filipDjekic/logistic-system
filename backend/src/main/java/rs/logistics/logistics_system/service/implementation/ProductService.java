@@ -96,7 +96,14 @@ public class ProductService implements ProductServiceDefinition {
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        Page<Product> page = _productRepository.searchProducts(companyId, QueryParameterNormalizer.trimToNull(search), active, pageable);
+        String normalizedSearch = QueryParameterNormalizer.trimToNull(search);
+        Page<Product> page = _productRepository.searchProducts(
+                companyId,
+                normalizedSearch,
+                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                active,
+                pageable
+        );
         List<ProductResponse> content = page.getContent()
                 .stream()
                 .map(ProductMapper::toResponse)

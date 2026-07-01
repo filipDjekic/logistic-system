@@ -11,6 +11,7 @@ import rs.logistics.logistics_system.enums.CompanyRegistrationRequestStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(
@@ -19,7 +20,8 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_company_registration_requests_status", columnList = "status"),
                 @Index(name = "idx_company_registration_requests_country_id", columnList = "country_id"),
                 @Index(name = "idx_company_registration_requests_admin_email", columnList = "admin_email"),
-                @Index(name = "idx_company_registration_requests_submitted_at", columnList = "submitted_at")
+                @Index(name = "idx_company_registration_requests_submitted_at", columnList = "submitted_at"),
+                @Index(name = "ux_company_registration_requests_public_tracking_token", columnList = "public_tracking_token", unique = true)
         }
 )
 @Getter
@@ -31,6 +33,9 @@ public class CompanyRegistrationRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Setter(AccessLevel.NONE)
     private Long id;
+
+    @Column(name = "public_tracking_token", length = 64, nullable = false, unique = true, updatable = false)
+    private String publicTrackingToken;
 
     @Column(name = "company_name", length = 120, nullable = false)
     private String companyName;
@@ -121,6 +126,9 @@ public class CompanyRegistrationRequest {
     @PrePersist
     @PreUpdate
     private void normalize() {
+        if (publicTrackingToken == null || publicTrackingToken.isBlank()) {
+            publicTrackingToken = UUID.randomUUID().toString();
+        }
         companyName = trim(companyName);
         registrationNumber = trim(registrationNumber);
         taxNumber = trim(taxNumber);

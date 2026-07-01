@@ -30,6 +30,7 @@ public class WarehouseInventoryMapper {
         BigDecimal available = warehouseInventory.getAvailableQuantity();
 
         return new WarehouseInventoryResponse(
+                warehouseInventory.getVersion(),
                 warehouseInventory.getWarehouse().getId(),
                 warehouseInventory.getWarehouse().getName(),
                 warehouseInventory.getWarehouse().getCompany() != null ? warehouseInventory.getWarehouse().getCompany().getId() : null,

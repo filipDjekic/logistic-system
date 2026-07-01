@@ -37,6 +37,7 @@ import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
+import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 @Service
@@ -108,6 +109,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         WarehouseInventory inventory = warehouseInventoryRepository
                 .findByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
+        OptimisticLockGuard.requireExpectedVersion(dto.getExpectedVersion(), inventory.getVersion(), "Warehouse inventory");
 
         BigDecimal oldQuantity = QueryParameterNormalizer.zeroIfNull(inventory.getQuantity());
         BigDecimal oldReserved = QueryParameterNormalizer.zeroIfNull(inventory.getReservedQuantity());

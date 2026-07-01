@@ -5,6 +5,7 @@ import { getAccessToken } from '../auth/token';
 import type { ApiErrorResponse } from '../../shared/types/api.types';
 import { applyIdempotencyKey } from './idempotency';
 import { clearQueryCache } from '../query/queryClient';
+import { emitSessionExpired } from '../auth/authEvents';
 
 export const apiClient = axios.create({
   baseURL: appEnv.apiBaseUrl,
@@ -35,8 +36,8 @@ apiClient.interceptors.response.use(
       const isLoginRequest =
         typeof requestUrl === 'string' && requestUrl.includes('/api/auth/login');
 
-      if (!isLoginRequest && window.location.pathname !== '/login') {
-        window.location.replace('/login');
+      if (!isLoginRequest) {
+        emitSessionExpired();
       }
     }
 

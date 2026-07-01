@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -30,9 +32,12 @@ import org.springframework.security.core.AuthenticationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import rs.logistics.logistics_system.observability.RequestCorrelation;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
@@ -124,6 +129,7 @@ public class GlobalExceptionHandler {
             DataIntegrityViolationException ex,
             HttpServletRequest request
     ) {
+        log.warn("Data integrity violation for {} {} [traceId={}]", request.getMethod(), request.getRequestURI(), traceId(request), ex);
         return build(
                 HttpStatus.CONFLICT,
                 "DATA_INTEGRITY_VIOLATION",
@@ -257,6 +263,7 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request
     ) {
+        log.error("Unhandled exception for {} {} [traceId={}]", request.getMethod(), request.getRequestURI(), traceId(request), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Unexpected internal server error", request);
     }
 
@@ -283,10 +290,19 @@ public class GlobalExceptionHandler {
                 code,
                 message,
                 request.getRequestURI(),
+                traceId(request),
                 fieldErrors == null ? new ArrayList<>() : fieldErrors
         );
 
-        return new ResponseEntity<>(errorResponse, status);
+        return ResponseEntity
+                .status(status)
+                .header(RequestCorrelation.REQUEST_ID_HEADER, traceId(request))
+                .body(errorResponse);
+    }
+
+    private String traceId(HttpServletRequest request) {
+        Object traceId = request.getAttribute(RequestCorrelation.TRACE_ID_ATTRIBUTE);
+        return traceId == null ? null : traceId.toString();
     }
 
     private FieldErrorResponse mapFieldError(FieldError error) {

@@ -210,7 +210,7 @@ export default function CompanyRegistrationPage() {
       postalCode: city?.postalCode ?? '',
     });
 
-    navigate(`/register-company/status/${response.id}`, {
+    navigate(`/register-company/status/${response.publicTrackingToken}`, {
       replace: true,
     });
   });

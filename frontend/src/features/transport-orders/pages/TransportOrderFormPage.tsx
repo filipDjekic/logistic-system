@@ -157,8 +157,10 @@ export default function TransportOrderFormPage({ mode }: Props) {
     };
 
     if (isEdit) {
+      if (!orderQuery.data) return;
+
       updateMutation.mutate(
-        { id: orderId, payload },
+        { id: orderId, payload: { ...payload, expectedVersion: orderQuery.data.version } },
         { onSuccess: (order) => navigate(`/transport-orders/${order.id}`) },
       );
       return;

@@ -6,6 +6,7 @@ import java.util.Optional;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -42,6 +43,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
     long countByCompany_Id(Long companyId);
 
+    @EntityGraph(attributePaths = {"company", "company.timezone", "city", "timezone", "manager", "manager.user"})
     @Query("""
         select w
         from Warehouse w
@@ -59,18 +61,20 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
             or lower(coalesce(m.firstName, '')) like lower(concat('%', :search, '%'))
             or lower(coalesce(m.lastName, '')) like lower(concat('%', :search, '%'))
             or lower(coalesce(c.name, '')) like lower(concat('%', :search, '%'))
-            or str(w.id) like concat('%', :search, '%')
+            or (:searchId is not null and w.id = :searchId)
         )
     """)
     Page<Warehouse> search(
             @Param("companyId") Long companyId,
             @Param("search") String search,
+            @Param("searchId") Long searchId,
             @Param("status") WarehouseStatus status,
             @Param("active") Boolean active,
             @Param("managerId") Long managerId,
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"company", "company.timezone", "city", "timezone", "manager", "manager.user"})
     @Query("""
         select distinct w
         from Warehouse w
@@ -86,13 +90,14 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
             or lower(w.name) like lower(concat('%', :search, '%'))
             or lower(w.city.name) like lower(concat('%', :search, '%'))
             or lower(w.address) like lower(concat('%', :search, '%'))
-            or str(w.id) like concat('%', :search, '%')
+            or (:searchId is not null and w.id = :searchId)
         )
     """)
     Page<Warehouse> searchAssignedWarehouses(
             @Param("companyId") Long companyId,
             @Param("employeeId") Long employeeId,
             @Param("search") String search,
+            @Param("searchId") Long searchId,
             @Param("status") WarehouseStatus status,
             @Param("active") Boolean active,
             @Param("managerId") Long managerId,
@@ -101,6 +106,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
 
 
+    @EntityGraph(attributePaths = {"company", "company.timezone", "city", "timezone", "manager", "manager.user"})
     @Query("""
         select w
         from Warehouse w
@@ -114,13 +120,14 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
             or lower(w.name) like lower(concat('%', :search, '%'))
             or lower(w.city.name) like lower(concat('%', :search, '%'))
             or lower(w.address) like lower(concat('%', :search, '%'))
-            or str(w.id) like concat('%', :search, '%')
+            or (:searchId is not null and w.id = :searchId)
         )
     """)
     Page<Warehouse> searchWarehouseIds(
             @Param("companyId") Long companyId,
             @Param("warehouseIds") java.util.Collection<Long> warehouseIds,
             @Param("search") String search,
+            @Param("searchId") Long searchId,
             @Param("status") WarehouseStatus status,
             @Param("active") Boolean active,
             @Param("managerId") Long managerId,

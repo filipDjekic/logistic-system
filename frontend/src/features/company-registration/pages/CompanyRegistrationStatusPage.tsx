@@ -17,11 +17,11 @@ function activeStep(status?: string) {
 
 export default function CompanyRegistrationStatusPage() {
   const params = useParams();
-  const requestId = Number(params.requestId);
+  const trackingToken = params.requestId ?? '';
   const query = useQuery({
-    queryKey: queryKeys.companyRegistrationRequests.publicStatus(requestId),
-    queryFn: () => companyRegistrationApi.getPublicStatus(requestId),
-    enabled: Number.isFinite(requestId) && requestId > 0,
+    queryKey: queryKeys.companyRegistrationRequests.publicStatus(trackingToken),
+    queryFn: () => companyRegistrationApi.getPublicStatus(trackingToken),
+    enabled: trackingToken.trim().length > 0,
     refetchInterval: 30000,
   });
 
@@ -40,14 +40,14 @@ export default function CompanyRegistrationStatusPage() {
             {query.data?.status === 'REJECTED' || query.data?.status === 'CANCELLED' ? <CancelOutlinedIcon color="error" sx={{ fontSize: 54 }} /> : null}
             {!query.data || query.data.status === 'PENDING' || query.data.status === 'UNDER_REVIEW' ? <HourglassTopIcon color="warning" sx={{ fontSize: 54 }} /> : null}
             <Typography variant="h4" fontWeight={800}>Company request status</Typography>
-            <Typography color="text.secondary">Request #{requestId} is tracked through the approval lifecycle.</Typography>
+            <Typography color="text.secondary">This private tracking link follows the approval lifecycle.</Typography>
           </Stack>
 
           {query.isLoading ? <LinearProgress /> : null}
           {query.isError ? <Alert severity="error">Unable to load request status.</Alert> : null}
 
           <Alert severity="info">
-            Save this request ID or bookmark this page. You can return to this address later to check whether the request is pending, under review, approved, or rejected.
+            Bookmark this page. This private tracking link lets you check whether the request is pending, under review, approved, or rejected.
           </Alert>
 
           {query.data ? (
@@ -56,8 +56,7 @@ export default function CompanyRegistrationStatusPage() {
                 <Box>
                   <Typography variant="overline" color="text.secondary">Company</Typography>
                   <Typography variant="h6">{query.data.companyName}</Typography>
-                  <Typography variant="body2" color="text.secondary">Administrator: {query.data.adminEmail}</Typography>
-                </Box>
+                                  </Box>
                 <Chip label={query.data.status === 'PENDING' ? 'PENDING REVIEW' : query.data.status === 'UNDER_REVIEW' ? 'UNDER REVIEW' : query.data.status} color={statusColor} sx={{ fontWeight: 800, alignSelf: { xs: 'flex-start', sm: 'center' } }} />
               </Stack>
 
@@ -74,7 +73,7 @@ export default function CompanyRegistrationStatusPage() {
               </Stack>
 
               {query.data.status === 'REJECTED' ? <Alert severity="error">Rejected reason: {query.data.rejectionReason ?? 'No reason provided.'}</Alert> : null}
-              {query.data.status === 'APPROVED' ? <Alert severity="success">Approved. Company #{query.data.createdCompanyId ?? '—'} is active and the administrator can sign in.</Alert> : null}
+              {query.data.status === 'APPROVED' ? <Alert severity="success">Approved. The company workspace is active and the administrator can sign in.</Alert> : null}
               {query.data.status === 'PENDING' ? <Alert severity="info">Your request is waiting for Overlord approval.</Alert> : null}
               {query.data.status === 'UNDER_REVIEW' ? <Alert severity="warning">Your request is under review. The final decision will appear on this page.</Alert> : null}
 

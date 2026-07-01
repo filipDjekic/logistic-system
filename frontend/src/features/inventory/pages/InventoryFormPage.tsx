@@ -170,11 +170,14 @@ export default function InventoryFormPage({ mode }: Props) {
       return;
     }
 
+    if (!inventoryRecordQuery.data) return;
+
     updateInventoryMutation.mutate(
       {
         warehouseId: routeWarehouseId,
         productId: routeProductId,
         data: {
+          expectedVersion: inventoryRecordQuery.data.record.version,
           warehouseId: routeWarehouseId,
           productId: routeProductId,
           quantity: normalizedQuantity,

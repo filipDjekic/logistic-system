@@ -33,6 +33,17 @@ function cleanMessage(value: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function titleForCode(code: string | null | undefined): string | null {
+  switch (code) {
+    case 'CONCURRENT_MODIFICATION':
+      return 'Record was changed';
+    case 'CONFLICT':
+      return 'Conflict';
+    default:
+      return null;
+  }
+}
+
 function titleForStatus(status: number | null): string {
   switch (status) {
     case 400:
@@ -169,7 +180,7 @@ export function normalizeApiError(
 
       return {
         status: responseStatus,
-        title: titleForStatus(responseStatus),
+        title: titleForCode(data.code) ?? titleForStatus(responseStatus),
         message,
         error: data.error ?? null,
         code: data.code ?? null,

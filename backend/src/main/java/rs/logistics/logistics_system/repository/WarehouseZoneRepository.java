@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +18,7 @@ public interface WarehouseZoneRepository extends JpaRepository<WarehouseZone, Lo
     boolean existsByWarehouse_IdAndCodeIgnoreCaseAndIdNot(Long warehouseId, String code, Long id);
     List<WarehouseZone> findByWarehouse_IdOrderByCodeAsc(Long warehouseId);
 
+    @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "warehouse.timezone"})
     @Query("""
             select wz
             from WarehouseZone wz
@@ -40,6 +42,7 @@ public interface WarehouseZoneRepository extends JpaRepository<WarehouseZone, Lo
                                Pageable pageable);
 
 
+    @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "warehouse.timezone"})
     @Query("""
             select wz
             from WarehouseZone wz

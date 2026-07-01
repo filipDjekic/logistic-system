@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class CompanyRegistrationRequestResponse {
     private Long id;
+    private String publicTrackingToken;
     private String companyName;
     private String registrationNumber;
     private String taxNumber;

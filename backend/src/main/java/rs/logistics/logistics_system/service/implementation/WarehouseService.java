@@ -173,19 +173,21 @@ public class WarehouseService implements WarehouseServiceDefinition {
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
+        Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
+
         if (authenticatedUserProvider.hasRole("WORKER")) {
             List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
             if (warehouseIds == null) {
-                return PageResponse.from(_warehouseRepository.search(companyId, normalizedSearch, status, active, managerId, pageable)
+                return PageResponse.from(_warehouseRepository.search(companyId, normalizedSearch, searchId, status, active, managerId, pageable)
                         .map(WarehouseMapper::toResponse));
             }
             return PageResponse.from((warehouseIds.isEmpty()
                     ? Page.<Warehouse>empty(pageable)
-                    : _warehouseRepository.searchWarehouseIds(companyId, warehouseIds, normalizedSearch, status, active, managerId, pageable))
+                    : _warehouseRepository.searchWarehouseIds(companyId, warehouseIds, normalizedSearch, searchId, status, active, managerId, pageable))
                     .map(WarehouseMapper::toResponse));
         }
 
-        return PageResponse.from(_warehouseRepository.search(companyId, normalizedSearch, status, active, managerId, pageable)
+        return PageResponse.from(_warehouseRepository.search(companyId, normalizedSearch, searchId, status, active, managerId, pageable)
                 .map(WarehouseMapper::toResponse));
     }
 

@@ -44,6 +44,19 @@ public final class QueryParameterNormalizer {
         }
     }
 
+    public static Integer parseIntegerOrNull(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        try {
+            return Integer.valueOf(normalized);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     public static BigDecimal zeroIfNull(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
     }

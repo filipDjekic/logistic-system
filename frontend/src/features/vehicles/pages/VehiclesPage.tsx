@@ -275,7 +275,7 @@ export default function VehiclesPage() {
             }
 
             if (!selectedVehicle) return;
-            updateVehicleMutation.mutate({ id: selectedVehicle.id, data: payload }, {
+            updateVehicleMutation.mutate({ id: selectedVehicle.id, data: { ...payload, expectedVersion: selectedVehicle.version } }, {
               onSuccess: () => {
                 setDialogOpen(false);
                 setSelectedVehicle(null);

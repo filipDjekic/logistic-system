@@ -14,6 +14,9 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class WarehouseInventoryUpdate {
 
+    @NotNull(message = "Version is required")
+    private Long expectedVersion;
+
     @NotNull
     @Positive
     private Long warehouseId;

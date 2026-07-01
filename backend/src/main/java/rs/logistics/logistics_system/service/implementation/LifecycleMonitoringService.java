@@ -429,7 +429,7 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
         } else if (profile == RoleProfile.WAREHOUSE_MANAGER) {
             rows = managedWarehouseIds.isEmpty() ? List.of() : taskRepository.countGroupedByStatusForManagedWarehouses(companyId, managedWarehouseIds);
         } else {
-            rows = taskRepository.countGroupedByStatusFiltered(companyId, null, null, null, null, null, false, false, false, List.of(-1L), null);
+            rows = taskRepository.countGroupedByStatusFiltered(companyId, null, null, null, null, null, null, false, false, false, List.of(-1L), null);
         }
         return enumCountMap(TaskStatus.values(), rows);
     }

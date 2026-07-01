@@ -24,6 +24,7 @@ export type CompanyRegistrationCreateRequest = {
 
 export type CompanyRegistrationResponse = {
   id: number;
+  publicTrackingToken: string;
   companyName: string;
   registrationNumber: string | null;
   taxNumber: string | null;
@@ -65,9 +66,8 @@ export type CompanyRegistrationResponse = {
 };
 
 export type CompanyRegistrationPublicStatus = {
-  id: number;
+  trackingToken: string;
   companyName: string;
-  adminEmail: string;
   status: CompanyRegistrationStatus;
   statusLabel?: string | null;
   statusDescription?: string | null;
@@ -75,7 +75,6 @@ export type CompanyRegistrationPublicStatus = {
   submittedAt: string;
   reviewedAt: string | null;
   rejectionReason: string | null;
-  createdCompanyId: number | null;
 };
 
 export type CompanyRegistrationValidationResponse = {

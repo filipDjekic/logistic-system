@@ -20,6 +20,7 @@ public class ErrorResponse {
     private String code;
     private String message;
     private String path;
+    private String traceId;
     private List<FieldErrorResponse> fieldErrors;
     private Map<String, String> fieldErrorMap;
 
@@ -32,7 +33,20 @@ public class ErrorResponse {
             String path,
             List<FieldErrorResponse> fieldErrors
     ) {
-        this(timestamp, status, error, code, message, path, fieldErrors, toFieldErrorMap(fieldErrors));
+        this(timestamp, status, error, code, message, path, null, fieldErrors, toFieldErrorMap(fieldErrors));
+    }
+
+    public ErrorResponse(
+            LocalDateTime timestamp,
+            int status,
+            String error,
+            String code,
+            String message,
+            String path,
+            String traceId,
+            List<FieldErrorResponse> fieldErrors
+    ) {
+        this(timestamp, status, error, code, message, path, traceId, fieldErrors, toFieldErrorMap(fieldErrors));
     }
 
     public ErrorResponse(
@@ -45,12 +59,27 @@ public class ErrorResponse {
             List<FieldErrorResponse> fieldErrors,
             Map<String, String> fieldErrorMap
     ) {
+        this(timestamp, status, error, code, message, path, null, fieldErrors, fieldErrorMap);
+    }
+
+    public ErrorResponse(
+            LocalDateTime timestamp,
+            int status,
+            String error,
+            String code,
+            String message,
+            String path,
+            String traceId,
+            List<FieldErrorResponse> fieldErrors,
+            Map<String, String> fieldErrorMap
+    ) {
         this.timestamp = timestamp;
         this.status = status;
         this.error = error;
         this.code = code;
         this.message = message;
         this.path = path;
+        this.traceId = traceId;
         this.fieldErrors = fieldErrors == null ? List.of() : fieldErrors;
         this.fieldErrorMap = fieldErrorMap == null ? Map.of() : fieldErrorMap;
     }

@@ -19,6 +19,9 @@ import rs.logistics.logistics_system.enums.VehicleType;
 @NoArgsConstructor
 public class VehicleUpdate {
 
+    @NotNull(message = "Version is required")
+    private Long expectedVersion;
+
     @Size(max = 20, message = "Registration number must be at most 20 characters")
     @NotBlank(message = "Registration number is required")
     private String registrationNumber;
