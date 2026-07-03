@@ -10,7 +10,6 @@ import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import CsvImportDialog from '../../data-exchange/components/CsvImportDialog';
 import { dataExchangeApi } from '../../data-exchange/api/dataExchangeApi';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
@@ -19,7 +18,6 @@ import ServerTablePagination from '../../../shared/components/ServerTablePaginat
 import OperationalMetrics from '../../../shared/components/OperationalMetrics/OperationalMetrics';
 import WarehousesTable from '../components/WarehousesTable';
 import {
-  useDeleteWarehouse,
   useWarehouses,
 } from '../hooks/useWarehouses';
 import type { SortState } from '../../../shared/types/common.types';
@@ -36,6 +34,8 @@ export default function WarehousesPage() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
+  const isWorkerView = auth.user?.role === ROLES.WORKER;
+
   const canCreate =
     auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
@@ -50,7 +50,6 @@ export default function WarehousesPage() {
     active: 'ALL',
   });
 
-  const [deleteTarget, setDeleteTarget] = useState<WarehouseResponse | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const [page, setPage] = useState(0);
@@ -77,7 +76,6 @@ export default function WarehousesPage() {
   );
 
   const warehousesQuery = useWarehouses({ ...queryFilters, page, size, sort: buildSortParam(sort) }, true);
-  const deleteWarehouseMutation = useDeleteWarehouse();
   const importMutation = useMutation({
     mutationFn: (file: File) => dataExchangeApi.importCsv('warehouses', file),
     onSuccess: async (result) => {
@@ -144,9 +142,9 @@ export default function WarehousesPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
-        overline="Storage"
-        title="Warehouses"
-        description="Manage warehouse records, managers and capacity overview."
+        overline={isWorkerView ? "My Work" : "Storage"}
+        title={isWorkerView ? "Assigned Warehouses" : "Warehouses"}
+        description={isWorkerView ? "Warehouses connected to your assigned warehouse work." : "Manage warehouse records, managers and capacity overview."}
         actions={
           canManage ? (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -236,12 +234,7 @@ export default function WarehousesPage() {
               if (!canEdit) return;
               navigate(`/warehouses/${warehouse.id}/edit`);
             }}
-            onDelete={(warehouse) => {
-              if (!canManage) return;
-              setDeleteTarget(warehouse);
-            }}
             canEdit={canEdit}
-            canDelete={canManage}
             pagination={
               <ServerTablePagination
                 page={warehousesQuery.data}
@@ -270,30 +263,6 @@ export default function WarehousesPage() {
         />
       ) : null}
 
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="Delete warehouse"
-        description={
-          deleteTarget
-            ? `Are you sure you want to delete "${deleteTarget.name}"?`
-            : ''
-        }
-        confirmText="Delete"
-        confirmColor="error"
-        isLoading={deleteWarehouseMutation.isPending}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (!deleteTarget) {
-            return;
-          }
-
-          deleteWarehouseMutation.mutate(deleteTarget.id, {
-            onSuccess: () => {
-              setDeleteTarget(null);
-            },
-          });
-        }}
-      />
     </Stack>
   );
 }

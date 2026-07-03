@@ -130,9 +130,13 @@ public class VehicleService implements VehicleServiceDefinition {
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        Long driverUserId = authenticatedUserProvider.hasRole("DRIVER")
+                ? authenticatedUserProvider.getAuthenticatedUserId()
+                : null;
 
         return vehicleRepository.countGroupedByStatusFiltered(
                         companyId,
+                        driverUserId,
                         QueryParameterNormalizer.trimToNull(search),
                         QueryParameterNormalizer.parseLongOrNull(search),
                         QueryParameterNormalizer.parseIntegerOrNull(search),

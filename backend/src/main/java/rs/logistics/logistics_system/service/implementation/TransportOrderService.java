@@ -46,6 +46,7 @@ import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.lifecycle.LifecycleTransitionContext;
 import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
+import rs.logistics.logistics_system.repository.DomainEventRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
@@ -71,6 +72,7 @@ import rs.logistics.logistics_system.service.definition.WarehouseInventoryServic
 public class TransportOrderService implements TransportOrderServiceDefinition {
 
     private final TransportOrderRepository _transportOrderRepository;
+    private final DomainEventRepository domainEventRepository;
     private final TransportOrderItemRepository transportOrderItemRepository;
     private final TaskRepository taskRepository;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
@@ -390,22 +392,22 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     @Transactional
     public void delete(Long id) {
         TransportOrder transportOrder = getTransportOrderOrThrow(id);
+        validateTransportOrderHardDeleteBlocked(transportOrder);
+    }
 
-        if (!isInitialStatus(transportOrder.getStatus())) {
-            throw new BadRequestException("Only transport orders in DRAFT status can be deleted");
+    private void validateTransportOrderHardDeleteBlocked(TransportOrder transportOrder) {
+        if (hasTransportOrderHistory(transportOrder)) {
+            throw new BadRequestException("Transport order has operational history and cannot be hard deleted. Use cancel/status workflow instead.");
         }
 
-        releaseInventoryForOrder(transportOrder);
+        throw new BadRequestException("Transport orders are operational records and cannot be hard deleted. Use cancel/status workflow instead.");
+    }
 
-        _transportOrderRepository.delete(transportOrder);
-
-        auditFacade.recordDelete("TRANSPORT_ORDER", id);
-        auditFacade.log(
-                "DELETE",
-                "TRANSPORT_ORDER",
-                id,
-                "Transport order deleted (ID: " + id + ")"
-        );
+    private boolean hasTransportOrderHistory(TransportOrder transportOrder) {
+        return !transportOrder.getTransportOrderItems().isEmpty()
+                || !transportOrder.getTasks().isEmpty()
+                || !transportOrder.getStockMovements().isEmpty()
+                || domainEventRepository.existsByEntityTypeAndEntityId(OperationalEntityType.TRANSPORT_ORDER, transportOrder.getId());
     }
 
     @Override

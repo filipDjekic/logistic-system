@@ -56,7 +56,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.releaseReservedStock(dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/status-counts")
     public ResponseEntity<List<StatusCountResponse>> countByStatus(
             @RequestParam(required = false) String search,
@@ -66,7 +66,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.countByStatus(search, warehouseId, productId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<WarehouseInventoryResponse>> search(
             @RequestParam(required = false) String search,
@@ -78,7 +78,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.search(search, warehouseId, productId, status, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/{warehouseId}/{productId}")
     public ResponseEntity<WarehouseInventoryResponse> getById(
             @PathVariable Long warehouseId,
@@ -87,7 +87,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.findByWarehouseAndProduct(warehouseId, productId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/warehouse/{warehouseId}")
     public ResponseEntity<List<WarehouseInventoryResponse>> getByWarehouse(@PathVariable Long warehouseId) {
         return ResponseEntity.ok(warehouseInventoryService.findByWarehouse(warehouseId));

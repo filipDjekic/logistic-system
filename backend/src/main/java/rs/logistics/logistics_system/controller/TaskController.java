@@ -122,7 +122,7 @@ public class TaskController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         taskService.delete(id);

@@ -10,7 +10,6 @@ import CsvImportDialog from '../../data-exchange/components/CsvImportDialog';
 import { dataExchangeApi } from '../../data-exchange/api/dataExchangeApi';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
@@ -24,12 +23,11 @@ import InventoryTable from '../components/InventoryTable';
 import InventoryReservationDialog from '../components/InventoryReservationDialog';
 import { useInventory } from '../hooks/useInventory';
 import {
-  useDeleteInventoryRecord,
   useReleaseInventoryReservation,
   useReserveInventoryStock,
 } from '../hooks/useInventoryMutations';
 import type { SortState } from '../../../shared/types/common.types';
-import type { InventoryFiltersState, InventoryListRow } from '../types/inventory.types';
+import type { InventoryFiltersState } from '../types/inventory.types';
 
 export default function InventoryPage() {
   const auth = useAuthStore();
@@ -38,6 +36,7 @@ export default function InventoryPage() {
   const { showSnackbar } = useAppSnackbar();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const isWorker = auth.user?.role === ROLES.WORKER;
   const canManage =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
@@ -51,7 +50,6 @@ export default function InventoryPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [sort, setSort] = useState<SortState>({ field: 'quantity', direction: 'desc' });
-  const [deleteTarget, setDeleteTarget] = useState<InventoryListRow | null>(null);
   const [reservationTarget, setReservationTarget] = useState<InventoryListRow | null>(null);
   const [reservationMode, setReservationMode] = useState<'reserve' | 'release'>('reserve');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -66,6 +64,7 @@ export default function InventoryPage() {
   const productsQuery = useQuery({
     queryKey: queryKeys.inventory.products(),
     queryFn: inventoryApi.getProducts,
+    enabled: !isWorker,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -83,7 +82,6 @@ export default function InventoryPage() {
     staleTime: 30_000,
   });
   const rows = inventoryQuery.data?.content ?? [];
-  const deleteInventoryMutation = useDeleteInventoryRecord();
   const reserveInventoryMutation = useReserveInventoryStock();
   const releaseReservationMutation = useReleaseInventoryReservation();
   const importMutation = useMutation({
@@ -97,8 +95,8 @@ export default function InventoryPage() {
     },
   });
 
-  const isLoadingLookups = warehousesQuery.isLoading || productsQuery.isLoading;
-  const hasLookupError = warehousesQuery.isError || productsQuery.isError;
+  const isLoadingLookups = warehousesQuery.isLoading || (!isWorker && productsQuery.isLoading);
+  const hasLookupError = warehousesQuery.isError || (!isWorker && productsQuery.isError);
 
   const statusOverviewItems = useMemo(
     () => {
@@ -214,9 +212,11 @@ export default function InventoryPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
-        overline="Inventory"
-        title="Inventory"
-        description="Company admin has read-only visibility here. Inventory manipulation remains an operational warehouse responsibility."
+        overline={isWorker ? 'Assigned inventory' : 'Inventory'}
+        title={isWorker ? 'Assigned Inventory' : 'Inventory'}
+        description={isWorker
+          ? 'Read-only inventory visibility for warehouses assigned to your work scope.'
+          : 'Company admin has read-only visibility here. Inventory manipulation remains an operational warehouse responsibility.'}
         actions={
           canManage ? (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -269,7 +269,7 @@ export default function InventoryPage() {
                 onRefresh={() => {
                   void Promise.all([
                     warehousesQuery.refetch(),
-                    productsQuery.refetch(),
+                    ...(!isWorker ? [productsQuery.refetch()] : []),
                     inventoryQuery.refetch(),
                     inventoryStatusCountsQuery.refetch(),
                   ]);
@@ -287,13 +287,12 @@ export default function InventoryPage() {
             onRetry={() => {
               void Promise.all([
                 warehousesQuery.refetch(),
-                productsQuery.refetch(),
+                ...(!isWorker ? [productsQuery.refetch()] : []),
                 inventoryQuery.refetch(),
                 inventoryStatusCountsQuery.refetch(),
               ]);
             }}
             onEdit={(row) => navigate(`/inventory/${row.warehouseId}/${row.productId}/edit`)}
-            onDelete={(row) => setDeleteTarget(row)}
             onReserve={(row) => {
               setReservationMode('reserve');
               setReservationTarget(row);
@@ -360,36 +359,6 @@ export default function InventoryPage() {
         />
       ) : null}
 
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="Delete inventory record"
-        description={
-          deleteTarget
-            ? `Are you sure you want to delete inventory for "${deleteTarget.productName}" in "${deleteTarget.warehouseName}"?`
-            : ''
-        }
-        confirmText="Delete"
-        confirmColor="error"
-        isLoading={deleteInventoryMutation.isPending}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (!deleteTarget) {
-            return;
-          }
-
-          deleteInventoryMutation.mutate(
-            {
-              warehouseId: deleteTarget.warehouseId,
-              productId: deleteTarget.productId,
-            },
-            {
-              onSuccess: () => {
-                setDeleteTarget(null);
-              },
-            },
-          );
-        }}
-      />
     </Stack>
   );
 }

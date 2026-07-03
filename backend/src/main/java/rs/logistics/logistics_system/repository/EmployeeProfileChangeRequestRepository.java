@@ -28,4 +28,6 @@ public interface EmployeeProfileChangeRequestRepository extends JpaRepository<Em
     long countByEmployee_IdAndStatus(Long employeeId, EmployeeProfileChangeRequestStatus status);
 
     boolean existsByEmployee_IdAndStatus(Long employeeId, EmployeeProfileChangeRequestStatus status);
+
+    boolean existsByEmployee_Id(Long employeeId);
 }

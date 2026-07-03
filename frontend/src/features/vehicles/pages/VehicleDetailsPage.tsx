@@ -76,6 +76,7 @@ export default function VehicleDetailsPage() {
   const [transitionTarget, setTransitionTarget] =
     useState<VehicleStatus | null>(null);
 
+  const isDriver = auth.user?.role === ROLES.DRIVER;
   const canManage =
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN;
@@ -183,7 +184,7 @@ export default function VehicleDetailsPage() {
         loading
         loadingText="Loading vehicle details..."
         actionItems={[
-          { label: "Back to list", onClick: () => navigate("/vehicles") },
+          { label: isDriver ? "Back to assigned vehicles" : "Back to list", onClick: () => navigate("/vehicles") },
         ]}
       >
         <></>
@@ -234,7 +235,7 @@ export default function VehicleDetailsPage() {
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as VehicleDetailsTab)}
       breadcrumbs={[
-        { label: "Vehicles", to: "/vehicles" },
+        { label: isDriver ? "Assigned Vehicles" : "Vehicles", to: "/vehicles" },
         { label: vehicle.registrationNumber },
       ]}
       hero={{
@@ -273,7 +274,7 @@ export default function VehicleDetailsPage() {
               },
             ]
           : []),
-        { label: "Back to list", onClick: () => navigate("/vehicles") },
+        { label: isDriver ? "Back to assigned vehicles" : "Back to list", onClick: () => navigate("/vehicles") },
       ]}
     >
       {vehicle.status === "OUT_OF_SERVICE" || vehicle.active === false ? (

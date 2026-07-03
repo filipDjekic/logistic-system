@@ -51,14 +51,14 @@ public class VehicleController {
         return new ResponseEntity<>(vehicleService.update(id, dto), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @GetMapping("/{id}")
     public ResponseEntity<VehicleResponse> getVehicle(@PathVariable Long id) {
         return new ResponseEntity<>(vehicleService.getById(id), HttpStatus.OK);
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @GetMapping("/status-counts")
     public ResponseEntity<List<StatusCountResponse>> countByStatus(
             @RequestParam(required = false) String search,
@@ -70,7 +70,7 @@ public class VehicleController {
         return ResponseEntity.ok(vehicleService.countByStatus(search, type, available, capacityFrom, capacityTo));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @GetMapping
     public ResponseEntity<PageResponse<VehicleResponse>> getAllVehicles(
             @RequestParam(required = false) String search,
@@ -107,13 +107,13 @@ public class VehicleController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping("/{id}/status-transitions")
     public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
         return ResponseEntity.ok(vehicleService.allowedStatusTransitions(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<VehicleResponse> changeStatus(@PathVariable Long id, @Valid @RequestBody VehicleStatusUpdate dto) {
         return ResponseEntity.ok(vehicleService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion()));

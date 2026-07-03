@@ -139,6 +139,12 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
         select v.status, count(v)
         from Vehicle v
         where (:companyId is null or v.company.id = :companyId)
+        and (:driverUserId is null or exists (
+            select 1
+            from TransportOrder t
+            where t.vehicle.id = v.id
+            and t.assignedEmployee.user.id = :driverUserId
+        ))
         and (:available is null or v.active = :available)
         and (:type is null or lower(v.type) like lower(concat('%', :type, '%')))
         and (:capacityFrom is null or v.capacity >= :capacityFrom)
@@ -157,6 +163,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     """)
     List<Object[]> countGroupedByStatusFiltered(
             @Param("companyId") Long companyId,
+            @Param("driverUserId") Long driverUserId,
             @Param("search") String search,
             @Param("searchId") Long searchId,
             @Param("searchYear") Integer searchYear,

@@ -12,7 +12,6 @@ type Props = {
   error: boolean;
   onRetry: () => void;
   onEdit: (row: ProductResponse) => void;
-  onDelete: (row: ProductResponse) => void;
   canManage: boolean;
   pagination?: ReactNode;
   sort?: SortState;
@@ -25,7 +24,6 @@ export default function ProductsTable({
   error,
   onRetry,
   onEdit,
-  onDelete,
   canManage,
   pagination,
   sort,
@@ -76,12 +74,6 @@ export default function ProductsTable({
           {canManage ? (
             <Button size="small" variant="contained" onClick={() => onEdit(row)}>
               Edit
-            </Button>
-          ) : null}
-
-          {canManage ? (
-            <Button size="small" color="error" variant="text" onClick={() => onDelete(row)}>
-              Delete
             </Button>
           ) : null}
         </Stack>

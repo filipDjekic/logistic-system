@@ -120,6 +120,134 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"company", "company.timezone", "user", "user.role", "timezone", "primaryWarehouse", "primaryWarehouse.timezone"})
+    @Query("""
+            select distinct e
+            from Employee e
+            left join e.user u
+            left join u.role r
+            where e.company.id = :companyId
+            and (
+                e.primaryWarehouse.manager.id = :managerEmployeeId
+                or exists (
+                    select 1
+                    from EmployeeWarehouseAssignment a
+                    where a.employee = e
+                    and a.warehouse.manager.id = :managerEmployeeId
+                    and a.company.id = :companyId
+                    and a.active = true
+                    and (a.validFrom is null or a.validFrom <= current_date)
+                    and (a.validTo is null or a.validTo >= current_date)
+                )
+                or exists (
+                    select 1
+                    from Task t
+                    left join t.stockMovement sm
+                    left join t.transportOrder transportOrder
+                    where t.assignedEmployee = e
+                    and (
+                        sm.warehouse.manager.id = :managerEmployeeId
+                        or (
+                            transportOrder is not null
+                            and t.taskType <> rs.logistics.logistics_system.enums.TaskType.DRIVING
+                            and (
+                                transportOrder.sourceWarehouse.manager.id = :managerEmployeeId
+                                or transportOrder.destinationWarehouse.manager.id = :managerEmployeeId
+                            )
+                        )
+                    )
+                )
+            )
+            and (:position is null or e.position = :position)
+            and (:active is null or e.active = :active)
+            and (
+                :linkedUser is null
+                or (:linkedUser = 'LINKED' and e.user is not null)
+                or (:linkedUser = 'UNLINKED' and e.user is null)
+            )
+            and (
+                :availableFrom is null
+                or :availableTo is null
+                or exists (
+                    select 1
+                    from Shift s
+                    where s.employee = e
+                    and s.status in (rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE)
+                    and s.startTime <= :availableFrom
+                    and s.endTime >= :availableTo
+                )
+            )
+            and (
+                :search is null
+                or lower(e.firstName) like lower(concat('%', :search, '%'))
+                or lower(e.lastName) like lower(concat('%', :search, '%'))
+                or lower(e.email) like lower(concat('%', :search, '%'))
+                or lower(e.jmbg) like lower(concat('%', :search, '%'))
+                or lower(e.phoneNumber) like lower(concat('%', :search, '%'))
+                or (:searchId is not null and e.id = :searchId)
+                or (:searchId is not null and e.user.id = :searchId)
+                or lower(str(e.position)) like lower(concat('%', :search, '%'))
+                or lower(str(u.status)) like lower(concat('%', :search, '%'))
+                or lower(r.name) like lower(concat('%', :search, '%'))
+            )
+            """)
+    Page<Employee> searchEmployeesForManagedWarehouses(
+            @Param("companyId") Long companyId,
+            @Param("managerEmployeeId") Long managerEmployeeId,
+            @Param("search") String search,
+            @Param("searchId") Long searchId,
+            @Param("position") EmployeePosition position,
+            @Param("active") Boolean active,
+            @Param("linkedUser") String linkedUser,
+            @Param("availableFrom") LocalDateTime availableFrom,
+            @Param("availableTo") LocalDateTime availableTo,
+            Pageable pageable
+    );
+
+    @Query("""
+            select count(e) > 0
+            from Employee e
+            where e.id = :employeeId
+            and e.company.id = :companyId
+            and (
+                e.primaryWarehouse.manager.id = :managerEmployeeId
+                or exists (
+                    select 1
+                    from EmployeeWarehouseAssignment a
+                    where a.employee = e
+                    and a.warehouse.manager.id = :managerEmployeeId
+                    and a.company.id = :companyId
+                    and a.active = true
+                    and (a.validFrom is null or a.validFrom <= current_date)
+                    and (a.validTo is null or a.validTo >= current_date)
+                )
+                or exists (
+                    select 1
+                    from Task t
+                    left join t.stockMovement sm
+                    left join t.transportOrder transportOrder
+                    where t.assignedEmployee = e
+                    and (
+                        sm.warehouse.manager.id = :managerEmployeeId
+                        or (
+                            transportOrder is not null
+                            and t.taskType <> rs.logistics.logistics_system.enums.TaskType.DRIVING
+                            and (
+                                transportOrder.sourceWarehouse.manager.id = :managerEmployeeId
+                                or transportOrder.destinationWarehouse.manager.id = :managerEmployeeId
+                            )
+                        )
+                    )
+                )
+            )
+            """)
+    boolean isVisibleToWarehouseManager(
+            @Param("employeeId") Long employeeId,
+            @Param("companyId") Long companyId,
+            @Param("managerEmployeeId") Long managerEmployeeId
+    );
+
+
 
     @Query("""
             select e

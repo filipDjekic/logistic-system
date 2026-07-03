@@ -96,6 +96,18 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
 
     boolean existsByWarehouse_Id(Long warehouseId);
 
+    boolean existsByWarehouse_IdAndProduct_Id(Long warehouseId, Long productId);
+
+    boolean existsBySourceBin_IdOrDestinationBin_Id(Long sourceBinId, Long destinationBinId);
+
+    @Query("""
+            select count(sm) > 0
+            from StockMovement sm
+            where sm.sourceBin.zone.id = :zoneId
+            or sm.destinationBin.zone.id = :zoneId
+            """)
+    boolean existsBySourceOrDestinationZoneId(@Param("zoneId") Long zoneId);
+
     long countByWarehouse_Company_Id(Long companyId);
 
 

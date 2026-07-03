@@ -99,12 +99,12 @@ public class LifecyclePolicyRegistry {
         matrix.put(TransportOrderStatus.PICKING, operational);
         matrix.put(TransportOrderStatus.PACKING, operational);
         matrix.put(TransportOrderStatus.READY_FOR_LOADING, operational);
-        matrix.put(TransportOrderStatus.LOADING, operational);
+        matrix.put(TransportOrderStatus.LOADING, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "WAREHOUSE_MANAGER", "DRIVER"));
         matrix.put(TransportOrderStatus.IN_TRANSIT, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
         matrix.put(TransportOrderStatus.DELIVERED, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
         matrix.put(TransportOrderStatus.RETURNING, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
         matrix.put(TransportOrderStatus.RESCHEDULED, dispatch);
-        matrix.put(TransportOrderStatus.FAILED, dispatch);
+        matrix.put(TransportOrderStatus.FAILED, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
         matrix.put(TransportOrderStatus.CANCELLED, dispatch);
         return matrix;
     }
@@ -115,7 +115,7 @@ public class LifecyclePolicyRegistry {
         matrix.put(VehicleStatus.AVAILABLE, fleet);
         matrix.put(VehicleStatus.RESERVED, fleet);
         matrix.put(VehicleStatus.IN_USE, fleet);
-        matrix.put(VehicleStatus.MAINTENANCE, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "WAREHOUSE_MANAGER"));
+        matrix.put(VehicleStatus.MAINTENANCE, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER"));
         matrix.put(VehicleStatus.OUT_OF_SERVICE, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER"));
         return matrix;
     }

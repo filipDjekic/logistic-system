@@ -18,7 +18,6 @@ type Props = {
   role?: Role | null;
   canMutate: boolean;
   onEdit: (row: TaskResponse) => void;
-  onDelete: (row: TaskResponse) => void;
   canChangeStatus?: boolean;
   updatingStatusId?: number | null;
   onStatusChange?: (row: TaskResponse, status: TaskStatus) => void;
@@ -36,7 +35,6 @@ export default function TasksTable({
   role = null,
   canMutate,
   onEdit,
-  onDelete,
   canChangeStatus = false,
   updatingStatusId = null,
   onStatusChange,
@@ -144,9 +142,6 @@ export default function TasksTable({
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                   <Button variant="text" size="small" onClick={() => onEdit(row)}>
                     Edit
-                  </Button>
-                  <Button variant="text" size="small" color="error" onClick={() => onDelete(row)}>
-                    Delete
                   </Button>
                 </Stack>
               );

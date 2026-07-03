@@ -86,7 +86,9 @@ export default function InventoryDetailsPage() {
   const navigate = useNavigate();
   const params = useParams();
   const auth = useAuthStore();
+  const isWorker = auth.user?.role === ROLES.WORKER;
   const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canOpenProductDetails = !isWorker;
   const [activeTab, setActiveTab] = useState<InventoryDetailsTab>('overview');
   const binDistributionPage = usePagedState(20);
   const stockMovementPage = usePagedState(20);
@@ -225,9 +227,11 @@ export default function InventoryDetailsPage() {
 
   return (
     <EntityDetailsLayout
-      overline="Storage"
+      overline={isWorker ? 'Assigned inventory' : 'Storage'}
       title={`${record.warehouseName} · ${record.productName}`}
-      description="Warehouse/product inventory record, physical bin distribution and stock movement history."
+      description={isWorker
+        ? 'Read-only inventory details inside your assigned warehouse scope.'
+        : 'Warehouse/product inventory record, physical bin distribution and stock movement history.'}
       tabs={[
         { value: 'overview', label: 'Overview' },
         { value: 'binDistribution', label: `Bin distribution${binInventoryQuery.data ? ` (${binInventoryQuery.data.totalElements})` : ''}` },
@@ -282,7 +286,7 @@ export default function InventoryDetailsPage() {
               { key: 'averageCost', label: 'Average unit cost', value: formatMoney(record.averageUnitCost, record.currency) },
               { key: 'currency', label: 'Currency', value: record.currency ?? '—' },
               { key: 'warehouse', label: 'Warehouse', value: <Button size="small" component={RouterLink} to={`/warehouses/${record.warehouseId}`}>{record.warehouseName}</Button> },
-              { key: 'product', label: 'Product', value: <Button size="small" component={RouterLink} to={`/products/${record.productId}`}>{record.productName}</Button> },
+              { key: 'product', label: 'Product', value: canOpenProductDetails ? <Button size="small" component={RouterLink} to={`/products/${record.productId}`}>{record.productName}</Button> : record.productName },
             ]}
           />
 

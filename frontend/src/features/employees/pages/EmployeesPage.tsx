@@ -48,6 +48,9 @@ export default function EmployeesPage() {
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.HR_MANAGER ||
     auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManageLinkedUserSecurity =
+    auth.user?.role === ROLES.OVERLORD ||
+    auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const [filters, setFilters] = useState<EmployeeFiltersState>({
     search: '',
@@ -271,7 +274,7 @@ export default function EmployeesPage() {
       return;
     }
 
-    if (selectedEmployee.userId && selectedLinkedUser && matchedRole) {
+    if (selectedEmployee.userId && selectedLinkedUser && matchedRole && canManageLinkedUserSecurity) {
       updateUserMutation.mutate(
         {
           id: selectedEmployee.userId,
@@ -508,6 +511,7 @@ export default function EmployeesPage() {
         loading={isSaving}
         serverError={createEmployeeMutation.error ?? updateEmployeeMutation.error ?? updateUserMutation.error}
         canEdit={canEditEmployees}
+        canManageLinkedUserSecurity={canManageLinkedUserSecurity}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}
       />

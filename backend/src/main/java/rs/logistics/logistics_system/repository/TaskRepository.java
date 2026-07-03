@@ -280,9 +280,29 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             from Task t
             where t.id = :taskId
             and t.status = :status
+            and t.assignedEmployee is null
             and t.transportOrder is null
             and t.stockMovement is null
             and (t.updatedAt is null or t.updatedAt = t.createdAt)
+            and not exists (
+                select h.id
+                from ChangeHistory h
+                where h.entityName = 'TASK'
+                and h.entityId = t.id
+                and h.changeType <> rs.logistics.logistics_system.enums.ChangeType.CREATE
+            )
+            and not exists (
+                select c.id
+                from OperationalComment c
+                where c.entityType = rs.logistics.logistics_system.enums.OperationalEntityType.TASK
+                and c.entityId = t.id
+            )
+            and not exists (
+                select a.id
+                from OperationalAttachment a
+                where a.entityType = rs.logistics.logistics_system.enums.OperationalEntityType.TASK
+                and a.entityId = t.id
+            )
             """)
     boolean canBeHardDeleted(@Param("taskId") Long taskId, @Param("status") TaskStatus status);
 

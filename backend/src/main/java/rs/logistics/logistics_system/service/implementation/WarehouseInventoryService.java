@@ -29,6 +29,7 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.repository.ProductRepository;
+import rs.logistics.logistics_system.repository.InventoryCountSessionRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
@@ -48,6 +49,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final WarehouseRepository warehouseRepository;
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final InventoryCountSessionRepository inventoryCountSessionRepository;
     private final AuditFacadeDefinition auditFacade;
     private final NotificationServiceDefinition notificationService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
@@ -270,7 +272,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                 .findByWarehouse_IdAndProduct_Id(warehouseId, productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Warehouse inventory not found"));
 
-        applyInventoryChange(inventory::assertDeletable);
+        validateForHardDelete(inventory);
 
         warehouseInventoryRepository.delete(inventory);
 
@@ -442,6 +444,21 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
                         NotificationType.WARNING
                 );
             }
+        }
+    }
+
+    private void validateForHardDelete(WarehouseInventory inventory) {
+        applyInventoryChange(inventory::assertDeletable);
+
+        Long warehouseId = inventory.getWarehouse().getId();
+        Long productId = inventory.getProduct().getId();
+
+        if (stockMovementRepository.existsByWarehouse_IdAndProduct_Id(warehouseId, productId)) {
+            throw new BadRequestException("Warehouse inventory cannot be hard-deleted because it has stock movement history. Use stock movement/count workflow instead.");
+        }
+
+        if (inventoryCountSessionRepository.existsByWarehouseIdAndProductId(warehouseId, productId)) {
+            throw new BadRequestException("Warehouse inventory cannot be hard-deleted because it is referenced by inventory count history.");
         }
     }
 

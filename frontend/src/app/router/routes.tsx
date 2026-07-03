@@ -122,7 +122,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN]} />,
     children: [
       {
         element: <AppLayout />,
@@ -134,15 +134,24 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN]} />,
     children: [
       {
         element: <AppLayout />,
         children: [
           { path: '/users', element: lazyPage(<UsersPage />) },
           { path: '/users/:id', element: lazyPage(<UserDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
           { path: '/employee-profile-change-requests', element: lazyPage(<EmployeeProfileChangeRequestsPage />) },
-
         ],
       },
     ],
@@ -239,7 +248,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.DRIVER]} />,
     children: [
       {
         element: <AppLayout />,
@@ -284,6 +293,16 @@ export const routes = [
         children: [
           { path: '/products', element: lazyPage(<ProductsPage />) },
           { path: '/products/:id', element: lazyPage(<ProductDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
           { path: '/inventory', element: lazyPage(<InventoryPage />) },
           { path: '/inventory/:warehouseId/:productId', element: lazyPage(<InventoryDetailsPage />) },
         ],

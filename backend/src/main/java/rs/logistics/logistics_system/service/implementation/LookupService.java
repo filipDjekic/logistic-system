@@ -114,17 +114,30 @@ public class LookupService implements LookupServiceDefinition {
     public PageResponse<LookupOptionResponse> employees(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "lastName"));
         String normalizedSearch = normalize(search);
-        Page<Employee> page = employeeRepository.searchEmployees(
-                currentCompanyScope(),
-                normalizedSearch,
-                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
-                null,
-                true,
-                null,
-                null,
-                null,
-                safePageable
-        );
+        Page<Employee> page = shouldLimitEmployeeLookupToManagedWarehouses()
+                ? employeeRepository.searchEmployeesForManagedWarehouses(
+                        currentCompanyScope(),
+                        currentEmployeeIdOrNotFound(),
+                        normalizedSearch,
+                        QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                        null,
+                        true,
+                        null,
+                        null,
+                        null,
+                        safePageable
+                )
+                : employeeRepository.searchEmployees(
+                        currentCompanyScope(),
+                        normalizedSearch,
+                        QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                        null,
+                        true,
+                        null,
+                        null,
+                        null,
+                        safePageable
+                );
         return PageResponse.fromContent(page.getContent().stream().map(this::employeeOption).toList(), page);
     }
 
@@ -269,6 +282,13 @@ public class LookupService implements LookupServiceDefinition {
         return !authenticatedUserProvider.isOverlord()
                 && !authenticatedUserProvider.isCompanyAdmin()
                 && !authenticatedUserProvider.hasRole("DISPATCHER");
+    }
+
+    private boolean shouldLimitEmployeeLookupToManagedWarehouses() {
+        return authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                && !authenticatedUserProvider.isOverlord()
+                && !authenticatedUserProvider.isCompanyAdmin()
+                && !authenticatedUserProvider.hasRole("HR_MANAGER");
     }
 
     private String normalize(String search) {

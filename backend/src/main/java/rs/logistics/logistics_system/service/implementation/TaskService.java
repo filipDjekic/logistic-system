@@ -568,6 +568,10 @@ public class TaskService implements TaskServiceDefinition {
                 throw new BadRequestException("Cancelled task cannot be deleted because history must be preserved.");
             }
 
+            if (task.getAssignedEmployee() != null) {
+                throw new BadRequestException("Assigned task cannot be hard deleted. Cancel it or move it through the status flow instead.");
+            }
+
             if (task.getTransportOrder() != null) {
                 throw new BadRequestException("Task linked to a transport order cannot be deleted. Cancel it instead.");
             }
@@ -576,7 +580,7 @@ public class TaskService implements TaskServiceDefinition {
                 throw new BadRequestException("Task linked to a stock movement cannot be deleted. Cancel it instead.");
             }
 
-            throw new BadRequestException("Task cannot be deleted because it is already part of operational history. Cancel it instead.");
+            throw new BadRequestException("Task cannot be deleted because it has lifecycle history, comments, attachments, or operational history. Cancel it instead.");
         }
 
         _taskRepository.delete(task);

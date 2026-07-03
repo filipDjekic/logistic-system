@@ -15,6 +15,8 @@ import { ROLES } from '../../../core/constants/roles';
 import {
   canApproveStockMovementLifecycle,
   canExecuteStockMovementLifecycle,
+  canReadStockMovementLifecycle,
+  canReverseStockMovementLifecycle,
   filterAllowedStatusesByRole,
   getAllowedStockMovementLifecycleStatuses,
 } from '../../../core/permissions/operationGuards';
@@ -111,7 +113,7 @@ export default function StockMovementDetailsPage() {
   const traceQuery = useQuery({
     queryKey: validMovementId ? queryKeys.stockMovements.trace(validMovementId) : ['stock-movements', 'trace', 'invalid'],
     queryFn: () => stockMovementsApi.trace(validMovementId as number),
-    enabled: Boolean(validMovementId) && activeTab === 'movementTrace',
+    enabled: Boolean(validMovementId) && canReadStockMovementLifecycle(auth.user?.role) && activeTab === 'movementTrace',
   });
 
   const statusTransitionsQuery = useQuery({
@@ -218,12 +220,15 @@ export default function StockMovementDetailsPage() {
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
   const canExecuteLifecycleAction = canExecuteStockMovementLifecycle(auth.user?.role);
   const canApproveLifecycleAction = canApproveStockMovementLifecycle(auth.user?.role);
+  const canReverseLifecycleAction = canReverseStockMovementLifecycle(auth.user?.role);
   const lifecycleActionPending = executeMutation.isPending || cancelMutation.isPending || approveMutation.isPending || rejectMutation.isPending || reverseMutation.isPending;
+  const canReadMovementTrace = canReadStockMovementLifecycle(auth.user?.role);
   const currentLifecycleStatus = normalizeStockMovementStatus(currentStatus);
   const visibleLifecycleActions = movement
     ? stockMovementLifecycleActions.filter((action) => canUseLifecycleAction(action, allowedNextStatuses, {
         canApprove: canApproveLifecycleAction,
         canExecute: canExecuteLifecycleAction,
+        canReverse: canReverseLifecycleAction,
         movement,
       }))
     : [];
@@ -283,7 +288,9 @@ export default function StockMovementDetailsPage() {
   const tabs: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
     { value: 'relatedEntities', label: `Related entities${relatedTasksQuery.data ? ` (${relatedTasksQuery.data.totalElements})` : ''}` },
-    { value: 'movementTrace', label: `Movement trace${traceQuery.data ? ` (${traceQuery.data.movements.length})` : ''}` },
+    ...(canReadMovementTrace
+      ? [{ value: 'movementTrace', label: `Movement trace${traceQuery.data ? ` (${traceQuery.data.movements.length})` : ''}` }]
+      : []),
     ...buildOperationalTabs({
       entityType: 'STOCK_MOVEMENT',
       entityName: 'STOCK_MOVEMENT',
@@ -472,7 +479,7 @@ export default function StockMovementDetailsPage() {
         </Stack>
       ) : null}
 
-      {activeTab === 'movementTrace' ? (
+      {canReadMovementTrace && activeTab === 'movementTrace' ? (
         <RelatedDataSection
           title="Movement trace"
           description="Traceable stock movement chain connected through parent/root movement, transport order or transfer group."

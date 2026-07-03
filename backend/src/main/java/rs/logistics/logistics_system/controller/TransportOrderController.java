@@ -107,7 +107,7 @@ public class TransportOrderController {
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         transportOrderService.delete(id);

@@ -68,6 +68,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -1823,9 +1824,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
         addTraceMovements(related, movementsByParent(movement.getId()));
 
         if (movement.getParentMovementId() != null) {
-            StockMovement parent = getAccessibleStockMovement(movement.getParentMovementId());
-            addTraceMovements(related, List.of(parent));
-            addTraceMovements(related, movementsByParent(parent.getId()));
+            findAccessibleTraceMovement(movement.getParentMovementId()).ifPresent(parent -> {
+                addTraceMovements(related, List.of(parent));
+                addTraceMovements(related, movementsByParent(parent.getId()));
+            });
         }
 
         if (movement.getTransferGroupId() != null && !movement.getTransferGroupId().isBlank()) {
@@ -1833,10 +1835,11 @@ public class StockMovementService implements StockMovementServiceDefinition {
         }
 
         if (movement.getReferenceType() == StockMovementReferenceType.STOCK_MOVEMENT && movement.getReferenceId() != null) {
-            StockMovement referenced = getAccessibleStockMovement(movement.getReferenceId());
-            addTraceMovements(related, List.of(referenced));
-            Long referencedRootId = referenced.getRootMovementId() != null ? referenced.getRootMovementId() : referenced.getId();
-            addTraceMovements(related, movementsByRoot(referencedRootId));
+            findAccessibleTraceMovement(movement.getReferenceId()).ifPresent(referenced -> {
+                addTraceMovements(related, List.of(referenced));
+                Long referencedRootId = referenced.getRootMovementId() != null ? referenced.getRootMovementId() : referenced.getId();
+                addTraceMovements(related, movementsByRoot(referencedRootId));
+            });
         }
 
         if (movement.getTransportOrder() != null) {
@@ -1853,10 +1856,49 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     private void addTraceMovements(Map<Long, StockMovement> target, List<StockMovement> movements) {
         for (StockMovement candidate : movements) {
-            if (candidate != null && candidate.getId() != null) {
+            if (isTraceMovementAccessible(candidate)) {
                 target.put(candidate.getId(), candidate);
             }
         }
+    }
+
+    private Optional<StockMovement> findAccessibleTraceMovement(Long id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+
+        Optional<StockMovement> movement = authenticatedUserProvider.isOverlord()
+                ? stockMovementRepository.findByIdWithDetails(id)
+                : stockMovementRepository.findByIdAndWarehouse_Company_Id(
+                        id,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                );
+
+        return movement.filter(this::isTraceMovementAccessible);
+    }
+
+    private boolean isTraceMovementAccessible(StockMovement candidate) {
+        if (candidate == null || candidate.getId() == null || candidate.getWarehouse() == null) {
+            return false;
+        }
+
+        if (!authenticatedUserProvider.isOverlord()) {
+            Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+            if (candidate.getWarehouse().getCompany() == null
+                    || !candidate.getWarehouse().getCompany().getId().equals(companyId)) {
+                return false;
+            }
+        }
+
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || authenticatedUserProvider.hasRole("WORKER")) {
+            List<Long> scopedWarehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            if (scopedWarehouseIds != null && !scopedWarehouseIds.contains(candidate.getWarehouse().getId())) {
+                return false;
+            }
+        }
+
+        return !authenticatedUserProvider.hasRole("WORKER")
+                || stockMovementRepository.existsAssignedWorkerTaskForStockMovement(candidate.getId(), currentEmployeeIdOrNotFound());
     }
 
     private List<StockMovement> movementsByRoot(Long rootMovementId) {

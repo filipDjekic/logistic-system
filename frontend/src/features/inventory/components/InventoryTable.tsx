@@ -21,7 +21,6 @@ type Props = {
   error: boolean;
   onRetry: () => void;
   onEdit: (row: InventoryListRow) => void;
-  onDelete: (row: InventoryListRow) => void;
   onReserve: (row: InventoryListRow) => void;
   onReleaseReservation: (row: InventoryListRow) => void;
   canManage: boolean;
@@ -36,7 +35,6 @@ export default function InventoryTable({
   error,
   onRetry,
   onEdit,
-  onDelete,
   onReserve,
   onReleaseReservation,
   canManage,
@@ -118,7 +116,7 @@ export default function InventoryTable({
           {
             id: 'actions',
             header: 'Actions',
-            minWidth: 320,
+            minWidth: 240,
             sticky: 'right' as const,
             align: 'right' as const,
             render: (row: InventoryListRow) => (
@@ -135,9 +133,6 @@ export default function InventoryTable({
                   Release
                 </Button>
 
-                <Button size="small" color="error" variant="text" onClick={() => onDelete(row)}>
-                  Delete
-                </Button>
               </Stack>
             ),
           },

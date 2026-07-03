@@ -66,6 +66,15 @@ public interface InventoryCountSessionRepository extends JpaRepository<Inventory
     boolean existsByWarehouse_IdAndStatusIn(Long warehouseId, List<InventoryCountSessionStatus> statuses);
 
     @Query("""
+            select count(line) > 0
+            from InventoryCountLine line
+            join line.session session
+            where session.warehouse.id = :warehouseId
+            and line.product.id = :productId
+            """)
+    boolean existsByWarehouseIdAndProductId(@Param("warehouseId") Long warehouseId, @Param("productId") Long productId);
+
+    @Query("""
             select case when count(line) > 0 then true else false end
             from InventoryCountLine line
             join line.session session

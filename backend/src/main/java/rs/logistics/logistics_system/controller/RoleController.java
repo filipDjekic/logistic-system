@@ -19,13 +19,13 @@ public class RoleController {
 
     private final RoleServiceDefinition roleService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<RoleResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(roleService.getById(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @GetMapping
     public ResponseEntity<List<RoleResponse>> getAll() {
         return ResponseEntity.ok(roleService.getAll());

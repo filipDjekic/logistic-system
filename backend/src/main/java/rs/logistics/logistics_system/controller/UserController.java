@@ -40,7 +40,7 @@ public class UserController {
         return new ResponseEntity<>(userResponse, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdate dto) {
         UserResponse userResponse = userService.update(id, dto);
@@ -69,14 +69,14 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping("/{id}/enable")
     public ResponseEntity<Void> enableUser(@PathVariable Long id) {
         userService.enableUser(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping("/{id}/disable")
     public ResponseEntity<Void> disableUser(@PathVariable Long id) {
         userService.disableUser(id);
@@ -90,7 +90,7 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping("/{id}/assign-role")
     public ResponseEntity<UserResponse> assignRole(@PathVariable Long id, @Valid @RequestBody AssignRoleRequest request) {
         return ResponseEntity.ok(userService.assignRole(id, request.getRoleId()));

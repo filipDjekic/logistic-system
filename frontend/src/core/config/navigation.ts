@@ -51,17 +51,17 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
   'company-registration-requests': { key: 'company-registration-requests', label: 'Registration Requests', to: '/company-registration-requests', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
   employees: { key: 'employees', label: 'Employees', to: '/employees', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: GroupsRoundedIcon },
     shifts: { key: 'shifts', label: 'Shifts', to: '/shifts', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER, ROLES.DISPATCHER], icon: ScheduleRoundedIcon },
-  users: { key: 'users', label: 'Users', to: '/users', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: ManageAccountsRoundedIcon },
+  users: { key: 'users', label: 'Users', to: '/users', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN], icon: ManageAccountsRoundedIcon },
   'employee-profile-change-requests': { key: 'employee-profile-change-requests', label: 'Profile Requests', to: '/employee-profile-change-requests', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: FactCheckRoundedIcon },
-  roles: { key: 'roles', label: 'Roles', to: '/roles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AdminPanelSettingsRoundedIcon },
+  roles: { key: 'roles', label: 'Roles', to: '/roles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN], icon: AdminPanelSettingsRoundedIcon },
 
   'transport-orders': { key: 'transport-orders', label: 'Transport Orders', to: '/transport-orders', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: LocalShippingRoundedIcon },
   tasks: { key: 'tasks', label: 'Tasks', to: '/tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: AssignmentRoundedIcon },
-  vehicles: { key: 'vehicles', label: 'Vehicles', to: '/vehicles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER], icon: DirectionsCarFilledRoundedIcon },
+  vehicles: { key: 'vehicles', label: 'Vehicles', to: '/vehicles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.DRIVER], icon: DirectionsCarFilledRoundedIcon },
 
   warehouses: { key: 'warehouses', label: 'Warehouses', to: '/warehouses', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: WarehouseRoundedIcon },
   products: { key: 'products', label: 'Products', to: '/products', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: CategoryRoundedIcon },
-  inventory: { key: 'inventory', label: 'Inventory', to: '/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: Inventory2RoundedIcon },
+  inventory: { key: 'inventory', label: 'Inventory', to: '/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: Inventory2RoundedIcon },
   'stock-movements': { key: 'stock-movements', label: 'Stock Movements', to: '/stock-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: SyncAltRoundedIcon },
   'inventory-counts': { key: 'inventory-counts', label: 'Inventory Counts', to: '/inventory-counts', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER], icon: PlaylistAddCheckRoundedIcon },
 
@@ -104,7 +104,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   [ROLES.WAREHOUSE_MANAGER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
     { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'inventory', 'products', 'stock-movements', 'inventory-counts'] },
-    { key: 'transport', label: 'Transport', itemKeys: ['tasks', 'transport-orders', 'vehicles'] },
+    { key: 'transport', label: 'Transport', itemKeys: ['tasks', 'transport-orders'] },
     { key: 'workforce', label: 'Workforce', itemKeys: ['employees'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['inventory-report', 'transport-report'] },
     { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history'] },
@@ -125,17 +125,55 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   ],
   [ROLES.WORKER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'stock-movements', 'inventory-counts', 'my-shifts'] },
+    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'inventory', 'stock-movements', 'inventory-counts', 'my-shifts'] },
     { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses'] },
   ],
 };
 
-function buildNavigationSections(template: NavigationSectionTemplate[]) {
+function getNavigationItemForRole(itemKey: string, role?: Role | null): NavigationItem | undefined {
+  const item = navigationItemsByKey[itemKey];
+  if (!item) {
+    return undefined;
+  }
+
+  if (role === ROLES.DRIVER && itemKey === 'transport-orders') {
+    return { ...item, label: 'My Transport Orders' };
+  }
+
+  if (role === ROLES.DRIVER && itemKey === 'vehicles') {
+    return { ...item, label: 'Assigned Vehicles' };
+  }
+
+  if (role === ROLES.WORKER && itemKey === 'transport-orders') {
+    return { ...item, label: 'Assigned Transport Orders' };
+  }
+
+
+  if (role === ROLES.WORKER && itemKey === 'inventory') {
+    return { ...item, label: 'Assigned Inventory' };
+  }
+
+  if (role === ROLES.WORKER && itemKey === 'stock-movements') {
+    return { ...item, label: 'Assigned Stock Movements' };
+  }
+
+  if (role === ROLES.WORKER && itemKey === 'inventory-counts') {
+    return { ...item, label: 'My Inventory Counts' };
+  }
+
+  if (role === ROLES.WORKER && itemKey === 'warehouses') {
+    return { ...item, label: 'Assigned Warehouses' };
+  }
+
+  return item;
+}
+
+function buildNavigationSections(template: NavigationSectionTemplate[], role?: Role | null) {
   return template
     .map((section) => ({
       key: section.key,
       label: section.label,
-      items: section.itemKeys.map((itemKey) => navigationItemsByKey[itemKey]).filter(Boolean),
+      items: section.itemKeys.map((itemKey) => getNavigationItemForRole(itemKey, role)).filter(Boolean) as NavigationItem[],
     }))
     .filter((section) => section.items.length > 0);
 }
@@ -149,5 +187,5 @@ export function getNavigationSectionsForRole(role: Role | null | undefined): Nav
     return [];
   }
 
-  return buildNavigationSections(navigationTemplatesByRole[role] ?? defaultNavigationTemplate);
+  return buildNavigationSections(navigationTemplatesByRole[role] ?? defaultNavigationTemplate, role);
 }

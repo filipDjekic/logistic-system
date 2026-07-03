@@ -138,6 +138,15 @@ public interface InventoryCountLineRepository extends JpaRepository<InventoryCou
             """)
     boolean existsLinkedAdjustmentBySessionId(@Param("sessionId") Long sessionId);
 
+    boolean existsByBinLocation_Id(Long binLocationId);
+
+    @Query("""
+            select count(line) > 0
+            from InventoryCountLine line
+            where line.binLocation.zone.id = :zoneId
+            """)
+    boolean existsByZoneId(@Param("zoneId") Long zoneId);
+
     Optional<InventoryCountLine> findBySession_IdAndProduct_Id(Long sessionId, Long productId);
     Optional<InventoryCountLine> findBySession_IdAndProduct_IdAndBinLocation_Id(Long sessionId, Long productId, Long binLocationId);
 }

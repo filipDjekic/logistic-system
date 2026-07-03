@@ -26,8 +26,8 @@ public final class InventoryCountLifecyclePolicy {
 
     private static Map<InventoryCountSessionStatus, Set<String>> roleMatrix() {
         Map<InventoryCountSessionStatus, Set<String>> matrix = new EnumMap<>(InventoryCountSessionStatus.class);
-        Set<String> managers = Set.of("OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
-        Set<String> counters = Set.of("OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "WORKER");
+        Set<String> managers = Set.of("OVERLORD", "WAREHOUSE_MANAGER");
+        Set<String> counters = Set.of("OVERLORD", "WAREHOUSE_MANAGER", "WORKER");
 
         matrix.put(InventoryCountSessionStatus.DRAFT, managers);
         matrix.put(InventoryCountSessionStatus.OPEN, managers);

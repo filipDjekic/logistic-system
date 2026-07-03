@@ -7,9 +7,6 @@ import { ROLES } from '../../../core/constants/roles';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { canCreateTasks, canListManagedTasks, canMutateManagedTask, canChangeTaskStatus } from '../../../core/permissions/operationGuards';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
-import { useAppSnackbar } from '../../../app/providers/useSnackbar';
-import { getErrorMessage } from '../../../core/utils/getErrorMessage';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
@@ -21,17 +18,15 @@ import type { LookupOption } from '../../lookup';
 import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
 import { transportOrdersApi } from '../../transport-orders/api/transportOrdersApi';
 import TasksTable from '../components/TasksTable';
-import { useDeleteTask } from '../hooks/useDeleteTask';
 import { useMyTasks } from '../hooks/useMyTasks';
 import { useTasks } from '../hooks/useTasks';
 import { useUpdateTaskStatus } from '../hooks/useUpdateTaskStatus';
 import { tasksApi } from '../api/tasksApi';
 import type { SortState } from '../../../shared/types/common.types';
-import type { TaskFiltersState, TaskQueryParams, TaskResponse } from '../types/task.types';
+import type { TaskFiltersState, TaskQueryParams } from '../types/task.types';
 
 export default function TasksPage() {
   const auth = useAuthStore();
-  const { showSnackbar } = useAppSnackbar();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -147,9 +142,7 @@ export default function TasksPage() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
-  const deleteTask = useDeleteTask();
   const updateTaskStatus = useUpdateTaskStatus();
-  const [deleteTarget, setDeleteTarget] = useState<TaskResponse | null>(null);
 
   const managedRows = useMemo(
     () =>
@@ -423,12 +416,6 @@ export default function TasksPage() {
               }
               navigate(`/tasks/${row.id}/edit`);
             }}
-            onDelete={(row) => {
-              if (!canMutateManagedTask(currentRole, row)) {
-                return;
-              }
-              setDeleteTarget(row);
-            }}
             canChangeStatus={canExecuteTaskStatus}
             updatingStatusId={updateTaskStatus.isPending ? updateTaskStatus.variables?.id ?? null : null}
             onStatusChange={(row, status) => {
@@ -452,30 +439,6 @@ export default function TasksPage() {
         }
       />
 
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title="Delete task"
-        description={`Delete task "${deleteTarget?.title ?? ''}"?`}
-        confirmText="Delete"
-        confirmColor="error"
-        isLoading={deleteTask.isPending}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (!deleteTarget) {
-            return;
-          }
-
-          deleteTask.mutate(deleteTarget.id, {
-            onSuccess: () => setDeleteTarget(null),
-            onError: (error) => {
-              showSnackbar({
-                message: getErrorMessage(error),
-                severity: 'error',
-              });
-            },
-          });
-        }}
-      />
     </>
   );
 }

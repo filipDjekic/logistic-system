@@ -16,6 +16,8 @@ public interface VehicleMaintenanceRepository extends JpaRepository<VehicleMaint
 
     boolean existsByVehicleIdAndStatusIn(Long vehicleId, Collection<VehicleMaintenanceStatus> statuses);
 
+    boolean existsByVehicleId(Long vehicleId);
+
     boolean existsByVehicleIdAndStatusInAndIdNot(Long vehicleId, Collection<VehicleMaintenanceStatus> statuses, Long id);
 
     @Query("""

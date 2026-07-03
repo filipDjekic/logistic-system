@@ -786,7 +786,6 @@ export default function TransportOrderDetailsPage() {
             role={currentRole}
             canMutate={false}
             onEdit={() => undefined}
-            onDelete={() => undefined}
             showLinks
           />
         </RelatedDataSection>

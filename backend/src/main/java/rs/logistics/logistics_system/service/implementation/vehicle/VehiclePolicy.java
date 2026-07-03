@@ -67,7 +67,11 @@ public class VehiclePolicy {
         }
 
         if (transportOrderRepository.existsByVehicleId(vehicle.getId())) {
-            throw new BadRequestException("Vehicle cannot be deleted because it has transport history. Use OUT_OF_SERVICE or another status change instead.");
+            throw new BadRequestException("Vehicle cannot be deleted because it has transport history. Archive vehicle or use OUT_OF_SERVICE status instead.");
+        }
+
+        if (vehicleMaintenanceRepository.existsByVehicleId(vehicle.getId())) {
+            throw new BadRequestException("Vehicle cannot be deleted because it has maintenance history. Archive vehicle or use OUT_OF_SERVICE status instead.");
         }
     }
 

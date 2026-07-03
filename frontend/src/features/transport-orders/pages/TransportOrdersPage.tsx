@@ -37,6 +37,9 @@ export default function TransportOrdersPage() {
   const canResolveVehicles = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DISPATCHER || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
   const canResolveEmployees = canManage || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
   const canChangeStatus = canManage || currentRole === ROLES.DRIVER;
+  const isDriverView = currentRole === ROLES.DRIVER;
+  const isWorkerView = currentRole === ROLES.WORKER;
+  const isAssignedWorkView = isDriverView || isWorkerView;
 
   const [filters, setFilters] = useState<TransportOrderFiltersState>({ search: '', status: 'ALL', priority: 'ALL' });
   const [sourceWarehouseFilter, setSourceWarehouseFilter] = useState<LookupOption | null>(null);
@@ -167,15 +170,15 @@ export default function TransportOrdersPage() {
   return (
     <>
       <PageHeader
-        overline="Operations"
-        title="Transport Orders"
-        description="Dispatcher manages transport planning, driver assignment, vehicle assignment, and company transport visibility."
+        overline={isAssignedWorkView ? "My Work" : "Operations"}
+        title={isDriverView ? "My Transport Orders" : isWorkerView ? "Assigned Transport Orders" : "Transport Orders"}
+        description={isAssignedWorkView ? "Assigned transport orders connected to your work." : "Dispatcher manages transport planning, driver assignment, vehicle assignment, and company transport visibility."}
         actions={canManage ? <Button variant="contained" disabled={hasSetupBlockers} onClick={() => navigate('/transport-orders/create')}>Create transport order</Button> : null}
       />
 
       <TableLayout
-        title="Transport order list"
-        description="Search and filter transport orders using confirmed backend data."
+        title={isAssignedWorkView ? "Assigned transport order list" : "Transport order list"}
+        description={isAssignedWorkView ? "Search and filter transport orders assigned to your work scope." : "Search and filter transport orders using confirmed backend data."}
         toolbar={
           <TableToolbar
             searchValue={filters.search}

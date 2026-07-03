@@ -23,6 +23,7 @@ type LifecycleActionDefinition = {
   variant: 'contained' | 'outlined';
   requiresApprovalRole?: boolean;
   requiresExecutionRole?: boolean;
+  requiresReversalRole?: boolean;
 };
 
 export const stockMovementLifecycleActions: LifecycleActionDefinition[] = [
@@ -79,7 +80,7 @@ export const stockMovementLifecycleActions: LifecycleActionDefinition[] = [
     confirmDescription: (movement) => `Reverse executed stock movement #${movement.id}. The system will create and execute a counter movement.`,
     color: 'warning',
     variant: 'outlined',
-    requiresExecutionRole: true,
+    requiresReversalRole: true,
   },
 ];
 
@@ -92,7 +93,7 @@ export function normalizeStockMovementStatus(status: string | null | undefined):
 export function canUseLifecycleAction(
   action: LifecycleActionDefinition,
   allowedNextStatuses: string[],
-  options: { canApprove: boolean; canExecute: boolean; movement?: StockMovementResponse | null },
+  options: { canApprove: boolean; canExecute: boolean; canReverse?: boolean; movement?: StockMovementResponse | null },
 ) {
   if (!allowedNextStatuses.includes(action.targetStatus)) {
     return false;
@@ -103,6 +104,10 @@ export function canUseLifecycleAction(
   }
 
   if (action.requiresExecutionRole && !options.canExecute) {
+    return false;
+  }
+
+  if (action.requiresReversalRole && !options.canReverse) {
     return false;
   }
 

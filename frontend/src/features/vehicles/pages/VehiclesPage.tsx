@@ -10,7 +10,6 @@ import { useCompanies } from '../../companies/hooks/useCompanies';
 import CsvImportDialog from '../../data-exchange/components/CsvImportDialog';
 import { dataExchangeApi } from '../../data-exchange/api/dataExchangeApi';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
@@ -19,7 +18,6 @@ import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import VehicleFormDialog from '../components/VehicleFormDialog';
 import VehiclesTable from '../components/VehiclesTable';
 import { useCreateVehicle } from '../hooks/useCreateVehicle';
-import { useDeleteVehicle } from '../hooks/useDeleteVehicle';
 import { useUpdateVehicle } from '../hooks/useUpdateVehicle';
 import { useVehicles } from '../hooks/useVehicles';
 import { vehiclesApi } from '../api/vehiclesApi';
@@ -61,7 +59,12 @@ export default function VehiclesPage() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
+  const isDriver = auth.user?.role === ROLES.DRIVER;
   const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const pageTitle = isDriver ? 'Assigned Vehicles' : 'Vehicles';
+  const pageDescription = isDriver
+    ? 'Review vehicles assigned through your transport work.'
+    : 'Manage fleet records and review vehicle availability.';
 
   const [filters, setFilters] = useState<VehicleFiltersState>(emptyFilters);
   const [page, setPage] = useState(0);
@@ -69,7 +72,6 @@ export default function VehiclesPage() {
   const [sort, setSort] = useState<SortState>({ field: 'id', direction: 'desc' });
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleResponse | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<VehicleResponse | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -119,7 +121,6 @@ export default function VehiclesPage() {
   const companiesQuery = useCompanies(canManage && isOverlord && dialogOpen && dialogMode === 'create');
   const createVehicleMutation = useCreateVehicle();
   const updateVehicleMutation = useUpdateVehicle();
-  const deleteVehicleMutation = useDeleteVehicle();
   const isSaving = createVehicleMutation.isPending || updateVehicleMutation.isPending;
   const importMutation = useMutation({
     mutationFn: (file: File) => dataExchangeApi.importCsv('vehicles', file),
@@ -136,8 +137,8 @@ export default function VehiclesPage() {
     <Stack spacing={3}>
       <PageHeader
         overline="Fleet"
-        title="Vehicles"
-        description="Manage fleet records and review vehicle availability."
+        title={pageTitle}
+        description={pageDescription}
         actions={
           canManage ? (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -167,13 +168,13 @@ export default function VehiclesPage() {
       />
 
       <TableLayout
-        title="Vehicle list"
-        description="Vehicle data is filtered by backend query parameters and company scope."
+        title={isDriver ? 'Assigned vehicle list' : 'Vehicle list'}
+        description={isDriver ? 'Only vehicles assigned to your transport work are returned by the backend.' : 'Vehicle data is filtered by backend query parameters and company scope.'}
         toolbar={
           <TableToolbar
             searchValue={filters.search}
             onSearchChange={(search) => updateFilters({ search })}
-            searchPlaceholder="Search by registration, brand, model, type, fuel or ID"
+            searchPlaceholder={isDriver ? "Search assigned vehicles..." : "Search by registration, brand, model, type, fuel or ID"}
             onRefresh={() => {
               void vehiclesQuery.refetch();
               if (canManage && isOverlord && dialogOpen && dialogMode === 'create') {
@@ -189,6 +190,7 @@ export default function VehiclesPage() {
           />
         }
         filters={
+          isDriver ? null : (
           <FilterPanel minColumnWidth={190}>
             <TextField select size="small" label="Status" value={filters.status} onChange={(event) => updateFilters({ status: event.target.value as VehicleFiltersState['status'] })}>
               <MenuItem value="ALL">All</MenuItem>
@@ -206,6 +208,7 @@ export default function VehiclesPage() {
             <TextField size="small" label="Capacity from" type="number" value={filters.capacityFrom} onChange={(event) => updateFilters({ capacityFrom: event.target.value })} />
             <TextField size="small" label="Capacity to" type="number" value={filters.capacityTo} onChange={(event) => updateFilters({ capacityTo: event.target.value })} />
           </FilterPanel>
+          )
         }
         table={
           <VehiclesTable
@@ -218,10 +221,6 @@ export default function VehiclesPage() {
               setDialogMode('edit');
               setSelectedVehicle(vehicle);
               setDialogOpen(true);
-            }}
-            onDelete={(vehicle) => {
-              if (!canManage) return;
-              setDeleteTarget(vehicle);
             }}
             canManage={canManage}
             pagination={
@@ -299,19 +298,6 @@ export default function VehiclesPage() {
         />
       ) : null}
 
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="Delete vehicle"
-        description={deleteTarget ? `Are you sure you want to delete "${deleteTarget.registrationNumber}"?` : ''}
-        confirmText="Delete"
-        confirmColor="error"
-        isLoading={deleteVehicleMutation.isPending}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (!deleteTarget) return;
-          deleteVehicleMutation.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
-        }}
-      />
     </Stack>
   );
 }

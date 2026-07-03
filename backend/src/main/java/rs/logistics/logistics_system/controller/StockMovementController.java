@@ -71,31 +71,31 @@ public class StockMovementController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/execute")
     public ResponseEntity<StockMovementResponse> execute(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.execute(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<StockMovementResponse> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.cancel(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<StockMovementResponse> approve(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.approve(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/reject")
     public ResponseEntity<StockMovementResponse> reject(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.reject(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/reverse")
     public ResponseEntity<StockMovementResponse> reverse(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.reverse(id));
@@ -113,6 +113,7 @@ public class StockMovementController {
         return ResponseEntity.ok(stockMovementService.allowedStatusTransitions(id));
     }
 
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
     @GetMapping("/{id}/trace")
     public ResponseEntity<StockMovementTraceResponse> trace(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.trace(id));

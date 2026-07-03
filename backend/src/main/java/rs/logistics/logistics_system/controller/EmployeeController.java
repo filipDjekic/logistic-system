@@ -61,21 +61,21 @@ public class EmployeeController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER') or @employeeSecurity.isSelf(#id)")
+    @PreAuthorize("@employeeSecurity.canRead(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeResponse> getById(@PathVariable Long id) {
         EmployeeResponse response = employeeService.getById(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER') or @employeeSecurity.isSelf(#id)")
+    @PreAuthorize("@employeeSecurity.canRead(#id)")
     @GetMapping("/{id}/tasks")
     public ResponseEntity<List<TaskResponse>> getTasksByEmployeeId(@PathVariable Long id) {
         List<TaskResponse> response = employeeService.getTasksByEmployeeId(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER') or @employeeSecurity.isSelf(#id)")
+    @PreAuthorize("@employeeSecurity.canRead(#id)")
     @GetMapping("/{id}/shifts")
     public ResponseEntity<List<ShiftResponse>> getShiftsByEmployeeId(@PathVariable Long id) {
         List<ShiftResponse> response = employeeService.getShiftsByEmployeeId(id);

@@ -39,6 +39,7 @@ import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.CountryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.EmployeeProfileChangeRequestRepository;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
@@ -58,6 +59,7 @@ import rs.logistics.logistics_system.service.support.EmployeeEmailGenerator;
 public class EmployeeService implements EmployeeServiceDefinition {
 
     private final EmployeeRepository _employeeRepository;
+    private final EmployeeProfileChangeRequestRepository employeeProfileChangeRequestRepository;
     private final TaskRepository _taskRepository;
     private final ShiftRepository _shiftRepository;
     private final UserRepository _userRepository;
@@ -305,6 +307,22 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
+        if (shouldRestrictEmployeesToWarehouseManagerScope()) {
+            Long managerEmployeeId = currentEmployeeIdOrThrow();
+            return PageResponse.from(_employeeRepository.searchEmployeesForManagedWarehouses(
+                    companyId,
+                    managerEmployeeId,
+                    normalizedSearch,
+                    QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                    position,
+                    active,
+                    normalizedLinkedUser,
+                    availableFrom,
+                    availableTo,
+                    pageable
+            ).map(EmployeeMapper::toResponse));
+        }
+
         if (authenticatedUserProvider.hasRole(RoleCatalog.DISPATCHER)
                 && !authenticatedUserProvider.isOverlord()
                 && !authenticatedUserProvider.isCompanyAdmin()
@@ -335,7 +353,9 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 (employee.getShifts() != null && !employee.getShifts().isEmpty()) ||
                         (employee.getTasks() != null && !employee.getTasks().isEmpty()) ||
                         (employee.getTransportOrders() != null && !employee.getTransportOrders().isEmpty()) ||
-                        (employee.getManagedWarehouses() != null && !employee.getManagedWarehouses().isEmpty());
+                        (employee.getManagedWarehouses() != null && !employee.getManagedWarehouses().isEmpty()) ||
+                        (employee.getWarehouseAssignments() != null && !employee.getWarehouseAssignments().isEmpty()) ||
+                        employeeProfileChangeRequestRepository.existsByEmployee_Id(employee.getId());
 
         if (hasHistory) {
             throw new BadRequestException(
@@ -676,8 +696,50 @@ public class EmployeeService implements EmployeeServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         }
 
-        return _employeeRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+        Employee employee = _employeeRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        if (shouldRestrictEmployeesToWarehouseManagerScope()) {
+            ensureWarehouseManagerEmployeeScope(employee);
+        }
+
+        return employee;
+    }
+
+    private boolean shouldRestrictEmployeesToWarehouseManagerScope() {
+        return authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)
+                && !authenticatedUserProvider.isOverlord()
+                && !authenticatedUserProvider.isCompanyAdmin()
+                && !authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER);
+    }
+
+    private Long currentEmployeeIdOrThrow() {
+        Employee employee = authenticatedUserProvider.getAuthenticatedUser().getEmployee();
+        if (employee == null || employee.getId() == null) {
+            throw new ForbiddenException("Authenticated user is not linked to an employee profile");
+        }
+        return employee.getId();
+    }
+
+    private void ensureWarehouseManagerEmployeeScope(Employee employee) {
+        if (employee.getUser() != null && authenticatedUserProvider.getAuthenticatedUserId().equals(employee.getUser().getId())) {
+            return;
+        }
+
+        Long employeeCompanyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
+        if (employeeCompanyId == null) {
+            throw new ForbiddenException("Employee is not assigned to a company");
+        }
+
+        boolean visible = _employeeRepository.isVisibleToWarehouseManager(
+                employee.getId(),
+                employeeCompanyId,
+                currentEmployeeIdOrThrow()
+        );
+
+        if (!visible) {
+            throw new ForbiddenException("You cannot access employees outside your managed warehouse scope");
+        }
     }
 
     private void validateAssignableRole(Role role) {

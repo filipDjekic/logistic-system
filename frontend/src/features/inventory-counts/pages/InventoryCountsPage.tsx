@@ -40,7 +40,8 @@ export default function InventoryCountsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const auth = useAuthStore();
   const userRole = auth.user?.role ?? null;
-  const canCreateInventoryCount = userRole === ROLES.OVERLORD || userRole === ROLES.COMPANY_ADMIN || userRole === ROLES.WAREHOUSE_MANAGER;
+  const isWorkerView = userRole === ROLES.WORKER;
+  const canCreateInventoryCount = userRole === ROLES.OVERLORD || userRole === ROLES.WAREHOUSE_MANAGER;
   const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
   const [description, setDescription] = useState('');
 
@@ -76,8 +77,8 @@ export default function InventoryCountsPage() {
   return (
     <Stack spacing={2}>
       <PageHeader
-        title="Inventory counts"
-        description="Open a warehouse count, snapshot bin quantities, enter counted values by location, review differences, approve, and create adjustment stock movements."
+        title={isWorkerView ? "My Inventory Counts" : "Inventory Counts"}
+        description={isWorkerView ? "Inventory count sessions and lines assigned to your work scope." : "Open a warehouse count, snapshot bin quantities, enter counted values by location, review differences, approve, and create adjustment stock movements."}
         actions={canCreateInventoryCount ? <Button startIcon={<AddRoundedIcon />} variant="contained" onClick={() => setDialogOpen(true)}>New count</Button> : null}
       />
       <Paper variant="outlined">

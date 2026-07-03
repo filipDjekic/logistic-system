@@ -89,13 +89,20 @@ public class UserService implements UserServiceDefinition {
     @Override
     @Transactional
     public UserResponse update(Long id, UserUpdate dto) {
+        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
+            throw new ForbiddenException("HR_MANAGER cannot update user accounts through the general user update flow");
+        }
+
+        User user = getUserOrThrow(id);
+
         Role role = roleRepository.findById(dto.getRoleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Role Not Found"));
 
         validateSupportedRole(role);
-        validateAssignableRole(role);
-
-        User user = getUserOrThrow(id);
+        boolean roleChanged = user.getRole() == null || !user.getRole().getId().equals(dto.getRoleId());
+        if (roleChanged) {
+            validateAssignableRole(role);
+        }
 
         if (dto.getEmployee() != null) {
             rolePositionPolicy.validatePositionMatchesRole(dto.getEmployee().getPosition(), role);
@@ -117,6 +124,10 @@ public class UserService implements UserServiceDefinition {
         Object oldStatus = user.getStatus();
         Long oldRoleId = user.getRole() != null ? user.getRole().getId() : null;
         Boolean oldEnabled = user.getEnabled();
+
+        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER) && !java.util.Objects.equals(oldEnabled, dto.getEnabled())) {
+            throw new ForbiddenException("HR_MANAGER cannot enable or disable user accounts");
+        }
 
         UserMapper.updateEntity(user, dto, role);
 
@@ -149,13 +160,17 @@ public class UserService implements UserServiceDefinition {
 
     @Override
     public UserResponse getById(Long id) {
-        return UserMapper.toResponse(getUserOrThrow(id));
+        User user = getUserOrThrow(id);
+        validateHrUserReadScope(user);
+        return UserMapper.toResponse(user);
     }
 
     @Override
     public PageResponse<UserResponse> getAll(Pageable pageable) {
         var users = authenticatedUserProvider.isOverlord()
                 ? userRepository.findAll(pageable)
+                : authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)
+                ? userRepository.findAllByCompany_IdAndEmployeeIsNotNull(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), pageable)
                 : userRepository.findAllByCompany_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), pageable);
 
         return PageResponse.from(users.map(UserMapper::toResponse));
@@ -309,6 +324,16 @@ public class UserService implements UserServiceDefinition {
         return UserMapper.toResponse(updatedUser);
     }
 
+    private void validateHrUserReadScope(User user) {
+        if (!authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER) || authenticatedUserProvider.isSelf(user.getId())) {
+            return;
+        }
+
+        if (user.getEmployee() == null) {
+            throw new ForbiddenException("HR_MANAGER can read only employee-linked users");
+        }
+    }
+
     private void validateSupportedRole(Role role) {
         if (role == null || !RoleCatalog.isSupported(role.getName())) {
             throw new BadRequestException("Unsupported system role");
@@ -326,7 +351,7 @@ public class UserService implements UserServiceDefinition {
             return;
         }
 
-        if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
+        if (authenticatedUserProvider.isCompanyAdmin()) {
             if (RoleCatalog.OVERLORD.equals(normalizedRole) || RoleCatalog.COMPANY_ADMIN.equals(normalizedRole)) {
                 throw new ForbiddenException("You cannot assign this role.");
             }

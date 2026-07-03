@@ -71,4 +71,14 @@ public interface InternalWarehouseMovementRepository extends JpaRepository<Inter
                                                    @Param("binLocationId") Long binLocationId,
                                                    @Param("search") String search,
                                                    Pageable pageable);
+
+    boolean existsBySourceBin_IdOrDestinationBin_Id(Long sourceBinId, Long destinationBinId);
+
+    @Query("""
+            select count(m) > 0
+            from InternalWarehouseMovement m
+            where m.sourceBin.zone.id = :zoneId
+            or m.destinationBin.zone.id = :zoneId
+            """)
+    boolean existsBySourceOrDestinationZoneId(@Param("zoneId") Long zoneId);
 }

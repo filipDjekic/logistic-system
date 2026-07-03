@@ -54,6 +54,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Page<User> findAllByCompany_Id(Long companyId, Pageable pageable);
 
+    Page<User> findAllByCompany_IdAndEmployeeIsNotNull(Long companyId, Pageable pageable);
+
     List<User> findByStatusAndCompany_Id(UserStatus status, Long companyId);
 
     List<User> findByRoleIdAndCompany_Id(Long roleId, Long companyId);

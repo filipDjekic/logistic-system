@@ -7,6 +7,8 @@ import rs.logistics.logistics_system.enums.OperationalEntityType;
 import java.util.List;
 
 public interface DomainEventRepository extends JpaRepository<DomainEvent, Long> {
+    boolean existsByEntityTypeAndEntityId(OperationalEntityType entityType, Long entityId);
+
     List<DomainEvent> findByEntityTypeAndEntityIdOrderByCreatedAtDesc(OperationalEntityType entityType, Long entityId);
     List<DomainEvent> findByEntityTypeAndEntityIdAndCompany_IdOrderByCreatedAtDesc(OperationalEntityType entityType, Long entityId, Long companyId);
     List<DomainEvent> findTop50ByOrderByCreatedAtDesc();

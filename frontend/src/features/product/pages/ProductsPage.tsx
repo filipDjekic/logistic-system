@@ -11,7 +11,6 @@ import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination'
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
@@ -22,7 +21,6 @@ import ProductFormDialog from '../components/ProductFormDialog';
 import { useProducts } from '../hooks/useProducts';
 import { useCreateProduct } from '../hooks/useCreateProduct';
 import { useUpdateProduct } from '../hooks/useUpdateProduct';
-import { useDeleteProduct } from '../hooks/useDeleteProduct';
 import type { SortState } from '../../../shared/types/common.types';
 import type { ProductFormValues, ProductResponse } from '../types/product.types';
 import type { ProductSearchParams } from '../api/productsApi';
@@ -79,7 +77,6 @@ export default function ProductsPage() {
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<ProductResponse | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ProductResponse | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const productSearchParams = useMemo<ProductSearchParams>(() => {
@@ -115,7 +112,6 @@ export default function ProductsPage() {
   );
   const create = useCreateProduct();
   const update = useUpdateProduct();
-  const remove = useDeleteProduct();
   const importMutation = useMutation({
     mutationFn: (file: File) => dataExchangeApi.importCsv('products', file),
     onSuccess: async (result) => {
@@ -205,7 +201,6 @@ export default function ProductsPage() {
             error={query.isError}
             onRetry={() => { void query.refetch(); }}
             onEdit={(row) => { setSelected(row); setOpen(true); }}
-            onDelete={(row) => { setDeleteTarget(row); }}
             canManage={canManage}
             pagination={
               <ServerTablePagination
@@ -302,40 +297,6 @@ export default function ProductsPage() {
         />
       ) : null}
 
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="Delete product"
-        description={
-          deleteTarget
-            ? `Are you sure you want to delete "${deleteTarget.name}"?`
-            : ''
-        }
-        confirmText="Delete"
-        confirmColor="error"
-        isLoading={remove.isPending}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (!deleteTarget) {
-            return;
-          }
-
-          remove.mutate(deleteTarget.id, {
-            onSuccess: () => {
-              setDeleteTarget(null);
-              showSnackbar({
-                message: 'Product deleted successfully.',
-                severity: 'success',
-              });
-            },
-            onError: (error) => {
-              showSnackbar({
-                message: getErrorMessage(error),
-                severity: 'error',
-              });
-            },
-          });
-        }}
-      />
     </Stack>
   );
 }

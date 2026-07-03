@@ -41,13 +41,13 @@ public class VehicleMaintenanceController {
         return ResponseEntity.ok(vehicleMaintenanceService.update(id, dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @GetMapping("/{id}")
     public ResponseEntity<VehicleMaintenanceResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(vehicleMaintenanceService.getById(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @GetMapping
     public ResponseEntity<PageResponse<VehicleMaintenanceResponse>> getAll(
             @RequestParam(required = false) Long vehicleId,
@@ -75,7 +75,7 @@ public class VehicleMaintenanceController {
         return ResponseEntity.ok(vehicleMaintenanceService.cancel(id, dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping("/drivers/{employeeId}/workload")
     public ResponseEntity<DriverWorkloadResponse> getDriverWorkload(
             @PathVariable Long employeeId,

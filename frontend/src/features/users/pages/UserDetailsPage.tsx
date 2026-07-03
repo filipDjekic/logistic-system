@@ -52,10 +52,10 @@ export default function UserDetailsPage() {
   const userQuery = useUser(Number.isFinite(userId) ? userId : null);
   const canEdit =
     auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.HR_MANAGER;
+    auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canAssignRoles = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
-  const rolesQuery = useRoles(canEdit);
+  const rolesQuery = useRoles(canAssignRoles);
   const companiesQuery = useCompanies(false);
   const updateUserMutation = useUpdateUser();
 

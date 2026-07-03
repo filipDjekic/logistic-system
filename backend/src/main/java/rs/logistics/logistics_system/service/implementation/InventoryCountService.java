@@ -231,6 +231,7 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
         requireStatus(session, InventoryCountSessionStatus.COUNTING);
         InventoryCountLine line = lineRepository.findByIdAndSession_Id(lineId, sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Inventory count line not found for selected session"));
+        ensureCanUpdateCountLine(session, line);
         validateCountingLineLocation(session, line, dto);
         line.setCountedQuantity(dto.getCountedQuantity());
         line.setNote(dto.getNote());
@@ -463,6 +464,26 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
     }
 
 
+    private void ensureCanUpdateCountLine(InventoryCountSession session, InventoryCountLine line) {
+        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return;
+        }
+
+        if (!authenticatedUserProvider.hasRole("WORKER")) {
+            throw new BadRequestException("Only warehouse counters and warehouse managers can count inventory lines");
+        }
+
+        if (line.getBinLocation() == null || line.getBinLocation().getWarehouse() == null) {
+            throw new BadRequestException("Inventory count line is missing warehouse scope");
+        }
+
+        if (!line.getBinLocation().getWarehouse().getId().equals(session.getWarehouse().getId())) {
+            throw new BadRequestException("Inventory count line does not belong to selected warehouse");
+        }
+
+        warehouseAccessGuard.ensureCanMutateWarehouse(line.getBinLocation().getWarehouse());
+    }
+
     private void validateCountingLineLocation(InventoryCountSession session, InventoryCountLine line, InventoryCountLineUpdate dto) {
         if (line.getBinLocation() == null) {
             throw new BadRequestException("Inventory count line is missing bin location");
@@ -520,18 +541,16 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
 
     private void requireInventoryCountManager() {
         if (!(authenticatedUserProvider.isOverlord()
-                || authenticatedUserProvider.isCompanyAdmin()
                 || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER"))) {
-            throw new BadRequestException("Only warehouse managers and admins can perform this inventory count action");
+            throw new BadRequestException("Only warehouse managers can perform this inventory count action");
         }
     }
 
     private void requireInventoryCountCounter() {
         if (!(authenticatedUserProvider.isOverlord()
-                || authenticatedUserProvider.isCompanyAdmin()
                 || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
                 || authenticatedUserProvider.hasRole("WORKER"))) {
-            throw new BadRequestException("Only warehouse counters, warehouse managers and admins can count inventory lines");
+            throw new BadRequestException("Only warehouse counters and warehouse managers can count inventory lines");
         }
     }
 

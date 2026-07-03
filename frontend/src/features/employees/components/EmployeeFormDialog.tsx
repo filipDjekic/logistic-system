@@ -47,6 +47,7 @@ type EmployeeFormDialogProps = {
   loading?: boolean;
   serverError?: unknown;
   canEdit?: boolean;
+  canManageLinkedUserSecurity?: boolean;
   onClose: () => void;
   onSubmit: (values: EmployeeFormValues) => void;
 };
@@ -136,6 +137,7 @@ export default function EmployeeFormDialog({
   loading = false,
   serverError = null,
   canEdit = true,
+  canManageLinkedUserSecurity = false,
   onClose,
   onSubmit,
 }: EmployeeFormDialogProps) {
@@ -608,7 +610,7 @@ export default function EmployeeFormDialog({
               </Grid>
             ) : null}
 
-            {hasLinkedUser && canEdit ? (
+            {hasLinkedUser && canEdit && canManageLinkedUserSecurity ? (
               <>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <FormSelect

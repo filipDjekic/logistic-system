@@ -41,8 +41,7 @@ public final class StockMovementLifecyclePolicy {
         Set<String> reversalOperators = Set.of(
                 "OVERLORD",
                 "COMPANY_ADMIN",
-                "WAREHOUSE_MANAGER",
-                "DISPATCHER"
+                "WAREHOUSE_MANAGER"
         );
 
         matrix.put(StockMovementStatus.DRAFT, warehouseOperators);

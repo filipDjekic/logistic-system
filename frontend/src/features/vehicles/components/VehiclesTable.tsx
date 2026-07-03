@@ -12,7 +12,6 @@ type Props = {
   error: boolean;
   onRetry: () => void;
   onEdit: (vehicle: VehicleResponse) => void;
-  onDelete: (vehicle: VehicleResponse) => void;
   canManage: boolean;
   pagination?: ReactNode;
   sort?: SortState;
@@ -25,7 +24,6 @@ export default function VehiclesTable({
   error,
   onRetry,
   onEdit,
-  onDelete,
   canManage,
   pagination,
   sort,
@@ -104,17 +102,6 @@ export default function VehiclesTable({
           {canManage ? (
             <Button size="small" variant="contained" onClick={() => onEdit(row)}>
               Edit
-            </Button>
-          ) : null}
-
-          {canManage ? (
-            <Button
-              size="small"
-              color="error"
-              variant="text"
-              onClick={() => onDelete(row)}
-            >
-              Delete
             </Button>
           ) : null}
         </Stack>

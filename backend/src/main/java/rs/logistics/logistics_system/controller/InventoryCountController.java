@@ -26,7 +26,7 @@ import java.util.List;
 public class InventoryCountController {
     private final InventoryCountServiceDefinition inventoryCountService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping
     public ResponseEntity<InventoryCountSessionResponse> create(@Valid @RequestBody InventoryCountSessionCreate dto) {
         return new ResponseEntity<>(inventoryCountService.create(dto), HttpStatus.CREATED);
@@ -57,55 +57,55 @@ public class InventoryCountController {
         return ResponseEntity.ok(inventoryCountService.getLines(id, search, zoneId, binLocationId, status, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/open")
     public ResponseEntity<InventoryCountSessionResponse> open(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.open(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/start")
     public ResponseEntity<InventoryCountSessionResponse> start(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.start(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER','WORKER')")
     @PatchMapping("/{sessionId}/lines/{lineId}")
     public ResponseEntity<InventoryCountSessionResponse> updateLine(@PathVariable Long sessionId, @PathVariable Long lineId, @Valid @RequestBody InventoryCountLineUpdate dto) {
         return ResponseEntity.ok(inventoryCountService.updateLine(sessionId, lineId, dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/submit-review")
     public ResponseEntity<InventoryCountSessionResponse> submitReview(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.submitReview(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<InventoryCountSessionResponse> approve(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.approve(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/reject")
     public ResponseEntity<InventoryCountSessionResponse> reject(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.reject(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/create-adjustments")
     public ResponseEntity<InventoryCountSessionResponse> createAdjustments(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.createAdjustments(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/close")
     public ResponseEntity<InventoryCountSessionResponse> close(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.close(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<InventoryCountSessionResponse> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.cancel(id));

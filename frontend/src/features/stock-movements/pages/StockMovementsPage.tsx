@@ -11,6 +11,7 @@ import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import { EntityLookupField, type LookupOption } from '../../lookup';
 import StockMovementsTable from '../components/StockMovementsTable';
+import StockMovementRequestDialog from '../components/StockMovementRequestDialog';
 import { useStockMovements } from '../hooks/useStockMovements';
 import { useInternalWarehouseMovements } from '../../warehouse-locations/hooks/useWarehouseLocations';
 import type { SortState } from '../../../shared/types/common.types';
@@ -51,6 +52,8 @@ export default function StockMovementsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const activeTab = tabParam === 'internal' ? 'internal' : tabParam === 'approvals' ? 'approvals' : 'stock';
+  const isWorkerView = auth.user?.role === ROLES.WORKER;
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
   const canCreate =
     auth.user?.role === ROLES.OVERLORD ||
@@ -183,13 +186,17 @@ export default function StockMovementsPage() {
   return (
     <>
       <PageHeader
-        overline="Inventory"
-        title="Stock Movements"
-        description="Movement history is read-only here. Stock operations are created through one controlled create page."
+        overline={isWorkerView ? "My Work" : "Inventory"}
+        title={isWorkerView ? "Assigned Stock Movements" : "Stock Movements"}
+        description={isWorkerView ? "Stock movements connected to your assigned warehouse work." : "Movement history is read-only here. Stock operations are created through one controlled create page."}
         actions={
           canCreate ? (
             <Button variant="contained" onClick={() => navigate('/stock-movements/create')}>
               Create stock movement
+            </Button>
+          ) : isWorkerView ? (
+            <Button variant="contained" onClick={() => setRequestDialogOpen(true)}>
+              Request movement
             </Button>
           ) : null
         }
@@ -213,7 +220,7 @@ export default function StockMovementsPage() {
         }}
         sx={{ mb: 2 }}
       >
-        <Tab value="stock" label="Stock movements" />
+        <Tab value="stock" label={isWorkerView ? "Assigned stock movements" : "Stock movements"} />
         <Tab value="approvals" label="Pending approvals" />
         <Tab value="internal" label="Internal movements" />
       </Tabs>
@@ -363,6 +370,7 @@ export default function StockMovementsPage() {
           )
         }
       />
+      <StockMovementRequestDialog open={requestDialogOpen} onClose={() => setRequestDialogOpen(false)} />
     </>
   );
 }

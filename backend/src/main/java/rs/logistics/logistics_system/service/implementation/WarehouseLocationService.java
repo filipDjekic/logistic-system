@@ -41,6 +41,8 @@ import rs.logistics.logistics_system.mapper.WarehouseLocationMapper;
 import rs.logistics.logistics_system.repository.BinInventoryRepository;
 import rs.logistics.logistics_system.repository.BinLocationRepository;
 import rs.logistics.logistics_system.repository.InternalWarehouseMovementRepository;
+import rs.logistics.logistics_system.repository.InventoryCountLineRepository;
+import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.repository.WarehouseZoneRepository;
@@ -63,6 +65,8 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
     private final BinLocationRepository binRepository;
     private final BinInventoryRepository binInventoryRepository;
     private final InternalWarehouseMovementRepository movementRepository;
+    private final InventoryCountLineRepository inventoryCountLineRepository;
+    private final StockMovementRepository stockMovementRepository;
     private final BinIntegrityValidator binIntegrityValidator;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final AuditFacadeDefinition auditFacade;
@@ -143,8 +147,30 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
         return PageResponse.from(page.map(WarehouseLocationMapper::toZoneResponse));
     }
 
-    @Override @Transactional
-    public void deleteZone(Long id) { WarehouseZone zone = findZone(id); if (!zone.getBinLocations().isEmpty()) throw new BadRequestException("Warehouse zone cannot be deleted while it has bin locations"); zoneRepository.delete(zone); auditFacade.recordDelete("WAREHOUSE_ZONE", id, zone.getCode()); }
+    @Override
+    @Transactional
+    public void deleteZone(Long id) {
+        WarehouseZone zone = findZone(id);
+        warehouseAccessGuard.ensureCanMutateWarehouse(zone.getWarehouse());
+        validateZoneForHardDelete(zone);
+        zoneRepository.delete(zone);
+        auditFacade.recordDelete("WAREHOUSE_ZONE", id, zone.getCode());
+    }
+
+    private void validateZoneForHardDelete(WarehouseZone zone) {
+        if (!zone.getBinLocations().isEmpty()) {
+            throw new BadRequestException("Warehouse zone cannot be hard-deleted while it has bin locations. Deactivate or archive the structure instead.");
+        }
+        if (inventoryCountLineRepository.existsByZoneId(zone.getId())) {
+            throw new BadRequestException("Warehouse zone cannot be hard-deleted because it is referenced by inventory count history.");
+        }
+        if (stockMovementRepository.existsBySourceOrDestinationZoneId(zone.getId())) {
+            throw new BadRequestException("Warehouse zone cannot be hard-deleted because it is referenced by stock movement history.");
+        }
+        if (movementRepository.existsBySourceOrDestinationZoneId(zone.getId())) {
+            throw new BadRequestException("Warehouse zone cannot be hard-deleted because it is referenced by internal movement history.");
+        }
+    }
 
     @Override @Transactional
     public BinLocationResponse createBin(BinLocationCreate dto) {
@@ -182,8 +208,30 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
         return PageResponse.from(page.map(WarehouseLocationMapper::toBinResponse));
     }
 
-    @Override @Transactional
-    public void deleteBin(Long id) { BinLocation bin = findBin(id); if (!bin.getInventory().isEmpty()) throw new BadRequestException("Bin location cannot be deleted while it has inventory"); binRepository.delete(bin); auditFacade.recordDelete("BIN_LOCATION", id, bin.getCode()); }
+    @Override
+    @Transactional
+    public void deleteBin(Long id) {
+        BinLocation bin = findBin(id);
+        warehouseAccessGuard.ensureCanMutateWarehouse(bin.getWarehouse());
+        validateBinForHardDelete(bin);
+        binRepository.delete(bin);
+        auditFacade.recordDelete("BIN_LOCATION", id, bin.getCode());
+    }
+
+    private void validateBinForHardDelete(BinLocation bin) {
+        if (!bin.getInventory().isEmpty()) {
+            throw new BadRequestException("Bin location cannot be hard-deleted while it has inventory. Clear stock through stock movement/count workflow instead.");
+        }
+        if (inventoryCountLineRepository.existsByBinLocation_Id(bin.getId())) {
+            throw new BadRequestException("Bin location cannot be hard-deleted because it is referenced by inventory count history.");
+        }
+        if (stockMovementRepository.existsBySourceBin_IdOrDestinationBin_Id(bin.getId(), bin.getId())) {
+            throw new BadRequestException("Bin location cannot be hard-deleted because it is referenced by stock movement history.");
+        }
+        if (movementRepository.existsBySourceBin_IdOrDestinationBin_Id(bin.getId(), bin.getId())) {
+            throw new BadRequestException("Bin location cannot be hard-deleted because it is referenced by internal movement history.");
+        }
+    }
 
     @Override @Transactional
     public BinInventoryResponse setBinInventory(BinInventoryCreate dto) {

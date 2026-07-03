@@ -166,6 +166,8 @@ export default function UserFormDialog({
 
   const auth = useAuthStore();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
+  const canAssignRoles = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManageUserActivation = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const visibleRoles = useMemo(
     () =>
@@ -174,7 +176,7 @@ export default function UserFormDialog({
           return true;
         }
 
-        if (auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER) {
+        if (auth.user?.role === ROLES.COMPANY_ADMIN) {
           return role.name !== ROLES.OVERLORD && role.name !== ROLES.COMPANY_ADMIN;
         }
 
@@ -318,15 +320,17 @@ export default function UserFormDialog({
                   />
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <FormSelect
-                    name="roleId"
-                    control={updateForm.control}
-                    label="Role"
-                    options={roleOptions}
-                    required
-                  />
-                </Grid>
+                {canAssignRoles ? (
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <FormSelect
+                      name="roleId"
+                      control={updateForm.control}
+                      label="Role"
+                      options={roleOptions}
+                      required
+                    />
+                  </Grid>
+                ) : null}
 
                 <Grid size={{ xs: 12, md: 6 }}>
                   <FormSelect
@@ -338,13 +342,15 @@ export default function UserFormDialog({
                   />
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 3 }}>
-                  <FormCheckbox
-                    name="enabled"
-                    control={updateForm.control}
-                    label="Enabled"
-                  />
-                </Grid>
+                {canManageUserActivation ? (
+                  <Grid size={{ xs: 12, md: 3 }}>
+                    <FormCheckbox
+                      name="enabled"
+                      control={updateForm.control}
+                      label="Enabled"
+                    />
+                  </Grid>
+                ) : null}
               </Grid>
             )}
           </Stack>

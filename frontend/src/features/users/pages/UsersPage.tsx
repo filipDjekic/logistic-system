@@ -30,8 +30,8 @@ export default function UsersPage() {
   const canCreate = auth.user?.role === ROLES.OVERLORD;
   const canEdit =
     auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.HR_MANAGER;
+    auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canAssignRoles = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const [filters, setFilters] = useState<UserFiltersState>({
     search: '',
@@ -48,7 +48,7 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const usersQuery = useUsers({ page, size, sort: buildSortParam(sort) }, true);
-  const rolesQuery = useRoles(canEdit);
+  const rolesQuery = useRoles(canAssignRoles);
   const companiesQuery = useCompanies(canCreate && dialogOpen && dialogMode === 'create');
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();

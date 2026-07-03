@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Button,
   Chip,
@@ -81,6 +81,7 @@ export default function InventoryCountDetailsPage() {
   const { showSnackbar } = useAppSnackbar();
   const auth = useAuthStore();
   const userRole = auth.user?.role ?? null;
+  const isWorkerInventoryCounter = userRole === ROLES.WORKER;
   const canManageInventoryCount = canManageInventoryCountLifecycle(userRole);
   const canCountInventoryLines = canCountInventoryCountLines(userRole);
   const [editingLine, setEditingLine] = useState<InventoryCountLineResponse | null>(null);
@@ -92,7 +93,7 @@ export default function InventoryCountDetailsPage() {
   const [lineStatusFilter, setLineStatusFilter] = useState<InventoryCountLineStatusFilter | ''>('');
   const [linesPage, setLinesPage] = useState(0);
   const [linesSize, setLinesSize] = useState(50);
-  const [activeTab, setActiveTab] = useState<InventoryCountDetailsTab>('overview');
+  const [activeTab, setActiveTab] = useState<InventoryCountDetailsTab>(isWorkerInventoryCounter ? 'lines' : 'overview');
 
   const query = useQuery({
     queryKey: queryKeys.inventoryCounts.detail(id),
@@ -101,6 +102,12 @@ export default function InventoryCountDetailsPage() {
   });
 
   const session = query.data;
+
+  useEffect(() => {
+    if (isWorkerInventoryCounter && activeTab !== 'lines') {
+      setActiveTab('lines');
+    }
+  }, [activeTab, isWorkerInventoryCounter]);
 
   const linesQuery = useQuery({
     queryKey: [...queryKeys.inventoryCounts.detail(id), 'lines', { page: linesPage, size: linesSize, search, zoneFilter, binFilter, lineStatusFilter }],
@@ -120,7 +127,7 @@ export default function InventoryCountDetailsPage() {
   const allowedTransitionsQuery = useQuery({
     queryKey: [...queryKeys.inventoryCounts.detail(id), 'allowed-transitions'],
     queryFn: () => inventoryCountsApi.allowedStatusTransitions(id),
-    enabled: Number.isFinite(id) && Boolean(session),
+    enabled: Number.isFinite(id) && Boolean(session) && canManageInventoryCount,
   });
 
   const mutableWarehousesQuery = useQuery({
@@ -213,12 +220,14 @@ export default function InventoryCountDetailsPage() {
       : 'You can view this inventory count, but cannot mutate count lines or lifecycle status for this warehouse.';
   const canTriggerManagerAction = canManageInventoryCount && canMutateSelectedWarehouse && !actionMutation.isPending;
 
-  const tabs: { value: InventoryCountDetailsTab; label: string }[] = [
-    { value: 'overview', label: 'Overview' },
-    { value: 'lines', label: session ? `Count lines (${session.lineCount})` : 'Count lines' },
-    { value: 'lifecycle', label: 'Lifecycle' },
-    { value: 'audit', label: 'Audit' },
-  ];
+  const tabs: { value: InventoryCountDetailsTab; label: string }[] = isWorkerInventoryCounter
+    ? [{ value: 'lines', label: session ? `Count lines (${session.lineCount})` : 'Count lines' }]
+    : [
+        { value: 'overview', label: 'Overview' },
+        { value: 'lines', label: session ? `Count lines (${session.lineCount})` : 'Count lines' },
+        { value: 'lifecycle', label: 'Lifecycle' },
+        { value: 'audit', label: 'Audit' },
+      ];
 
   return (
     <EntityDetailsLayout
@@ -236,14 +245,14 @@ export default function InventoryCountDetailsPage() {
       actions={session ? (
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button component={RouterLink} to="/inventory-counts" variant="outlined">Back</Button>
-          {allowed.includes('OPEN') ? <Button variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('open')}>Open</Button> : null}
-          {allowed.includes('COUNTING') ? <Button variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('start')}>Start</Button> : null}
-          {allowed.includes('REVIEW') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('submitReview')}>Submit review</Button> : null}
-          {allowed.includes('APPROVED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('approve')}>Approve</Button> : null}
-          {allowed.includes('REJECTED') ? <Button color="warning" variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('reject')}>Reject</Button> : null}
-          {allowed.includes('ADJUSTMENTS_CREATED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('createAdjustments')}>Create adjustments</Button> : null}
-          {allowed.includes('CLOSED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('close')}>Close</Button> : null}
-          {allowed.includes('CANCELLED') ? <Button color="error" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('cancel')}>Cancel</Button> : null}
+          {canManageInventoryCount && allowed.includes('OPEN') ? <Button variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('open')}>Open</Button> : null}
+          {canManageInventoryCount && allowed.includes('COUNTING') ? <Button variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('start')}>Start</Button> : null}
+          {canManageInventoryCount && allowed.includes('REVIEW') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('submitReview')}>Submit review</Button> : null}
+          {canManageInventoryCount && allowed.includes('APPROVED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('approve')}>Approve</Button> : null}
+          {canManageInventoryCount && allowed.includes('REJECTED') ? <Button color="warning" variant="outlined" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('reject')}>Reject</Button> : null}
+          {canManageInventoryCount && allowed.includes('ADJUSTMENTS_CREATED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('createAdjustments')}>Create adjustments</Button> : null}
+          {canManageInventoryCount && allowed.includes('CLOSED') ? <Button variant="contained" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('close')}>Close</Button> : null}
+          {canManageInventoryCount && allowed.includes('CANCELLED') ? <Button color="error" disabled={!canTriggerManagerAction} onClick={() => actionMutation.mutate('cancel')}>Cancel</Button> : null}
         </Stack>
       ) : null}
     >
