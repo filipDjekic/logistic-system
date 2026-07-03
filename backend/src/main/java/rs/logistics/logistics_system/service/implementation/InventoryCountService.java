@@ -3,6 +3,8 @@ package rs.logistics.logistics_system.service.implementation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -161,10 +163,17 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
     }
 
     private Page<InventoryCountSession> findAccessibleSessions(Long warehouseId, Pageable pageable) {
+        
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        
         if (authenticatedUserProvider.isOverlord()) {
             return warehouseId != null
-                    ? sessionRepository.findByWarehouse_IdOrderByCreatedAtDesc(warehouseId, pageable)
-                    : sessionRepository.findAllByOrderByCreatedAtDesc(pageable);
+                    ? sessionRepository.findByWarehouse_Id(warehouseId, sortedPageable)
+                    : sessionRepository.findAll(sortedPageable);
         }
 
         Long companyId = authenticatedUserProvider.getAuthenticatedCompanyId();
@@ -174,17 +183,17 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
                 if (!scopedWarehouseIds.contains(warehouseId)) {
                     return Page.empty(pageable);
                 }
-                return sessionRepository.findByWarehouse_IdAndWarehouse_Company_IdOrderByCreatedAtDesc(warehouseId, companyId, pageable);
+                return sessionRepository.findByWarehouse_IdAndWarehouse_Company_Id(warehouseId, companyId, sortedPageable);
             }
             if (scopedWarehouseIds.isEmpty()) {
                 return Page.empty(pageable);
             }
-            return sessionRepository.findByWarehouse_IdInOrderByCreatedAtDesc(scopedWarehouseIds, pageable);
+            return sessionRepository.findByWarehouse_IdIn(scopedWarehouseIds, sortedPageable);
         }
 
         return warehouseId != null
-                ? sessionRepository.findByWarehouse_IdAndWarehouse_Company_IdOrderByCreatedAtDesc(warehouseId, companyId, pageable)
-                : sessionRepository.findByWarehouse_Company_IdOrderByCreatedAtDesc(companyId, pageable);
+                ? sessionRepository.findByWarehouse_IdAndWarehouse_Company_Id(warehouseId, companyId, sortedPageable)
+                : sessionRepository.findByWarehouse_Company_Id(companyId, sortedPageable);
     }
 
     @Override
