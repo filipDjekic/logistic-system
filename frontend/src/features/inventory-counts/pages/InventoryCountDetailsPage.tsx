@@ -133,7 +133,7 @@ export default function InventoryCountDetailsPage() {
   const mutableWarehousesQuery = useQuery({
     queryKey: ['warehouses', 'lookup', 'mutate', { sessionWarehouseId: session?.warehouseId }],
     queryFn: () => lookupApi.getOptions('warehouses', { accessMode: 'mutate', size: 1000 }),
-    enabled: Boolean(session?.warehouseId) && !(userRole === ROLES.OVERLORD || userRole === ROLES.COMPANY_ADMIN),
+    enabled: Boolean(session?.warehouseId) && userRole !== ROLES.OVERLORD,
     staleTime: 60_000,
   });
 
@@ -196,7 +196,6 @@ export default function InventoryCountDetailsPage() {
   const canMutateSelectedWarehouse = Boolean(
     session && (
       userRole === ROLES.OVERLORD
-      || userRole === ROLES.COMPANY_ADMIN
       || (mutableWarehousesQuery.data?.content ?? []).some((warehouse) => warehouse.id === session.warehouseId)
     )
   );

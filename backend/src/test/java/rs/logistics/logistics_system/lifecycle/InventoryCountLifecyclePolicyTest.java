@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InventoryCountLifecyclePolicyTest {
@@ -36,7 +37,7 @@ class InventoryCountLifecyclePolicyTest {
 
         assertTrue(policy.allowedRoles(InventoryCountSessionStatus.COUNTING).contains("WORKER"));
         assertTrue(policy.allowedRoles(InventoryCountSessionStatus.REVIEW).contains("WAREHOUSE_MANAGER"));
-        assertTrue(policy.allowedRoles(InventoryCountSessionStatus.APPROVED).contains("COMPANY_ADMIN"));
+        assertFalse(policy.allowedRoles(InventoryCountSessionStatus.APPROVED).contains("COMPANY_ADMIN"));
         assertTrue(policy.allowedRoles(InventoryCountSessionStatus.CLOSED).contains("OVERLORD"));
     }
 
