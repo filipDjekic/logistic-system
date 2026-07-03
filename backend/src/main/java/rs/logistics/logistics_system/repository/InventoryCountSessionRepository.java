@@ -45,19 +45,19 @@ public interface InventoryCountSessionRepository extends JpaRepository<Inventory
     Optional<InventoryCountSession> findWithLinesByIdForUpdate(@Param("id") Long id);
 
     @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
-    Page<InventoryCountSession> findByWarehouse_IdOrderByCreatedAtDesc(Long warehouseId, Pageable pageable);
+    Page<InventoryCountSession> findByWarehouse_Id(Long warehouseId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
-    Page<InventoryCountSession> findByWarehouse_IdAndWarehouse_Company_IdOrderByCreatedAtDesc(Long warehouseId, Long companyId, Pageable pageable);
+    Page<InventoryCountSession> findByWarehouse_IdAndWarehouse_Company_Id(Long warehouseId, Long companyId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
-    Page<InventoryCountSession> findByWarehouse_Company_IdOrderByCreatedAtDesc(Long companyId, Pageable pageable);
+    Page<InventoryCountSession> findByWarehouse_Company_Id(Long companyId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
-    Page<InventoryCountSession> findByWarehouse_IdInOrderByCreatedAtDesc(List<Long> warehouseIds, Pageable pageable);
+    Page<InventoryCountSession> findByWarehouse_IdIn(List<Long> warehouseIds, Pageable pageable);
 
     @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
-    Page<InventoryCountSession> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    Page<InventoryCountSession> findAll(Pageable pageable);
 
     @Query("""
             select session.id as sessionId,
