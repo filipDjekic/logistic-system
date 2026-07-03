@@ -58,7 +58,7 @@ public class StockMovementRequestController {
 
     @PreAuthorize("hasRole('WORKER')")
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<StockMovementRequestResponse> cancel(@PathVariable Long id) {
-        return ResponseEntity.ok(stockMovementRequestService.cancel(id));
+    public ResponseEntity<StockMovementRequestResponse> cancel(@PathVariable Long id, @Valid @RequestBody(required = false) StockMovementRequestReview review) {
+        return ResponseEntity.ok(stockMovementRequestService.cancel(id, review));
     }
 }

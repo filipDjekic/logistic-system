@@ -57,6 +57,10 @@ public class InventoryCountLine {
     @Column(name = "adjustment_movement_id")
     private Long adjustmentMovementId;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     public InventoryCountLine(InventoryCountSession session, Product product, BigDecimal systemQuantity) {
         this(session, product, null, systemQuantity);
     }

@@ -294,6 +294,7 @@ export type StockMovementRequestResponse = {
   adjustmentDirection?: StockAdjustmentDirection | null;
   reasonDescription?: string | null;
   reviewNote?: string | null;
+  version: number;
   warehouseId: number;
   warehouseName?: string | null;
   destinationWarehouseId?: number | null;

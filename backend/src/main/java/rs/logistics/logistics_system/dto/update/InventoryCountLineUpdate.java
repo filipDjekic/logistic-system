@@ -13,6 +13,9 @@ import java.math.BigDecimal;
 @Setter
 @NoArgsConstructor
 public class InventoryCountLineUpdate {
+    @NotNull
+    private Long expectedVersion;
+
     private Long binLocationId;
 
     @NotNull @PositiveOrZero

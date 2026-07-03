@@ -9,6 +9,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class StockMovementRequestReview {
+    private Long expectedVersion;
+
     @Size(max = 255)
     private String reviewNote;
 }

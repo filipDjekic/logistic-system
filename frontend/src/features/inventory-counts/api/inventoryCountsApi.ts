@@ -11,8 +11,8 @@ import type {
 } from '../types/inventoryCount.types';
 
 export const inventoryCountsApi = {
-  getAll(params?: { warehouseId?: number }) {
-    return apiClient.get<InventoryCountSessionSummaryResponse[]>('/api/inventory-counts', { params }).then((response) => response.data);
+  getAll(params?: { page?: number; size?: number; sort?: string; warehouseId?: number }) {
+    return apiClient.get<PageResponse<InventoryCountSessionSummaryResponse>>('/api/inventory-counts', { params }).then((response) => response.data);
   },
   getById(id: number) {
     return apiClient.get<InventoryCountSessionResponse>(`/api/inventory-counts/${id}`).then((response) => response.data);

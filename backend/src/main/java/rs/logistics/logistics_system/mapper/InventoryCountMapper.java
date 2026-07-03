@@ -87,6 +87,7 @@ public class InventoryCountMapper {
     public static InventoryCountLineResponse toLineResponse(InventoryCountLineRepository.InventoryCountLineRow row) {
         return new InventoryCountLineResponse(
                 row.getId(),
+                row.getVersion(),
                 row.getProductId(),
                 row.getProductName(),
                 row.getProductSku(),
@@ -109,6 +110,7 @@ public class InventoryCountMapper {
         WarehouseZone zone = binLocation != null ? binLocation.getZone() : null;
         return new InventoryCountLineResponse(
                 line.getId(),
+                line.getVersion(),
                 line.getProduct().getId(),
                 line.getProduct().getName(),
                 line.getProduct().getSku(),

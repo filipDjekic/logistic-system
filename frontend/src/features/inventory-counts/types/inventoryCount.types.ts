@@ -11,6 +11,7 @@ export type InventoryCountSessionStatus =
 
 export type InventoryCountLineResponse = {
   id: number;
+  version: number;
   productId: number;
   productName: string;
   productSku?: string | null;
@@ -56,6 +57,7 @@ export type InventoryCountSessionCreate = {
 };
 
 export type InventoryCountLineUpdate = {
+  expectedVersion: number;
   binLocationId?: number | null;
   countedQuantity: number;
   note?: string;

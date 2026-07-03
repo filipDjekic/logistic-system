@@ -176,6 +176,7 @@ export default function InventoryCountDetailsPage() {
 
   const updateLineMutation = useMutation({
     mutationFn: () => inventoryCountsApi.updateLine(id, editingLine!.id, {
+      expectedVersion: editingLine!.version,
       binLocationId: editingLine?.binLocationId ?? null,
       countedQuantity: Number(countedQuantity),
       note,

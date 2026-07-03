@@ -27,7 +27,7 @@ import {
   useReserveInventoryStock,
 } from '../hooks/useInventoryMutations';
 import type { SortState } from '../../../shared/types/common.types';
-import type { InventoryFiltersState } from '../types/inventory.types';
+import type { InventoryFiltersState, InventoryListRow } from '../types/inventory.types';
 
 export default function InventoryPage() {
   const auth = useAuthStore();

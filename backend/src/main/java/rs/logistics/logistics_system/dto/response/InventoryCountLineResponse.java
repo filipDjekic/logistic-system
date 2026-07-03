@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class InventoryCountLineResponse {
     private Long id;
+    private Long version;
     private Long productId;
     private String productName;
     private String productSku;

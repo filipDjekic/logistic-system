@@ -15,6 +15,7 @@ public class StockMovementRequestMapper {
         response.setAdjustmentDirection(request.getAdjustmentDirection());
         response.setReasonDescription(request.getReasonDescription());
         response.setReviewNote(request.getReviewNote());
+        response.setVersion(request.getVersion());
         response.setWarehouseId(request.getWarehouse() != null ? request.getWarehouse().getId() : null);
         response.setWarehouseName(request.getWarehouse() != null ? request.getWarehouse().getName() : null);
         response.setDestinationWarehouseId(request.getDestinationWarehouse() != null ? request.getDestinationWarehouse().getId() : null);

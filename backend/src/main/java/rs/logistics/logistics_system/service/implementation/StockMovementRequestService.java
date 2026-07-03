@@ -18,12 +18,14 @@ import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.dto.update.StockMovementRequestReview;
 import rs.logistics.logistics_system.entity.BinLocation;
 import rs.logistics.logistics_system.entity.Product;
+import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.StockMovementRequest;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.StockAdjustmentDirection;
 import rs.logistics.logistics_system.enums.StockMovementRequestStatus;
 import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.StockMovementRequestMapper;
@@ -33,10 +35,12 @@ import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.StockMovementRequestRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.StockMovementRequestServiceDefinition;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
+import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 
 import java.util.List;
 
@@ -53,6 +57,7 @@ public class StockMovementRequestService implements StockMovementRequestServiceD
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final WarehouseAccessGuard warehouseAccessGuard;
     private final TimeServiceDefinition timeService;
+    private final AuditFacadeDefinition auditFacade;
 
     @Override
     @Transactional
@@ -89,7 +94,9 @@ public class StockMovementRequestService implements StockMovementRequestServiceD
             request.setDestinationBinLocation(resolveScopedBin(dto.getDestinationBinLocationId(), request.getDestinationWarehouse().getId()));
         }
 
-        return StockMovementRequestMapper.toResponse(stockMovementRequestRepository.save(request));
+        StockMovementRequest saved = stockMovementRequestRepository.save(request);
+        recordCreatedAudit(saved);
+        return StockMovementRequestMapper.toResponse(saved);
     }
 
     @Override
@@ -126,39 +133,99 @@ public class StockMovementRequestService implements StockMovementRequestServiceD
     @Transactional
     public StockMovementRequestResponse approve(Long id, StockMovementRequestReview review) {
         StockMovementRequest request = getScopedManagerRequest(id);
+        requireExpectedVersion(review, request);
         ensureRequested(request);
+
+        int approvedRows = stockMovementRequestRepository.approveIfRequestedAndVersionMatches(
+                id,
+                review.getExpectedVersion(),
+                StockMovementRequestStatus.REQUESTED,
+                StockMovementRequestStatus.APPROVED,
+                review.getReviewNote(),
+                authenticatedUserProvider.getAuthenticatedUser(),
+                timeService.nowSystem()
+        );
+        if (approvedRows != 1) {
+            throw new ConflictException("Stock movement request was already reviewed or changed by another user. Reload the record and try again.");
+        }
+
+        request = getScopedManagerRequest(id);
         StockMovementResponse created = createMovementFromRequest(request);
-        request.setStatus(StockMovementRequestStatus.APPROVED);
-        request.setReviewNote(review != null ? review.getReviewNote() : null);
-        request.setReviewedBy(authenticatedUserProvider.getAuthenticatedUser());
-        request.setReviewedAt(timeService.nowSystem());
-        request.setCreatedMovement(stockMovementRepository.findById(created.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Created stock movement not found")));
-        return StockMovementRequestMapper.toResponse(stockMovementRequestRepository.save(request));
+        StockMovement createdMovement = stockMovementRepository.findById(created.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Created stock movement not found"));
+
+        int attachedRows = stockMovementRequestRepository.attachCreatedMovementIfMissing(id, StockMovementRequestStatus.APPROVED, createdMovement);
+        if (attachedRows != 1) {
+            throw new ConflictException("Stock movement request approval was changed by another user. Reload the record and try again.");
+        }
+
+        StockMovementRequest approved = getScopedManagerRequest(id);
+        recordReviewedAudit(approved, StockMovementRequestStatus.REQUESTED, StockMovementRequestStatus.APPROVED, "APPROVE");
+        return StockMovementRequestMapper.toResponse(approved);
     }
 
     @Override
     @Transactional
     public StockMovementRequestResponse reject(Long id, StockMovementRequestReview review) {
         StockMovementRequest request = getScopedManagerRequest(id);
+        requireExpectedVersion(review, request);
         ensureRequested(request);
         request.setStatus(StockMovementRequestStatus.REJECTED);
         request.setReviewNote(review != null ? review.getReviewNote() : null);
         request.setReviewedBy(authenticatedUserProvider.getAuthenticatedUser());
         request.setReviewedAt(timeService.nowSystem());
-        return StockMovementRequestMapper.toResponse(stockMovementRequestRepository.save(request));
+        StockMovementRequest saved = stockMovementRequestRepository.save(request);
+        recordReviewedAudit(saved, StockMovementRequestStatus.REQUESTED, StockMovementRequestStatus.REJECTED, "REJECT");
+        return StockMovementRequestMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
-    public StockMovementRequestResponse cancel(Long id) {
+    public StockMovementRequestResponse cancel(Long id, StockMovementRequestReview review) {
         StockMovementRequest request = getScopedRequest(id);
         if (!authenticatedUserProvider.hasRole("WORKER") || request.getRequestedBy() == null || !request.getRequestedBy().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())) {
             throw new ForbiddenException("Only the requesting worker can cancel this stock movement request");
         }
+        requireExpectedVersion(review, request);
         ensureRequested(request);
         request.setStatus(StockMovementRequestStatus.CANCELLED);
-        return StockMovementRequestMapper.toResponse(stockMovementRequestRepository.save(request));
+        StockMovementRequest saved = stockMovementRequestRepository.save(request);
+        recordReviewedAudit(saved, StockMovementRequestStatus.REQUESTED, StockMovementRequestStatus.CANCELLED, "CANCEL");
+        return StockMovementRequestMapper.toResponse(saved);
+    }
+
+    private void recordCreatedAudit(StockMovementRequest request) {
+        String identifier = stockMovementRequestIdentifier(request);
+        auditFacade.recordCreate("STOCK_MOVEMENT_REQUEST", request.getId(), identifier);
+        auditFacade.log(
+                "CREATE",
+                "STOCK_MOVEMENT_REQUEST",
+                request.getId(),
+                identifier,
+                "Stock movement request created (ID: " + request.getId()
+                        + ", warehouseId=" + request.getWarehouse().getId()
+                        + ", productId=" + request.getProduct().getId()
+                        + ", movementType=" + request.getMovementType() + ")"
+        );
+    }
+
+    private void recordReviewedAudit(StockMovementRequest request, StockMovementRequestStatus oldStatus, StockMovementRequestStatus newStatus, String action) {
+        String identifier = stockMovementRequestIdentifier(request);
+        auditFacade.recordStatusChange("STOCK_MOVEMENT_REQUEST", request.getId(), identifier, "status", oldStatus, newStatus);
+        auditFacade.log(
+                action,
+                "STOCK_MOVEMENT_REQUEST",
+                request.getId(),
+                identifier,
+                "Stock movement request " + newStatus.name().toLowerCase().replace('_', ' ')
+                        + " (ID: " + request.getId()
+                        + ", warehouseId=" + request.getWarehouse().getId()
+                        + ", productId=" + request.getProduct().getId() + ")"
+        );
+    }
+
+    private String stockMovementRequestIdentifier(StockMovementRequest request) {
+        return "SMR-" + request.getId();
     }
 
     private void validateWorkerRequestType(StockMovementRequestCreate dto) {
@@ -300,6 +367,10 @@ public class StockMovementRequestService implements StockMovementRequestServiceD
             warehouseAccessGuard.ensureCanMutateWarehouse(request.getDestinationWarehouse());
         }
         return request;
+    }
+
+    private void requireExpectedVersion(StockMovementRequestReview review, StockMovementRequest request) {
+        OptimisticLockGuard.requireExpectedVersion(review != null ? review.getExpectedVersion() : null, request.getVersion(), "Stock movement request");
     }
 
     private void ensureRequested(StockMovementRequest request) {

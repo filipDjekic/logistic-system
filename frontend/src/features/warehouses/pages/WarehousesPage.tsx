@@ -21,10 +21,7 @@ import {
   useWarehouses,
 } from '../hooks/useWarehouses';
 import type { SortState } from '../../../shared/types/common.types';
-import type {
-  WarehouseFiltersState,
-  WarehouseResponse,
-} from '../types/warehouse.types';
+import type { WarehouseFiltersState } from '../types/warehouse.types';
 
 const warehouseStatusOptions = ['ACTIVE', 'INACTIVE', 'FULL', 'UNDER_MAINTENANCE'] as const;
 

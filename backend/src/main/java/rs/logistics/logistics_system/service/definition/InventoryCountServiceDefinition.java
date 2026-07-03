@@ -9,11 +9,9 @@ import rs.logistics.logistics_system.dto.response.InventoryCountSessionSummaryRe
 import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.update.InventoryCountLineUpdate;
 
-import java.util.List;
-
 public interface InventoryCountServiceDefinition {
     InventoryCountSessionResponse create(InventoryCountSessionCreate dto);
-    List<InventoryCountSessionSummaryResponse> getAll(Long warehouseId);
+    PageResponse<InventoryCountSessionSummaryResponse> getAll(Long warehouseId, Pageable pageable);
     InventoryCountSessionResponse getById(Long id);
     PageResponse<InventoryCountLineResponse> getLines(Long id, String search, Long zoneId, Long binLocationId, String status, Pageable pageable);
     InventoryCountSessionResponse open(Long id);

@@ -14,6 +14,7 @@ import java.util.Optional;
 public interface InventoryCountLineRepository extends JpaRepository<InventoryCountLine, Long> {
     interface InventoryCountLineRow {
         Long getId();
+        Long getVersion();
         Long getProductId();
         String getProductName();
         String getProductSku();
@@ -30,12 +31,13 @@ public interface InventoryCountLineRepository extends JpaRepository<InventoryCou
         Long getAdjustmentMovementId();
     }
 
-    @EntityGraph(attributePaths = {"session", "session.warehouse", "product", "binLocation", "binLocation.warehouse", "binLocation.zone"})
+    @EntityGraph(attributePaths = {"session", "session.warehouse", "binLocation", "binLocation.warehouse"})
     Optional<InventoryCountLine> findByIdAndSession_Id(Long id, Long sessionId);
     List<InventoryCountLine> findBySession_IdOrderByProduct_NameAsc(Long sessionId);
 
     @Query(value = """
             select line.id as id,
+                   line.version as version,
                    product.id as productId,
                    product.name as productName,
                    product.sku as productSku,
@@ -110,7 +112,7 @@ public interface InventoryCountLineRepository extends JpaRepository<InventoryCou
                                                   @Param("status") String status,
                                                   Pageable pageable);
 
-    @EntityGraph(attributePaths = {"session", "session.warehouse", "product", "binLocation", "binLocation.warehouse", "binLocation.zone"})
+    @EntityGraph(attributePaths = {"product", "binLocation", "binLocation.warehouse"})
     @Query("""
             select line
             from InventoryCountLine line

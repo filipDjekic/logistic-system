@@ -54,6 +54,10 @@ public class StockMovementRequest {
     @Column(name = "review_note", length = 255)
     private String reviewNote;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;

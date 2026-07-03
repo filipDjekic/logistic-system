@@ -18,8 +18,6 @@ import rs.logistics.logistics_system.dto.response.InventoryCountSessionSummaryRe
 import rs.logistics.logistics_system.dto.update.InventoryCountLineUpdate;
 import rs.logistics.logistics_system.service.definition.InventoryCountServiceDefinition;
 
-import java.util.List;
-
 @RestController
 @RequestMapping({"/api/inventory-counts", "/api/inventory_counts"})
 @RequiredArgsConstructor
@@ -34,8 +32,11 @@ public class InventoryCountController {
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
     @GetMapping
-    public ResponseEntity<List<InventoryCountSessionSummaryResponse>> getAll(@RequestParam(required = false) Long warehouseId) {
-        return ResponseEntity.ok(inventoryCountService.getAll(warehouseId));
+    public ResponseEntity<PageResponse<InventoryCountSessionSummaryResponse>> getAll(
+            @RequestParam(required = false) Long warehouseId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(inventoryCountService.getAll(warehouseId, pageable));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")

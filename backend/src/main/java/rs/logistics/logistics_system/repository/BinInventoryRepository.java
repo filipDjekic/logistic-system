@@ -39,6 +39,26 @@ public interface BinInventoryRepository extends JpaRepository<BinInventory, BinI
     List<InventoryCountSnapshotRow> findInventoryCountSnapshotRowsByWarehouseId(@Param("warehouseId") Long warehouseId);
     Optional<BinInventory> findByBinLocation_IdAndProduct_Id(Long binLocationId, Long productId);
 
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    @Query("""
+            select bi
+            from BinInventory bi
+            join fetch bi.binLocation binLocation
+            join fetch bi.product product
+            where exists (
+                select 1
+                from InventoryCountLine line
+                where line.session.id = :sessionId
+                and line.countedQuantity is not null
+                and line.differenceQuantity <> 0
+                and line.binLocation = binLocation
+                and line.product = product
+            )
+            """)
+    List<BinInventory> findAdjustmentStockRowsForUpdate(@Param("sessionId") Long sessionId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("""

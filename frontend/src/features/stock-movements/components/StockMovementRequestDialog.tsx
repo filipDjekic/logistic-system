@@ -50,11 +50,11 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
   const mutation = useMutation({
     mutationFn: stockMovementsApi.createRequest,
     onSuccess: () => {
-      snackbar.showSnackbar('Stock movement request submitted.', 'success');
+      snackbar.showSnackbar({ message: 'Stock movement request submitted.', severity: 'success' });
       void queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.root() });
       handleClose();
     },
-    onError: (error) => snackbar.showSnackbar(getErrorMessage(error), 'error'),
+    onError: (error) => snackbar.showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
   });
 
   const handleClose = () => {
@@ -67,11 +67,11 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
   const handleSubmit = () => {
     const numericQuantity = Number(quantity);
     if (!warehouse || !product || !Number.isFinite(numericQuantity) || numericQuantity <= 0) {
-      snackbar.showSnackbar('Warehouse, product and positive quantity are required.', 'error');
+      snackbar.showSnackbar({ message: 'Warehouse, product and positive quantity are required.', severity: 'error' });
       return;
     }
     if (movementType === 'TRANSFER_OUT' && !destinationWarehouse) {
-      snackbar.showSnackbar('Destination warehouse is required for transfer request.', 'error');
+      snackbar.showSnackbar({ message: 'Destination warehouse is required for transfer request.', severity: 'error' });
       return;
     }
 

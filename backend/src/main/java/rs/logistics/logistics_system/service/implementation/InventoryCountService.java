@@ -49,6 +49,7 @@ import rs.logistics.logistics_system.lifecycle.LifecycleTransitionContext;
 import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
 import rs.logistics.logistics_system.service.definition.InventoryCountServiceDefinition;
+import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
@@ -68,6 +69,9 @@ import java.util.stream.Collectors;
 public class InventoryCountService implements InventoryCountServiceDefinition {
 
     private static final int SNAPSHOT_LINE_BATCH_SIZE = 500;
+
+    private record BinProductKey(Long binLocationId, Long productId) {
+    }
 
     private final InventoryCountSessionRepository sessionRepository;
     private final InventoryCountLineRepository lineRepository;
@@ -131,25 +135,18 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
 
     @Override
     @Transactional(readOnly = true)
-    public List<InventoryCountSessionSummaryResponse> getAll(Long warehouseId) {
-        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyId();
-        List<InventoryCountSession> sessions = warehouseId != null
-                ? sessionRepository.findByWarehouse_IdOrderByCreatedAtDesc(warehouseId)
-                : authenticatedUserProvider.isOverlord()
-                    ? sessionRepository.findAllByOrderByCreatedAtDesc()
-                    : sessionRepository.findByWarehouse_Company_IdOrderByCreatedAtDesc(companyId);
-        List<InventoryCountSession> accessibleSessions = sessions.stream()
-                .filter(session -> { warehouseAccessGuard.ensureCanReadWarehouse(session.getWarehouse()); return true; })
-                .toList();
-        if (accessibleSessions.isEmpty()) {
-            return List.of();
+    public PageResponse<InventoryCountSessionSummaryResponse> getAll(Long warehouseId, Pageable pageable) {
+        Page<InventoryCountSession> page = findAccessibleSessions(warehouseId, pageable);
+        if (page.isEmpty()) {
+            return PageResponse.fromContent(List.of(), page);
         }
-        List<Long> sessionIds = accessibleSessions.stream().map(InventoryCountSession::getId).toList();
+
+        List<Long> sessionIds = page.getContent().stream().map(InventoryCountSession::getId).toList();
         Map<Long, InventoryCountSessionRepository.InventoryCountSessionLineStats> statsBySessionId = sessionRepository
                 .findLineStatsBySessionIds(sessionIds)
                 .stream()
                 .collect(Collectors.toMap(InventoryCountSessionRepository.InventoryCountSessionLineStats::getSessionId, Function.identity()));
-        return accessibleSessions.stream()
+        List<InventoryCountSessionSummaryResponse> content = page.getContent().stream()
                 .map(session -> {
                     InventoryCountSessionRepository.InventoryCountSessionLineStats stats = statsBySessionId.get(session.getId());
                     return InventoryCountMapper.toSummaryResponse(
@@ -160,6 +157,34 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
                     );
                 })
                 .toList();
+        return PageResponse.fromContent(content, page);
+    }
+
+    private Page<InventoryCountSession> findAccessibleSessions(Long warehouseId, Pageable pageable) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return warehouseId != null
+                    ? sessionRepository.findByWarehouse_IdOrderByCreatedAtDesc(warehouseId, pageable)
+                    : sessionRepository.findAllByOrderByCreatedAtDesc(pageable);
+        }
+
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyId();
+        List<Long> scopedWarehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+        if (scopedWarehouseIds != null) {
+            if (warehouseId != null) {
+                if (!scopedWarehouseIds.contains(warehouseId)) {
+                    return Page.empty(pageable);
+                }
+                return sessionRepository.findByWarehouse_IdAndWarehouse_Company_IdOrderByCreatedAtDesc(warehouseId, companyId, pageable);
+            }
+            if (scopedWarehouseIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            return sessionRepository.findByWarehouse_IdInOrderByCreatedAtDesc(scopedWarehouseIds, pageable);
+        }
+
+        return warehouseId != null
+                ? sessionRepository.findByWarehouse_IdAndWarehouse_Company_IdOrderByCreatedAtDesc(warehouseId, companyId, pageable)
+                : sessionRepository.findByWarehouse_Company_IdOrderByCreatedAtDesc(companyId, pageable);
     }
 
     @Override
@@ -232,6 +257,7 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
         InventoryCountLine line = lineRepository.findByIdAndSession_Id(lineId, sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Inventory count line not found for selected session"));
         ensureCanUpdateCountLine(session, line);
+        OptimisticLockGuard.requireExpectedVersion(dto.getExpectedVersion(), line.getVersion(), "Inventory count line");
         validateCountingLineLocation(session, line, dto);
         line.setCountedQuantity(dto.getCountedQuantity());
         line.setNote(dto.getNote());
@@ -288,7 +314,7 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
         requireStatus(session, InventoryCountSessionStatus.APPROVED);
         validateAdjustmentBatchCanBeCreated(session);
         List<InventoryCountLine> adjustmentLines = lineRepository.findAdjustmentCandidateLines(session.getId());
-        validateSnapshotStillMatchesCurrentStock(adjustmentLines);
+        validateSnapshotStillMatchesCurrentStock(session.getId(), adjustmentLines);
 
         for (InventoryCountLine line : adjustmentLines) {
             BigDecimal difference = safe(line.getDifferenceQuantity());
@@ -377,15 +403,27 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
         );
     }
 
-    private void validateSnapshotStillMatchesCurrentStock(List<InventoryCountLine> lines) {
+    private void validateSnapshotStillMatchesCurrentStock(Long sessionId, List<InventoryCountLine> lines) {
+        if (lines.isEmpty()) {
+            return;
+        }
+
+        Map<BinProductKey, BigDecimal> currentQuantityByBinProduct = binInventoryRepository
+                .findAdjustmentStockRowsForUpdate(sessionId)
+                .stream()
+                .collect(Collectors.toMap(
+                        binInventory -> new BinProductKey(binInventory.getBinLocation().getId(), binInventory.getProduct().getId()),
+                        BinInventory::getSafeQuantity
+                ));
+
         for (InventoryCountLine line : lines) {
             if (line.getBinLocation() == null) {
                 throw new BadRequestException("Inventory count line requires a bin location before adjustment creation");
             }
-            BigDecimal currentQuantity = binInventoryRepository
-                    .findForUpdate(line.getBinLocation().getId(), line.getProduct().getId())
-                    .map(BinInventory::getSafeQuantity)
-                    .orElse(BigDecimal.ZERO);
+            BigDecimal currentQuantity = currentQuantityByBinProduct.getOrDefault(
+                    new BinProductKey(line.getBinLocation().getId(), line.getProduct().getId()),
+                    BigDecimal.ZERO
+            );
 
             if (currentQuantity.compareTo(safe(line.getSystemQuantity())) != 0) {
                 throw new BadRequestException("Inventory count snapshot is stale for product "

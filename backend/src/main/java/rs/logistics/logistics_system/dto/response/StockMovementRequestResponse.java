@@ -21,6 +21,7 @@ public class StockMovementRequestResponse {
     private StockAdjustmentDirection adjustmentDirection;
     private String reasonDescription;
     private String reviewNote;
+    private Long version;
     private Long warehouseId;
     private String warehouseName;
     private Long destinationWarehouseId;

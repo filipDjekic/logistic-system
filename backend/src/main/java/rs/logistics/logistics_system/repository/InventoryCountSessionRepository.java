@@ -2,6 +2,8 @@ package rs.logistics.logistics_system.repository;
 
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.QueryHint;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -43,13 +45,19 @@ public interface InventoryCountSessionRepository extends JpaRepository<Inventory
     Optional<InventoryCountSession> findWithLinesByIdForUpdate(@Param("id") Long id);
 
     @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
-    List<InventoryCountSession> findByWarehouse_IdOrderByCreatedAtDesc(Long warehouseId);
+    Page<InventoryCountSession> findByWarehouse_IdOrderByCreatedAtDesc(Long warehouseId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
-    List<InventoryCountSession> findByWarehouse_Company_IdOrderByCreatedAtDesc(Long companyId);
+    Page<InventoryCountSession> findByWarehouse_IdAndWarehouse_Company_IdOrderByCreatedAtDesc(Long warehouseId, Long companyId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
-    List<InventoryCountSession> findAllByOrderByCreatedAtDesc();
+    Page<InventoryCountSession> findByWarehouse_Company_IdOrderByCreatedAtDesc(Long companyId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
+    Page<InventoryCountSession> findByWarehouse_IdInOrderByCreatedAtDesc(List<Long> warehouseIds, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"warehouse", "warehouse.company", "createdBy", "reviewedBy"})
+    Page<InventoryCountSession> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     @Query("""
             select session.id as sessionId,

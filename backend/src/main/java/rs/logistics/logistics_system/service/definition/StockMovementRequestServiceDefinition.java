@@ -13,5 +13,5 @@ public interface StockMovementRequestServiceDefinition {
     StockMovementRequestResponse getById(Long id);
     StockMovementRequestResponse approve(Long id, StockMovementRequestReview review);
     StockMovementRequestResponse reject(Long id, StockMovementRequestReview review);
-    StockMovementRequestResponse cancel(Long id);
+    StockMovementRequestResponse cancel(Long id, StockMovementRequestReview review);
 }

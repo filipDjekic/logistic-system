@@ -868,6 +868,7 @@ export default function TransportOrderDetailsPage() {
                 plannedArrivalTime: values.plannedArrivalTime,
                 priority: values.priority,
                 notes: values.notes?.trim() || undefined,
+                expectedVersion: transportOrder.version,
                 sourceWarehouseId: Number(values.sourceWarehouseId),
                 destinationWarehouseId: Number(values.destinationWarehouseId),
                 vehicleId: Number(values.vehicleId),
