@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.entity.Company;
+import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -76,6 +77,27 @@ public class AuthenticatedUserProvider {
         return getAuthenticatedUserId().equals(userId);
     }
 
+    public boolean isCurrentUser(User user) {
+        return user != null
+                && user.getId() != null
+                && user.getId().equals(getAuthenticatedUserId());
+    }
+
+    public boolean isCurrentUserInAuthenticatedCompany(User user) {
+        return isCurrentUser(user)
+                && user.getCompany() != null
+                && user.getCompany().getId() != null
+                && user.getCompany().getId().equals(getAuthenticatedCompanyId());
+    }
+
+    public boolean isCurrentEmployeeUserInAuthenticatedCompany(Employee employee) {
+        return employee != null
+                && isCurrentUser(employee.getUser())
+                && employee.getCompany() != null
+                && employee.getCompany().getId() != null
+                && employee.getCompany().getId().equals(getAuthenticatedCompanyId());
+    }
+
     public boolean hasRole(String role) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -89,12 +111,27 @@ public class AuthenticatedUserProvider {
                 .anyMatch(authority -> expectedAuthority.equals(authority.getAuthority()));
     }
 
+
+    public boolean hasAnyRole(String... roles) {
+        if (roles == null) {
+            return false;
+        }
+
+        for (String role : roles) {
+            if (hasRole(role)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public boolean isOverlord() {
-        return hasRole("OVERLORD");
+        return hasRole(RoleCatalog.OVERLORD);
     }
 
     public boolean isCompanyAdmin() {
-        return hasRole("COMPANY_ADMIN");
+        return hasRole(RoleCatalog.COMPANY_ADMIN);
     }
 
     public void ensureCompanyAccess(Long companyId) {

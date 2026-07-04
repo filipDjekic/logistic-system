@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface OperationalAttachmentServiceDefinition {
     OperationalAttachmentResponse create(OperationalAttachmentCreate dto);
-    OperationalAttachmentResponse upload(OperationalEntityType entityType, Long entityId, MultipartFile file, OperationalAttachmentType attachmentType, String description, Long companyId);
+    OperationalAttachmentResponse upload(OperationalEntityType entityType, Long entityId, MultipartFile file, OperationalAttachmentType attachmentType, String description);
     Resource download(Long id);
     OperationalAttachmentResponse getById(Long id);
     List<OperationalAttachmentResponse> getForEntity(OperationalEntityType entityType, Long entityId);

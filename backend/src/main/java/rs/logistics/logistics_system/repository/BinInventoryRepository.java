@@ -39,6 +39,14 @@ public interface BinInventoryRepository extends JpaRepository<BinInventory, BinI
     List<InventoryCountSnapshotRow> findInventoryCountSnapshotRowsByWarehouseId(@Param("warehouseId") Long warehouseId);
     Optional<BinInventory> findByBinLocation_IdAndProduct_Id(Long binLocationId, Long productId);
 
+    @Query("""
+            select case when count(bi) > 0 then true else false end
+            from BinInventory bi
+            where bi.binLocation.warehouse.id = :warehouseId
+            and bi.product.id = :productId
+            """)
+    boolean existsByWarehouseIdAndProductId(@Param("warehouseId") Long warehouseId, @Param("productId") Long productId);
+
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))

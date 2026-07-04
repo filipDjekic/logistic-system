@@ -32,7 +32,7 @@ public class DomainEventService implements DomainEventServiceDefinition {
     @Override
     @Transactional
     public DomainEventResponse create(DomainEventCreate dto) {
-        return record(dto.getEventType(), dto.getEntityType(), dto.getEntityId(), dto.getEntityIdentifier(), dto.getSummary(), dto.getPayload(), dto.getCompanyId());
+        return record(dto.getEventType(), dto.getEntityType(), dto.getEntityId(), dto.getEntityIdentifier(), dto.getSummary(), dto.getPayload(), null);
     }
 
     @Override

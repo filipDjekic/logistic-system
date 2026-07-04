@@ -111,12 +111,12 @@ public class LifecyclePolicyRegistry {
 
     private static Map<VehicleStatus, Set<String>> vehicleRoleMatrix() {
         Map<VehicleStatus, Set<String>> matrix = new EnumMap<>(VehicleStatus.class);
-        Set<String> fleet = Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER");
+        Set<String> fleet = Set.of("OVERLORD", "COMPANY_ADMIN");
         matrix.put(VehicleStatus.AVAILABLE, fleet);
         matrix.put(VehicleStatus.RESERVED, fleet);
         matrix.put(VehicleStatus.IN_USE, fleet);
-        matrix.put(VehicleStatus.MAINTENANCE, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER"));
-        matrix.put(VehicleStatus.OUT_OF_SERVICE, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER"));
+        matrix.put(VehicleStatus.MAINTENANCE, Set.of("OVERLORD", "COMPANY_ADMIN"));
+        matrix.put(VehicleStatus.OUT_OF_SERVICE, Set.of("OVERLORD", "COMPANY_ADMIN"));
         return matrix;
     }
 }

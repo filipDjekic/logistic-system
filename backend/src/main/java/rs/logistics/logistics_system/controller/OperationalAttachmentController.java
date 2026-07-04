@@ -25,23 +25,22 @@ public class OperationalAttachmentController {
 
     private final OperationalAttachmentServiceDefinition attachmentService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @PostMapping
     public ResponseEntity<OperationalAttachmentResponse> create(@Valid @RequestBody OperationalAttachmentCreate dto) {
         return new ResponseEntity<>(attachmentService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<OperationalAttachmentResponse> upload(
             @RequestParam OperationalEntityType entityType,
             @RequestParam Long entityId,
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false, defaultValue = "DOCUMENT") OperationalAttachmentType attachmentType,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) Long companyId
+            @RequestParam(required = false) String description
     ) {
-        return new ResponseEntity<>(attachmentService.upload(entityType, entityId, file, attachmentType, description, companyId), HttpStatus.CREATED);
+        return new ResponseEntity<>(attachmentService.upload(entityType, entityId, file, attachmentType, description), HttpStatus.CREATED);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")

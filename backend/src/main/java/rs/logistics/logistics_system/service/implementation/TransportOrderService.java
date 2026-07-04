@@ -56,6 +56,7 @@ import rs.logistics.logistics_system.repository.VehicleMaintenanceRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
@@ -82,6 +83,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final ShiftRepository shiftRepository;
     private final VehicleMaintenanceRepository vehicleMaintenanceRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final OperationalEntityAccessValidator operationalEntityAccessValidator;
     private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     private static final List<TransportOrderStatus> SCHEDULE_BLOCKING_STATUSES = Arrays.asList(
@@ -1584,21 +1586,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
         }
 
-        if (authenticatedUserProvider.hasRole("DRIVER")) {
-            Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
-            Long assignedUserId = transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null
-                    ? transportOrder.getAssignedEmployee().getUser().getId()
-                    : null;
-
-            if (assignedUserId == null || !authenticatedUserId.equals(assignedUserId)) {
-                throw new ResourceNotFoundException("Transport order not found");
-            }
-        }
-
-        if (authenticatedUserProvider.hasRole("WORKER")
-                && !_transportOrderRepository.existsAssignedWorkerTaskForTransportOrder(id, currentEmployeeIdOrNotFound())) {
-            throw new ResourceNotFoundException("Transport order not found");
-        }
+        operationalEntityAccessValidator.ensureCanAccess(OperationalEntityType.TRANSPORT_ORDER, id);
 
         return transportOrder;
     }
@@ -1614,21 +1602,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
         }
 
-        if (authenticatedUserProvider.hasRole("DRIVER")) {
-            Long authenticatedUserId = authenticatedUserProvider.getAuthenticatedUserId();
-            Long assignedUserId = transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null
-                    ? transportOrder.getAssignedEmployee().getUser().getId()
-                    : null;
-
-            if (assignedUserId == null || !authenticatedUserId.equals(assignedUserId)) {
-                throw new ResourceNotFoundException("Transport order not found");
-            }
-        }
-
-        if (authenticatedUserProvider.hasRole("WORKER")
-                && !_transportOrderRepository.existsAssignedWorkerTaskForTransportOrder(id, currentEmployeeIdOrNotFound())) {
-            throw new ResourceNotFoundException("Transport order not found");
-        }
+        operationalEntityAccessValidator.ensureCanAccess(OperationalEntityType.TRANSPORT_ORDER, id);
 
         return transportOrder;
     }

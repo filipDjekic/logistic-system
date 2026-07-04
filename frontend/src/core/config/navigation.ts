@@ -51,9 +51,9 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
   'company-registration-requests': { key: 'company-registration-requests', label: 'Registration Requests', to: '/company-registration-requests', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
   employees: { key: 'employees', label: 'Employees', to: '/employees', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: GroupsRoundedIcon },
     shifts: { key: 'shifts', label: 'Shifts', to: '/shifts', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER, ROLES.DISPATCHER], icon: ScheduleRoundedIcon },
-  users: { key: 'users', label: 'Users', to: '/users', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN], icon: ManageAccountsRoundedIcon },
+  users: { key: 'users', label: 'Users', to: '/users', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: ManageAccountsRoundedIcon },
   'employee-profile-change-requests': { key: 'employee-profile-change-requests', label: 'Profile Requests', to: '/employee-profile-change-requests', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: FactCheckRoundedIcon },
-  roles: { key: 'roles', label: 'Roles', to: '/roles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN], icon: AdminPanelSettingsRoundedIcon },
+  roles: { key: 'roles', label: 'Roles', to: '/roles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AdminPanelSettingsRoundedIcon },
 
   'transport-orders': { key: 'transport-orders', label: 'Transport Orders', to: '/transport-orders', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: LocalShippingRoundedIcon },
   tasks: { key: 'tasks', label: 'Tasks', to: '/tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: AssignmentRoundedIcon },
@@ -97,7 +97,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   ],
   [ROLES.HR_MANAGER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['employee-task-report'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],

@@ -67,7 +67,7 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
     public OperationalAttachmentResponse create(OperationalAttachmentCreate dto) {
         User user = authenticatedUserProvider.getAuthenticatedUser();
         operationalEntityAccessValidator.ensureCanCreateOperationalContent(dto.getEntityType(), dto.getEntityId());
-        Company company = resolveCompany(dto.getCompanyId(), user, dto.getEntityType(), dto.getEntityId());
+        Company company = resolveCompany(null, user, dto.getEntityType(), dto.getEntityId());
         validateExternalAttachment(dto);
         OperationalAttachment attachment = new OperationalAttachment();
         attachment.setEntityType(dto.getEntityType());
@@ -88,10 +88,10 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
 
     @Override
     @Transactional
-    public OperationalAttachmentResponse upload(OperationalEntityType entityType, Long entityId, MultipartFile file, OperationalAttachmentType attachmentType, String description, Long companyId) {
+    public OperationalAttachmentResponse upload(OperationalEntityType entityType, Long entityId, MultipartFile file, OperationalAttachmentType attachmentType, String description) {
         User user = authenticatedUserProvider.getAuthenticatedUser();
         operationalEntityAccessValidator.ensureCanCreateOperationalContent(entityType, entityId);
-        Company company = resolveCompany(companyId, user, entityType, entityId);
+        Company company = resolveCompany(null, user, entityType, entityId);
 
         validateUpload(file);
 
@@ -171,7 +171,7 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
     public void delete(Long id) {
         OperationalAttachment attachment = attachmentRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
         ensureAccess(attachment.getCompany() != null ? attachment.getCompany().getId() : null);
-        operationalEntityAccessValidator.ensureCanAccess(attachment.getEntityType(), attachment.getEntityId());
+        operationalEntityAccessValidator.ensureCanDeleteOperationalContent(attachment.getEntityType(), attachment.getEntityId());
         deleteStoredFileIfExists(attachment);
         domainEventService.record(DomainEventType.ATTACHMENT_REMOVED, attachment.getEntityType(), attachment.getEntityId(), attachment.getFileName(), "Attachment removed: " + attachment.getFileName(), attachment.getDescription(), attachment.getCompany() != null ? attachment.getCompany().getId() : null);
         attachmentRepository.delete(attachment);

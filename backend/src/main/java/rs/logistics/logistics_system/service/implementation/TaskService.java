@@ -599,7 +599,6 @@ public class TaskService implements TaskServiceDefinition {
     public TaskResponse changeStatus(Long id, TaskStatus status, String reason, Long expectedVersion) {
         Task task = getTaskForUpdateOrThrow(id);
         validateWarehouseManagerTaskAccess(task);
-        validateDriverTaskMutationAccess();
 
         TaskStatus current = task.getStatus();
 
@@ -950,12 +949,6 @@ public class TaskService implements TaskServiceDefinition {
 
         if (task.getTransportOrder() == null) {
             throw new ForbiddenException("DRIVER can access only transport-linked tasks");
-        }
-    }
-
-    private void validateDriverTaskMutationAccess() {
-        if (authenticatedUserProvider.hasRole("DRIVER")) {
-            throw new ForbiddenException("DRIVER cannot change task status");
         }
     }
 

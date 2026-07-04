@@ -19,10 +19,7 @@ public class NotificationSecurity {
 
         return notificationRepository.findById(notificationId)
                 .map(notification ->
-                        notification.getUser() != null
-                                && notification.getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())
-                                && notification.getUser().getCompany() != null
-                                && notification.getUser().getCompany().getId().equals(authenticatedUserProvider.getAuthenticatedCompanyId())
+                        authenticatedUserProvider.isCurrentUserInAuthenticatedCompany(notification.getUser())
                 )
                 .orElse(false);
     }

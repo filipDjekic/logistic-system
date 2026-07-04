@@ -13,6 +13,7 @@ import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.EmployeeWarehouseAssignmentMapper;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
@@ -22,6 +23,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.EmployeeWarehouseAssignmentServiceDefinition;
 import rs.logistics.logistics_system.service.support.DomainScopeValidator;
+import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -35,6 +37,7 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
     private final WarehouseRepository warehouseRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final DomainScopeValidator domainScopeValidator;
+    private final WarehouseAccessGuard warehouseAccessGuard;
     private final AuditFacadeDefinition auditFacade;
 
     @Override
@@ -42,6 +45,8 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
     public EmployeeWarehouseAssignmentResponse create(EmployeeWarehouseAssignmentCreate dto) {
         Employee employee = resolveEmployee(dto.getEmployeeId());
         Warehouse warehouse = resolveWarehouse(dto.getWarehouseId());
+        ensureWarehouseManagerCanManageWarehouse(warehouse);
+        ensureWarehouseManagerCanManageEmployee(employee);
         validateAssignment(employee, warehouse, dto.getAccessType(), dto.getValidFrom(), dto.getValidTo());
 
         assignmentRepository.findByEmployee_IdAndWarehouse_Id(employee.getId(), warehouse.getId()).ifPresent(existing -> {
@@ -67,6 +72,8 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
     @Transactional
     public EmployeeWarehouseAssignmentResponse update(Long id, EmployeeWarehouseAssignmentUpdate dto) {
         EmployeeWarehouseAssignment assignment = resolveAssignment(id);
+        ensureWarehouseManagerCanManageWarehouse(assignment.getWarehouse());
+        ensureWarehouseManagerCanManageEmployee(assignment.getEmployee());
         if (dto.getAccessType() != null) {
             validateAssignment(assignment.getEmployee(), assignment.getWarehouse(), dto.getAccessType(), dto.getValidFrom(), dto.getValidTo());
             assignment.setAccessType(dto.getAccessType());
@@ -91,11 +98,14 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
     @Transactional(readOnly = true)
     public List<EmployeeWarehouseAssignmentResponse> getByEmployee(Long employeeId) {
         Employee employee = resolveEmployee(employeeId);
+        ensureWarehouseManagerCanManageEmployee(employee);
         Long companyId = authenticatedUserProvider.isOverlord() ? null : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
         List<EmployeeWarehouseAssignment> assignments = companyId == null
                 ? assignmentRepository.findByEmployee_IdOrderByWarehouse_NameAsc(employee.getId())
                 : assignmentRepository.findByEmployee_IdAndCompany_IdOrderByWarehouse_NameAsc(employee.getId(), companyId);
-        return assignments.stream().map(EmployeeWarehouseAssignmentMapper::toResponse).toList();
+        return filterAssignmentsForWarehouseManager(assignments).stream()
+                .map(EmployeeWarehouseAssignmentMapper::toResponse)
+                .toList();
     }
 
     @Override
@@ -103,6 +113,7 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
     public List<EmployeeWarehouseAssignmentResponse> getByWarehouse(Long warehouseId) {
         Warehouse warehouse = resolveWarehouse(warehouseId);
         Long companyId = authenticatedUserProvider.isOverlord() ? null : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        ensureWarehouseManagerCanManageWarehouse(warehouse);
         List<EmployeeWarehouseAssignment> assignments = companyId == null
                 ? assignmentRepository.findByWarehouseOrdered(warehouse.getId())
                 : assignmentRepository.findByWarehouseAndCompanyOrdered(warehouse.getId(), companyId);
@@ -113,8 +124,35 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
     @Transactional
     public void delete(Long id) {
         EmployeeWarehouseAssignment assignment = resolveAssignment(id);
+        ensureWarehouseManagerCanManageWarehouse(assignment.getWarehouse());
+        ensureWarehouseManagerCanManageEmployee(assignment.getEmployee());
         auditFacade.recordDelete("EMPLOYEE_WAREHOUSE_ASSIGNMENT", assignment.getId(), assignment.getEmployee().getEmail() + " -> " + assignment.getWarehouse().getName());
         assignmentRepository.delete(assignment);
+    }
+
+    private void ensureWarehouseManagerCanManageWarehouse(Warehouse warehouse) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return;
+        }
+        warehouseAccessGuard.ensureCanMutateWarehouse(warehouse);
+    }
+
+    private void ensureWarehouseManagerCanManageEmployee(Employee employee) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return;
+        }
+        if (!warehouseAccessGuard.canManageEmployeeForWarehouseAssignment(employee)) {
+            throw new ForbiddenException("You cannot manage warehouse assignments for this employee");
+        }
+    }
+
+    private List<EmployeeWarehouseAssignment> filterAssignmentsForWarehouseManager(List<EmployeeWarehouseAssignment> assignments) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return assignments;
+        }
+        return assignments.stream()
+                .filter(assignment -> warehouseAccessGuard.canMutateWarehouse(assignment.getWarehouse()))
+                .toList();
     }
 
     private Employee resolveEmployee(Long id) {

@@ -29,18 +29,14 @@ public final class StockMovementLifecyclePolicy {
 
         Set<String> warehouseOperators = Set.of(
                 "OVERLORD",
-                "COMPANY_ADMIN",
-                "WAREHOUSE_MANAGER",
-                "DISPATCHER"
+                "WAREHOUSE_MANAGER"
         );
         Set<String> approvers = Set.of(
                 "OVERLORD",
-                "COMPANY_ADMIN",
                 "WAREHOUSE_MANAGER"
         );
         Set<String> reversalOperators = Set.of(
                 "OVERLORD",
-                "COMPANY_ADMIN",
                 "WAREHOUSE_MANAGER"
         );
 

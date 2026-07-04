@@ -64,6 +64,7 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.repository.TimezoneRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.security.RoleCatalog;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleServiceDefinition;
@@ -210,15 +211,15 @@ public class DataExchangeController {
     }
 
     private List<String> resolveAllowedImportTypes() {
-        if (authenticatedUserProvider.hasRole("OVERLORD") || authenticatedUserProvider.hasRole("COMPANY_ADMIN")) {
+        if (authenticatedUserProvider.hasAnyRole(RoleCatalog.OVERLORD, RoleCatalog.COMPANY_ADMIN)) {
             return List.of("products", "vehicles", "warehouses", "warehouse-inventory", "employees");
         }
 
-        if (authenticatedUserProvider.hasRole("HR_MANAGER")) {
+        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
             return List.of("employees");
         }
 
-        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+        if (authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)) {
             return List.of("products", "warehouses", "warehouse-inventory");
         }
 
@@ -226,19 +227,19 @@ public class DataExchangeController {
     }
 
     private List<String> resolveAllowedExportTypes() {
-        if (authenticatedUserProvider.hasRole("OVERLORD") || authenticatedUserProvider.hasRole("COMPANY_ADMIN")) {
+        if (authenticatedUserProvider.hasAnyRole(RoleCatalog.OVERLORD, RoleCatalog.COMPANY_ADMIN)) {
             return List.of("transport-report", "inventory-report", "employee-task-report");
         }
 
-        if (authenticatedUserProvider.hasRole("HR_MANAGER")) {
+        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
             return List.of("employee-task-report");
         }
 
-        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+        if (authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)) {
             return List.of("transport-report", "inventory-report");
         }
 
-        if (authenticatedUserProvider.hasRole("DISPATCHER")) {
+        if (authenticatedUserProvider.hasRole(RoleCatalog.DISPATCHER)) {
             return List.of("transport-report");
         }
 
@@ -246,18 +247,18 @@ public class DataExchangeController {
     }
 
     private void enforceImportTypePermission(String type) {
-        if (authenticatedUserProvider.hasRole("OVERLORD") || authenticatedUserProvider.hasRole("COMPANY_ADMIN")) {
+        if (authenticatedUserProvider.hasAnyRole(RoleCatalog.OVERLORD, RoleCatalog.COMPANY_ADMIN)) {
             return;
         }
 
-        if (authenticatedUserProvider.hasRole("HR_MANAGER")) {
+        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
             if ("employees".equals(type)) {
                 return;
             }
             throw new ForbiddenException("HR_MANAGER can import only employees CSV data");
         }
 
-        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+        if (authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)) {
             if (Set.of("products", "warehouses", "warehouse-inventory").contains(type)) {
                 return;
             }

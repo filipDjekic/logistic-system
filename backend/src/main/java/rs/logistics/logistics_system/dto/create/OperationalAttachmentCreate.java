@@ -40,6 +40,4 @@ public class OperationalAttachmentCreate {
     @Size(max = 500)
     private String description;
 
-    @Positive
-    private Long companyId;
 }

@@ -19,11 +19,7 @@ public class TaskSecurity {
 
         return taskRepository.findById(taskId)
                 .map(task ->
-                        task.getAssignedEmployee() != null
-                                && task.getAssignedEmployee().getUser() != null
-                                && task.getAssignedEmployee().getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())
-                                && task.getAssignedEmployee().getCompany() != null
-                                && task.getAssignedEmployee().getCompany().getId().equals(authenticatedUserProvider.getAuthenticatedCompanyId())
+                        authenticatedUserProvider.isCurrentEmployeeUserInAuthenticatedCompany(task.getAssignedEmployee())
                 )
                 .orElse(false);
     }

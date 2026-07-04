@@ -111,3 +111,41 @@ Planned rules:
 - Lifecycle services must enforce valid state transitions.
 - Frontend route guards, buttons and menus must be aligned with backend rules but must not be treated as security.
 - Any future permission change must update this document in the same package as the backend/frontend alignment change.
+
+## Runtime permission consistency snapshot
+
+Last aligned against backend and frontend package input on 2026-07-04.
+
+This project does not currently implement a separate named-permission catalog such as `EMPLOYEE_READ` or `WAREHOUSE_DELETE`. Runtime authorization is role-based through Spring Security annotations, security beans and service-level scope validators. Therefore, the permission matrix is treated as the role/scope access model, not as a database-backed permission registry.
+
+### Backend modules covered by the matrix
+
+| Runtime area | Backend source of truth | Frontend guard/menu alignment |
+| --- | --- | --- |
+| Companies and company registration requests | `CompanyController`, `CompanyRegistrationRequestController` | OVERLORD-only administration. |
+| Employees and HR profile requests | `EmployeeController`, `EmployeeProfileChangeRequestController` | HR module available to OVERLORD, COMPANY_ADMIN and HR_MANAGER; selected operational read access for DISPATCHER and WAREHOUSE_MANAGER follows backend read scope. |
+| Users and roles | `UserController`, `RoleController` | OVERLORD/COMPANY_ADMIN/HR_MANAGER read access is represented in routes, module matrix and navigation. Mutation remains backend-restricted. |
+| Shifts and own shifts | `ShiftController` | HR_MANAGER and DISPATCHER management/read access is represented; all roles keep own-shift access through dedicated personal route. |
+| Warehouses, locations and assignments | `WarehouseController`, `WarehouseLocationController`, `EmployeeWarehouseAssignmentController` | Warehouse module reflects company/warehouse/worker-scoped read access; write access remains backend-enforced. |
+| Products and inventory | `ProductController`, `WarehouseInventoryController` | Product/inventory pages expose only backend-allowed read/write role groups. |
+| Inventory counts | `InventoryCountController` | OVERLORD/WAREHOUSE_MANAGER lifecycle management; COMPANY_ADMIN/WORKER read/counting access follows backend service scope. |
+| Stock movements and movement requests | `StockMovementController`, `StockMovementRequestController` | Read access and worker request flow are represented; direct creation/execution remains manager/dispatcher/backend-scoped as defined by endpoint. |
+| Transport orders and transport items | `TransportOrderController`, `TransportOrderItemController` | Dispatcher create/edit; company/warehouse/driver/worker read and lifecycle access are represented where backend allows. |
+| Tasks | `TaskController` | Managed task routes and own assigned task access are represented; lifecycle mutations still depend on backend service validation. |
+| Vehicles and maintenance | `VehicleController`, `VehicleMaintenanceController`, `VehicleCatalogController` | Vehicle read and maintenance read access match backend roles; maintenance mutation remains OVERLORD/COMPANY_ADMIN only. |
+| Reports and data exchange | `ReportsController`, `DataExchangeController` | Report routes and import/export UI are limited to backend-allowed roles. |
+| Notifications and profile | `NotificationController`, `ProfileController` | All authenticated roles keep own notification/profile access; administrative notification actions remain backend-restricted. |
+| Activity timeline, domain events and change history | `ActivityTimelineController`, `DomainEventController`, `ChangeHistoryController` | Audit screens distinguish global/recent audit access from entity-scoped history. DRIVER/WORKER can open scoped change history through entity context because backend allows scoped history reads. |
+| Activity logs | `ActivityLogController` | OVERLORD-only raw logs. |
+| Dashboard and lifecycle monitoring | `DashboardController`, `LifecycleMonitoringController` | Dashboard role endpoints match role-specific frontend panels; lifecycle monitoring remains backend-scoped. |
+| Public/reference lookups | `CountryController`, `CityController`, `TimezoneController`, `LookupController` | Public reference endpoints are not treated as protected business permissions; protected lookup endpoints follow backend role annotations. |
+
+### Consistency findings applied in this package
+
+- HR_MANAGER already had backend read access for `/api/users` and `/api/roles`, but HR navigation did not expose Users and Roles. Navigation now exposes both modules for HR_MANAGER.
+- Change history backend and route guards allow DRIVER and WORKER in scoped/entity-context mode, but `moduleRoleMatrix` did not list them. The module matrix now includes DRIVER and WORKER for `changeHistory`.
+- No separate dead named permissions were found because the system has no named permission registry. Existing access is role/scope based.
+
+### Matrix maintenance rule
+
+When a backend endpoint role annotation, security bean or service scope rule changes, update this document and the frontend route/menu/module guard in the same package. Frontend changes must not grant broader access than backend annotations and service validators allow.

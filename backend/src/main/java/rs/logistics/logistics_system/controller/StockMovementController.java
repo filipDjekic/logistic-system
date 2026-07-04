@@ -71,13 +71,13 @@ public class StockMovementController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/execute")
     public ResponseEntity<StockMovementResponse> execute(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.execute(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<StockMovementResponse> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.cancel(id));

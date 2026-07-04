@@ -13,6 +13,7 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleMaintenanceStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
+import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
 import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
@@ -63,15 +64,15 @@ public class VehiclePolicy {
 
     public void validateDelete(Vehicle vehicle) {
         if (hasActiveTransport(vehicle.getId())) {
-            throw new BadRequestException("Vehicle cannot be deleted because it is assigned to an active transport. Change vehicle status instead.");
+            throw new ConflictException("Vehicle cannot be hard-deleted because it is assigned to an active transport. Archive vehicle instead.");
         }
 
         if (transportOrderRepository.existsByVehicleId(vehicle.getId())) {
-            throw new BadRequestException("Vehicle cannot be deleted because it has transport history. Archive vehicle or use OUT_OF_SERVICE status instead.");
+            throw new ConflictException("Vehicle cannot be hard-deleted because it has transport history. Archive vehicle instead.");
         }
 
         if (vehicleMaintenanceRepository.existsByVehicleId(vehicle.getId())) {
-            throw new BadRequestException("Vehicle cannot be deleted because it has maintenance history. Archive vehicle or use OUT_OF_SERVICE status instead.");
+            throw new ConflictException("Vehicle cannot be hard-deleted because it has maintenance history. Archive vehicle instead.");
         }
     }
 

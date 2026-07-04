@@ -34,6 +34,4 @@ public class DomainEventCreate {
     @Size(max = 4000)
     private String payload;
 
-    @Positive
-    private Long companyId;
 }

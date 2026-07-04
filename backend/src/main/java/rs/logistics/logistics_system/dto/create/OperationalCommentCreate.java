@@ -26,6 +26,4 @@ public class OperationalCommentCreate {
 
     private Boolean internalNote = false;
 
-    @Positive
-    private Long companyId;
 }

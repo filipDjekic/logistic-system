@@ -37,7 +37,7 @@ public class OperationalCommentService implements OperationalCommentServiceDefin
     public OperationalCommentResponse create(OperationalCommentCreate dto) {
         User user = authenticatedUserProvider.getAuthenticatedUser();
         operationalEntityAccessValidator.ensureCanCreateOperationalContent(dto.getEntityType(), dto.getEntityId());
-        Company company = resolveCompany(dto.getCompanyId(), user, dto.getEntityType(), dto.getEntityId());
+        Company company = resolveCompany(null, user, dto.getEntityType(), dto.getEntityId());
         OperationalComment comment = new OperationalComment();
         comment.setEntityType(dto.getEntityType());
         comment.setEntityId(dto.getEntityId());

@@ -56,9 +56,6 @@ export const activityTimelineApi = {
       formData.append('description', payload.description.trim());
     }
 
-    if (payload.companyId != null) {
-      formData.append('companyId', String(payload.companyId));
-    }
 
     return apiClient
       .post<OperationalAttachment>('/api/operational-attachments/upload', formData, {

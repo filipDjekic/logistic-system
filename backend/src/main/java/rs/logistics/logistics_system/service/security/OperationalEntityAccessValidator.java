@@ -68,6 +68,40 @@ public class OperationalEntityAccessValidator {
         }
     }
 
+
+    public void ensureCanDeleteOperationalContent(OperationalEntityType entityType, Long entityId) {
+        if (!canDeleteOperationalContent(entityType, entityId)) {
+            throw new ResourceNotFoundException("Operational entity not found");
+        }
+    }
+
+    public boolean canDeleteOperationalContent(OperationalEntityType entityType, Long entityId) {
+        if (!canAccess(entityType, entityId)) {
+            return false;
+        }
+
+        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
+            return true;
+        }
+
+        return switch (entityType) {
+            case TRANSPORT_ORDER, TASK, VEHICLE, VEHICLE_MAINTENANCE -> authenticatedUserProvider.hasRole("DISPATCHER");
+            case WAREHOUSE -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                    && hasWarehouseManageAccess(entityId);
+            case WAREHOUSE_INVENTORY -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                    && hasWarehouseManageAccess(entityId);
+            case INVENTORY_COUNT -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                    && inventoryCountSessionRepository.findById(entityId)
+                            .map(InventoryCountSession::getWarehouse)
+                            .map(warehouse -> hasWarehouseManageAccess(warehouse.getId()))
+                            .orElse(false);
+            case STOCK_MOVEMENT -> canCreateStockMovementOperationalContent(entityId);
+            case INTERNAL_WAREHOUSE_MOVEMENT -> canCreateInternalWarehouseMovementOperationalContent(entityId);
+            case EMPLOYEE, SHIFT -> authenticatedUserProvider.hasRole("HR_MANAGER");
+            default -> false;
+        };
+    }
+
     public boolean canCreateOperationalContent(OperationalEntityType entityType, Long entityId) {
         if (!canAccess(entityType, entityId)) {
             return false;
@@ -187,9 +221,14 @@ public class OperationalEntityAccessValidator {
             case TASK -> canAccessTask(entityId, companyId, currentUserId);
             case TRANSPORT_ORDER -> canAccessTransportOrder(entityId, companyId, currentUserId);
             case VEHICLE -> vehicleRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
-            case VEHICLE_MAINTENANCE -> vehicleMaintenanceRepository.findById(entityId)
-                    .map(maintenance -> maintenance.getCompany() != null && companyId.equals(maintenance.getCompany().getId()))
-                    .orElse(false);
+            case VEHICLE_MAINTENANCE -> {
+                if (authenticatedUserProvider.hasRole("DRIVER") && !hasOperationalCoordinatorRole()) {
+                    yield vehicleMaintenanceRepository.existsForDriverRelatedVehicle(entityId, currentUserId);
+                }
+                yield vehicleMaintenanceRepository.findById(entityId)
+                        .map(maintenance -> maintenance.getCompany() != null && companyId.equals(maintenance.getCompany().getId()))
+                        .orElse(false);
+            }
             case WAREHOUSE -> warehouseRepository.findByIdAndCompany_Id(entityId, companyId)
                     .map(warehouse -> authenticatedUserProvider.isCompanyAdmin()
                             || authenticatedUserProvider.hasRole("DISPATCHER")
@@ -214,8 +253,14 @@ public class OperationalEntityAccessValidator {
     private boolean canAccessTask(Long taskId, Long companyId, Long currentUserId) {
         return taskRepository.findByIdAndAssignedEmployee_Company_Id(taskId, companyId)
                 .map(task -> {
-                    if (hasOperationalCoordinatorRole()) {
+                    if (authenticatedUserProvider.isCompanyAdmin()
+                            || authenticatedUserProvider.hasRole("DISPATCHER")
+                            || authenticatedUserProvider.hasRole("HR_MANAGER")) {
                         return true;
+                    }
+
+                    if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+                        return canWarehouseManagerAccessTask(task);
                     }
 
                     if (authenticatedUserProvider.hasRole("DRIVER") || authenticatedUserProvider.hasRole("WORKER")) {
@@ -231,9 +276,12 @@ public class OperationalEntityAccessValidator {
         return transportOrderRepository.findByIdAndCreatedBy_Company_Id(transportOrderId, companyId)
                 .map(order -> {
                     if (authenticatedUserProvider.isCompanyAdmin()
-                            || authenticatedUserProvider.hasRole("DISPATCHER")
-                            || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+                            || authenticatedUserProvider.hasRole("DISPATCHER")) {
                         return true;
+                    }
+
+                    if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+                        return canAccessTransportWarehouseScope(order);
                     }
 
                     if (authenticatedUserProvider.hasRole("DRIVER")) {
@@ -243,6 +291,36 @@ public class OperationalEntityAccessValidator {
                     return false;
                 })
                 .orElse(false);
+    }
+
+
+    private boolean canWarehouseManagerAccessTask(Task task) {
+        if (task == null) {
+            return false;
+        }
+
+        if (task.getStockMovement() != null && task.getStockMovement().getWarehouse() != null) {
+            return hasWarehouseAccess(task.getStockMovement().getWarehouse().getId());
+        }
+
+        if (task.getTransportOrder() != null) {
+            return canAccessTransportWarehouseScope(task.getTransportOrder());
+        }
+
+        return false;
+    }
+
+    private boolean canAccessTransportWarehouseScope(TransportOrder order) {
+        if (order == null) {
+            return false;
+        }
+
+        boolean sourceAllowed = order.getSourceWarehouse() != null
+                && hasWarehouseAccess(order.getSourceWarehouse().getId());
+        boolean destinationAllowed = order.getDestinationWarehouse() != null
+                && hasWarehouseAccess(order.getDestinationWarehouse().getId());
+
+        return sourceAllowed || destinationAllowed;
     }
 
     private boolean canAccessStockMovement(Long stockMovementId, Long companyId, Long currentUserId) {

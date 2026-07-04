@@ -34,6 +34,24 @@ public interface EmployeeWarehouseAssignmentRepository extends JpaRepository<Emp
     List<EmployeeWarehouseAssignment> findByWarehouseAndCompanyOrdered(@Param("warehouseId") Long warehouseId, @Param("companyId") Long companyId);
     boolean existsByEmployee_IdAndWarehouse_IdAndActiveTrue(Long employeeId, Long warehouseId);
 
+
+    @Query("""
+        select count(a) > 0
+        from EmployeeWarehouseAssignment a
+        where a.employee.id = :employeeId
+        and a.company.id = :companyId
+        and a.warehouse.id in :warehouseIds
+        and a.active = true
+        and (:today is null or a.validFrom is null or a.validFrom <= :today)
+        and (:today is null or a.validTo is null or a.validTo >= :today)
+    """)
+    boolean hasActiveAssignmentInWarehouses(
+            @Param("employeeId") Long employeeId,
+            @Param("companyId") Long companyId,
+            @Param("warehouseIds") Collection<Long> warehouseIds,
+            @Param("today") LocalDate today
+    );
+
     @Query("""
         select count(a) > 0
         from EmployeeWarehouseAssignment a

@@ -29,14 +29,11 @@ public class EmployeeSecurity {
 
         return employeeRepository.findByIdAndCompany_Id(employeeId, companyId)
                 .map(employee -> {
-                    if (employee.getUser() != null
-                            && employee.getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())) {
+                    if (authenticatedUserProvider.isCurrentUser(employee.getUser())) {
                         return true;
                     }
 
-                    if (authenticatedUserProvider.isCompanyAdmin()
-                            || authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)
-                            || authenticatedUserProvider.hasRole(RoleCatalog.DISPATCHER)) {
+                    if (authenticatedUserProvider.hasAnyRole(RoleCatalog.COMPANY_ADMIN, RoleCatalog.HR_MANAGER, RoleCatalog.DISPATCHER)) {
                         return true;
                     }
 
@@ -64,8 +61,7 @@ public class EmployeeSecurity {
         }
 
         return employeeRepository.findByIdAndCompany_Id(employeeId, companyId)
-                .map(employee -> employee.getUser() != null
-                        && employee.getUser().getId().equals(authenticatedUserProvider.getAuthenticatedUserId()))
+                .map(employee -> authenticatedUserProvider.isCurrentUser(employee.getUser()))
                 .orElse(false);
     }
 }

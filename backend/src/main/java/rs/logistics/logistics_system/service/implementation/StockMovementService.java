@@ -1645,7 +1645,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
                         normalizedLotNumber,
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 );
-        return movements.stream().map(this::toResponseWithLifecycle).toList();
+        return movements.stream()
+                .filter(this::isStockMovementReadableByCurrentUser)
+                .map(this::toResponseWithLifecycle)
+                .toList();
     }
 
     @Override
@@ -1660,6 +1663,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
         return stockMovementRepository.findSerialHistory(normalizedSerialNumber, companyId)
                 .stream()
+                .filter(this::isStockMovementReadableByCurrentUser)
                 .map(this::toResponseWithLifecycle)
                 .toList();
     }
@@ -1856,7 +1860,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
     private void addTraceMovements(Map<Long, StockMovement> target, List<StockMovement> movements) {
         for (StockMovement candidate : movements) {
-            if (isTraceMovementAccessible(candidate)) {
+            if (isStockMovementReadableByCurrentUser(candidate)) {
                 target.put(candidate.getId(), candidate);
             }
         }
@@ -1874,10 +1878,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 );
 
-        return movement.filter(this::isTraceMovementAccessible);
+        return movement.filter(this::isStockMovementReadableByCurrentUser);
     }
 
-    private boolean isTraceMovementAccessible(StockMovement candidate) {
+    private boolean isStockMovementReadableByCurrentUser(StockMovement candidate) {
         if (candidate == null || candidate.getId() == null || candidate.getWarehouse() == null) {
             return false;
         }
@@ -2133,9 +2137,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 )
                 .orElseThrow(() -> new ResourceNotFoundException("Stock movement not found"));
-        enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), false);
-        if (authenticatedUserProvider.hasRole("WORKER")
-                && !stockMovementRepository.existsAssignedWorkerTaskForStockMovement(id, currentEmployeeIdOrNotFound())) {
+        if (!isStockMovementReadableByCurrentUser(movement)) {
             throw new ResourceNotFoundException("Stock movement not found");
         }
         return movement;

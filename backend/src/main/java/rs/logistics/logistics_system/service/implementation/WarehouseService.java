@@ -30,7 +30,7 @@ import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
-import rs.logistics.logistics_system.exception.ForbiddenException;
+import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
@@ -397,19 +397,19 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     private void validateForDeleting(Warehouse warehouse) {
         if (_warehouseInventoryRepository.existsByWarehouse_Id(warehouse.getId())) {
-            throw new BadRequestException("Warehouse cannot be deleted because it contains inventory records. Delete empty inventory records first or deactivate warehouse instead.");
+            throw new ConflictException("Warehouse cannot be hard-deleted because it contains inventory records. Archive warehouse instead.");
         }
 
         if (stockMovementRepository.existsByWarehouse_Id(warehouse.getId())) {
-            throw new BadRequestException("Warehouse cannot be deleted because it has stock movement history. Deactivate warehouse instead.");
+            throw new ConflictException("Warehouse cannot be hard-deleted because it has stock movement history. Archive warehouse instead.");
         }
 
         if (warehouse.getManager() != null) {
-            throw new BadRequestException("Warehouse cannot be deleted while manager is assigned.");
+            throw new ConflictException("Warehouse cannot be hard-deleted while manager is assigned. Remove the assignment or archive warehouse instead.");
         }
 
         if (_transportOrderRepository.existsBySourceWarehouseIdOrDestinationWarehouseId(warehouse.getId(), warehouse.getId())) {
-            throw new BadRequestException("Warehouse cannot be deleted because it is linked to transport history. Deactivate warehouse instead.");
+            throw new ConflictException("Warehouse cannot be hard-deleted because it is linked to transport history. Archive warehouse instead.");
         }
     }
 
@@ -454,23 +454,12 @@ public class WarehouseService implements WarehouseServiceDefinition {
         return warehouse;
     }
 
-    private Long currentEmployeeIdOrNotFound() {
-        return _employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
-                .map(Employee::getId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
-    }
-
     private void ensureWarehouseManagerCanUpdateManagedWarehouse(Warehouse warehouse) {
         if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
             return;
         }
 
-        Long currentEmployeeId = currentEmployeeIdOrNotFound();
-        Long warehouseManagerId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
-
-        if (warehouseManagerId == null || !warehouseManagerId.equals(currentEmployeeId)) {
-            throw new ForbiddenException("WAREHOUSE_MANAGER can update only warehouses assigned to them");
-        }
+        warehouseAccessGuard.ensureCanMutateWarehouse(warehouse);
     }
 
     private Employee getAccessibleEmployee(Long employeeId) {

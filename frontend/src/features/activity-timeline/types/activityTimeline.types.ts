@@ -83,7 +83,6 @@ export type OperationalCommentCreate = {
   entityId: number;
   content: string;
   internalNote?: boolean;
-  companyId?: number | null;
 };
 
 export type OperationalAttachmentCreate = {
@@ -95,7 +94,6 @@ export type OperationalAttachmentCreate = {
   fileUrl: string;
   sizeBytes?: number | null;
   description?: string | null;
-  companyId?: number | null;
 };
 
 export type OperationalAttachmentUpload = {
@@ -104,5 +102,4 @@ export type OperationalAttachmentUpload = {
   file: File;
   attachmentType?: OperationalAttachmentType;
   description?: string | null;
-  companyId?: number | null;
 };

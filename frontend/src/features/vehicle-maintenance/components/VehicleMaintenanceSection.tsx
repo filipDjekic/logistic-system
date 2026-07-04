@@ -23,6 +23,8 @@ import {
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import { DEFAULT_PAGE_SIZE } from '../../../core/api/pagination';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import { EntityLookupField } from '../../lookup';
 import type { LookupOption } from '../../lookup';
 import { useCreateVehicleMaintenance, useUpdateVehicleMaintenance, useVehicleMaintenanceAction } from '../hooks/useVehicleMaintenanceMutations';
@@ -82,6 +84,10 @@ function maintenanceToForm(row: VehicleMaintenanceResponse): MaintenanceFormStat
 }
 
 export default function VehicleMaintenanceSection({ fixedVehicle, canManage = true }: VehicleMaintenanceSectionProps) {
+  const auth = useAuthStore();
+  const canUseMaintenanceWriteApi = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManageMaintenance = canManage && canUseMaintenanceWriteApi;
+
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [status, setStatus] = useState<VehicleMaintenanceStatus | 'ALL'>('ALL');
@@ -131,7 +137,7 @@ export default function VehicleMaintenanceSection({ fixedVehicle, canManage = tr
 
   return (
     <Stack spacing={3}>
-      {canManage ? (
+      {canManageMaintenance ? (
       <SectionCard title="Schedule maintenance" description="Planned maintenance blocks the vehicle from new transport assignment.">
         <Grid container spacing={2}>
           {!fixedVehicle ? (
@@ -233,7 +239,7 @@ export default function VehicleMaintenanceSection({ fixedVehicle, canManage = tr
                   <TableCell>{row.startedAt ? new Date(row.startedAt).toLocaleString() : '—'}</TableCell>
                   <TableCell>{row.completedAt ? new Date(row.completedAt).toLocaleString() : '—'}</TableCell>
                   <TableCell align="right">
-                    {canManage ? (
+                    {canManageMaintenance ? (
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
                         <Button size="small" disabled={row.status !== 'PLANNED' || updateMutation.isPending} onClick={() => setEditingRow(row)}>Edit</Button>
                         <Button size="small" disabled={row.status !== 'PLANNED' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'start' })}>Start</Button>
@@ -255,7 +261,7 @@ export default function VehicleMaintenanceSection({ fixedVehicle, canManage = tr
         <ServerTablePagination page={maintenanceQuery.data} disabled={maintenanceQuery.isFetching} onPageChange={setPage} onSizeChange={(value) => { setSize(value); setPage(0); }} />
       </SectionCard>
 
-      <Dialog open={canManage && Boolean(editingRow)} onClose={() => setEditingRow(null)} fullWidth maxWidth="sm">
+      <Dialog open={canManageMaintenance && Boolean(editingRow)} onClose={() => setEditingRow(null)} fullWidth maxWidth="sm">
         <DialogTitle>Edit planned maintenance</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>

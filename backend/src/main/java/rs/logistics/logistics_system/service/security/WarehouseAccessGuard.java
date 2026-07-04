@@ -35,6 +35,67 @@ public class WarehouseAccessGuard {
         ensureWarehouseAccess(warehouse, true);
     }
 
+    public boolean canMutateWarehouse(Warehouse warehouse) {
+        if (warehouse == null || warehouse.getId() == null) {
+            return false;
+        }
+
+        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
+            return true;
+        }
+
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return hasAssignedWarehouseManagerMutationAccess(warehouse);
+        }
+
+        if (authenticatedUserProvider.hasRole("WORKER")) {
+            return hasAssignedWarehouseWorkerMutationAccess(warehouse.getId());
+        }
+
+        return false;
+    }
+
+
+    public boolean canManageEmployeeForWarehouseAssignment(Employee targetEmployee) {
+        if (targetEmployee == null || targetEmployee.getId() == null) {
+            return false;
+        }
+
+        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
+            return true;
+        }
+
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return false;
+        }
+
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        if (targetEmployee.getCompany() == null || !companyId.equals(targetEmployee.getCompany().getId())) {
+            return false;
+        }
+
+        List<Long> managedWarehouseIds = mutationWarehouseIdsForScopedUser();
+        if (managedWarehouseIds == null) {
+            return true;
+        }
+        if (managedWarehouseIds.isEmpty()) {
+            return false;
+        }
+
+        if (targetEmployee.getPrimaryWarehouse() != null
+                && targetEmployee.getPrimaryWarehouse().getId() != null
+                && managedWarehouseIds.contains(targetEmployee.getPrimaryWarehouse().getId())) {
+            return true;
+        }
+
+        return employeeWarehouseAssignmentRepository.hasActiveAssignmentInWarehouses(
+                targetEmployee.getId(),
+                companyId,
+                managedWarehouseIds,
+                LocalDate.now()
+        );
+    }
+
     public List<Long> assignedWarehouseIdsForScopedUser() {
         if (canReadAllWarehouses()) {
             return null;

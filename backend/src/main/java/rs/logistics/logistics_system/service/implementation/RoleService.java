@@ -59,6 +59,11 @@ public class RoleService implements RoleServiceDefinition {
                     && !RoleCatalog.COMPANY_ADMIN.equals(normalizedRole);
         }
 
+        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
+            return !RoleCatalog.OVERLORD.equals(normalizedRole)
+                    && !RoleCatalog.COMPANY_ADMIN.equals(normalizedRole);
+        }
+
         return false;
     }
 }

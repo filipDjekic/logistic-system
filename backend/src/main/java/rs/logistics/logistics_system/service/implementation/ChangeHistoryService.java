@@ -28,6 +28,7 @@ import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
+import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 import rs.logistics.logistics_system.service.support.PageRequestSanitizer;
 import rs.logistics.logistics_system.service.definition.ChangeHistoryServiceDefinition;
 
@@ -57,6 +58,7 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
     private final TransportOrderItemRepository transportOrderItemRepository;
     private final WarehouseInventoryRepository warehouseInventoryRepository;
     private final NotificationRepository notificationRepository;
+    private final WarehouseAccessGuard warehouseAccessGuard;
 
     @Override
     public ChangeHistoryResponse getById(Long id) {
@@ -168,47 +170,52 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
         Long currentUserId = authenticatedUserProvider.getAuthenticatedUserId();
 
         return switch (entityName) {
-            case "COMPANY" -> companyRepository.findById(entityId)
-                    .map(company -> company.getId().equals(companyId))
+            case "COMPANY" -> canAccessCompanyScopedHistory(entityId, companyId);
+
+            case "USER" -> canAccessUserHistory(entityId, companyId, currentUserId);
+
+            case "EMPLOYEE" -> canAccessEmployeeHistory(entityId, companyId, currentUserId);
+
+            case "VEHICLE" -> canAccessVehicleHistory(entityId, companyId);
+
+            case "WAREHOUSE" -> canAccessWarehouseHistory(entityId, companyId);
+
+            case "PRODUCT" -> canAccessCompanyLevelEntity() && productRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+
+            case "SHIFT" -> canAccessShiftHistory(entityId, companyId, currentUserId);
+
+            case "STOCK_MOVEMENT" -> stockMovementRepository.findByIdAndWarehouse_Company_Id(entityId, companyId)
+                    .map(stockMovement -> canReadWarehouseById(stockMovement.getWarehouse() != null ? stockMovement.getWarehouse().getId() : null))
                     .orElse(false);
 
-            case "USER" -> userRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
-
-            case "EMPLOYEE" -> employeeRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
-
-            case "VEHICLE" -> vehicleRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
-
-            case "WAREHOUSE" -> warehouseRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
-
-            case "PRODUCT" -> productRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
-
-            case "SHIFT" -> shiftRepository.findByIdAndEmployee_Company_Id(entityId, companyId).isPresent();
-
-            case "STOCK_MOVEMENT" -> stockMovementRepository.findByIdAndWarehouse_Company_Id(entityId, companyId).isPresent();
-
-            case "STOCK_MOVEMENT_REQUEST" -> stockMovementRequestRepository.findByIdAndWarehouse_Company_Id(entityId, companyId).isPresent();
+            case "STOCK_MOVEMENT_REQUEST" -> stockMovementRequestRepository.findByIdAndWarehouse_Company_Id(entityId, companyId)
+                    .map(request -> canReadWarehouseById(request.getWarehouse() != null ? request.getWarehouse().getId() : null))
+                    .orElse(false);
 
             case "TASK" -> taskRepository.findByIdAndAssignedEmployee_Company_Id(entityId, companyId)
                     .map(task -> {
-                        if (authenticatedUserProvider.isCompanyAdmin()
-                                || authenticatedUserProvider.hasRole("HR_MANAGER")
-                                || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                                || authenticatedUserProvider.hasRole("DISPATCHER")) {
+                        if (canAccessCompanyLevelEntity()) {
                             return true;
                         }
 
                         Long assignedUserId = task.getAssignedEmployee() != null && task.getAssignedEmployee().getUser() != null
                                 ? task.getAssignedEmployee().getUser().getId()
                                 : null;
+                        if (assignedUserId != null && assignedUserId.equals(currentUserId)) {
+                            return true;
+                        }
 
-                        return assignedUserId != null && assignedUserId.equals(currentUserId);
+                        Long assignedWarehouseId = task.getAssignedEmployee() != null
+                                && task.getAssignedEmployee().getPrimaryWarehouse() != null
+                                ? task.getAssignedEmployee().getPrimaryWarehouse().getId()
+                                : null;
+                        return canReadWarehouseById(assignedWarehouseId);
                     })
                     .orElse(false);
 
             case "TRANSPORT_ORDER" -> transportOrderRepository.findByIdAndCreatedBy_Company_Id(entityId, companyId)
                     .map(transportOrder -> {
-                        if (authenticatedUserProvider.isCompanyAdmin()
-                                || authenticatedUserProvider.hasRole("DISPATCHER")) {
+                        if (canAccessCompanyLevelEntity()) {
                             return true;
                         }
 
@@ -216,15 +223,18 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
                                 && transportOrder.getAssignedEmployee().getUser() != null
                                 ? transportOrder.getAssignedEmployee().getUser().getId()
                                 : null;
+                        if (assignedUserId != null && assignedUserId.equals(currentUserId)) {
+                            return true;
+                        }
 
-                        return assignedUserId != null && assignedUserId.equals(currentUserId);
+                        return canReadWarehouseById(transportOrder.getSourceWarehouse() != null ? transportOrder.getSourceWarehouse().getId() : null)
+                                || canReadWarehouseById(transportOrder.getDestinationWarehouse() != null ? transportOrder.getDestinationWarehouse().getId() : null);
                     })
                     .orElse(false);
 
             case "TRANSPORT_ORDER_ITEM" -> transportOrderItemRepository.findByIdAndTransportOrder_CreatedBy_Company_Id(entityId, companyId)
                     .map(item -> {
-                        if (authenticatedUserProvider.isCompanyAdmin()
-                                || authenticatedUserProvider.hasRole("DISPATCHER")) {
+                        if (canAccessCompanyLevelEntity()) {
                             return true;
                         }
 
@@ -233,8 +243,16 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
                                 && item.getTransportOrder().getAssignedEmployee().getUser() != null
                                 ? item.getTransportOrder().getAssignedEmployee().getUser().getId()
                                 : null;
+                        if (assignedUserId != null && assignedUserId.equals(currentUserId)) {
+                            return true;
+                        }
 
-                        return assignedUserId != null && assignedUserId.equals(currentUserId);
+                        if (item.getTransportOrder() == null) {
+                            return false;
+                        }
+
+                        return canReadWarehouseById(item.getTransportOrder().getSourceWarehouse() != null ? item.getTransportOrder().getSourceWarehouse().getId() : null)
+                                || canReadWarehouseById(item.getTransportOrder().getDestinationWarehouse() != null ? item.getTransportOrder().getDestinationWarehouse().getId() : null);
                     })
                     .orElse(false);
 
@@ -244,10 +262,107 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
                     .map(notification -> notification.getUser() != null && notification.getUser().getId().equals(currentUserId))
                     .orElse(false);
 
-            default -> changeHistory.getChangedBy() != null
+            default -> canAccessCompanyLevelEntity()
+                    && changeHistory.getChangedBy() != null
                     && changeHistory.getChangedBy().getCompany() != null
                     && companyId.equals(changeHistory.getChangedBy().getCompany().getId());
         };
+    }
+
+    private boolean canAccessCompanyScopedHistory(Long entityId, Long companyId) {
+        if (!canAccessCompanyLevelEntity()) {
+            return false;
+        }
+        return companyRepository.findById(entityId)
+                .map(company -> company.getId().equals(companyId))
+                .orElse(false);
+    }
+
+    private boolean canAccessUserHistory(Long entityId, Long companyId, Long currentUserId) {
+        if (entityId != null && entityId.equals(currentUserId)) {
+            return true;
+        }
+        return canAccessCompanyLevelEntity() && userRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+    }
+
+    private boolean canAccessEmployeeHistory(Long entityId, Long companyId, Long currentUserId) {
+        return employeeRepository.findByIdAndCompany_Id(entityId, companyId)
+                .map(employee -> {
+                    Long employeeUserId = employee.getUser() != null ? employee.getUser().getId() : null;
+                    if (employeeUserId != null && employeeUserId.equals(currentUserId)) {
+                        return true;
+                    }
+
+                    if (canAccessCompanyLevelEntity()) {
+                        return true;
+                    }
+
+                    Long primaryWarehouseId = employee.getPrimaryWarehouse() != null ? employee.getPrimaryWarehouse().getId() : null;
+                    return canReadWarehouseById(primaryWarehouseId);
+                })
+                .orElse(false);
+    }
+
+    private boolean canAccessVehicleHistory(Long entityId, Long companyId) {
+        return vehicleRepository.findByIdAndCompany_Id(entityId, companyId)
+                .map(vehicle -> canAccessCompanyLevelEntity() || isVehicleAssignedToCurrentUser(vehicle.getId(), companyId))
+                .orElse(false);
+    }
+
+    private boolean isVehicleAssignedToCurrentUser(Long vehicleId, Long companyId) {
+        Long currentUserId = authenticatedUserProvider.getAuthenticatedUserId();
+        return transportOrderRepository.findByVehicleIdAndCreatedBy_Company_Id(vehicleId, companyId)
+                .stream()
+                .anyMatch(transportOrder -> transportOrder.getAssignedEmployee() != null
+                        && transportOrder.getAssignedEmployee().getUser() != null
+                        && currentUserId.equals(transportOrder.getAssignedEmployee().getUser().getId()));
+    }
+
+    private boolean canAccessWarehouseHistory(Long entityId, Long companyId) {
+        return warehouseRepository.findByIdAndCompany_Id(entityId, companyId)
+                .map(warehouse -> canReadWarehouseById(warehouse.getId()))
+                .orElse(false);
+    }
+
+    private boolean canAccessShiftHistory(Long entityId, Long companyId, Long currentUserId) {
+        return shiftRepository.findByIdAndEmployee_Company_Id(entityId, companyId)
+                .map(shift -> {
+                    Long shiftUserId = shift.getEmployee() != null && shift.getEmployee().getUser() != null
+                            ? shift.getEmployee().getUser().getId()
+                            : null;
+                    if (shiftUserId != null && shiftUserId.equals(currentUserId)) {
+                        return true;
+                    }
+
+                    if (canAccessCompanyLevelEntity()) {
+                        return true;
+                    }
+
+                    Long primaryWarehouseId = shift.getEmployee() != null && shift.getEmployee().getPrimaryWarehouse() != null
+                            ? shift.getEmployee().getPrimaryWarehouse().getId()
+                            : null;
+                    return canReadWarehouseById(primaryWarehouseId);
+                })
+                .orElse(false);
+    }
+
+    private boolean canAccessCompanyLevelEntity() {
+        return authenticatedUserProvider.isCompanyAdmin()
+                || authenticatedUserProvider.hasRole("HR_MANAGER")
+                || authenticatedUserProvider.hasRole("DISPATCHER");
+    }
+
+    private boolean canReadWarehouseById(Long warehouseId) {
+        if (warehouseId == null) {
+            return false;
+        }
+
+        if (warehouseAccessGuard.canReadAllWarehouses()) {
+            return true;
+        }
+
+        List<Long> assignedWarehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+        return assignedWarehouseIds != null && assignedWarehouseIds.contains(warehouseId);
     }
 
     private boolean canAccessWarehouseInventory(ChangeHistory changeHistory, Long companyId) {
@@ -258,16 +373,22 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
             Long productId = extractIdentifierPart(identifier, "productId");
 
             if (warehouseId != null && productId != null) {
-                return warehouseInventoryRepository.findByWarehouse_IdAndProduct_IdAndWarehouse_Company_Id(warehouseId, productId, companyId).isPresent();
+                return warehouseInventoryRepository.findByWarehouse_IdAndProduct_IdAndWarehouse_Company_Id(warehouseId, productId, companyId)
+                        .map(inventory -> canReadWarehouseById(inventory.getWarehouse() != null ? inventory.getWarehouse().getId() : null))
+                        .orElse(false);
             }
 
             if (warehouseId != null) {
-                return warehouseRepository.findByIdAndCompany_Id(warehouseId, companyId).isPresent();
+                return warehouseRepository.findByIdAndCompany_Id(warehouseId, companyId)
+                        .map(warehouse -> canReadWarehouseById(warehouse.getId()))
+                        .orElse(false);
             }
         }
 
         return changeHistory.getEntityId() != null
-                && warehouseRepository.findByIdAndCompany_Id(changeHistory.getEntityId(), companyId).isPresent();
+                && warehouseRepository.findByIdAndCompany_Id(changeHistory.getEntityId(), companyId)
+                .map(warehouse -> canReadWarehouseById(warehouse.getId()))
+                .orElse(false);
     }
 
     private Long extractIdentifierPart(String identifier, String key) {
