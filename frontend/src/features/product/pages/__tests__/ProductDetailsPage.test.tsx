@@ -52,7 +52,7 @@ describe('ProductDetailsPage', () => {
     expect(screen.getByText('Product #42 • SKU PAL-042')).toBeInTheDocument();
     expect(screen.getByText('Product overview')).toBeInTheDocument();
     expect(screen.getByText('PAL-042')).toBeInTheDocument();
-    expect(screen.getByText('Logistics Demo')).toBeInTheDocument();
+    expect(screen.getAllByText('Logistics Demo')).toHaveLength(2);
     expect(screen.getByRole('button', { name: /archive/i })).toBeInTheDocument();
   });
 

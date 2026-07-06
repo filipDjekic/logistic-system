@@ -131,16 +131,17 @@ export default function DataTable<T>({
     };
   }, [estimatedRowHeight, error, loading, maxRenderedRows, rows, scrollTop, shouldWindowRows, windowingThreshold]);
 
-  const isInteractiveTarget = (target: EventTarget | null) => {
+  const isInteractiveTarget = (target: EventTarget | null, currentRow: HTMLTableRowElement) => {
     if (!(target instanceof HTMLElement)) {
       return false;
     }
 
-    return Boolean(target.closest('button, a, input, textarea, select, [role="button"], [data-row-action="true"]'));
+    const interactiveElement = target.closest('button, a, input, textarea, select, [role="button"], [data-row-action="true"]');
+    return Boolean(interactiveElement && interactiveElement !== currentRow);
   };
 
   const handleRowClick = (event: MouseEvent<HTMLTableRowElement>, row: T) => {
-    if (!onRowClick || isInteractiveTarget(event.target)) {
+    if (!onRowClick || isInteractiveTarget(event.target, event.currentTarget)) {
       return;
     }
 
@@ -148,7 +149,7 @@ export default function DataTable<T>({
   };
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, row: T) => {
-    if (!onRowClick || isInteractiveTarget(event.target)) {
+    if (!onRowClick || isInteractiveTarget(event.target, event.currentTarget)) {
       return;
     }
 
