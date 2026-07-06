@@ -146,7 +146,9 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
       >
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            {auth.user?.email ?? '-'}
+            {auth.user
+              ? `${auth.user.firstName} ${auth.user.lastName}`
+              : "-"}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Role: {auth.user?.role ?? '-'}
