@@ -1,6 +1,6 @@
 import { apiClient } from '../../../core/api/client';
 
-export type ReportExportFormat = 'CSV' | 'XLSX';
+export type ReportExportFormat = 'CSV';
 
 export type TransportReportFilters = {
   fromDate?: string;

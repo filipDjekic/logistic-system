@@ -59,7 +59,7 @@ export const activityTimelineApi = {
 
     return apiClient
       .post<OperationalAttachment>('/api/operational-attachments/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        
       })
       .then((response) => response.data);
   },

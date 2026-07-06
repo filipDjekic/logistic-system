@@ -48,7 +48,7 @@ export const dataExchangeApi = {
 
     return apiClient
       .post<ImportResultResponse>(`/api/data/import/${type}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        
       })
       .then((response) => response.data);
   },
