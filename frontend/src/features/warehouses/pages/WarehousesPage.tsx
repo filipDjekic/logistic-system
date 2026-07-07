@@ -172,7 +172,6 @@ export default function WarehousesPage() {
 
       <TableLayout
         title="Warehouse list"
-        description="Warehouse data is loaded through backend company-scoped endpoints."
         toolbar={
           <TableToolbar
             searchValue={filters.search}
@@ -251,7 +250,6 @@ export default function WarehousesPage() {
           open={importDialogOpen}
           type="warehouses"
           title="Import warehouses from CSV"
-          description="Use this import for warehouse master data. OVERLORD imports must include companyId."
           loading={importMutation.isPending}
           result={importMutation.data ?? null}
           error={importMutation.error}

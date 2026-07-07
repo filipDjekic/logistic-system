@@ -152,7 +152,6 @@ export default function TaskFormPage({ mode }: Props) {
       <PageHeader
         overline="Operations"
         title={mode === 'create' ? 'Create task' : 'Edit task'}
-        description="Task creation and editing use searchable selectors instead of large dropdowns."
         actions={
           <Button variant="outlined" onClick={() => navigate('/tasks')} disabled={isSaving}>
             Back to tasks

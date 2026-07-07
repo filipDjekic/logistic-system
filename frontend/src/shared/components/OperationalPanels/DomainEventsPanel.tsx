@@ -16,7 +16,6 @@ export default function DomainEventsPanel({ entityType, entityId }: DomainEvents
   return (
     <RelatedDataSection
       title="Domain events"
-      description="Operational lifecycle events emitted for this entity."
       loading={query.isLoading}
       error={query.isError}
       onRetry={() => { void query.refetch(); }}

@@ -28,7 +28,6 @@ export default function LifecycleHistoryTimeline({ entityName, entityId, title =
   return (
     <RelatedDataSection
       title={title}
-      description="Status transition history for this operational entity. Transition reasons are captured by the status dialog and backend lifecycle audit events."
       loading={query.isLoading}
       error={query.isError}
       onRetry={() => { void query.refetch(); }}

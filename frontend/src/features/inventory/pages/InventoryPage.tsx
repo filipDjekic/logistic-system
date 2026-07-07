@@ -247,7 +247,6 @@ export default function InventoryPage() {
 
       <TableLayout
         title="Inventory overview"
-        description="Inventory search and filters are applied on the backend."
         filters={
           <>
             {canManage && !isLoadingLookups ? (

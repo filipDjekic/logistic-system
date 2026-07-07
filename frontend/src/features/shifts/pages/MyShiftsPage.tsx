@@ -42,7 +42,6 @@ export default function MyShiftsPage() {
 
       <TableLayout
         title="Assigned shifts"
-        description="This page uses the dedicated backend endpoint for the authenticated user."
         toolbar={
           <TableToolbar
             searchValue={filters.search}

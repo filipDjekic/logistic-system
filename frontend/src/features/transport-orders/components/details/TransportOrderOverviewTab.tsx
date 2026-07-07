@@ -88,7 +88,6 @@ export default function TransportOrderOverviewTab({
 
           <DetailsOverviewCard
             title="Overview"
-            description="Core transport order information confirmed by backend DTOs."
             fields={[
               { label: "Order number", value: transportOrder.orderNumber },
               { label: "Description", value: transportOrder.description },
@@ -245,7 +244,6 @@ export default function TransportOrderOverviewTab({
         <Stack spacing={3}>
           <SectionCard
             title="Status actions"
-            description="Allowed transitions follow backend service rules."
           >
             {!canChangeStatus ? (
               <>

@@ -99,7 +99,6 @@ export default function ActivityLogsPage() {
 
       <TableLayout
         title="Activity log list"
-        description="Use search, filters, and server pagination for raw system audit review. This is intentionally separated from entity timelines and change history."
         toolbar={
           <TableToolbar
             searchValue={filters.search}

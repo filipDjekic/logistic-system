@@ -232,20 +232,6 @@ export const stockMovementSchema = z
         message: 'Return-out movement must use RETURN_OUT reason code',
       });
     }
-
-    if (values.referenceNumber !== undefined && values.referenceNumber.trim() === '') {
-      // backend dozvoljava null, ali ne blank string
-    }
-
-    if (values.reasonDescription !== undefined && values.reasonDescription.trim() === '') {
-      // backend dozvoljava null, ali ne blank string
-    }
-
-    if (values.referenceNote !== undefined && values.referenceNote.trim() === '') {
-      if (values.movementType !== 'ADJUSTMENT') {
-        // backend dozvoljava null, ali ne blank string
-      }
-    }
   });
 
 export type StockMovementSchemaValues = z.infer<typeof stockMovementSchema>;

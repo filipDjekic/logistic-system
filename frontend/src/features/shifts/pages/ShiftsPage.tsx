@@ -137,7 +137,6 @@ export default function ShiftsPage() {
 
       <TableLayout
         title="Shift list"
-        description="Only confirmed backend operations are exposed here."
         toolbar={
           <TableToolbar
             searchValue={filters.search}

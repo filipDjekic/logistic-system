@@ -127,7 +127,6 @@ export default function NotificationsPage() {
 
       <SectionCard
         title="My notifications"
-        description="Notifications are grouped by operational source when possible. Use acknowledge when you accept ownership, resolve when the issue is finished, and open the workflow action when the notification points to an entity."
         action={
           <Stack direction="row" spacing={1}>
             <Button

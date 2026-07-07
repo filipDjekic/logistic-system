@@ -113,7 +113,6 @@ export default function UsersPage() {
 
       <TableLayout
         title="User list"
-        description="Each business user should be created together with the linked employee profile."
         toolbar={
           <TableToolbar
             searchValue={filters.search}

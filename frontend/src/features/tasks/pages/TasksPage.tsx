@@ -286,7 +286,6 @@ export default function TasksPage() {
 
       <TableLayout
         title="Task list"
-        description="Tasks are loaded from the real backend task endpoints and remain scoped by backend company access."
         toolbar={
           <TableToolbar
             searchValue={filters.search}

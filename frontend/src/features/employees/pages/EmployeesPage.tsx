@@ -339,7 +339,6 @@ export default function EmployeesPage() {
       <PageHeader
         overline="Workforce"
         title="Employees"
-        description="HR manager handles employee onboarding, updates, role-to-position alignment and lifecycle changes."
         actions={
           canCreateEmployees ? (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -490,7 +489,6 @@ export default function EmployeesPage() {
           open={importDialogOpen}
           type="employees"
           title="Import employees from CSV"
-          description="Use this import for employee onboarding from HR spreadsheets. OVERLORD imports must include companyId."
           loading={importMutation.isPending}
           result={importMutation.data ?? null}
           error={importMutation.error}

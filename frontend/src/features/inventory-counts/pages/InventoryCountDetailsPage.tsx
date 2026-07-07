@@ -365,7 +365,6 @@ export default function InventoryCountDetailsPage() {
       {session && activeTab === 'lifecycle' ? (
         <DetailsLifecycleCard
           title="Lifecycle"
-          description="Backend-controlled status workflow for this inventory count."
           currentStatus={session.status}
           statuses={session.status === 'REJECTED' || session.status === 'CANCELLED'
             ? ['DRAFT', 'OPEN', 'COUNTING', 'REVIEW', session.status]

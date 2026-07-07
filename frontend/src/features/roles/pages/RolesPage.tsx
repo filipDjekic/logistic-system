@@ -55,7 +55,6 @@ export default function RolesPage() {
       <PageHeader
         overline="Security"
         title="Roles"
-        description="Read-only role catalog based on the real backend role endpoints."
       />
 
       <SectionCard

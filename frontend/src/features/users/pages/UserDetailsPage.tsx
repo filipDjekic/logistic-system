@@ -155,7 +155,7 @@ export default function UserDetailsPage() {
       onTabChange={(value) => setActiveTab(value as 'overview' | 'linkedEmployee' | 'changeHistory')}
     >
       {activeTab === 'overview' ? (
-        <DetailsOverviewCard title="User overview" description="User, company and linked employee fields returned by the backend.">
+        <DetailsOverviewCard title="User overview" description="User, company and linked employee fields.">
           <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <DetailsField label="First name" value={user.firstName} />

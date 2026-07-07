@@ -193,7 +193,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
         <Stack spacing={2.5}>
           {!isEdit ? (
             <Alert severity="info">
-              Order number format: TO-YYYYMMDD-HHMMSSmmm. It is generated on page open and sent to backend as a normal orderNumber.
+              Order number format: TO-YYYYMMDD-HHMMSSmmm.
             </Alert>
           ) : null}
 

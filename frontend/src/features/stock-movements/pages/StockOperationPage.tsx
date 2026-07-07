@@ -51,17 +51,17 @@ type OperationConfig = {
 const operationConfig: Record<StockOperationType, OperationConfig> = {
   inbound: {
     title: 'Receive stock',
-    description: 'Creates an inbound stock movement. Backend lifecycle decides whether it is directly executable, pending approval or executed by integration flow.',
+    description: 'Creates an inbound stock movement.',
     submitLabel: 'Submit inbound movement',
   },
   outbound: {
     title: 'Issue stock',
-    description: 'Creates an outbound stock movement. Stock is changed only when the backend lifecycle executes the movement.',
+    description: 'Creates an outbound stock movement.',
     submitLabel: 'Submit outbound movement',
   },
   transfer: {
     title: 'Transfer stock',
-    description: 'Moves product quantity from source warehouse to destination warehouse in one backend transaction. Transport order can be selected when transfer follows transport flow.',
+    description: 'Moves product quantity from source warehouse to destination warehouse. Transport order can be selected when transfer follows transport flow.',
     submitLabel: 'Submit transfer movements',
   },
   internal: {
@@ -209,7 +209,7 @@ export default function StockOperationPage() {
 
   const pageDescription = useMemo(() => {
     if (!operation || !config) {
-      return 'Choose the stock operation first. The form then shows only fields required by the matching backend endpoint.';
+      return 'Choose the stock operation first.';
     }
 
     return config.description;
@@ -504,7 +504,7 @@ export default function StockOperationPage() {
         Submit creates a lifecycle-controlled stock movement. Use the details page after submit for Execute, Approve, Reject, Cancel or Reverse actions when the backend allows them.
       </Alert>
 
-      <SectionCard title="1. Choose operation" description="Pick the operational intent first. The remaining form is scoped to the matching backend endpoint.">
+      <SectionCard title="1. Choose operation" description="Pick the operational intent first.">
         <Grid container spacing={2}>
           {operationOrder.map((item) => {
             const itemConfig = operationConfig[item];
@@ -640,7 +640,7 @@ export default function StockOperationPage() {
           </Grid>
         </SectionCard>
 
-        <SectionCard title="3. Quantity and operation details" description="Enter the quantity and operation-specific values. Blocking warnings prevent submit before the request reaches backend.">
+        <SectionCard title="3. Quantity and operation details" description="Enter the quantity and operation-specific values.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField

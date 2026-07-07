@@ -79,7 +79,6 @@ export default function ActivityTimelinePage() {
     <EntityDetailsLayout
       overline="Operations"
       title="Activity timeline"
-      description="Operational story for accessible entities. This view is not the raw activity log."
       tabs={[
         { value: 'recent', label: 'Recent activity' },
         { value: 'entity', label: 'Entity timeline' },

@@ -289,7 +289,6 @@ export default function VehiclesPage() {
           open={importDialogOpen}
           type="vehicles"
           title="Import vehicles from CSV"
-          description="Use this import for fleet records prepared outside the system. OVERLORD imports must include companyId."
           loading={importMutation.isPending}
           result={importMutation.data ?? null}
           error={importMutation.error}

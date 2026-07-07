@@ -157,7 +157,6 @@ export default function ProductsPage() {
 
       <TableLayout
         title="Product list"
-        description="Products are loaded through the real backend product endpoints and scoped by backend authorization."
         toolbar={
           <TableToolbar
             searchValue={filters.search}

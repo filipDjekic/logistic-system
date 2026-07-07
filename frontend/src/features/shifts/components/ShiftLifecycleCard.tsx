@@ -11,7 +11,6 @@ export default function ShiftLifecycleCard({ shift, showHistory = false }: { shi
   return (
     <DetailsLifecycleCard
       title="Lifecycle"
-      description="Shift status is controlled by backend lifecycle rules and scheduler transitions."
       currentStatus={shift.status}
       statusNode={
         <>

@@ -98,7 +98,6 @@ export default function CompaniesPage() {
       <PageHeader
         overline="Organization"
         title="Companies"
-        description="Create each company together with its bootstrap COMPANY_ADMIN and employee profile."
         actions={
           <Button
             variant="contained"

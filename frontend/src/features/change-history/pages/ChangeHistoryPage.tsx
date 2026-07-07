@@ -132,7 +132,6 @@ export default function ChangeHistoryPage() {
 
       <TableLayout
         title="Change history list"
-        description="Use filters and server pagination for field-level before/after changes. Operational domain events live in Activity Timeline; raw system logs are OVERLORD-only."
         toolbar={
           <TableToolbar
             searchValue={filters.search}
