@@ -19,7 +19,6 @@ const NotificationsPage = lazy(() => import('../../features/notifications/pages/
 const ProfilePage = lazy(() => import('../../features/profile/pages/ProfilePage'));
 const EmployeeProfileChangeRequestsPage = lazy(() => import('../../features/employee-profile-change-requests/pages/EmployeeProfileChangeRequestsPage'));
 const ActivityLogsPage = lazy(() => import('../../features/activity-logs/pages/ActivityLogsPage'));
-const ChangeHistoryPage = lazy(() => import('../../features/change-history/pages/ChangeHistoryPage'));
 const ActivityTimelinePage = lazy(() => import('../../features/activity-timeline/pages/ActivityTimelinePage'));
 const RolesPage = lazy(() => import('../../features/roles/pages/RolesPage'));
 const RoleDetailsPage = lazy(() => import('../../features/roles/pages/RoleDetailsPage'));
@@ -106,17 +105,6 @@ export const routes = [
           { path: '/company-registration-requests', element: lazyPage(<CompanyRegistrationRequestsPage />) },
           { path: '/companies/:id', element: lazyPage(<CompanyDetailsPage />) },
           { path: '/activity-logs', element: lazyPage(<ActivityLogsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: <AppLayout />,
-        children: [
-          { path: '/change-history', element: lazyPage(<ChangeHistoryPage />) },
         ],
       },
     ],

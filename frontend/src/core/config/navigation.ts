@@ -71,7 +71,6 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
 
   'activity-logs': { key: 'activity-logs', label: 'Activity Logs', to: '/activity-logs', roles: [ROLES.OVERLORD], icon: HistoryRoundedIcon },
   'activity-timeline': { key: 'activity-timeline', label: 'Activity Timeline', to: '/activity-timeline', roles: [ROLES.OVERLORD], icon: HistoryRoundedIcon },
-  'change-history': { key: 'change-history', label: 'Change History', to: '/change-history', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: FactCheckRoundedIcon },
 };
 
 const defaultNavigationTemplate: NavigationSectionTemplate[] = [
@@ -80,7 +79,7 @@ const defaultNavigationTemplate: NavigationSectionTemplate[] = [
   { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
   { key: 'workforce', label: 'Workforce', itemKeys: ['companies', 'company-registration-requests', 'employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles'] },
   { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
-  { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history', 'activity-logs'] },
+  { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'activity-logs'] },
   { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
 ];
 
@@ -92,7 +91,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
     { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
     { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'users'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
-    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history'] },
+    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.HR_MANAGER]: [
@@ -107,7 +106,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
     { key: 'transport', label: 'Transport', itemKeys: ['tasks', 'transport-orders'] },
     { key: 'workforce', label: 'Workforce', itemKeys: ['employees'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['inventory-report', 'transport-report'] },
-    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history'] },
+    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.DISPATCHER]: [
@@ -116,7 +115,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
     { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
     { key: 'workforce-reference', label: 'Workforce Reference', itemKeys: ['employees', 'shifts'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report'] },
-    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'change-history'] },
+    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.DRIVER]: [
