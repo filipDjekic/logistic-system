@@ -1,5 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react';
 import { Chip, Grid } from '@mui/material';
+import { useAuthStore, authStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 import { useActivityTimeline } from '../../../features/activity-timeline/hooks/useActivityTimeline';
 import type { OperationalEntityType } from '../../../features/activity-timeline/types/activityTimeline.types';
 import { AuditTimeline } from '../AuditTimeline';
@@ -103,6 +105,10 @@ function AuditTimelinePanel({ entityName, entityId, title = 'Audit', description
   return <ChangeHistoryPanel entityName={entityName} entityId={entityId} title={title} description={description} search={search} />;
 }
 
+function canViewActivityTimeline(): boolean {
+  return authStore.getState().user?.role === ROLES.OVERLORD;
+}
+
 function buildOperationalTabs({
   entityType,
   entityName,
@@ -154,7 +160,7 @@ function buildOperationalTabs({
     });
   }
 
-  if (includeActivity) {
+  if (includeActivity && canViewActivityTimeline()) {
     tabs.push({
       value: 'activity',
       label: 'Activity',
@@ -185,6 +191,9 @@ function OperationalDetailsTabPanels({
   auditUnavailableTitle = 'Audit unavailable',
   auditUnavailableDescription = 'Your role cannot view the audit trail for this entity.',
 }: OperationalDetailsTabPanelsProps) {
+  const auth = useAuthStore();
+  const canViewActivity = auth.user?.role === ROLES.OVERLORD;
+
   return (
     <>
       {includeAttachments ? (
@@ -211,7 +220,7 @@ function OperationalDetailsTabPanels({
         </DetailsTabPanel>
       ) : null}
 
-      {includeActivity ? (
+      {includeActivity && canViewActivity ? (
         <DetailsTabPanel value="activity" activeValue={activeTab} labelledByPrefix={labelledByPrefix}>
           <ActivityPanel entityType={entityType} entityId={entityId} />
         </DetailsTabPanel>

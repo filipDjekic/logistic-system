@@ -20,13 +20,13 @@ public class ActivityTimelineController {
 
     private final ActivityTimelineServiceDefinition activityTimelineService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @GetMapping
     public ResponseEntity<List<ActivityTimelineItemResponse>> getForEntity(@RequestParam OperationalEntityType entityType, @RequestParam Long entityId) {
         return ResponseEntity.ok(activityTimelineService.getForEntity(entityType, entityId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasRole('OVERLORD')")
     @GetMapping("/recent")
     public ResponseEntity<List<ActivityTimelineItemResponse>> getRecent() {
         return ResponseEntity.ok(activityTimelineService.getRecent());

@@ -178,7 +178,7 @@ export default function TransportOrdersPage() {
 
       <TableLayout
         title={isAssignedWorkView ? "Assigned transport order list" : "Transport order list"}
-        description={isAssignedWorkView ? "Search and filter transport orders assigned to your work scope." : "Search and filter transport orders using confirmed backend data."}
+        description={"Search and filter transport orders assigned to your work scope."}
         toolbar={
           <TableToolbar
             searchValue={filters.search}

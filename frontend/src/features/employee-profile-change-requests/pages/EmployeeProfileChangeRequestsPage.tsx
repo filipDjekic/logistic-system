@@ -120,7 +120,6 @@ export default function EmployeeProfileChangeRequestsPage() {
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
                 <Box>
                   <Typography variant="h6" fontWeight={800}>Requests</Typography>
-                  <Typography variant="body2" color="text.secondary">Company scope is enforced by the backend.</Typography>
                 </Box>
                 <TextField
                   select

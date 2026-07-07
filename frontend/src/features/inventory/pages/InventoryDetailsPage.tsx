@@ -87,7 +87,8 @@ export default function InventoryDetailsPage() {
   const params = useParams();
   const auth = useAuthStore();
   const isWorker = auth.user?.role === ROLES.WORKER;
-  const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const isOverlord = auth.user?.role === ROLES.OVERLORD;
+  const canManage = isOverlord || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
   const canOpenProductDetails = !isWorker;
   const [activeTab, setActiveTab] = useState<InventoryDetailsTab>('overview');
   const binDistributionPage = usePagedState(20);
@@ -236,7 +237,7 @@ export default function InventoryDetailsPage() {
         { value: 'overview', label: 'Overview' },
         { value: 'binDistribution', label: `Bin distribution${binInventoryQuery.data ? ` (${binInventoryQuery.data.totalElements})` : ''}` },
         { value: 'stockMovements', label: `Stock movements${stockMovementsQuery.data ? ` (${stockMovementsQuery.data.totalElements})` : ''}` },
-        { value: 'activity', label: 'Activity' },
+        ...(isOverlord ? [{ value: 'activity' as const, label: 'Activity' }] : []),
       ]}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as InventoryDetailsTab)}
@@ -444,7 +445,7 @@ export default function InventoryDetailsPage() {
         </Stack>
       ) : null}
 
-      {activeTab === 'activity' ? (
+      {isOverlord && activeTab === 'activity' ? (
         <ChangeHistoryPanel
           entityName="WAREHOUSE_INVENTORY"
           entityId={record.warehouseId}
