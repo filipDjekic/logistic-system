@@ -75,4 +75,23 @@ public interface BinLocationRepository extends JpaRepository<BinLocation, Long> 
                                      @Param("type") WarehouseZoneType type,
                                      @Param("search") String search,
                                      Pageable pageable);
+    @Query("""
+            select coalesce(sum(b.capacity), 0)
+            from BinLocation b
+            where b.zone.id = :zoneId
+            """)
+    java.math.BigDecimal sumCapacityByZone(
+            @Param("zoneId") Long zoneId
+    );
+
+    @Query("""
+            select coalesce(sum(b.capacity), 0)
+            from BinLocation b
+            where b.zone.id = :zoneId
+            and b.id <> :binId
+            """)
+    java.math.BigDecimal sumCapacityByZoneExcluding(
+            @Param("zoneId") Long zoneId,
+            @Param("binId") Long binId
+    );
 }

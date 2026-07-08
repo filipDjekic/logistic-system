@@ -253,7 +253,10 @@ export default function TransportOrderFormPage({ mode }: Props) {
               <EntityLookupField label="Destination warehouse" entityType="warehouses" value={destinationWarehouse} onChange={setDestinationWarehouse} required disabled={isSubmitting} error={submitted && !destinationWarehouse} helperText={submitted && !destinationWarehouse ? 'Destination warehouse is required.' : undefined} disabledOptionIds={sourceWarehouse ? [sourceWarehouse.id] : []} searchPlaceholder="Search warehouses..." />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
-              <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicle} onChange={setVehicle} required disabled={isSubmitting} error={submitted && !vehicle} helperText={submitted && !vehicle ? 'Vehicle is required.' : undefined} searchPlaceholder="Search vehicles..." />
+              <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicle} onChange={setVehicle} required disabled={isSubmitting} error={submitted && !vehicle} helperText={submitted && !vehicle ? 'Vehicle is required.' : undefined} searchPlaceholder="Search vehicles..." lookupParams={{
+                status: 'AVAILABLE',
+                available: true,
+              }}  />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
               <EntityLookupField

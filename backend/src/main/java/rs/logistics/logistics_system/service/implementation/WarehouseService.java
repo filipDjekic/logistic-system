@@ -40,6 +40,7 @@ import rs.logistics.logistics_system.repository.CountryRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.repository.WarehouseZoneRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
@@ -69,6 +70,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private final CityServiceDefinition cityService;
     private final DomainScopeValidator domainScopeValidator;
     private final WarehouseAccessGuard warehouseAccessGuard;
+    private final WarehouseZoneRepository warehouseZoneRepository;
 
     @Override
     @Transactional
@@ -118,6 +120,16 @@ public class WarehouseService implements WarehouseServiceDefinition {
         WarehouseMapper.updateEntity(warehouse, dto, country, city, timezone);
         domainScopeValidator.ensureWarehouseLocationConsistency(warehouse);
         validateCapacityNotBelowCurrentInventory(warehouse);
+
+        BigDecimal zones =
+        warehouseZoneRepository.sumCapacityByWarehouse(
+                warehouse.getId());
+
+        if (warehouse.getCapacity().compareTo(zones) < 0) {
+            throw new BadRequestException(
+                    "Warehouse capacity cannot be smaller than total zone capacity.");
+        }
+
         Warehouse saved = _warehouseRepository.save(warehouse);
 
         auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "name", oldName, saved.getName());

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, CardActionArea, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Button, CardActionArea, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
@@ -9,7 +9,7 @@ import FormActions from '../../../shared/components/Form/FormActions';
 import FormProgress from '../../../shared/components/Form/FormProgress';
 import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
 import { EntityLookupField, type LookupOption } from '../../lookup';
-import type { StockMovementDiscrepancyReason, StockOperationType } from '../types/stockMovement.types';
+import type { StockOperationType } from '../types/stockMovement.types';
 import { useCreateStockOperation } from '../hooks/useStockMovements';
 import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
@@ -17,16 +17,6 @@ import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 
 type StockOperationFormValues = {
   quantity: number | '';
-  expectedQuantity: number | '';
-  actualQuantity: number | '';
-  discrepancyReason: StockMovementDiscrepancyReason | '';
-  discrepancyNote: string;
-  unitCost: number | '';
-  totalCost: number | '';
-  currency: string;
-  batchLotNumber: string;
-  batchExpirationDate: string;
-  serialNumbersText: string;
   warehouse: LookupOption | null;
   destinationWarehouse: LookupOption | null;
   product: LookupOption | null;
@@ -88,20 +78,9 @@ const operationConfig: Record<StockOperationType, OperationConfig> = {
 
 const operationOrder: StockOperationType[] = ['inbound', 'outbound', 'transfer', 'internal', 'adjustment', 'write-off', 'return'];
 const stockOperationSteps = ['Operation', 'Entities', 'Quantity', 'Reference', 'Submit'];
-const discrepancyReasonOptions: StockMovementDiscrepancyReason[] = ['SHORTAGE', 'OVERAGE', 'DAMAGE', 'PICKING_ERROR', 'RECEIVING_ERROR', 'TRANSPORT_LOSS', 'OTHER'];
 
 const initialValues: StockOperationFormValues = {
   quantity: '',
-  expectedQuantity: '',
-  actualQuantity: '',
-  discrepancyReason: '',
-  discrepancyNote: '',
-  unitCost: '',
-  totalCost: '',
-  currency: '',
-  batchLotNumber: '',
-  batchExpirationDate: '',
-  serialNumbersText: '',
   warehouse: null,
   destinationWarehouse: null,
   product: null,
@@ -183,17 +162,11 @@ export default function StockOperationPage() {
   const isTransfer = operation === 'transfer';
   const isInternal = operation === 'internal';
   const isAdjustment = operation === 'adjustment';
-  const usesTransportOrder = operation === 'inbound' || operation === 'outbound' || operation === 'transfer';
+  const usesTransportOrder = operation === 'transfer';
   const allowsStockMovementReference = operation === 'outbound' || operation === 'write-off' || operation === 'return';
   const submitDisabled = mutation.isPending || internalMovementMutation.isPending;
   const supportsBinSelection = operation !== null;
   const quantityValue = Number(values.quantity);
-  const expectedQuantityValue = values.expectedQuantity === '' ? quantityValue : Number(values.expectedQuantity);
-  const actualQuantityValue = values.actualQuantity === '' ? quantityValue : Number(values.actualQuantity);
-  const discrepancyQuantity = Number.isFinite(expectedQuantityValue) && Number.isFinite(actualQuantityValue)
-    ? actualQuantityValue - expectedQuantityValue
-    : 0;
-  const hasDiscrepancy = discrepancyQuantity !== 0;
 
   const businessWarnings: BusinessRuleWarning[] = [];
 
@@ -234,26 +207,6 @@ export default function StockOperationPage() {
       nextErrors.quantity = 'Quantity must be greater than 0';
     }
 
-    const expectedQuantity = values.expectedQuantity === '' ? quantity : Number(values.expectedQuantity);
-    const actualQuantity = values.actualQuantity === '' ? quantity : Number(values.actualQuantity);
-    const currentDiscrepancy = actualQuantity - expectedQuantity;
-
-    if (!Number.isFinite(expectedQuantity) || expectedQuantity <= 0) {
-      nextErrors.expectedQuantity = 'Expected quantity must be greater than 0';
-    }
-
-    if (!Number.isFinite(actualQuantity) || actualQuantity <= 0) {
-      nextErrors.actualQuantity = 'Actual quantity must be greater than 0';
-    }
-
-    if (currentDiscrepancy !== 0 && !values.discrepancyReason) {
-      nextErrors.discrepancyReason = 'Discrepancy reason is required';
-    }
-
-    if (currentDiscrepancy !== 0 && ['SHORTAGE', 'DAMAGE', 'TRANSPORT_LOSS'].includes(values.discrepancyReason as string) && values.discrepancyNote.trim().length < 5) {
-      nextErrors.discrepancyNote = 'Shortage, damage or transport loss needs a meaningful note';
-    }
-
     if (!values.warehouse) {
       nextErrors.warehouse = isTransfer ? 'Source warehouse is required' : 'Warehouse is required';
     }
@@ -275,12 +228,26 @@ export default function StockOperationPage() {
       nextErrors.product = 'Product is required';
     }
 
-    if ((isTransfer || isInternal) && !values.binLocation) {
+    if (isInternal && !values.binLocation) {
       nextErrors.binLocation = 'Source bin is required';
     }
 
-    if ((isTransfer || isInternal) && !values.destinationBinLocation) {
+    if (isInternal && !values.destinationBinLocation) {
       nextErrors.destinationBinLocation = 'Destination bin is required';
+    }
+
+    if (
+      isTransfer &&
+      (values.binLocation || values.destinationBinLocation) &&
+      (!values.binLocation || !values.destinationBinLocation)
+    ) {
+      if (!values.binLocation) {
+        nextErrors.binLocation = 'Source bin is required when destination bin is selected';
+      }
+
+      if (!values.destinationBinLocation) {
+        nextErrors.destinationBinLocation = 'Destination bin is required when source bin is selected';
+      }
     }
 
     if (isInternal && values.binLocation && values.destinationBinLocation && values.binLocation.id === values.destinationBinLocation.id) {
@@ -303,44 +270,6 @@ export default function StockOperationPage() {
       nextErrors.referenceNote = 'Reference note must be at most 255 characters';
     }
 
-    if (values.discrepancyNote.trim().length > 255) {
-      nextErrors.discrepancyNote = 'Discrepancy note must be at most 255 characters';
-    }
-
-    const hasUnitCost = values.unitCost !== '';
-    const hasTotalCost = values.totalCost !== '';
-    const unitCost = hasUnitCost ? Number(values.unitCost) : null;
-    const totalCost = hasTotalCost ? Number(values.totalCost) : null;
-
-    if (hasUnitCost && (!Number.isFinite(unitCost) || Number(unitCost) < 0)) {
-      nextErrors.unitCost = 'Unit cost cannot be negative';
-    }
-
-    if (hasTotalCost && (!Number.isFinite(totalCost) || Number(totalCost) < 0)) {
-      nextErrors.totalCost = 'Total cost cannot be negative';
-    }
-
-    if ((hasUnitCost || hasTotalCost) && values.currency.trim().length !== 3) {
-      nextErrors.currency = 'Currency is required as a 3-letter ISO code';
-    }
-
-    if (values.batchLotNumber.trim().length > 100) {
-      nextErrors.batchLotNumber = 'Batch/lot number must be at most 100 characters';
-    }
-
-    if (values.batchExpirationDate && !values.batchLotNumber.trim()) {
-      nextErrors.batchLotNumber = 'Batch/lot number is required when expiration date is set';
-    }
-
-    const serialNumbers = values.serialNumbersText.split(/[\n,]+/).map((serial) => serial.trim()).filter(Boolean);
-    if (serialNumbers.some((serial) => serial.length > 100)) {
-      nextErrors.serialNumbersText = 'Each serial number must be at most 100 characters';
-    }
-
-    if (serialNumbers.length > 0 && Number.isInteger(actualQuantity) && serialNumbers.length !== actualQuantity) {
-      nextErrors.serialNumbersText = 'Serial number count must match actual quantity';
-    }
-
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
@@ -351,20 +280,10 @@ export default function StockOperationPage() {
     }
 
     const common = {
-      quantity: actualQuantityValue,
-      expectedQuantity: expectedQuantityValue,
-      actualQuantity: actualQuantityValue,
+      quantity: Number(values.quantity),
       reasonDescription: optionalText(values.reasonDescription),
       referenceNumber: resolvedReferenceNumber(operation, values.referenceNumber, values.transportOrder, values.stockMovementReference),
       referenceNote: optionalText(values.referenceNote),
-      discrepancyReason: hasDiscrepancy && values.discrepancyReason ? values.discrepancyReason : undefined,
-      discrepancyNote: hasDiscrepancy ? optionalText(values.discrepancyNote) : undefined,
-      unitCost: values.unitCost === '' ? undefined : Number(values.unitCost),
-      totalCost: values.totalCost === '' ? undefined : Number(values.totalCost),
-      currency: optionalText(values.currency)?.toUpperCase(),
-      batchLotNumber: optionalText(values.batchLotNumber),
-      batchExpirationDate: values.batchExpirationDate || undefined,
-      serialNumbers: values.serialNumbersText.split(/[\n,]+/).map((serial) => serial.trim()).filter(Boolean),
     };
 
     const selectedReferenceId = values.transportOrder?.id ?? values.stockMovementReference?.id;
@@ -500,10 +419,6 @@ export default function StockOperationPage() {
 
       <FormProgress steps={stockOperationSteps} activeStep={activeStep} />
 
-      <Alert severity="info">
-        Submit creates a lifecycle-controlled stock movement. Use the details page after submit for Execute, Approve, Reject, Cancel or Reverse actions when the backend allows them.
-      </Alert>
-
       <SectionCard title="1. Choose operation" description="Pick the operational intent first.">
         <Grid container spacing={2}>
           {operationOrder.map((item) => {
@@ -598,7 +513,12 @@ export default function StockOperationPage() {
                   value={values.binLocation}
                   disabled={submitDisabled || !values.warehouse}
                   error={Boolean(errors.binLocation)}
-                  helperText={errors.binLocation ?? (isTransfer || isInternal ? 'Required for bin-to-bin movement.' : 'Optional. Empty value updates only warehouse inventory.')}
+                  helperText={
+                    errors.binLocation ??
+                    (isInternal
+                      ? 'Required for internal movement.'
+                      : 'Optional. Select when moving stock from a specific source bin.')
+                  }
                   placeholder={values.warehouse ? 'No bin selected' : 'Choose warehouse first'}
                   searchPlaceholder="Search bins by code, name, zone or warehouse..."
                   warehouseId={values.warehouse?.id}
@@ -620,7 +540,12 @@ export default function StockOperationPage() {
                   value={values.destinationBinLocation}
                   disabled={submitDisabled || (isTransfer ? !values.destinationWarehouse : !values.warehouse)}
                   error={Boolean(errors.destinationBinLocation)}
-                  helperText={errors.destinationBinLocation ?? (isInternal ? 'Required. Internal movement destination stays inside the same warehouse.' : 'Required for transfer destination when using bins.')}
+                  helperText={
+                    errors.destinationBinLocation ??
+                    (isInternal
+                      ? 'Required. Internal movement destination stays inside the same warehouse.'
+                      : 'Optional. Select when receiving stock into a specific destination bin.')
+                  }
                   placeholder={(isTransfer ? values.destinationWarehouse : values.warehouse) ? 'No destination bin selected' : 'Choose warehouse first'}
                   searchPlaceholder="Search destination bins by code, name, zone or warehouse..."
                   warehouseId={(isTransfer ? values.destinationWarehouse : values.warehouse)?.id}
@@ -659,171 +584,6 @@ export default function StockOperationPage() {
               />
             </Grid>
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                label="Expected quantity"
-                type="number"
-                fullWidth
-                value={values.expectedQuantity}
-                disabled={submitDisabled}
-                error={Boolean(errors.expectedQuantity)}
-                helperText={errors.expectedQuantity ?? 'Optional. Empty value uses entered quantity.'}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  setValues((prev) => ({ ...prev, expectedQuantity: nextValue === '' ? '' : Number(nextValue) }));
-                  setErrors((prev) => ({ ...prev, expectedQuantity: undefined }));
-                }}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                label="Actual quantity"
-                type="number"
-                fullWidth
-                value={values.actualQuantity}
-                disabled={submitDisabled}
-                error={Boolean(errors.actualQuantity)}
-                helperText={errors.actualQuantity ?? 'Optional. Empty value uses entered quantity. Actual quantity is used as movement quantity.'}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  setValues((prev) => ({ ...prev, actualQuantity: nextValue === '' ? '' : Number(nextValue), quantity: nextValue === '' ? prev.quantity : Number(nextValue) }));
-                  setErrors((prev) => ({ ...prev, actualQuantity: undefined, quantity: undefined }));
-                }}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                select
-                fullWidth
-                label="Discrepancy reason"
-                value={values.discrepancyReason}
-                disabled={submitDisabled || !hasDiscrepancy}
-                error={Boolean(errors.discrepancyReason)}
-                helperText={errors.discrepancyReason ?? (hasDiscrepancy ? `Discrepancy: ${discrepancyQuantity}` : 'No reason required when expected and actual match.')}
-                onChange={(event) => {
-                  setValues((prev) => ({ ...prev, discrepancyReason: event.target.value as StockMovementDiscrepancyReason }));
-                  setErrors((prev) => ({ ...prev, discrepancyReason: undefined }));
-                }}
-              >
-                <MenuItem value="">None</MenuItem>
-                {discrepancyReasonOptions.map((reason) => (
-                  <MenuItem key={reason} value={reason}>{reason}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                label="Discrepancy note"
-                fullWidth
-                value={values.discrepancyNote}
-                disabled={submitDisabled || !hasDiscrepancy}
-                error={Boolean(errors.discrepancyNote)}
-                helperText={errors.discrepancyNote ?? 'Required for shortage, damage or transport loss.'}
-                onChange={(event) => {
-                  setValues((prev) => ({ ...prev, discrepancyNote: event.target.value }));
-                  setErrors((prev) => ({ ...prev, discrepancyNote: undefined }));
-                }}
-              />
-            </Grid>
-
-
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                label="Unit cost"
-                type="number"
-                fullWidth
-                value={values.unitCost}
-                disabled={submitDisabled}
-                error={Boolean(errors.unitCost)}
-                helperText={errors.unitCost ?? 'Optional cost per unit for valuation.'}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  setValues((prev) => ({ ...prev, unitCost: nextValue === '' ? '' : Number(nextValue) }));
-                  setErrors((prev) => ({ ...prev, unitCost: undefined }));
-                }}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                label="Total cost"
-                type="number"
-                fullWidth
-                value={values.totalCost}
-                disabled={submitDisabled}
-                error={Boolean(errors.totalCost)}
-                helperText={errors.totalCost ?? 'Optional total movement value.'}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  setValues((prev) => ({ ...prev, totalCost: nextValue === '' ? '' : Number(nextValue) }));
-                  setErrors((prev) => ({ ...prev, totalCost: undefined }));
-                }}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                label="Currency"
-                fullWidth
-                value={values.currency}
-                disabled={submitDisabled}
-                error={Boolean(errors.currency)}
-                helperText={errors.currency ?? 'ISO code, e.g. RSD, EUR, USD.'}
-                inputProps={{ maxLength: 3 }}
-                onChange={(event) => {
-                  setValues((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }));
-                  setErrors((prev) => ({ ...prev, currency: undefined }));
-                }}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                label="Batch / lot number"
-                fullWidth
-                value={values.batchLotNumber}
-                disabled={submitDisabled}
-                error={Boolean(errors.batchLotNumber)}
-                helperText={errors.batchLotNumber ?? 'Optional batch/lot tracking for this movement.'}
-                onChange={(event) => {
-                  setValues((prev) => ({ ...prev, batchLotNumber: event.target.value }));
-                  setErrors((prev) => ({ ...prev, batchLotNumber: undefined }));
-                }}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                label="Batch expiration date"
-                type="date"
-                fullWidth
-                value={values.batchExpirationDate}
-                disabled={submitDisabled}
-                InputLabelProps={{ shrink: true }}
-                onChange={(event) => setValues((prev) => ({ ...prev, batchExpirationDate: event.target.value }))}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                label="Serial numbers"
-                multiline
-                minRows={3}
-                fullWidth
-                value={values.serialNumbersText}
-                disabled={submitDisabled}
-                error={Boolean(errors.serialNumbersText)}
-                helperText={errors.serialNumbersText ?? 'Optional. Separate serial numbers by comma or new line.'}
-                onChange={(event) => {
-                  setValues((prev) => ({ ...prev, serialNumbersText: event.target.value }));
-                  setErrors((prev) => ({ ...prev, serialNumbersText: undefined }));
-                }}
-              />
-            </Grid>
-
             {isAdjustment ? (
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
@@ -856,13 +616,19 @@ export default function StockOperationPage() {
                   label="Transport order reference"
                   entityType="transport-orders"
                   value={values.transportOrder}
+                  disabled={submitDisabled || !values.warehouse || !values.destinationWarehouse}
+                  lookupParams={{
+                    sourceWarehouseId: values.warehouse?.id,
+                    destinationWarehouseId: values.destinationWarehouse?.id,
+                    excludeStatuses: 'CANCELLED,COMPLETED',
+                  }}
                   searchPlaceholder="Search transport orders..."
                   onChange={(transportOrder) => {
                     setValues((prev) => ({
                       ...prev,
                       transportOrder,
                       stockMovementReference: null,
-                      referenceNumber: prev.referenceNumber || transportOrder?.label || '',
+                      referenceNumber: transportOrder ? '' : prev.referenceNumber,
                     }));
                   }}
                 />
@@ -888,21 +654,22 @@ export default function StockOperationPage() {
               </Grid>
             ) : null}
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                label="Reference number (optional)"
-                fullWidth
-                value={values.referenceNumber}
-                disabled={submitDisabled}
-                error={Boolean(errors.referenceNumber)}
-                helperText={errors.referenceNumber ?? `Empty value generates ${generatedReferenceNumber(operation)}`}
-                onChange={(event) => {
-                  setValues((prev) => ({ ...prev, referenceNumber: event.target.value }));
-                  setErrors((prev) => ({ ...prev, referenceNumber: undefined }));
-                }}
-              />
-            </Grid>
-
+            {!values.transportOrder ? (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  label="Reference number (optional)"
+                  fullWidth
+                  value={values.referenceNumber}
+                  disabled={submitDisabled}
+                  error={Boolean(errors.referenceNumber)}
+                  helperText={errors.referenceNumber ?? `Empty value generates ${generatedReferenceNumber(operation)}`}
+                  onChange={(event) => {
+                    setValues((prev) => ({ ...prev, referenceNumber: event.target.value }));
+                    setErrors((prev) => ({ ...prev, referenceNumber: undefined }));
+                  }}
+                />
+              </Grid>
+            ) : null}
           </Grid>
         </SectionCard>
 

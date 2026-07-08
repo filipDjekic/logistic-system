@@ -12,7 +12,9 @@ import rs.logistics.logistics_system.entity.Product;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.TransportOrderItem;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
+import rs.logistics.logistics_system.enums.OperationalEntityType;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
+import rs.logistics.logistics_system.enums.OperationalEntityType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -25,6 +27,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.TransportOrderItemServiceDefinition;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
+import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 
 import java.math.BigDecimal;
 
@@ -39,6 +42,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final AuditFacadeDefinition auditFacade;
+    private final OperationalEntityAccessValidator operationalEntityAccessValidator;
 
     @Override
     @Transactional
@@ -146,6 +150,12 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     @Override
     public TransportOrderItemResponse getById(Long id) {
         TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
+
+        operationalEntityAccessValidator.ensureCanAccess(
+                OperationalEntityType.TRANSPORT_ORDER,
+                transportOrderItem.getTransportOrder().getId()
+        );
+
         return TransportOrderItemMapper.toResponse(transportOrderItem);
     }
 
@@ -163,6 +173,11 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
     @Override
     public PageResponse<TransportOrderItemResponse> getByTransportOrderId(Long transportOrderId, Pageable pageable) {
+        operationalEntityAccessValidator.ensureCanAccess(
+                OperationalEntityType.TRANSPORT_ORDER,
+                transportOrderId
+        );
+        
         if (transportOrderId == null || transportOrderId <= 0) {
             throw new BadRequestException("Transport order ID must be a positive number");
         }

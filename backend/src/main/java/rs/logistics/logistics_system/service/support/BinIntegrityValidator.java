@@ -1,7 +1,10 @@
 package rs.logistics.logistics_system.service.support;
 
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+
 import org.springframework.stereotype.Component;
+
+import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.entity.BinInventory;
 import rs.logistics.logistics_system.entity.BinLocation;
 import rs.logistics.logistics_system.entity.Product;
@@ -11,8 +14,6 @@ import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.BinInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
-
-import java.math.BigDecimal;
 
 @Component
 @RequiredArgsConstructor
@@ -95,13 +96,25 @@ public class BinIntegrityValidator {
                 .orElseThrow(() -> new BadRequestException(message));
     }
 
-    public void ensureBinInventoryDoesNotExceedWarehouseInventory(BinLocation bin, Product product, BigDecimal targetBinQuantity, WarehouseInventory warehouseInventory) {
-        BigDecimal normalizedTarget = requireNonNegative(targetBinQuantity, "Bin inventory quantity cannot be negative");
+    public void ensureBinInventoryDoesNotExceedWarehouseInventory(
+            BinLocation bin,
+            Product product,
+            BigDecimal targetBinQuantity,
+            WarehouseInventory warehouseInventory
+    ) {
+        BigDecimal normalizedTarget = requireNonNegative(
+                targetBinQuantity,
+                "Bin inventory quantity cannot be negative"
+        );
+
+        ensureBinCapacityNotExceeded(bin, normalizedTarget);
+
         BigDecimal otherBinsQuantity = binInventoryRepository.sumQuantityByWarehouseAndProductExcludingBin(
                 bin.getWarehouse().getId(),
                 product.getId(),
                 bin.getId()
         );
+
         BigDecimal totalBinQuantity = zeroIfNull(otherBinsQuantity).add(normalizedTarget);
         BigDecimal warehouseQuantity = warehouseInventory == null ? BigDecimal.ZERO : warehouseInventory.getSafeQuantity();
 
@@ -120,12 +133,16 @@ public class BinIntegrityValidator {
     ) {
         BigDecimal normalizedSource = requireNonNegative(sourceTargetQuantity, "Source bin inventory quantity cannot be negative");
         BigDecimal normalizedDestination = requireNonNegative(destinationTargetQuantity, "Destination bin inventory quantity cannot be negative");
+
+        ensureBinCapacityNotExceeded(destinationBin, normalizedDestination);
+
         BigDecimal otherBinsQuantity = binInventoryRepository.sumQuantityByWarehouseAndProductExcludingBins(
                 sourceBin.getWarehouse().getId(),
                 product.getId(),
                 sourceBin.getId(),
                 destinationBin.getId()
         );
+
         BigDecimal projectedTotal = zeroIfNull(otherBinsQuantity).add(normalizedSource).add(normalizedDestination);
         BigDecimal warehouseQuantity = warehouseInventory == null ? BigDecimal.ZERO : warehouseInventory.getSafeQuantity();
 
@@ -144,4 +161,19 @@ public class BinIntegrityValidator {
     private BigDecimal zeroIfNull(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
     }
+
+    public void ensureBinCapacityNotExceeded(BinLocation bin, BigDecimal targetQuantity) {
+    if (bin == null || bin.getCapacity() == null) {
+        return;
+    }
+
+    BigDecimal normalizedTarget = requireNonNegative(
+            targetQuantity,
+            "Bin inventory quantity cannot be negative"
+    );
+
+    if (normalizedTarget.compareTo(bin.getCapacity()) > 0) {
+        throw new BadRequestException("Bin capacity exceeded");
+    }
+}
 }

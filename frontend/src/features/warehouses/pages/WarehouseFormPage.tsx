@@ -172,8 +172,20 @@ export default function WarehouseFormPage({ mode }: Props) {
       <SectionCard title="Warehouse data" description="Enter base warehouse data and select the warehouse manager from filtered employee results.">
         <Stack spacing={3}>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid size={{ xs: 12 }}>
               <Form name="name" control={control} label="Name" required />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Form name="address" control={control} label="Address" required />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Form name="capacity" control={control} label="Capacity" type="number" required />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormSelect name="countryId" control={control} label="Country" options={(countriesQuery.data ?? []).map((country) => ({ value: country.id, label: country.name + " (" + country.iso2Code + ")" }))} required />
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
@@ -188,20 +200,8 @@ export default function WarehouseFormPage({ mode }: Props) {
               />
             </Grid>
 
-            <Grid size={{ xs: 12 }}>
-              <Form name="address" control={control} label="Address" required />
-            </Grid>
-
             <Grid size={{ xs: 12, md: 6 }}>
-              <Form name="postalCode" control={control} label="Postal code" />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Form name="capacity" control={control} label="Capacity" type="number" required />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect name="countryId" control={control} label="Country" options={(countriesQuery.data ?? []).map((country) => ({ value: country.id, label: country.name + " (" + country.iso2Code + ")" }))} required />
+              <Form name="postalCode" control={control} label="Postal code" disabled={true}/>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>

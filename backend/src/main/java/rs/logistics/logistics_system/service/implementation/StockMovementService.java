@@ -59,6 +59,7 @@ import rs.logistics.logistics_system.service.definition.StockMovementServiceDefi
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
+import rs.logistics.logistics_system.lifecycle.LifecycleTransitionContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -1224,19 +1225,33 @@ public class StockMovementService implements StockMovementServiceDefinition {
     @Override
     @Transactional
     public StockMovementResponse execute(Long id) {
+        return executeInternal(id, false);
+    }
+
+    private StockMovementResponse executeInternal(Long id, boolean systemTransition) {
         StockMovement movement = getAccessibleStockMovement(id);
         enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), true);
 
-        var context = lifecycleTransitionEngine.validate(
-                LifecycleEntityType.STOCK_MOVEMENT,
-                movement.getId(),
-                StockMovementStatus.class,
-                movement.getStatus(),
-                StockMovementStatus.EXECUTED,
-                "Execute stock movement",
-                null,
-                null
-        );
+    LifecycleTransitionContext<StockMovementStatus> context = systemTransition
+            ? lifecycleTransitionEngine.validateSystem(
+                    LifecycleEntityType.STOCK_MOVEMENT,
+                    movement.getId(),
+                    StockMovementStatus.class,
+                    movement.getStatus(),
+                    StockMovementStatus.EXECUTED,
+                    "Execute stock movement from transport order lifecycle",
+                    null
+            )
+            : lifecycleTransitionEngine.validate(
+                    LifecycleEntityType.STOCK_MOVEMENT,
+                    movement.getId(),
+                    StockMovementStatus.class,
+                    movement.getStatus(),
+                    StockMovementStatus.EXECUTED,
+                    "Execute stock movement",
+                    null,
+                    null
+            );
 
         executeInventoryEffects(movement);
         movement.setStatus(StockMovementStatus.EXECUTED);
@@ -1407,7 +1422,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     }
 
     private StockMovementResponse executeCreatedMovement(StockMovement movement) {
-        return execute(movement.getId());
+        return executeInternal(movement.getId(), true);
     }
 
     private void executeInventoryEffects(StockMovement movement) {

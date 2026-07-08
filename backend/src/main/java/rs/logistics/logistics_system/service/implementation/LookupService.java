@@ -16,6 +16,8 @@ import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.BinLocationRepository;
 import rs.logistics.logistics_system.repository.CompanyRepository;
@@ -30,6 +32,8 @@ import rs.logistics.logistics_system.service.definition.LookupServiceDefinition;
 import rs.logistics.logistics_system.service.support.PageableSortMapper;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -77,83 +81,114 @@ public class LookupService implements LookupServiceDefinition {
     }
 
     @Override
-    public PageResponse<LookupOptionResponse> products(String search, Pageable pageable) {
+    public PageResponse<LookupOptionResponse> products(String search, Long warehouseId, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "name"));
         String normalizedSearch = normalize(search);
-        Page<Product> page = productRepository.searchProducts(
-                currentCompanyScope(),
-                normalizedSearch,
-                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
-                true,
-                safePageable
-        );
+        Page<Product> page = warehouseId == null
+                ? productRepository.searchProducts(currentCompanyScope(), normalizedSearch, QueryParameterNormalizer.parseLongOrNull(normalizedSearch), true, safePageable)
+                : productRepository.searchProductsInWarehouse(currentCompanyScope(), warehouseId, normalizedSearch, QueryParameterNormalizer.parseLongOrNull(normalizedSearch), true, safePageable);
         return PageResponse.fromContent(page.getContent().stream().map(this::productOption).toList(), page);
     }
 
     @Override
-    public PageResponse<LookupOptionResponse> vehicles(String search, Pageable pageable) {
+    public PageResponse<LookupOptionResponse> vehicles(
+            String search,
+            VehicleStatus status,
+            Boolean available,
+            Pageable pageable
+    ) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "registrationNumber"));
         String normalizedSearch = normalize(search);
+
         Page<Vehicle> page = vehicleRepository.searchVehicles(
                 currentCompanyScope(),
                 null,
                 normalizedSearch,
                 QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
                 QueryParameterNormalizer.parseIntegerOrNull(normalizedSearch),
+                status,
                 null,
-                null,
-                true,
+                available,
                 null,
                 null,
                 safePageable
         );
+
         return PageResponse.fromContent(page.getContent().stream().map(this::vehicleOption).toList(), page);
     }
 
     @Override
-    public PageResponse<LookupOptionResponse> employees(String search, Pageable pageable) {
+    public PageResponse<LookupOptionResponse> employees(
+            String search,
+            EmployeePosition position,
+            Boolean active,
+            String linkedUser,
+            LocalDateTime availableFrom,
+            LocalDateTime availableTo,
+            Pageable pageable
+    ) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "lastName"));
         String normalizedSearch = normalize(search);
+        Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
+
         Page<Employee> page = shouldLimitEmployeeLookupToManagedWarehouses()
                 ? employeeRepository.searchEmployeesForManagedWarehouses(
                         currentCompanyScope(),
                         currentEmployeeIdOrNotFound(),
                         normalizedSearch,
-                        QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
-                        null,
-                        true,
-                        null,
-                        null,
-                        null,
+                        searchId,
+                        position,
+                        active,
+                        linkedUser,
+                        availableFrom,
+                        availableTo,
                         safePageable
                 )
                 : employeeRepository.searchEmployees(
                         currentCompanyScope(),
                         normalizedSearch,
-                        QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
-                        null,
-                        true,
-                        null,
-                        null,
-                        null,
+                        searchId,
+                        position,
+                        active,
+                        linkedUser,
+                        availableFrom,
+                        availableTo,
                         safePageable
                 );
+
         return PageResponse.fromContent(page.getContent().stream().map(this::employeeOption).toList(), page);
     }
 
     @Override
-    public PageResponse<LookupOptionResponse> transportOrders(String search, Pageable pageable) {
+    public PageResponse<LookupOptionResponse> transportOrders(
+            String search,
+            Long sourceWarehouseId,
+            Long destinationWarehouseId,
+            Pageable pageable
+    ) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.DESC, "id"));
         Long driverUserId = authenticatedUserProvider.hasRole("DRIVER") ? authenticatedUserProvider.getAuthenticatedUserId() : null;
         Long workerEmployeeId = authenticatedUserProvider.hasRole("WORKER") ? currentEmployeeIdOrNotFound() : null;
+
+        boolean warehouseScopeEnabled = authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                && !authenticatedUserProvider.hasRole("DISPATCHER")
+                && !authenticatedUserProvider.isCompanyAdmin()
+                && !authenticatedUserProvider.isOverlord();
+
+        List<Long> warehouseManagerWarehouseIds = warehouseScopeEnabled
+                ? warehouseAccessGuard.assignedWarehouseIdsForScopedUser()
+                : List.of(-1L);
+
         Page<TransportOrder> page = transportOrderRepository.searchTransportOrders(
                 currentCompanyScope(),
                 driverUserId,
                 workerEmployeeId,
+                warehouseScopeEnabled,
+                warehouseManagerWarehouseIds,
                 null,
                 null,
-                null,
-                null,
+                sourceWarehouseId,
+                destinationWarehouseId,
                 null,
                 null,
                 null,
@@ -161,6 +196,7 @@ public class LookupService implements LookupServiceDefinition {
                 normalize(search),
                 safePageable
         );
+
         return PageResponse.fromContent(page.getContent().stream().map(this::transportOrderOption).toList(), page);
     }
 
@@ -281,7 +317,8 @@ public class LookupService implements LookupServiceDefinition {
     private boolean shouldLimitToAssignedWarehouses() {
         return !authenticatedUserProvider.isOverlord()
                 && !authenticatedUserProvider.isCompanyAdmin()
-                && !authenticatedUserProvider.hasRole("DISPATCHER");
+                && !authenticatedUserProvider.hasRole("DISPATCHER")
+                && !authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER");
     }
 
     private boolean shouldLimitEmployeeLookupToManagedWarehouses() {

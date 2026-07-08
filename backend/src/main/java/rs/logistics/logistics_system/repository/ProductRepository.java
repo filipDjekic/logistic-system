@@ -74,4 +74,30 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsTransportOrderItemByProductId(@Param("productId") Long productId);
 
     long countByCompany_Id(Long companyId);
+
+    @Query("""
+    select distinct p
+    from WarehouseInventory wi
+    join wi.product p
+    join wi.warehouse w
+    left join p.company c
+    where (:companyId is null or c.id = :companyId)
+    and w.id = :warehouseId
+    and wi.quantity > 0
+    and (:active is null or p.active = :active)
+    and (
+        :search is null
+        or lower(p.name) like lower(concat('%', :search, '%'))
+        or lower(p.sku) like lower(concat('%', :search, '%'))
+        or (:searchId is not null and p.id = :searchId)
+    )
+""")
+    Page<Product> searchProductsInWarehouse(
+            @Param("companyId") Long companyId,
+            @Param("warehouseId") Long warehouseId,
+            @Param("search") String search,
+            @Param("searchId") Long searchId,
+            @Param("active") Boolean active,
+            Pageable pageable
+    );
 }

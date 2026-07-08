@@ -66,4 +66,24 @@ public interface WarehouseZoneRepository extends JpaRepository<WarehouseZone, Lo
                                        @Param("type") WarehouseZoneType type,
                                        @Param("search") String search,
                                        Pageable pageable);
+
+    @Query("""
+        select coalesce(sum(z.capacity), 0)
+        from WarehouseZone z
+        where z.warehouse.id = :warehouseId
+        """)
+    java.math.BigDecimal sumCapacityByWarehouse(
+            @Param("warehouseId") Long warehouseId
+    );
+
+    @Query("""
+            select coalesce(sum(z.capacity), 0)
+            from WarehouseZone z
+            where z.warehouse.id = :warehouseId
+            and z.id <> :zoneId
+            """)
+    java.math.BigDecimal sumCapacityByWarehouseExcluding(
+            @Param("warehouseId") Long warehouseId,
+            @Param("zoneId") Long zoneId
+    );
 }

@@ -88,6 +88,8 @@ public class TransportReportService implements TransportReportServiceDefinition 
                 companyId,
                 null,
                 null,
+                false,
+                List.of(-1L),
                 status,
                 priority,
                 sourceWarehouseId,

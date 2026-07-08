@@ -25,6 +25,11 @@ export type LookupParams = {
   accessMode?: 'read' | 'mutate';
   position?: string;
   active?: boolean;
+  status?: string;
+  available?: boolean;
   availableFrom?: string;
   availableTo?: string;
+  sourceWarehouseId?: number | string | null;
+  destinationWarehouseId?: number | string | null;
+  excludeStatuses?: string;
 };

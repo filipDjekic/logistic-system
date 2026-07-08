@@ -212,7 +212,7 @@ export default function TransportOrdersPage() {
                 <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicleFilter} onChange={(option) => { setPage(0); setVehicleFilter(option); }} placeholder="All" searchPlaceholder="Search vehicles..." />
               ) : null}
               {canResolveEmployees ? (
-                <EntityLookupField label="Driver" entityType="employees" value={driverFilter} onChange={(option) => { setPage(0); setDriverFilter(option); }} placeholder="All" searchPlaceholder="Search drivers..." />
+                <EntityLookupField label="Driver" lookupParams={{ position: 'DRIVER', active: true }} entityType="employees" value={driverFilter} onChange={(option) => { setPage(0); setDriverFilter(option); }} placeholder="All" searchPlaceholder="Search drivers..." />
               ) : null}
             </FilterPanel>
           </>

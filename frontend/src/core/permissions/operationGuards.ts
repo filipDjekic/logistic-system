@@ -210,7 +210,7 @@ export function canApproveStockMovementLifecycle(role: Role | null | undefined) 
 }
 
 export function canExecuteStockMovementLifecycle(role: Role | null | undefined) {
-  return role === ROLES.OVERLORD || role === ROLES.WAREHOUSE_MANAGER || role === ROLES.DISPATCHER;
+  return role === ROLES.OVERLORD || role === ROLES.WAREHOUSE_MANAGER;
 }
 
 export function canReverseStockMovementLifecycle(role: Role | null | undefined) {

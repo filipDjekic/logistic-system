@@ -57,6 +57,7 @@ import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
+import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
@@ -85,6 +86,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final OperationalEntityAccessValidator operationalEntityAccessValidator;
     private final LifecycleStatusClassifier lifecycleStatusClassifier;
+    private final WarehouseAccessGuard warehouseAccessGuard;
 
     private static final List<TransportOrderStatus> SCHEDULE_BLOCKING_STATUSES = Arrays.asList(
             TransportOrderStatus.ASSIGNED,
@@ -315,6 +317,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             String search,
             Pageable pageable
     ) {
+
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
@@ -327,12 +330,23 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 ? currentEmployeeIdOrNotFound()
                 : null;
 
+        boolean warehouseScopeEnabled = authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                && !authenticatedUserProvider.hasRole("DISPATCHER")
+                && !authenticatedUserProvider.isCompanyAdmin()
+                && !authenticatedUserProvider.isOverlord();
+
+        List<Long> warehouseManagerWarehouseIds = warehouseScopeEnabled
+                ? warehouseAccessGuard.assignedWarehouseIdsForScopedUser()
+                : List.of(-1L);    
+
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
 
         return PageResponse.from(_transportOrderRepository.searchTransportOrders(
                 companyId,
                 driverUserId,
                 workerEmployeeId,
+                warehouseScopeEnabled,
+                warehouseManagerWarehouseIds,
                 status,
                 priority,
                 sourceWarehouseId,
@@ -370,12 +384,23 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 ? currentEmployeeIdOrNotFound()
                 : null;
 
+        boolean warehouseScopeEnabled = authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                && !authenticatedUserProvider.hasRole("DISPATCHER")
+                && !authenticatedUserProvider.isCompanyAdmin()
+                && !authenticatedUserProvider.isOverlord();
+
+        List<Long> warehouseManagerWarehouseIds = warehouseScopeEnabled
+                ? warehouseAccessGuard.assignedWarehouseIdsForScopedUser()
+                : List.of(-1L);
+
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
 
         return _transportOrderRepository.countGroupedByStatusFiltered(
                         companyId,
                         driverUserId,
                         workerEmployeeId,
+                        warehouseScopeEnabled,
+                        warehouseManagerWarehouseIds,
                         priority,
                         sourceWarehouseId,
                         destinationWarehouseId,
@@ -418,6 +443,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         TransportOrder transportOrder = getTransportOrderForUpdateOrThrow(id);
 
         validateDriverStatusAccess(transportOrder, status);
+        validateWarehouseManagerSourcePhaseAccess(transportOrder, status);
 
         TransportOrderStatus current = transportOrder.getStatus();
         Set<Long> notifiedUserIds = new HashSet<>();
@@ -559,7 +585,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                         NotificationType.INFO
                 );
             }
-            createWarehouseTaskForTransportPhase(transportOrder, TransportOrderStatus.DELIVERED);
             taskService.closeTransportTasks(transportOrder.getId(), TaskStatus.COMPLETED);
         }
 
@@ -1652,5 +1677,23 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         authenticatedUserProvider.ensureSameCompany(createdByCompanyId, destinationCompanyId, "Destination warehouse must belong to the same company");
         authenticatedUserProvider.ensureSameCompany(createdByCompanyId, vehicleCompanyId, "Vehicle must belong to the same company");
         authenticatedUserProvider.ensureSameCompany(createdByCompanyId, employeeCompanyId, "Assigned employee must belong to the same company");
+    }
+
+    private void validateWarehouseManagerSourcePhaseAccess(TransportOrder transportOrder, TransportOrderStatus targetStatus) {
+        if (!authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                || authenticatedUserProvider.hasRole("DISPATCHER")
+                || authenticatedUserProvider.isCompanyAdmin()
+                || authenticatedUserProvider.isOverlord()) {
+            return;
+        }
+
+        if (targetStatus != TransportOrderStatus.PICKING
+                && targetStatus != TransportOrderStatus.PACKING
+                && targetStatus != TransportOrderStatus.READY_FOR_LOADING
+                && targetStatus != TransportOrderStatus.LOADING) {
+            return;
+        }
+
+        warehouseAccessGuard.ensureCanMutateWarehouse(transportOrder.getSourceWarehouse());
     }
 }

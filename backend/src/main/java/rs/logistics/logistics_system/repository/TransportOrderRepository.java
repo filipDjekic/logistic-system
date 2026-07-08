@@ -362,6 +362,11 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             or lower(assignedEmployee.lastName) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.email) like lower(concat('%', :search, '%'))
         )
+        and (
+        :warehouseScopeEnabled = false
+        or sourceWarehouse.id in :warehouseManagerWarehouseIds
+        or destinationWarehouse.id in :warehouseManagerWarehouseIds
+        )
     """)
     @EntityGraph(attributePaths = {
             "sourceWarehouse", "sourceWarehouse.timezone", "sourceWarehouse.company",
@@ -370,21 +375,23 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             "assignedEmployee", "assignedEmployee.user", "assignedEmployee.timezone", "assignedEmployee.company", "assignedEmployee.primaryWarehouse", "assignedEmployee.primaryWarehouse.timezone",
             "createdBy", "createdBy.company"
     })
-    Page<TransportOrder> searchTransportOrders(
-            @Param("companyId") Long companyId,
-            @Param("driverUserId") Long driverUserId,
-            @Param("workerEmployeeId") Long workerEmployeeId,
-            @Param("status") TransportOrderStatus status,
-            @Param("priority") PriorityLevel priority,
-            @Param("sourceWarehouseId") Long sourceWarehouseId,
-            @Param("destinationWarehouseId") Long destinationWarehouseId,
-            @Param("vehicleId") Long vehicleId,
-            @Param("assignedEmployeeId") Long assignedEmployeeId,
-            @Param("fromDate") LocalDateTime fromDate,
-            @Param("toDate") LocalDateTime toDate,
-            @Param("search") String search,
-            Pageable pageable
-    );
+        Page<TransportOrder> searchTransportOrders(
+                @Param("companyId") Long companyId,
+                @Param("driverUserId") Long driverUserId,
+                @Param("workerEmployeeId") Long workerEmployeeId,
+                @Param("warehouseScopeEnabled") boolean warehouseScopeEnabled,
+                @Param("warehouseManagerWarehouseIds") Collection<Long> warehouseManagerWarehouseIds,
+                @Param("status") TransportOrderStatus status,
+                @Param("priority") PriorityLevel priority,
+                @Param("sourceWarehouseId") Long sourceWarehouseId,
+                @Param("destinationWarehouseId") Long destinationWarehouseId,
+                @Param("vehicleId") Long vehicleId,
+                @Param("assignedEmployeeId") Long assignedEmployeeId,
+                @Param("fromDate") LocalDateTime fromDate,
+                @Param("toDate") LocalDateTime toDate,
+                @Param("search") String search,
+                Pageable pageable
+        );
 
 
     @Query("""
@@ -441,21 +448,28 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             or lower(assignedEmployee.lastName) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.email) like lower(concat('%', :search, '%'))
         )
+        and (
+        :warehouseScopeEnabled = false
+        or sourceWarehouse.id in :warehouseManagerWarehouseIds
+        or destinationWarehouse.id in :warehouseManagerWarehouseIds
+        )
         group by t.status
     """)
-    List<Object[]> countGroupedByStatusFiltered(
-            @Param("companyId") Long companyId,
-            @Param("driverUserId") Long driverUserId,
-            @Param("workerEmployeeId") Long workerEmployeeId,
-            @Param("priority") PriorityLevel priority,
-            @Param("sourceWarehouseId") Long sourceWarehouseId,
-            @Param("destinationWarehouseId") Long destinationWarehouseId,
-            @Param("vehicleId") Long vehicleId,
-            @Param("assignedEmployeeId") Long assignedEmployeeId,
-            @Param("fromDate") LocalDateTime fromDate,
-            @Param("toDate") LocalDateTime toDate,
-            @Param("search") String search
-    );
+        List<Object[]> countGroupedByStatusFiltered(
+                @Param("companyId") Long companyId,
+                @Param("driverUserId") Long driverUserId,
+                @Param("workerEmployeeId") Long workerEmployeeId,
+                @Param("warehouseScopeEnabled") boolean warehouseScopeEnabled,
+                @Param("warehouseManagerWarehouseIds") Collection<Long> warehouseManagerWarehouseIds,
+                @Param("priority") PriorityLevel priority,
+                @Param("sourceWarehouseId") Long sourceWarehouseId,
+                @Param("destinationWarehouseId") Long destinationWarehouseId,
+                @Param("vehicleId") Long vehicleId,
+                @Param("assignedEmployeeId") Long assignedEmployeeId,
+                @Param("fromDate") LocalDateTime fromDate,
+                @Param("toDate") LocalDateTime toDate,
+                @Param("search") String search
+        );
 
 
     @Query("""
