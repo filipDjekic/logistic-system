@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -109,6 +109,9 @@ function CreateWarehouseLocationDialog({
   warehouseId,
   warehouseName,
   loading,
+  initialValue,
+  zones,
+  warehouseCapacity,
   onClose,
   onSubmit,
 }: {
@@ -116,14 +119,36 @@ function CreateWarehouseLocationDialog({
   warehouseId: number;
   warehouseName: string;
   loading: boolean;
+  initialValue?: WarehouseZoneResponse | null;
+  zones: WarehouseZoneResponse[];
+  warehouseCapacity?: number | null;
   onClose: () => void;
-  onSubmit: (payload: { warehouseId: number; code: string; name: string; type: WarehouseZoneType; capacity?: number | null; description?: string | null }) => void;
+  onSubmit: (payload: { warehouseId: number; code: string; name: string; type: WarehouseZoneType; capacity?: number | null; active?: boolean; description?: string | null }) => void;
 }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [type, setType] = useState<WarehouseZoneType>('STORAGE');
   const [capacity, setCapacity] = useState('');
   const [description, setDescription] = useState('');
+  const isEdit = Boolean(initialValue);
+
+  useEffect(() => {
+    if (!open) return;
+    setCode(initialValue?.code ?? '');
+    setName(initialValue?.name ?? '');
+    setType(initialValue?.type ?? 'STORAGE');
+    setCapacity(initialValue?.capacity == null ? '' : String(initialValue.capacity));
+    setDescription(initialValue?.description ?? '');
+  }, [initialValue, open]);
+
+  const enteredCapacity = toNullableNumber(capacity) ?? 0;
+  const otherZonesCapacity = zones
+    .filter((zone) => zone.id !== initialValue?.id)
+    .reduce((sum, zone) => sum + (zone.capacity ?? 0), 0);
+  const capacityExceeded = warehouseCapacity != null && otherZonesCapacity + enteredCapacity > warehouseCapacity;
+  const capacityHelperText = capacityExceeded
+    ? `Total zone capacity (${otherZonesCapacity + enteredCapacity}) exceeds warehouse capacity (${warehouseCapacity}).`
+    : undefined;
 
   const resetAndClose = () => {
     if (loading) return;
@@ -135,11 +160,11 @@ function CreateWarehouseLocationDialog({
     onClose();
   };
 
-  const submitDisabled = code.trim().length === 0 || name.trim().length === 0;
+  const submitDisabled = code.trim().length === 0 || name.trim().length === 0 || capacityExceeded;
 
   return (
     <Dialog open={open} onClose={resetAndClose} fullWidth maxWidth="sm">
-      <DialogTitle>Create warehouse location</DialogTitle>
+      <DialogTitle>{isEdit ? 'Edit warehouse location' : 'Create warehouse location'}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <TextField label="Warehouse" value={warehouseName} fullWidth disabled />
@@ -148,7 +173,7 @@ function CreateWarehouseLocationDialog({
           <TextField select label="Type" value={type} onChange={(event) => setType(event.target.value as WarehouseZoneType)} fullWidth>
             {zoneTypes.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
           </TextField>
-          <TextField label="Capacity" value={capacity} onChange={(event) => setCapacity(event.target.value)} type="number" fullWidth />
+          <TextField label="Capacity" value={capacity} onChange={(event) => setCapacity(event.target.value)} type="number" error={capacityExceeded} helperText={capacityHelperText} fullWidth />
           <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} multiline minRows={2} fullWidth />
         </Stack>
       </DialogContent>
@@ -164,6 +189,7 @@ function CreateWarehouseLocationDialog({
               name: name.trim(),
               type,
               capacity: toNullableNumber(capacity),
+              active: initialValue?.active ?? true,
               description: description.trim() || null,
             });
             setCode('');
@@ -173,7 +199,7 @@ function CreateWarehouseLocationDialog({
             setDescription('');
           }}
         >
-          {loading ? 'Creating...' : 'Create location'}
+          {loading ? 'Saving...' : isEdit ? 'Save changes' : 'Create location'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -196,7 +222,7 @@ function usePagedState<T = unknown>(defaultSize = 10) {
   return useDetailsPagination<T>(defaultSize);
 }
 
-function ZonesTable({ rows, onOpenZone }: { rows: WarehouseZoneResponse[]; onOpenZone: (zone: WarehouseZoneResponse) => void }) {
+function ZonesTable({ rows, onOpenZone, onEditZone }: { rows: WarehouseZoneResponse[]; onOpenZone: (zone: WarehouseZoneResponse) => void; onEditZone?: (zone: WarehouseZoneResponse) => void }) {
   return (
     <DataTable<WarehouseZoneResponse>
       columns={[
@@ -206,6 +232,7 @@ function ZonesTable({ rows, onOpenZone }: { rows: WarehouseZoneResponse[]; onOpe
         { id: 'capacity', header: 'Capacity', align: 'right', render: (row) => row.capacity ?? '—' },
         { id: 'status', header: 'Status', render: (row) => <StatusChip value={row.active ? 'ACTIVE' : 'INACTIVE'} /> },
         { id: 'updated', header: 'Updated', render: (row) => formatDate(row.updatedAt ?? row.createdAt) },
+        ...(onEditZone ? [{ id: 'actions', header: 'Actions', render: (row: WarehouseZoneResponse) => <Button size="small" onClick={(event) => { event.stopPropagation(); onEditZone(row); }}>Edit</Button> }] : []),
       ]}
       rows={rows}
       getRowId={(row) => row.id}
@@ -661,6 +688,7 @@ export default function WarehouseDetailsPage() {
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const [createLocationOpen, setCreateLocationOpen] = useState(false);
+  const [selectedZone, setSelectedZone] = useState<WarehouseZoneResponse | null>(null);
 
   const canManageAccess =
     auth.user?.role === ROLES.OVERLORD ||
@@ -739,6 +767,7 @@ export default function WarehouseDetailsPage() {
     onSuccess: async () => {
       showSnackbar({ message: 'Warehouse location created successfully.', severity: 'success' });
       setCreateLocationOpen(false);
+      setSelectedZone(null);
       setActiveTab('locations');
       await queryClient.invalidateQueries({ queryKey: ['warehouse-locations', 'zones'] });
     },
@@ -746,6 +775,20 @@ export default function WarehouseDetailsPage() {
       showSnackbar({ message: getErrorMessage(error), severity: 'error' });
     },
   });
+
+   const updateLocationMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof warehouseLocationsApi.updateZone>[1] }) => warehouseLocationsApi.updateZone(id, payload),
+    onSuccess: async () => {
+      showSnackbar({ message: 'Warehouse location updated successfully.', severity: 'success' });
+      setCreateLocationOpen(false);
+      setSelectedZone(null);
+      await queryClient.invalidateQueries({ queryKey: ['warehouse-locations', 'zones'] });
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
 
   if (!Number.isFinite(warehouseId)) {
     return (
@@ -919,7 +962,7 @@ export default function WarehouseDetailsPage() {
           title="Zones"
           description="Warehouse physical layout starts here: open a zone, then drill down into its bins and bin inventory."
           action={canManageStorage ? (
-            <Button variant="outlined" onClick={() => setCreateLocationOpen(true)}>
+            <Button variant="outlined" onClick={() => { setSelectedZone(null); setCreateLocationOpen(true); }}>
               Create zone
             </Button>
           ) : undefined}
@@ -939,7 +982,7 @@ export default function WarehouseDetailsPage() {
               placeholder="Search by zone code, name or type"
               fullWidth
             />
-            <ZonesTable rows={zones} onOpenZone={(zone) => navigate(warehouseLocationRoutes.warehouseLocationDetails(warehouse.id, zone.id))} />
+            <ZonesTable rows={zones} onOpenZone={(zone) => navigate(warehouseLocationRoutes.warehouseLocationDetails(warehouse.id, zone.id))} onEditZone={(zone) => { setSelectedZone(zone); setCreateLocationOpen(true); }} />
           </Stack>
           {zonePage.pagination(zoneQuery.data, zoneQuery.isFetching)}
         </RelatedDataSection>
@@ -1100,9 +1143,18 @@ export default function WarehouseDetailsPage() {
         open={createLocationOpen}
         warehouseId={warehouse.id}
         warehouseName={warehouse.name}
-        loading={createLocationMutation.isPending}
-        onClose={() => setCreateLocationOpen(false)}
-        onSubmit={(payload) => createLocationMutation.mutate(payload)}
+        loading={createLocationMutation.isPending || updateLocationMutation.isPending}
+        initialValue={selectedZone}
+        zones={zones}
+        warehouseCapacity={warehouse?.capacity}
+        onClose={() => { setCreateLocationOpen(false); setSelectedZone(null); }}
+        onSubmit={(payload) => {
+          if (selectedZone) {
+            updateLocationMutation.mutate({ id: selectedZone.id, payload: { code: payload.code, name: payload.name, type: payload.type, capacity: payload.capacity, active: payload.active ?? selectedZone.active, description: payload.description } });
+          } else {
+            createLocationMutation.mutate(payload);
+          }
+        }}
       />
 
       <Dialog open={transitionTarget != null} onClose={() => setTransitionTarget(null)} maxWidth="sm" fullWidth>

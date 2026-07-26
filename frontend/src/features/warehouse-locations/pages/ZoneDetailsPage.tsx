@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Link, Stack, TextField, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -36,6 +36,9 @@ function CreateBinDialog({
   warehouseId,
   zoneId,
   zoneLabel,
+  zoneCapacity,
+  bins,
+  initialValue,
   loading,
   onClose,
   onSubmit,
@@ -44,14 +47,35 @@ function CreateBinDialog({
   warehouseId: number;
   zoneId: number;
   zoneLabel: string;
+  zoneCapacity?: number | null;
+  bins: BinLocationResponse[];
+  initialValue?: BinLocationResponse | null;
   loading: boolean;
   onClose: () => void;
-  onSubmit: (payload: { warehouseId: number; zoneId: number; code: string; name: string; capacity?: number | null; description?: string | null }) => void;
+  onSubmit: (payload: { warehouseId: number; zoneId: number; code: string; name: string; capacity?: number | null; active?: boolean; description?: string | null }) => void;
 }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [capacity, setCapacity] = useState('');
   const [description, setDescription] = useState('');
+  const isEdit = Boolean(initialValue);
+
+  useEffect(() => {
+    if (!open) return;
+    setCode(initialValue?.code ?? '');
+    setName(initialValue?.name ?? '');
+    setCapacity(initialValue?.capacity == null ? '' : String(initialValue.capacity));
+    setDescription(initialValue?.description ?? '');
+  }, [initialValue, open]);
+
+  const enteredCapacity = toNullableNumber(capacity) ?? 0;
+  const otherBinsCapacity = bins
+    .filter((bin) => bin.id !== initialValue?.id)
+    .reduce((sum, bin) => sum + (bin.capacity ?? 0), 0);
+  const capacityExceeded = zoneCapacity != null && otherBinsCapacity + enteredCapacity > zoneCapacity;
+  const capacityHelperText = capacityExceeded
+    ? `Total bin capacity (${otherBinsCapacity + enteredCapacity}) exceeds zone capacity (${zoneCapacity}).`
+    : undefined;
 
   const resetAndClose = () => {
     if (loading) return;
@@ -62,17 +86,17 @@ function CreateBinDialog({
     onClose();
   };
 
-  const submitDisabled = code.trim().length === 0 || name.trim().length === 0;
+  const submitDisabled = code.trim().length === 0 || name.trim().length === 0 || capacityExceeded;
 
   return (
     <Dialog open={open} onClose={resetAndClose} fullWidth maxWidth="sm">
-      <DialogTitle>Create bin</DialogTitle>
+      <DialogTitle>{isEdit ? 'Edit bin' : 'Create bin'}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <TextField label="Location" value={zoneLabel} fullWidth disabled />
           <TextField label="Code" value={code} onChange={(event) => setCode(event.target.value)} required fullWidth />
           <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} required fullWidth />
-          <TextField label="Capacity" value={capacity} onChange={(event) => setCapacity(event.target.value)} type="number" fullWidth />
+          <TextField label="Capacity" value={capacity} onChange={(event) => setCapacity(event.target.value)} type="number" error={capacityExceeded} helperText={capacityHelperText} fullWidth />
           <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} multiline minRows={2} fullWidth />
         </Stack>
       </DialogContent>
@@ -88,6 +112,7 @@ function CreateBinDialog({
               code: code.trim(),
               name: name.trim(),
               capacity: toNullableNumber(capacity),
+              active: initialValue?.active ?? true,
               description: description.trim() || null,
             });
             setCode('');
@@ -96,7 +121,7 @@ function CreateBinDialog({
             setDescription('');
           }}
         >
-          {loading ? 'Creating...' : 'Create bin'}
+          {loading ? 'Saving...' : isEdit ? 'Save changes' : 'Create bin'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -131,6 +156,7 @@ export default function ZoneDetailsPage() {
   const [binSearch, setBinSearch] = useState('');
   const [movementSearch, setMovementSearch] = useState('');
   const [createBinOpen, setCreateBinOpen] = useState(false);
+  const [selectedBin, setSelectedBin] = useState<BinLocationResponse | null>(null);
   const binPage = usePagedState();
   const movementPage = usePagedState();
 
@@ -163,6 +189,21 @@ export default function ZoneDetailsPage() {
     onSuccess: async () => {
       showSnackbar({ message: 'Bin created successfully.', severity: 'success' });
       setCreateBinOpen(false);
+      setSelectedBin(null);
+      setActiveTab('bins');
+      await queryClient.invalidateQueries({ queryKey: ['warehouse-locations', 'bins'] });
+    },
+    onError: (error) => {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    },
+  });
+
+  const updateBinMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof warehouseLocationsApi.updateBin>[1] }) => warehouseLocationsApi.updateBin(id, payload),
+    onSuccess: async () => {
+      showSnackbar({ message: 'Bin updated successfully.', severity: 'success' });
+      setCreateBinOpen(false);
+      setSelectedBin(null);
       setActiveTab('bins');
       await queryClient.invalidateQueries({ queryKey: ['warehouse-locations', 'bins'] });
     },
@@ -177,6 +218,7 @@ export default function ZoneDetailsPage() {
     { id: 'capacity', header: 'Capacity', align: 'right', render: (row) => formatNumber(row.capacity) },
     { id: 'active', header: 'Status', render: (row) => <StatusChip active={row.active} /> },
     { id: 'updatedAt', header: 'Updated', render: (row) => formatDate(row.updatedAt) },
+    { id: 'actions', header: 'Actions', render: (row) => <Button size="small" onClick={(event) => { event.stopPropagation(); setSelectedBin(row); setCreateBinOpen(true); }}>Edit</Button> },
   ];
 
   const movementColumns: DataTableColumn<InternalWarehouseMovementResponse>[] = [
@@ -221,7 +263,7 @@ export default function ZoneDetailsPage() {
       onRetry={() => void zoneQuery.refetch()}
       actionItems={[
         { key: 'warehouse', label: 'Warehouse', to: warehouseLocationRoutes.warehouseDetails(warehouseId) },
-        { key: 'create-bin', label: 'Create bin', variant: 'contained', onClick: () => setCreateBinOpen(true) },
+        { key: 'create-bin', label: 'Create bin', variant: 'contained', onClick: () => { setSelectedBin(null); setCreateBinOpen(true); } },
       ]}
     >
       {activeTab === 'overview' ? (
@@ -263,7 +305,7 @@ export default function ZoneDetailsPage() {
             title="Bins"
             action={(
               <Stack direction="row" spacing={1}>
-                <Button size="small" onClick={() => setCreateBinOpen(true)}>Create bin</Button>
+                <Button size="small" onClick={() => { setSelectedBin(null); setCreateBinOpen(true); }}>Create bin</Button>
                 <Button size="small" onClick={() => setActiveTab('bins')}>View all bins</Button>
               </Stack>
             )}
@@ -274,7 +316,7 @@ export default function ZoneDetailsPage() {
       ) : null}
 
       {activeTab === 'bins' ? (
-        <SectionCard title="Bins" action={<Button size="small" variant="outlined" onClick={() => setCreateBinOpen(true)}>Create bin</Button>}>
+        <SectionCard title="Bins" action={<Button size="small" variant="outlined" onClick={() => { setSelectedBin(null); setCreateBinOpen(true); }}>Create bin</Button>}>
           <Stack spacing={2}>
             <TextField label="Search bin" value={binSearch} onChange={(event) => { setBinSearch(event.target.value); binPage.reset(); }} size="small" fullWidth />
             <DataTable columns={binColumns} rows={binsQuery.data?.content ?? []} getRowId={(row) => row.id} loading={binsQuery.isLoading} error={binsQuery.isError} onRetry={() => binsQuery.refetch()} pagination={binPage.pagination(binsQuery.data, binsQuery.isFetching)} />
@@ -304,9 +346,18 @@ export default function ZoneDetailsPage() {
         warehouseId={warehouseId}
         zoneId={zoneId}
         zoneLabel={currentZone ? `${currentZone.code} · ${currentZone.name}` : `Location #${zoneId}`}
-        loading={createBinMutation.isPending}
-        onClose={() => setCreateBinOpen(false)}
-        onSubmit={(payload) => createBinMutation.mutate(payload)}
+        zoneCapacity={currentZone?.capacity}
+        bins={binsQuery.data?.content ?? []}
+        initialValue={selectedBin}
+        loading={createBinMutation.isPending || updateBinMutation.isPending}
+        onClose={() => { setCreateBinOpen(false); setSelectedBin(null); }}
+        onSubmit={(payload) => {
+          if (selectedBin) {
+            updateBinMutation.mutate({ id: selectedBin.id, payload: { zoneId: payload.zoneId, code: payload.code, name: payload.name, capacity: payload.capacity, active: payload.active ?? selectedBin.active, description: payload.description } });
+          } else {
+            createBinMutation.mutate(payload);
+          }
+        }}
       />
     </EntityDetailsLayout>
   );

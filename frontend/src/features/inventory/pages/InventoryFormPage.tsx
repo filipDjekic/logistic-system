@@ -225,11 +225,18 @@ export default function InventoryFormPage({ mode }: Props) {
                 <EntityLookupField
                   label="Warehouse"
                   entityType="warehouses"
-                  value={selectedWarehouse}
-                  onChange={setSelectedWarehouse}
+                  accessMode="mutate"
                   required
-                  error={submitted && !selectedWarehouse}
-                  helperText={submitted && !selectedWarehouse ? 'Warehouse is required.' : undefined}
+                  disabled={mode === 'edit'}
+                  value={field.value ? {
+                    id: Number(field.value),
+                    label: selectedWarehouse?.name ?? `Warehouse #${field.value}`,
+                    subtitle: selectedWarehouse?.city ?? undefined,
+                    status: selectedWarehouse?.status ?? undefined,
+                  } : null}
+                  onChange={(option) => field.onChange(option?.id ?? '')}
+                  error={Boolean(fieldState.error)}
+                  helperText={fieldState.error?.message ?? (mode === 'edit' ? 'Warehouse cannot be changed after record creation.' : undefined)}
                   searchPlaceholder="Search warehouses..."
                 />
               </Grid>

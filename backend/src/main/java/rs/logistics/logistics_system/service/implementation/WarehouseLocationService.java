@@ -116,20 +116,11 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
     public WarehouseZoneResponse createZone(WarehouseZoneCreate dto) {
         Warehouse warehouse = getWarehouse(dto.getWarehouseId());
 
-        BigDecimal occupied =
-        zoneRepository.sumCapacityByWarehouse(warehouse.getId());
-
-        BigDecimal total =
-                occupied.add(nonNegative(dto.getCapacity(),
-                        "Zone capacity cannot be negative"));
-
-        if (total.compareTo(warehouse.getCapacity()) > 0) {
-            throw new BadRequestException(
-                    "Total zone capacity exceeds warehouse capacity.");
-        }
+        BigDecimal newCapacity = nonNegative(dto.getCapacity(), "Zone capacity cannot be negative");
+        validateZoneCapacityWithinWarehouse(warehouse, newCapacity);
 
         if (zoneRepository.existsByWarehouse_IdAndCodeIgnoreCase(warehouse.getId(), dto.getCode())) throw new ConflictException("Warehouse zone code already exists");
-        WarehouseZone zone = new WarehouseZone(); zone.setWarehouse(warehouse); zone.setCode(dto.getCode()); zone.setName(dto.getName()); zone.setType(dto.getType()); zone.setCapacity(nonNegative(dto.getCapacity(), "Zone capacity cannot be negative")); zone.setDescription(dto.getDescription()); zone.setActive(true);
+        WarehouseZone zone = new WarehouseZone(); zone.setWarehouse(warehouse); zone.setCode(dto.getCode()); zone.setName(dto.getName()); zone.setType(dto.getType()); zone.setCapacity(newCapacity); zone.setDescription(dto.getDescription()); zone.setActive(true);
         WarehouseZone saved = zoneRepository.save(zone); auditFacade.recordCreate("WAREHOUSE_ZONE", saved.getId(), saved.getCode());
         return WarehouseLocationMapper.toZoneResponse(saved);
     }
@@ -138,32 +129,12 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
     public WarehouseZoneResponse updateZone(Long id, WarehouseZoneUpdate dto) {
         WarehouseZone zone = findZone(id);
 
-        BigDecimal occupied =
-        zoneRepository.sumCapacityByWarehouseExcluding(
-                zone.getWarehouse().getId(),
-                zone.getId());
-
-        BigDecimal newCapacity =
-                nonNegative(dto.getCapacity(),
-                        "Zone capacity cannot be negative");
-
-        BigDecimal total =
-                occupied.add(newCapacity);
-
-        if (total.compareTo(zone.getWarehouse().getCapacity()) > 0) {
-            throw new BadRequestException(
-                    "Total zone capacity exceeds warehouse capacity.");
-        }
-
-        BigDecimal bins = binRepository.sumCapacityByZone(zone.getId());
-
-        if (newCapacity.compareTo(bins) < 0) {
-            throw new BadRequestException(
-                    "Zone capacity cannot be smaller than total bin capacity.");
-        }
+        BigDecimal newCapacity = nonNegative(dto.getCapacity(), "Zone capacity cannot be negative");
+        validateZoneCapacityWithinWarehouseExcluding(zone.getWarehouse(), zone.getId(), newCapacity);
+        validateZoneCapacityNotBelowBins(zone.getId(), newCapacity);
 
         if (zoneRepository.existsByWarehouse_IdAndCodeIgnoreCaseAndIdNot(zone.getWarehouse().getId(), dto.getCode(), id)) throw new ConflictException("Warehouse zone code already exists");
-        zone.setCode(dto.getCode()); zone.setName(dto.getName()); zone.setCapacity(newCapacity);; zone.setActive(dto.getActive()); zone.setDescription(dto.getDescription());
+        zone.setCode(dto.getCode()); zone.setName(dto.getName()); zone.setType(dto.getType()); zone.setCapacity(newCapacity); zone.setActive(dto.getActive()); zone.setDescription(dto.getDescription());
         WarehouseZone saved = zoneRepository.save(zone); auditFacade.recordFieldChange("WAREHOUSE_ZONE", saved.getId(), "updated", null, saved.getCode());
         return WarehouseLocationMapper.toZoneResponse(saved);
     }
@@ -215,21 +186,9 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
         Warehouse warehouse = getWarehouse(dto.getWarehouseId());
         binIntegrityValidator.ensureBinTrackingEnabled(warehouse, "Bin locations cannot be created because bin tracking is disabled for this warehouse");
         WarehouseZone zone = findZone(dto.getZoneId()); 
-        
-        BigDecimal occupied =
-        binRepository.sumCapacityByZone(zone.getId());
 
-        BigDecimal newCapacity =
-                nonNegative(dto.getCapacity(),
-                        "Bin capacity cannot be negative");
-
-        BigDecimal total =
-                occupied.add(newCapacity);
-
-        if (total.compareTo(zone.getCapacity()) > 0) {
-            throw new BadRequestException(
-                    "Total bin capacity exceeds zone capacity.");
-        }
+        BigDecimal newCapacity = nonNegative(dto.getCapacity(), "Bin capacity cannot be negative");
+        validateBinCapacityWithinZone(zone, newCapacity);
 
         ensureSameWarehouse(warehouse, zone.getWarehouse());
         if (binRepository.existsByWarehouse_IdAndCodeIgnoreCase(warehouse.getId(), dto.getCode())) throw new ConflictException("Bin location code already exists");
@@ -242,23 +201,9 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
         BinLocation bin = findBin(id);
         binIntegrityValidator.ensureBinTrackingEnabled(bin.getWarehouse(), "Bin locations cannot be updated because bin tracking is disabled for this warehouse");
         WarehouseZone zone = findZone(dto.getZoneId()); ensureSameWarehouse(bin.getWarehouse(), zone.getWarehouse());
-        
-        BigDecimal occupied =
-        binRepository.sumCapacityByZoneExcluding(
-                zone.getId(),
-                bin.getId());
 
-        BigDecimal newCapacity =
-                nonNegative(dto.getCapacity(),
-                        "Bin capacity cannot be negative");
-
-        BigDecimal total =
-                occupied.add(newCapacity);
-
-        if (total.compareTo(zone.getCapacity()) > 0) {
-            throw new BadRequestException(
-                    "Total bin capacity exceeds zone capacity.");
-        }
+        BigDecimal newCapacity = nonNegative(dto.getCapacity(), "Bin capacity cannot be negative");
+        validateBinCapacityWithinZoneExcluding(zone, bin.getId(), newCapacity);
         
         if (binRepository.existsByWarehouse_IdAndCodeIgnoreCaseAndIdNot(bin.getWarehouse().getId(), dto.getCode(), id)) throw new ConflictException("Bin location code already exists");
         bin.setZone(zone); bin.setCode(dto.getCode()); bin.setName(dto.getName()); bin.setCapacity(newCapacity); bin.setActive(dto.getActive()); bin.setDescription(dto.getDescription());
@@ -533,6 +478,52 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
         warehouseAccessGuard.ensureCanReadWarehouse(bin.getWarehouse());
         return bin;
     }
+
+     private void validateZoneCapacityWithinWarehouse(Warehouse warehouse, BigDecimal capacity) {
+        BigDecimal occupied = zeroIfNull(zoneRepository.sumCapacityByWarehouse(warehouse.getId()));
+        validateZoneCapacityTotal(warehouse, occupied.add(zeroIfNull(capacity)));
+    }
+
+    private void validateZoneCapacityWithinWarehouseExcluding(Warehouse warehouse, Long zoneId, BigDecimal capacity) {
+        BigDecimal occupied = zeroIfNull(zoneRepository.sumCapacityByWarehouseExcluding(warehouse.getId(), zoneId));
+        validateZoneCapacityTotal(warehouse, occupied.add(zeroIfNull(capacity)));
+    }
+
+    private void validateZoneCapacityTotal(Warehouse warehouse, BigDecimal total) {
+        BigDecimal warehouseCapacity = warehouse.getCapacity();
+        if (warehouseCapacity != null && total.compareTo(warehouseCapacity) > 0) {
+            throw new BadRequestException("Total zone capacity exceeds warehouse capacity.");
+        }
+    }
+
+    private void validateZoneCapacityNotBelowBins(Long zoneId, BigDecimal capacity) {
+        BigDecimal bins = zeroIfNull(binRepository.sumCapacityByZone(zoneId));
+        if (capacity != null && capacity.compareTo(bins) < 0) {
+            throw new BadRequestException("Zone capacity cannot be smaller than total bin capacity.");
+        }
+    }
+
+    private void validateBinCapacityWithinZone(WarehouseZone zone, BigDecimal capacity) {
+        BigDecimal occupied = zeroIfNull(binRepository.sumCapacityByZone(zone.getId()));
+        validateBinCapacityTotal(zone, occupied.add(zeroIfNull(capacity)));
+    }
+
+    private void validateBinCapacityWithinZoneExcluding(WarehouseZone zone, Long binId, BigDecimal capacity) {
+        BigDecimal occupied = zeroIfNull(binRepository.sumCapacityByZoneExcluding(zone.getId(), binId));
+        validateBinCapacityTotal(zone, occupied.add(zeroIfNull(capacity)));
+    }
+
+    private void validateBinCapacityTotal(WarehouseZone zone, BigDecimal total) {
+        BigDecimal zoneCapacity = zone.getCapacity();
+        if (zoneCapacity != null && total.compareTo(zoneCapacity) > 0) {
+            throw new BadRequestException("Total bin capacity exceeds zone capacity.");
+        }
+    }
+
+    private BigDecimal zeroIfNull(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
     private Product getProduct(Long id) { return authenticatedUserProvider.isOverlord() ? productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found")) : productRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Product not found")); }
     private Long companyScope() { return authenticatedUserProvider.isOverlord() ? null : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(); }
     private void ensureSameWarehouse(Warehouse a, Warehouse b) { if (a == null || b == null || !a.getId().equals(b.getId())) throw new BadRequestException("Source and target must belong to the same warehouse"); }
