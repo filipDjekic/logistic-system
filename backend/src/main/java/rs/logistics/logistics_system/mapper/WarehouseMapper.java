@@ -8,11 +8,12 @@ import rs.logistics.logistics_system.entity.Country;
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.enums.WarehouseStatus;
 
 public class WarehouseMapper {
 
     public static Warehouse toEntity(WarehouseCreate dto, Employee employee, Country country, City city, Timezone timezone) {
-        Warehouse warehouse = new Warehouse(dto.getName(), dto.getAddress(), city, dto.getCapacity(), dto.getStatus(), employee);
+        Warehouse warehouse = new Warehouse(dto.getName().trim(), dto.getAddress().trim(), city, dto.getCapacity(), WarehouseStatus.ACTIVE, employee);
         warehouse.setPostalCode(dto.getPostalCode() != null ? dto.getPostalCode() : city.getPostalCode());
         warehouse.setCountry(country);
         warehouse.setTimezone(timezone);
@@ -23,8 +24,8 @@ public class WarehouseMapper {
     }
 
     public static void updateEntity(Warehouse warehouse, WarehouseUpdate dto, Country country, City city, Timezone timezone) {
-        warehouse.setName(dto.getName());
-        warehouse.setAddress(dto.getAddress());
+        warehouse.setName(dto.getName().trim());
+        warehouse.setAddress(dto.getAddress().trim());
         warehouse.setCity(city);
         warehouse.setPostalCode(dto.getPostalCode() != null ? dto.getPostalCode() : city.getPostalCode());
         warehouse.setCountry(country);
@@ -62,6 +63,7 @@ public class WarehouseMapper {
         response.setStatus(warehouse.getStatus());
         response.setActive(warehouse.getActive());
         response.setBinTrackingEnabled(Boolean.TRUE.equals(warehouse.getBinTrackingEnabled()));
+        response.setVersion(warehouse.getVersion());
         response.setEmployeeId(employeeId);
         response.setManagerName(managerName);
         response.setCompanyId(warehouse.getCompany() != null ? warehouse.getCompany().getId() : null);

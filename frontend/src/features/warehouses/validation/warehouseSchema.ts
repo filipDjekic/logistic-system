@@ -34,7 +34,6 @@ export const warehouseSchema = z.object({
   latitude: optionalNumber('Latitude must be a valid number.'),
   longitude: optionalNumber('Longitude must be a valid number.'),
   capacity: requiredNumber('Capacity is required.', 'Capacity must be greater than 0.'),
-  status: z.enum(['ACTIVE', 'INACTIVE', 'FULL', 'UNDER_MAINTENANCE']),
   employeeId: requiredNumber('Warehouse manager is required.', 'Warehouse manager is required.'),
   companyId: z.string().trim(),
   binTrackingEnabled: z.boolean(),

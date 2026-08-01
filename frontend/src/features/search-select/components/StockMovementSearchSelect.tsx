@@ -66,7 +66,10 @@ export function StockMovementSearchSelect({
     sort: 'createdAt,desc',
   });
 
-  const rows = stockMovementsQuery.data?.content ?? [];
+  const rows = useMemo(
+    () => stockMovementsQuery.data?.content ?? [],
+    [stockMovementsQuery.data?.content],
+  );
   const selectedLabel = useMemo(() => {
     const selected = rows.find((movement) => movement.id === value);
     return selected ? `#${selected.id} · ${selected.productName}` : null;

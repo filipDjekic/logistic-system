@@ -340,6 +340,7 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
         ))
         and (:status is null or t.status = :status)
         and (:priority is null or t.priority = :priority)
+        and (:excludeStatuses is null or t.status not in :excludeStatuses)
         and (:sourceWarehouseId is null or sourceWarehouse.id = :sourceWarehouseId)
         and (:destinationWarehouseId is null or destinationWarehouse.id = :destinationWarehouseId)
         and (:vehicleId is null or vehicle.id = :vehicleId)
@@ -383,6 +384,7 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
                 @Param("warehouseManagerWarehouseIds") Collection<Long> warehouseManagerWarehouseIds,
                 @Param("status") TransportOrderStatus status,
                 @Param("priority") PriorityLevel priority,
+                @Param("excludeStatuses") Collection<TransportOrderStatus> excludeStatuses,
                 @Param("sourceWarehouseId") Long sourceWarehouseId,
                 @Param("destinationWarehouseId") Long destinationWarehouseId,
                 @Param("vehicleId") Long vehicleId,

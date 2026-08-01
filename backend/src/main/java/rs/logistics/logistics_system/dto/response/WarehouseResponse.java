@@ -32,6 +32,7 @@ public class WarehouseResponse {
     private WarehouseStatus status;
     private Boolean active;
     private Boolean binTrackingEnabled;
+    private Long version;
 
     private Long employeeId;
     private String managerName;

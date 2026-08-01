@@ -63,7 +63,7 @@ export function WarehouseSearchSelect({
     sort: 'name,asc',
   });
 
-  const rows = warehousesQuery.data?.content ?? [];
+  const rows = useMemo(() => warehousesQuery.data?.content ?? [], [warehousesQuery.data?.content]);
   const selectedLabel = useMemo(() => rows.find((warehouse) => warehouse.id === value)?.name ?? null, [rows, value]);
 
   return (

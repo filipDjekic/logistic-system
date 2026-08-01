@@ -49,6 +49,7 @@ import rs.logistics.logistics_system.service.definition.CityServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
+import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +80,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
         validateWarehouseManager(employee);
 
         Company targetCompany = resolveTargetCompany(dto.getCompanyId());
+        validateUniqueName(targetCompany.getId(), dto.getName(), null);
         Country country = resolveWarehouseCountry(dto.getCountryId(), targetCompany);
         Timezone timezone = timezoneService.getRequiredForCountry(dto.getTimezoneId(), country.getId());
         City city = cityService.getRequiredActiveForCountry(dto.getCityId(), country.getId());
@@ -109,6 +111,8 @@ public class WarehouseService implements WarehouseServiceDefinition {
         Warehouse warehouse = getWarehouseOrThrow(id);
         validateWarehouseIsActive(warehouse);
         ensureWarehouseManagerCanUpdateManagedWarehouse(warehouse);
+        OptimisticLockGuard.requireExpectedVersion(dto.getExpectedVersion(), warehouse.getVersion(), "Warehouse");
+        validateUniqueName(warehouse.getCompany().getId(), dto.getName(), warehouse.getId());
 
         String oldName = warehouse.getName();
         String oldLocation = (warehouse.getCity() != null ? warehouse.getCity().getName() : null) + "; " + warehouse.getAddress();
@@ -206,19 +210,8 @@ public class WarehouseService implements WarehouseServiceDefinition {
     @Override
     @Transactional
     public void delete(Long id) {
-        Warehouse warehouse = getWarehouseOrThrow(id);
-
-        validateForDeleting(warehouse);
-
-        _warehouseRepository.delete(warehouse);
-
-        auditFacade.recordDelete("WAREHOUSE", id);
-        auditFacade.log(
-                "DELETE",
-                "WAREHOUSE",
-                id,
-                "WAREHOUSE is deleted (ID: " + id + ")"
-        );
+        getWarehouseOrThrow(id);
+        throw new ConflictException("Warehouse hard delete is not supported. Archive warehouse to preserve operational history.");
     }
 
     @Override
@@ -231,6 +224,9 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
         if (warehouse.getStatus() == status) {
             throw new BadRequestException("Warehouse already has this status.");
+        }
+        if (warehouse.getStatus() == WarehouseStatus.ARCHIVED || status == WarehouseStatus.ARCHIVED) {
+            throw new BadRequestException("Use the dedicated archive operation. Archived warehouses are terminal.");
         }
 
         if (status == WarehouseStatus.INACTIVE) {
@@ -272,13 +268,27 @@ public class WarehouseService implements WarehouseServiceDefinition {
     @Override
     @Transactional
     public WarehouseResponse archiveWarehouse(Long id) {
-        return changeStatus(id, WarehouseStatus.INACTIVE);
+        Warehouse warehouse = getWarehouseOrThrow(id);
+        if (warehouse.getStatus() == WarehouseStatus.ARCHIVED) {
+            throw new BadRequestException("Warehouse is already archived.");
+        }
+        validateForDeactivation(warehouse);
+        WarehouseStatus oldStatus = warehouse.getStatus();
+        Boolean oldActive = warehouse.getActive();
+        warehouse.setStatus(WarehouseStatus.ARCHIVED);
+        warehouse.setActive(false);
+        Warehouse saved = _warehouseRepository.save(warehouse);
+        auditFacade.recordStatusChange("WAREHOUSE", saved.getId(), "status", oldStatus, saved.getStatus());
+        auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "active", oldActive, false);
+        auditFacade.log("ARCHIVE", "WAREHOUSE", saved.getId(), "WAREHOUSE is archived (ID: " + saved.getId() + ")");
+        return WarehouseMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
     public WarehouseResponse restoreWarehouse(Long id) {
-        return changeStatus(id, WarehouseStatus.ACTIVE);
+        getWarehouseOrThrow(id);
+        throw new ConflictException("Archived warehouses are terminal and cannot be restored.");
     }
 
     @Override
@@ -402,8 +412,20 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     private void validateWarehouseIsActive(Warehouse warehouse) {
-        if (!Boolean.TRUE.equals(warehouse.getActive()) || warehouse.getStatus() == WarehouseStatus.INACTIVE) {
+        if (!Boolean.TRUE.equals(warehouse.getActive())
+                || warehouse.getStatus() == WarehouseStatus.INACTIVE
+                || warehouse.getStatus() == WarehouseStatus.ARCHIVED) {
             throw new BadRequestException("Inactive warehouse cannot be modified.");
+        }
+    }
+
+    private void validateUniqueName(Long companyId, String name, Long currentWarehouseId) {
+        String normalizedName = name == null ? null : name.trim();
+        boolean duplicate = currentWarehouseId == null
+                ? _warehouseRepository.existsByCompany_IdAndNameIgnoreCase(companyId, normalizedName)
+                : _warehouseRepository.existsByCompany_IdAndNameIgnoreCaseAndIdNot(companyId, normalizedName, currentWarehouseId);
+        if (duplicate) {
+            throw new ConflictException("Warehouse name already exists in this company.");
         }
     }
 

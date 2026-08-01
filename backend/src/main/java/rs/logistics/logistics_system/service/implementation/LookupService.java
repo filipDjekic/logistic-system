@@ -18,6 +18,7 @@ import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.VehicleStatus;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.BinLocationRepository;
 import rs.logistics.logistics_system.repository.CompanyRepository;
@@ -35,6 +36,7 @@ import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -164,6 +166,7 @@ public class LookupService implements LookupServiceDefinition {
             String search,
             Long sourceWarehouseId,
             Long destinationWarehouseId,
+            Set<TransportOrderStatus> excludeStatuses,
             Pageable pageable
     ) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.DESC, "id"));
@@ -187,6 +190,7 @@ public class LookupService implements LookupServiceDefinition {
                 warehouseManagerWarehouseIds,
                 null,
                 null,
+                excludeStatuses == null || excludeStatuses.isEmpty() ? null : excludeStatuses,
                 sourceWarehouseId,
                 destinationWarehouseId,
                 null,

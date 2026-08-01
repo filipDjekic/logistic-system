@@ -12,11 +12,9 @@ import {
 } from '../constants/notificationLive';
 import type { NotificationStreamEventResponse } from '../types/notification.types';
 
-function buildNotificationStreamUrl(token: string): string {
+export function buildNotificationStreamUrl(): string {
   const baseUrl = appEnv.apiBaseUrl.replace(/\/$/, '');
-  const url = new URL(`${baseUrl}/api/notifications/my/stream`);
-  url.searchParams.set('access_token', token);
-  return url.toString();
+  return new URL(`${baseUrl}/api/notifications/my/stream`).toString();
 }
 
 export function useNotificationLiveUpdates() {
@@ -27,12 +25,12 @@ export function useNotificationLiveUpdates() {
   const refreshTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const seenEventIdsRef = useRef<string[]>([]);
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const token = getAccessToken();
 
-    if (!token || typeof window === 'undefined' || typeof window.EventSource === 'undefined') {
+    if (!token || typeof window === 'undefined' || typeof window.fetch === 'undefined') {
       return undefined;
     }
 
@@ -84,12 +82,12 @@ export function useNotificationLiveUpdates() {
       return true;
     };
 
-    const handleStreamEvent = (event: MessageEvent<string>) => {
-      if (!rememberEventId(event.lastEventId || null)) {
+    const handleStreamEvent = (data: string, eventId: string | null) => {
+      if (!rememberEventId(eventId)) {
         return;
       }
 
-      const payload = JSON.parse(event.data) as NotificationStreamEventResponse;
+      const payload = JSON.parse(data) as NotificationStreamEventResponse;
 
       if (payload.eventType === 'CONNECTED') {
         scheduleInvalidateNotificationData();
@@ -127,56 +125,88 @@ export function useNotificationLiveUpdates() {
       });
     };
 
-    const connect = () => {
+    const scheduleReconnect = () => {
+      if (isStopped) {
+        return;
+      }
+      reconnectAttemptRef.current += 1;
+      const delay = Math.min(
+        NOTIFICATION_SSE_RECONNECT_MS * 2 ** Math.min(reconnectAttemptRef.current - 1, 5),
+        NOTIFICATION_SSE_MAX_RECONNECT_MS,
+      );
+      reconnectTimeoutRef.current = window.setTimeout(() => {
+        void connect();
+      }, delay);
+    };
+
+    const connect = async () => {
       clearReconnectTimeout();
-      eventSourceRef.current?.close();
+      streamAbortRef.current?.abort();
+      const controller = new AbortController();
+      streamAbortRef.current = controller;
 
-      const eventSource = new EventSource(buildNotificationStreamUrl(token));
-      eventSourceRef.current = eventSource;
-
-      const onMessage = (event: MessageEvent<string>) => {
-        try {
-          handleStreamEvent(event);
-        } catch {
-          scheduleInvalidateNotificationData();
+      try {
+        const response = await fetch(buildNotificationStreamUrl(), {
+          headers: {
+            Accept: 'text/event-stream',
+            Authorization: `Bearer ${token}`,
+          },
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) {
+          throw new Error(`Notification stream failed with status ${response.status}`);
         }
-      };
-
-      eventSource.addEventListener('connected', onMessage as EventListener);
-      eventSource.addEventListener('notification-created', onMessage as EventListener);
-      eventSource.addEventListener('notification-updated', onMessage as EventListener);
-      eventSource.addEventListener('notifications-bulk-updated', onMessage as EventListener);
-      eventSource.addEventListener('heartbeat', onMessage as EventListener);
-      eventSource.onopen = () => {
         reconnectAttemptRef.current = 0;
-      };
-      eventSource.onerror = () => {
-        eventSource.close();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-        if (!isStopped) {
-          reconnectAttemptRef.current += 1;
-          const delay = Math.min(
-            NOTIFICATION_SSE_RECONNECT_MS * 2 ** Math.min(reconnectAttemptRef.current - 1, 5),
-            NOTIFICATION_SSE_MAX_RECONNECT_MS,
-          );
-          reconnectTimeoutRef.current = window.setTimeout(connect, delay);
+        while (!isStopped) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+          let boundary = buffer.indexOf('\n\n');
+          while (boundary >= 0) {
+            const block = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            let eventId: string | null = null;
+            const dataLines: string[] = [];
+            for (const line of block.split('\n')) {
+              if (line.startsWith('id:')) eventId = line.slice(3).trim();
+              if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+            }
+            if (dataLines.length > 0) {
+              try {
+                handleStreamEvent(dataLines.join('\n'), eventId);
+              } catch {
+                scheduleInvalidateNotificationData();
+              }
+            }
+            boundary = buffer.indexOf('\n\n');
+          }
         }
-      };
+        if (!isStopped) scheduleReconnect();
+      } catch (error) {
+        if (!isStopped && !(error instanceof DOMException && error.name === 'AbortError')) {
+          scheduleReconnect();
+        }
+      }
     };
 
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         invalidateNotificationData();
 
-        if (eventSourceRef.current?.readyState === EventSource.CLOSED && !isStopped) {
-          connect();
+        if (!streamAbortRef.current && !isStopped) {
+          void connect();
         }
       } else {
         clearRefreshTimeout();
       }
     };
 
-    connect();
+    void connect();
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
@@ -184,8 +214,8 @@ export function useNotificationLiveUpdates() {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       clearReconnectTimeout();
       clearRefreshTimeout();
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
+      streamAbortRef.current?.abort();
+      streamAbortRef.current = null;
     };
   }, [queryClient, showSnackbar]);
 }

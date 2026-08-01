@@ -11,7 +11,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import rs.logistics.logistics_system.enums.WarehouseStatus;
 
 @Getter
 @Setter
@@ -56,9 +55,6 @@ public class WarehouseCreate {
     private BigDecimal capacity;
 
     @NotNull
-    private WarehouseStatus status;
-
-    @NotNull
     @Positive
     private Long employeeId;
 
@@ -78,7 +74,6 @@ public class WarehouseCreate {
                         BigDecimal latitude,
                         BigDecimal longitude,
                         BigDecimal capacity,
-                        WarehouseStatus status,
                         Long employeeId,
                         Long companyId) {
         this.name = name;
@@ -91,7 +86,6 @@ public class WarehouseCreate {
         this.latitude = latitude;
         this.longitude = longitude;
         this.capacity = capacity;
-        this.status = status;
         this.employeeId = employeeId;
         this.companyId = companyId;
     }

@@ -25,4 +25,10 @@ export default defineConfig([
       'react-hooks/purity': 'off',
     },
   },
+  {
+    files: ['**/*.{test,spec}.{ts,tsx}', '**/test/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

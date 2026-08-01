@@ -56,7 +56,10 @@ export function TransportOrderSearchSelect({
     sort: 'orderDate,desc',
   });
 
-  const rows = transportOrdersQuery.data?.content ?? [];
+  const rows = useMemo(
+    () => transportOrdersQuery.data?.content ?? [],
+    [transportOrdersQuery.data?.content],
+  );
   const selectedLabel = useMemo(() => rows.find((order) => order.id === value)?.orderNumber ?? null, [rows, value]);
 
   return (

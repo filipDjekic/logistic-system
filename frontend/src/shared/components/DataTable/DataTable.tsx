@@ -129,7 +129,7 @@ export default function DataTable<T>({
       bottomPadding: Math.max(0, (rows.length - end) * estimatedRowHeight),
       visibleRows: rows.slice(start, end),
     };
-  }, [estimatedRowHeight, error, loading, maxRenderedRows, rows, scrollTop, shouldWindowRows, windowingThreshold]);
+  }, [estimatedRowHeight, maxRenderedRows, rows, scrollTop, shouldWindowRows]);
 
   const isInteractiveTarget = (target: EventTarget | null, currentRow: HTMLTableRowElement) => {
     if (!(target instanceof HTMLElement)) {

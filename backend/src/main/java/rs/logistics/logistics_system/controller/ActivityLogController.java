@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.dto.response.ActivityLogResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
+import rs.logistics.logistics_system.service.support.CsvXlsxConverter;
 
 @PreAuthorize("hasRole('OVERLORD')")
 @RestController
@@ -124,7 +125,7 @@ public class ActivityLogController {
 
     private ResponseEntity<byte[]> exportResponse(byte[] csv, String baseFileName, String format) {
         if ("XLSX".equalsIgnoreCase(format)) {
-            byte[] workbook = toSpreadsheetXml(csv);
+            byte[] workbook = CsvXlsxConverter.convert(csv, "Audit");
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + baseFileName + ".xlsx\"")
@@ -138,24 +139,6 @@ public class ActivityLogController {
                 .body(csv);
     }
 
-    private byte[] toSpreadsheetXml(byte[] csv) {
-        String csvText = new String(csv, StandardCharsets.UTF_8).replace("\uFEFF", "");
-        StringBuilder xml = new StringBuilder();
-        xml.append("<?xml version=\"1.0\"?>");
-        xml.append("<?mso-application progid=\"Excel.Sheet\"?>");
-        xml.append("<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" ");
-        xml.append("xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"><Worksheet ss:Name=\"Audit\"><Table>");
-        for (String line : csvText.split("\\n")) {
-            xml.append("<Row>");
-            for (String cell : line.split(",", -1)) {
-                xml.append("<Cell><Data ss:Type=\"String\">").append(escapeXml(cell.replace("\"", ""))).append("</Data></Cell>");
-            }
-            xml.append("</Row>");
-        }
-        xml.append("</Table></Worksheet></Workbook>");
-        return xml.toString().getBytes(StandardCharsets.UTF_8);
-    }
-
     private String escapeCsv(Object value) {
         if (value == null) {
             return "";
@@ -165,12 +148,4 @@ public class ActivityLogController {
         return raw.contains(",") || raw.contains("\n") || raw.contains("\r") || raw.contains("\"") ? "\"" + escaped + "\"" : escaped;
     }
 
-    private String escapeXml(String value) {
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&apos;");
-    }
 }

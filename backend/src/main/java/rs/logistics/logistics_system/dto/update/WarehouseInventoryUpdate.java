@@ -25,8 +25,6 @@ public class WarehouseInventoryUpdate {
     @Positive
     private Long productId;
 
-    @NotNull
-    @PositiveOrZero
     private BigDecimal quantity;
 
     @NotNull

@@ -38,6 +38,12 @@ export const activityTimelineApi = {
       .then((response) => response.data);
   },
 
+  downloadAttachment(id: number) {
+    return apiClient
+      .get<Blob>(`/api/operational-attachments/${id}/download`, { responseType: 'blob' })
+      .then((response) => response.data);
+  },
+
   createAttachment(payload: OperationalAttachmentCreate) {
     return apiClient.post<OperationalAttachment>('/api/operational-attachments', payload).then((response) => response.data);
   },

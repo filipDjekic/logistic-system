@@ -67,10 +67,13 @@ public class NotificationController {
 
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
-    @GetMapping(value = "/my/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamMyNotifications() {
+    @GetMapping("/my/stream")
+    public ResponseEntity<SseEmitter> streamMyNotifications() {
         Long userId = authenticatedUserProvider.getAuthenticatedUserId();
-        return notificationSseService.subscribe(userId);
+        SseEmitter emitter = notificationSseService.subscribe(userId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(emitter);
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")

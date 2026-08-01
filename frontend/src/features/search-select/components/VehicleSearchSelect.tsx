@@ -63,7 +63,7 @@ export function VehicleSearchSelect({
     sort: 'registrationNumber,asc',
   });
 
-  const rows = vehiclesQuery.data?.content ?? [];
+  const rows = useMemo(() => vehiclesQuery.data?.content ?? [], [vehiclesQuery.data?.content]);
   const selectedLabel = useMemo(() => rows.find((vehicle) => vehicle.id === value)?.registrationNumber ?? null, [rows, value]);
 
   return (

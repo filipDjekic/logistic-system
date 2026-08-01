@@ -349,6 +349,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 warehouseManagerWarehouseIds,
                 status,
                 priority,
+                null,
                 sourceWarehouseId,
                 destinationWarehouseId,
                 vehicleId,

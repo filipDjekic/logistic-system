@@ -255,7 +255,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
             <Grid size={{ xs: 12, lg: 6 }}>
               <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicle} onChange={setVehicle} required disabled={isSubmitting} error={submitted && !vehicle} helperText={submitted && !vehicle ? 'Vehicle is required.' : undefined} searchPlaceholder="Search vehicles..." lookupParams={{
                 status: 'AVAILABLE',
-                available: true,
+                availableOnly: true,
               }}  />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
@@ -272,7 +272,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
                 }
                 lookupParams={{
                   position: 'DRIVER',
-                  active: true,
+                  activeOnly: true,
                   availableFrom: departureTime || undefined,
                   availableTo: plannedArrivalTime || undefined,
                 }}

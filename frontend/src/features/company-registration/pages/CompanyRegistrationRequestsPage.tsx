@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Box,
@@ -149,7 +149,7 @@ export default function CompanyRegistrationRequestsPage() {
     setRejectionReason(request.rejectionReason ?? '');
   };
 
-  const columns = useMemo<DataTableColumn<CompanyRegistrationResponse>[]>(() => [
+  const columns: DataTableColumn<CompanyRegistrationResponse>[] = [
     { id: 'id', header: 'Request', minWidth: 110, render: (row) => `#${row.id}` },
     {
       id: 'companyName',
@@ -194,7 +194,7 @@ export default function CompanyRegistrationRequestsPage() {
         </Stack>
       ),
     },
-  ], [approveMutation.isPending]);
+  ];
 
   return (
     <Stack spacing={3}>

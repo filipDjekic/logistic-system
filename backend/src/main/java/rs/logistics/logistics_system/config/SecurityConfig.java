@@ -1,5 +1,7 @@
 package rs.logistics.logistics_system.config;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -8,6 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -22,6 +26,12 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.DispatcherType;
+import rs.logistics.logistics_system.exception.ErrorResponse;
+import rs.logistics.logistics_system.observability.RequestCorrelation;
 import rs.logistics.logistics_system.security.IdempotencyFilter;
 import rs.logistics.logistics_system.security.JwtAuthenticationFilter;
 import rs.logistics.logistics_system.security.PublicStatusRateLimitFilter;
@@ -35,6 +45,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final IdempotencyFilter idempotencyFilter;
     private final PublicStatusRateLimitFilter publicStatusRateLimitFilter;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
@@ -49,9 +60,16 @@ public class SecurityConfig {
                         .contentTypeOptions(contentType -> {})
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // The initial REQUEST is authenticated below and method security
+                        // authorizes the controller before an SSE response is opened.
+                        // A container ASYNC redispatch only completes that same response;
+                        // re-authorizing it after the response is committed can no longer
+                        // produce a meaningful 401/403 response.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login",
                                 "/api/company-registration-requests",
+                                "/api/company-registration-requests/validate",
                                 "/api/company-registration-requests/status/**",
                                 "/api/countries/**",
                                 "/api/cities/**",
@@ -60,6 +78,14 @@ public class SecurityConfig {
                 )
                 .sessionManagement(sessionManagement ->
                         sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, exception) ->
+                                writeSecurityError(request, response, HttpStatus.UNAUTHORIZED,
+                                        "UNAUTHORIZED", "Authentication is required"))
+                        .accessDeniedHandler((request, response, exception) ->
+                                writeSecurityError(request, response, HttpStatus.FORBIDDEN,
+                                        "FORBIDDEN", "Access denied"))
                 )
                 .addFilterBefore(
                         publicStatusRateLimitFilter,
@@ -74,6 +100,34 @@ public class SecurityConfig {
                         JwtAuthenticationFilter.class
                 );
         return http.build();
+    }
+
+    private void writeSecurityError(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            HttpStatus status,
+            String code,
+            String message
+    ) throws IOException {
+        Object traceIdValue = request.getAttribute(RequestCorrelation.TRACE_ID_ATTRIBUTE);
+        String traceId = traceIdValue == null ? null : traceIdValue.toString();
+        ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                status.value(),
+                status.getReasonPhrase(),
+                code,
+                message,
+                request.getRequestURI(),
+                traceId,
+                List.of()
+        );
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        if (traceId != null) {
+            response.setHeader(RequestCorrelation.REQUEST_ID_HEADER, traceId);
+        }
+        objectMapper.writeValue(response.getWriter(), error);
     }
 
     @Bean

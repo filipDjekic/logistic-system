@@ -5,6 +5,11 @@ SET JAR_NAME=logistics-system-0.0.1-SNAPSHOT.jar
 
 echo [1/4] Testiranje i pakovanje backenda...
 cd %BACKEND_PATH%
+if exist .env (
+    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
+        if not "%%A"=="" set "%%A=%%B"
+    )
+)
 call mvnw.cmd clean package
 if %ERRORLEVEL% NEQ 0 (
     echo [GRESKA] Backend build/test nije uspeo!

@@ -8,6 +8,8 @@ import rs.logistics.logistics_system.dto.response.LookupOptionResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.VehicleStatus;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
+import java.util.Set;
 
 public interface LookupServiceDefinition {
 
@@ -32,7 +34,13 @@ public interface LookupServiceDefinition {
         Pageable pageable
     );
 
-    PageResponse<LookupOptionResponse> transportOrders(String search, Long sourceWarehouseId, Long destinationWarehouseId, Pageable pageable);
+    PageResponse<LookupOptionResponse> transportOrders(
+            String search,
+            Long sourceWarehouseId,
+            Long destinationWarehouseId,
+            Set<TransportOrderStatus> excludeStatuses,
+            Pageable pageable
+    );
 
     PageResponse<LookupOptionResponse> stockMovements(String search, Pageable pageable);
 

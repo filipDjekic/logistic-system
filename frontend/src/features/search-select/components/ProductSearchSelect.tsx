@@ -70,7 +70,7 @@ export function ProductSearchSelect({
         return true;
       })
       .slice(0, 10);
-  }, [activeOnly, debouncedSearch, productsQuery.data, requirePositiveWeight, status]);
+  }, [activeOnly, productsQuery.data, requirePositiveWeight, status]);
 
   const selectedLabel = useMemo(() => rows.find((product) => product.id === value)?.name ?? null, [rows, value]);
 

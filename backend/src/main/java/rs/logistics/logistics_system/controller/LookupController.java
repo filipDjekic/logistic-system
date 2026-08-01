@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import rs.logistics.logistics_system.dto.response.LookupOptionResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.service.definition.LookupServiceDefinition;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 
@@ -51,10 +52,16 @@ public class LookupController {
     public ResponseEntity<PageResponse<LookupOptionResponse>> vehicles(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) VehicleStatus status,
-            @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) Boolean availableOnly,
+            @RequestParam(required = false, name = "available") Boolean legacyAvailable,
             @PageableDefault(size = 20, sort = "registrationNumber", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return ResponseEntity.ok(lookupService.vehicles(search, status, available, pageable));
+        return ResponseEntity.ok(lookupService.vehicles(
+                search,
+                status,
+                availableOnly != null ? availableOnly : legacyAvailable,
+                pageable
+        ));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
@@ -62,7 +69,8 @@ public class LookupController {
     public ResponseEntity<PageResponse<LookupOptionResponse>> employees(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) EmployeePosition position,
-            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Boolean activeOnly,
+            @RequestParam(required = false, name = "active") Boolean legacyActive,
             @RequestParam(required = false) String linkedUser,
             @RequestParam(required = false) LocalDateTime availableFrom,
             @RequestParam(required = false) LocalDateTime availableTo,
@@ -71,7 +79,7 @@ public class LookupController {
         return ResponseEntity.ok(lookupService.employees(
                 search,
                 position,
-                active,
+                activeOnly != null ? activeOnly : legacyActive,
                 linkedUser,
                 availableFrom,
                 availableTo,
@@ -85,9 +93,16 @@ public class LookupController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long sourceWarehouseId,
             @RequestParam(required = false) Long destinationWarehouseId,
+            @RequestParam(required = false) java.util.Set<TransportOrderStatus> excludeStatuses,
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return ResponseEntity.ok(lookupService.transportOrders(search, sourceWarehouseId, destinationWarehouseId, pageable));
+        return ResponseEntity.ok(lookupService.transportOrders(
+                search,
+                sourceWarehouseId,
+                destinationWarehouseId,
+                excludeStatuses,
+                pageable
+        ));
     }
 
 

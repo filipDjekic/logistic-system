@@ -17,6 +17,10 @@ import rs.logistics.logistics_system.enums.WarehouseStatus;
 
 public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
+    boolean existsByCompany_IdAndNameIgnoreCase(Long companyId, String name);
+
+    boolean existsByCompany_IdAndNameIgnoreCaseAndIdNot(Long companyId, String name, Long id);
+
     Optional<Warehouse> findByIdAndCompany_Id(Long id, Long companyId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

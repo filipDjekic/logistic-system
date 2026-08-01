@@ -81,7 +81,7 @@ export default function InventoryPage() {
     queryFn: () => inventoryApi.getStatusCounts(filters),
     staleTime: 30_000,
   });
-  const rows = inventoryQuery.data?.content ?? [];
+  const rows = useMemo(() => inventoryQuery.data?.content ?? [], [inventoryQuery.data?.content]);
   const reserveInventoryMutation = useReserveInventoryStock();
   const releaseReservationMutation = useReleaseInventoryReservation();
   const importMutation = useMutation({

@@ -4,5 +4,6 @@ public enum WarehouseStatus {
     ACTIVE,
     INACTIVE,
     FULL,
-    UNDER_MAINTENANCE
+    UNDER_MAINTENANCE,
+    ARCHIVED
 }

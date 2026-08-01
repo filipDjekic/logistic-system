@@ -30,7 +30,6 @@ export type WarehouseInventoryUpdateRequest = {
   expectedVersion: number;
   warehouseId: number;
   productId: number;
-  quantity: number;
   minStockLevel: number;
 };
 

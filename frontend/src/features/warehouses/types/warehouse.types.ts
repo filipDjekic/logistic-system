@@ -2,7 +2,8 @@ export type WarehouseStatus =
   | 'ACTIVE'
   | 'INACTIVE'
   | 'FULL'
-  | 'UNDER_MAINTENANCE';
+  | 'UNDER_MAINTENANCE'
+  | 'ARCHIVED';
 
 export type WarehouseLocationFields = {
   postalCode: string | null;
@@ -28,6 +29,7 @@ export type WarehouseResponse = WarehouseLocationFields & {
   status: WarehouseStatus;
   active: boolean;
   binTrackingEnabled: boolean;
+  version: number;
   employeeId: number | null;
   managerName: string | null;
   companyId: number | null;
@@ -53,7 +55,6 @@ export type WarehouseCreateRequest = {
   latitude?: number | string | null;
   longitude?: number | string | null;
   capacity: number;
-  status: WarehouseStatus;
   employeeId: number;
   companyId?: number;
   binTrackingEnabled?: boolean;
@@ -71,6 +72,7 @@ export type WarehouseUpdateRequest = {
   longitude?: number | string | null;
   capacity: number;
   binTrackingEnabled?: boolean;
+  expectedVersion: number;
 };
 
 export type WarehouseFiltersState = {
@@ -97,7 +99,6 @@ export type WarehouseFormValues = {
   latitude?: number | string | null;
   longitude?: number | string | null;
   capacity: number | string;
-  status: WarehouseStatus;
   employeeId: number | string;
   companyId: string;
   binTrackingEnabled: boolean;

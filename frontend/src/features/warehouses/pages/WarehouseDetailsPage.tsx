@@ -62,10 +62,16 @@ import type { WarehouseStatus } from '../types/warehouse.types';
 import { useInventory } from '../../inventory/hooks/useInventory';
 import type { InventoryListRow } from '../../inventory/types/inventory.types';
 import { useStockMovements } from '../../stock-movements/hooks/useStockMovements';
-import type { StockMovementResponse } from '../../stock-movements/types/stockMovement.types';
+import type { StockMovementFiltersState, StockMovementResponse } from '../../stock-movements/types/stockMovement.types';
 import { warehouseLocationRoutes } from '../../warehouse-locations/utils/warehouseLocationRoutes';
 
-const warehouseStatusOptions: WarehouseStatus[] = ['ACTIVE', 'FULL', 'UNDER_MAINTENANCE', 'INACTIVE'];
+const warehouseStatusTransitions: Partial<Record<WarehouseStatus, WarehouseStatus[]>> = {
+  ACTIVE: ['FULL', 'UNDER_MAINTENANCE', 'INACTIVE'],
+  FULL: ['ACTIVE', 'INACTIVE'],
+  UNDER_MAINTENANCE: ['ACTIVE', 'INACTIVE'],
+  INACTIVE: ['ACTIVE'],
+  ARCHIVED: [],
+};
 
 type WarehouseDetailsTab =
   | 'overview'
@@ -676,7 +682,7 @@ export default function WarehouseDetailsPage() {
   const [binSearch, setBinSearch] = useState('');
   const [inventorySearch, setInventorySearch] = useState('');
   const [movementSearch, setMovementSearch] = useState('');
-  const [movementTypeFilter, setMovementTypeFilter] = useState<string>('ALL');
+  const [movementTypeFilter, setMovementTypeFilter] = useState<StockMovementFiltersState['movementType']>('ALL');
   const [internalMovementSearch, setInternalMovementSearch] = useState('');
 
   const canManage =
@@ -707,7 +713,7 @@ export default function WarehouseDetailsPage() {
     { warehouses: [], products: [] },
     Boolean(validWarehouseId) && canViewInventoryTab && activeTab === 'inventory',
   );
-  const stockMovementQuery = useStockMovements({ search: movementSearch, movementType: movementTypeFilter as any, warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', transportOrderId: 'ALL', fromDate: '', toDate: '', page: stockMovementPage.page, size: stockMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'stockMovements');
+  const stockMovementQuery = useStockMovements({ search: movementSearch, movementType: movementTypeFilter, warehouseId: scopedWarehouseId ?? 'ALL', productId: 'ALL', transportOrderId: 'ALL', fromDate: '', toDate: '', page: stockMovementPage.page, size: stockMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'stockMovements');
   const internalMovementQuery = useInternalWarehouseMovements({ warehouseId: scopedWarehouseId, search: internalMovementSearch.trim() || undefined, page: internalMovementPage.page, size: internalMovementPage.size, sort: 'createdAt,desc' }, Boolean(validWarehouseId) && activeTab === 'internalMovements');
 
   const zones = zoneQuery.data?.content ?? [];
@@ -744,17 +750,6 @@ export default function WarehouseDetailsPage() {
     mutationFn: (id: number) => warehousesApi.archive(id),
     onSuccess: async (updated) => {
       showSnackbar({ message: 'Warehouse archived successfully.', severity: 'success' });
-      await invalidateWarehouseState(queryClient, updated.id);
-    },
-    onError: (error) => {
-      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
-    },
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: (id: number) => warehousesApi.restore(id),
-    onSuccess: async (updated) => {
-      showSnackbar({ message: 'Warehouse restored successfully.', severity: 'success' });
       await invalidateWarehouseState(queryClient, updated.id);
     },
     onError: (error) => {
@@ -827,7 +822,7 @@ export default function WarehouseDetailsPage() {
     );
   }
 
-  const availableWarehouseStatusTargets = warehouseStatusOptions.filter((status) => status !== warehouse.status);
+  const availableWarehouseStatusTargets = warehouseStatusTransitions[warehouse.status] ?? [];
 
   const tabItems: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
@@ -865,11 +860,8 @@ export default function WarehouseDetailsPage() {
       onTabChange={(value) => setActiveTab(value as WarehouseDetailsTab)}
       actions={
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {canManage && warehouse.active ? (
+          {canManage && warehouse.status !== 'ARCHIVED' ? (
             <Button variant="outlined" color="warning" disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(warehouse.id)}>Archive</Button>
-          ) : null}
-          {canManage && !warehouse.active ? (
-            <Button variant="contained" color="success" disabled={restoreMutation.isPending} onClick={() => restoreMutation.mutate(warehouse.id)}>Restore</Button>
           ) : null}
           {canManage ? (
             <Button
@@ -885,7 +877,7 @@ export default function WarehouseDetailsPage() {
         </Stack>
       }
     >
-      {!warehouse.active ? <ArchivedEntityAlert entityLabel="Warehouse" /> : null}
+      {warehouse.status === 'ARCHIVED' ? <ArchivedEntityAlert entityLabel="Warehouse" /> : null}
 
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
@@ -918,10 +910,10 @@ export default function WarehouseDetailsPage() {
             ]}
           />
 
-          {canManage ? (
+          {canManage && warehouse.status !== 'ARCHIVED' ? (
             <DetailsMetadataCard
               title="Warehouse status controls"
-              description="Warehouse status is a direct operational flag. It is not a lifecycle workflow and does not store transition reasons."
+              description="Only supported operational status transitions are available. Archiving is a separate terminal lifecycle action."
             >
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {availableWarehouseStatusTargets.map((status) => (
@@ -929,7 +921,7 @@ export default function WarehouseDetailsPage() {
                     key={status}
                     variant="outlined"
                     size="small"
-                    disabled={changeStatusMutation.isPending || !warehouse.active}
+                    disabled={changeStatusMutation.isPending}
                     onClick={() => setTransitionTarget(status)}
                   >
                     Mark {status.replaceAll('_', ' ').toLowerCase()}
@@ -1102,7 +1094,7 @@ export default function WarehouseDetailsPage() {
                     size="small"
                     label="Movement type"
                     value={movementTypeFilter}
-                    onChange={(event) => { setMovementTypeFilter(event.target.value); stockMovementPage.setPage(0); }}
+                    onChange={(event) => { setMovementTypeFilter(event.target.value as StockMovementFiltersState['movementType']); stockMovementPage.setPage(0); }}
                     fullWidth
                   >
                     <MenuItem value="ALL">All movement types</MenuItem>

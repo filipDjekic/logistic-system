@@ -83,10 +83,13 @@ export default function StockMovementFormDialog({
   const isTransferMovement =
     movementType === 'TRANSFER_IN' || movementType === 'TRANSFER_OUT';
 
-
-  const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === form.watch('warehouseId'));
-  const selectedProduct = products.find((product) => product.id === form.watch('productId'));
-  const selectedTransportOrder = transportOrders.find((order) => order.id === form.watch('transportOrderId'));
+  const [warehouseId, productId, transportOrderId] = useWatch({
+    control: form.control,
+    name: ['warehouseId', 'productId', 'transportOrderId'],
+  });
+  const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === warehouseId);
+  const selectedProduct = products.find((product) => product.id === productId);
+  const selectedTransportOrder = transportOrders.find((order) => order.id === transportOrderId);
 
   useEffect(() => {
     if (!open || !serverError) {

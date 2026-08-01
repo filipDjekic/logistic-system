@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PublicStatusRateLimitFilter extends OncePerRequestFilter {
 
     private static final String STATUS_PATH_PREFIX = "/api/company-registration-requests/status/";
+    private static final String VALIDATION_PATH = "/api/company-registration-requests/validate";
     private static final int REQUESTS_PER_MINUTE = 30;
 
     private final ObjectMapper objectMapper;
@@ -33,7 +34,7 @@ public class PublicStatusRateLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        if (!isPublicStatusLookup(request)) {
+        if (!isRateLimitedPublicLookup(request)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -57,10 +58,11 @@ public class PublicStatusRateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean isPublicStatusLookup(HttpServletRequest request) {
+    private boolean isRateLimitedPublicLookup(HttpServletRequest request) {
         return "GET".equalsIgnoreCase(request.getMethod())
                 && request.getRequestURI() != null
-                && request.getRequestURI().startsWith(STATUS_PATH_PREFIX);
+                && (request.getRequestURI().startsWith(STATUS_PATH_PREFIX)
+                    || request.getRequestURI().equals(VALIDATION_PATH));
     }
 
     private String clientKey(HttpServletRequest request) {

@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -35,7 +36,11 @@ public class NotificationSseService {
     private final AtomicLong eventSequence = new AtomicLong();
 
     public SseEmitter subscribe(Long userId) {
-        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
+        // Resolve everything that can fail before creating/registering the stream. This
+        // lets MVC return its normal JSON error response instead of trying to serialize
+        // ErrorResponse with an already selected text/event-stream content type.
+        long unreadCount = getUnreadCount(userId);
+        SseEmitter emitter = createEmitter();
         NotificationEmitterConnection connection = new NotificationEmitterConnection(
                 UUID.randomUUID().toString(),
                 emitter,
@@ -49,7 +54,7 @@ public class NotificationSseService {
         emitter.onTimeout(() -> removeEmitter(userId, connection));
         emitter.onError(error -> removeEmitter(userId, connection));
 
-        send(userId, connection, "connected", NotificationStreamEventResponse.connected(getUnreadCount(userId)));
+        send(userId, connection, "connected", NotificationStreamEventResponse.connected(unreadCount));
 
         return emitter;
     }
@@ -105,8 +110,14 @@ public class NotificationSseService {
                       NotificationEmitterConnection connection,
                       String eventName,
                       NotificationStreamEventResponse payload) {
+        if (connection.isClosed()) {
+            return;
+        }
         try {
             synchronized (connection.sendLock()) {
+                if (connection.isClosed()) {
+                    return;
+                }
                 connection.emitter().send(SseEmitter.event()
                         .name(eventName)
                         .id(buildEventId(userId, connection.id()))
@@ -120,19 +131,23 @@ public class NotificationSseService {
     }
 
     private void removeEmitter(Long userId, NotificationEmitterConnection connection) {
-        Set<NotificationEmitterConnection> connections = emittersByUserId.get(userId);
-        if (connections == null) {
+        if (!connection.close()) {
             return;
         }
+        Set<NotificationEmitterConnection> connections = emittersByUserId.get(userId);
+        if (connections != null) {
+            connections.remove(connection);
+        }
 
-        connections.remove(connection);
         try {
             connection.emitter().complete();
         } catch (IllegalStateException ignored) {
+            // The servlet container may already have completed a timed-out or
+            // client-aborted async response.
         }
 
-        if (connections.isEmpty()) {
-            emittersByUserId.remove(userId);
+        if (connections != null && connections.isEmpty()) {
+            emittersByUserId.remove(userId, connections);
         }
     }
 
@@ -164,11 +179,16 @@ public class NotificationSseService {
         return notificationRepository.countByUserIdAndStatus(userId, NotificationStatus.UNREAD);
     }
 
+    SseEmitter createEmitter() {
+        return new SseEmitter(EMITTER_TIMEOUT_MS);
+    }
+
     private static final class NotificationEmitterConnection {
         private final String id;
         private final SseEmitter emitter;
         private final Instant createdAt;
         private final Object sendLock = new Object();
+        private final AtomicBoolean closed = new AtomicBoolean();
         private volatile Instant lastTouchedAt;
 
         private NotificationEmitterConnection(String id, SseEmitter emitter, Instant createdAt) {
@@ -200,6 +220,14 @@ public class NotificationSseService {
 
         private void touch() {
             this.lastTouchedAt = Instant.now();
+        }
+
+        private boolean close() {
+            return closed.compareAndSet(false, true);
+        }
+
+        private boolean isClosed() {
+            return closed.get();
         }
     }
 }

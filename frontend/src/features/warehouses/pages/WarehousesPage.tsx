@@ -84,7 +84,7 @@ export default function WarehousesPage() {
     },
   });
 
-  const rows = warehousesQuery.data?.content ?? [];
+  const rows = useMemo(() => warehousesQuery.data?.content ?? [], [warehousesQuery.data?.content]);
   const hasActiveFilters = filters.search.trim().length > 0 || filters.status !== 'ALL' || filters.active !== 'ALL';
 
   const clearFilters = () => {

@@ -131,7 +131,7 @@ export default function InventoryFormPage({ mode }: Props) {
   const normalizedMinStockLevel = normalizeNumber(minStockLevel);
   const hasWarehouse = selectedWarehouse !== null || isEdit;
   const hasProduct = selectedProduct !== null || isEdit;
-  const hasInvalidQuantity = submitted && (normalizedQuantity === null || normalizedQuantity < 0);
+  const hasInvalidQuantity = !isEdit && submitted && (normalizedQuantity === null || normalizedQuantity < 0);
   const hasInvalidMinStockLevel = submitted && (normalizedMinStockLevel === null || normalizedMinStockLevel < 0);
   const isSubmitting = createInventoryMutation.isPending || updateInventoryMutation.isPending;
   const submitError = createInventoryMutation.error ?? updateInventoryMutation.error;
@@ -139,20 +139,19 @@ export default function InventoryFormPage({ mode }: Props) {
     isSubmitting ||
     !hasWarehouse ||
     !hasProduct ||
-    normalizedQuantity === null ||
-    normalizedQuantity < 0 ||
+    (!isEdit && (normalizedQuantity === null || normalizedQuantity < 0)) ||
     normalizedMinStockLevel === null ||
     normalizedMinStockLevel < 0;
 
   const handleSubmit = () => {
     setSubmitted(true);
 
-    if (disableSubmit || normalizedQuantity === null || normalizedMinStockLevel === null) {
+    if (disableSubmit || normalizedMinStockLevel === null) {
       return;
     }
 
     if (mode === 'create') {
-      if (!selectedWarehouse || !selectedProduct) return;
+      if (!selectedWarehouse || !selectedProduct || normalizedQuantity === null) return;
 
       createInventoryMutation.mutate(
         {
@@ -180,7 +179,6 @@ export default function InventoryFormPage({ mode }: Props) {
           expectedVersion: inventoryRecordQuery.data.record.version,
           warehouseId: routeWarehouseId,
           productId: routeProductId,
-          quantity: normalizedQuantity,
           minStockLevel: normalizedMinStockLevel,
         },
       },
@@ -227,16 +225,10 @@ export default function InventoryFormPage({ mode }: Props) {
                   entityType="warehouses"
                   accessMode="mutate"
                   required
-                  disabled={mode === 'edit'}
-                  value={field.value ? {
-                    id: Number(field.value),
-                    label: selectedWarehouse?.name ?? `Warehouse #${field.value}`,
-                    subtitle: selectedWarehouse?.city ?? undefined,
-                    status: selectedWarehouse?.status ?? undefined,
-                  } : null}
-                  onChange={(option) => field.onChange(option?.id ?? '')}
-                  error={Boolean(fieldState.error)}
-                  helperText={fieldState.error?.message ?? (mode === 'edit' ? 'Warehouse cannot be changed after record creation.' : undefined)}
+                  value={selectedWarehouse}
+                  onChange={setSelectedWarehouse}
+                  error={submitted && !selectedWarehouse}
+                  helperText={submitted && !selectedWarehouse ? 'Warehouse is required.' : undefined}
                   searchPlaceholder="Search warehouses..."
                 />
               </Grid>
@@ -279,7 +271,9 @@ export default function InventoryFormPage({ mode }: Props) {
       <SectionCard title="Stock levels">
         <Stack spacing={2.5}>
           <Typography variant="body2" color="text.secondary">
-            Quantity and minimum stock level must be zero or greater.
+            {isEdit
+              ? 'Quantity is changed through stock movements or inventory counts. Only the minimum stock level can be edited here.'
+              : 'Quantity and minimum stock level must be zero or greater.'}
           </Typography>
 
           <Divider />
@@ -291,10 +285,17 @@ export default function InventoryFormPage({ mode }: Props) {
                 type="number"
                 value={quantity}
                 onChange={(event) => setQuantity(event.target.value)}
-                required
+                required={!isEdit}
+                disabled={isEdit}
                 fullWidth
                 error={hasInvalidQuantity}
-                helperText={hasInvalidQuantity ? 'Quantity must be zero or greater.' : undefined}
+                helperText={
+                  isEdit
+                    ? 'Use a stock movement or inventory count to change quantity.'
+                    : hasInvalidQuantity
+                      ? 'Quantity must be zero or greater.'
+                      : undefined
+                }
                 slotProps={{ htmlInput: { min: 0, step: 1 } }}
               />
             </Grid>

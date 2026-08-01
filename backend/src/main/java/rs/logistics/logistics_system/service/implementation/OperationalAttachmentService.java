@@ -145,7 +145,7 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
     public Resource download(Long id) {
         OperationalAttachment attachment = getAccessibleAttachment(id);
         operationalEntityAccessValidator.ensureCanAccess(attachment.getEntityType(), attachment.getEntityId());
-        Path path = resolveStoredFilePath(attachment.getFileUrl());
+        Path path = resolveStoredFilePath(attachment);
         try {
             Resource resource = new UrlResource(path.toUri());
             if (!resource.exists() || !resource.isReadable()) {
@@ -247,23 +247,12 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
         return index < 0 || index == fileName.length() - 1 ? "" : fileName.substring(index + 1).toLowerCase();
     }
 
-    private Path resolveStoredFilePath(String fileUrl) {
-        if (fileUrl == null || !fileUrl.startsWith("/api/operational-attachments/") || !fileUrl.endsWith("/download")) {
+    private Path resolveStoredFilePath(OperationalAttachment attachment) {
+        String expectedFileUrl = "/api/operational-attachments/" + attachment.getId() + "/download";
+        if (!expectedFileUrl.equals(attachment.getFileUrl())) {
             throw new ResourceNotFoundException("Attachment file not found");
         }
 
-        String idSegment = fileUrl
-                .replace("/api/operational-attachments/", "")
-                .replace("/download", "");
-
-        Long attachmentId;
-        try {
-            attachmentId = Long.parseLong(idSegment);
-        } catch (NumberFormatException ex) {
-            throw new ResourceNotFoundException("Attachment file not found");
-        }
-
-        OperationalAttachment attachment = attachmentRepository.findById(attachmentId).orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
         Path storagePath = Paths.get(storageDirectory).toAbsolutePath().normalize();
         return storagePath.resolve(buildStoredFileName(attachment)).normalize();
     }
@@ -281,7 +270,7 @@ public class OperationalAttachmentService implements OperationalAttachmentServic
         }
 
         try {
-            Files.deleteIfExists(resolveStoredFilePath(attachment.getFileUrl()));
+            Files.deleteIfExists(resolveStoredFilePath(attachment));
         } catch (RuntimeException | IOException ignored) {
             // Metadata delete must not fail only because the local file was already removed.
         }

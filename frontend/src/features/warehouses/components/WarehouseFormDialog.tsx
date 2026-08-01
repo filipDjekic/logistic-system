@@ -35,13 +35,6 @@ type Props = {
   onSubmit: (values: WarehouseFormValues) => void;
 };
 
-const warehouseStatusOptions = [
-  { value: 'ACTIVE', label: 'ACTIVE' },
-  { value: 'INACTIVE', label: 'INACTIVE' },
-  { value: 'FULL', label: 'FULL' },
-  { value: 'UNDER_MAINTENANCE', label: 'UNDER_MAINTENANCE' },
-] as const;
-
 const defaultValues: WarehouseFormValues = {
   name: '',
   address: '',
@@ -51,7 +44,6 @@ const defaultValues: WarehouseFormValues = {
   countryId: null,
   timezoneId: '',
   capacity: '',
-  status: 'ACTIVE',
   employeeId: '',
   companyId: '',
   binTrackingEnabled: false,
@@ -94,7 +86,6 @@ export default function WarehouseFormDialog({
         countryId: initialData.countryId ?? null,
         timezoneId: initialData.timezoneId ?? '',
         capacity: initialData.capacity,
-        status: initialData.status,
         employeeId: initialData.employeeId ?? '',
         companyId: initialData.companyId != null ? String(initialData.companyId) : '',
         binTrackingEnabled: Boolean(initialData.binTrackingEnabled),
@@ -206,7 +197,6 @@ export default function WarehouseFormDialog({
 
         <FormSection title="Operational setup" description="Status is fixed after creation through lifecycle actions. Bin tracking should match real warehouse process.">
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}><FormSelect name="status" control={control} label="Status" options={[...warehouseStatusOptions]} required disabled={mode === 'edit'} /></Grid>
           {mode === 'create' && isOverlord ? <Grid size={{ xs: 12, md: 6 }}><FormSelect name="companyId" control={control} label="Company" options={companyOptions} required /></Grid> : null}
           <Grid size={{ xs: 12, md: 6 }}><FormCheckbox name="binTrackingEnabled" control={control} label="Enable bin tracking" helperText="When enabled, stock operations require bin selection." /></Grid>
           <Grid size={{ xs: 12 }}><FormSelect name="employeeId" control={control} label="Manager" options={visibleManagers.map((manager) => ({ value: manager.id, label: `${manager.firstName} ${manager.lastName}` }))} required disabled={mode === 'edit' || (mode === 'create' && isOverlord && !selectedCompanyId)} helperText={mode === 'create' && isOverlord && !selectedCompanyId ? 'Select company first' : undefined} /></Grid>

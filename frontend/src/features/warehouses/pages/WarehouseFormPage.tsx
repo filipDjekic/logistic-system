@@ -22,13 +22,6 @@ import { useWarehouse } from '../hooks/useWarehouse';
 import type { WarehouseFormValues } from '../types/warehouse.types';
 import { warehouseSchema } from '../validation/warehouseSchema';
 
-const warehouseStatusOptions = [
-  { value: 'ACTIVE', label: 'ACTIVE' },
-  { value: 'INACTIVE', label: 'INACTIVE' },
-  { value: 'FULL', label: 'FULL' },
-  { value: 'UNDER_MAINTENANCE', label: 'UNDER_MAINTENANCE' },
-] as const;
-
 const defaultValues: WarehouseFormValues = {
   name: '',
   address: '',
@@ -36,7 +29,6 @@ const defaultValues: WarehouseFormValues = {
   city: '',
   postalCode: '',
   capacity: '',
-  status: 'ACTIVE',
   countryId: null,
   timezoneId: '',
   employeeId: '',
@@ -86,7 +78,6 @@ export default function WarehouseFormPage({ mode }: Props) {
       city: warehouseQuery.data.cityName ?? warehouseQuery.data.city ?? '',
       postalCode: warehouseQuery.data.postalCode ?? '',
       capacity: warehouseQuery.data.capacity,
-      status: warehouseQuery.data.status,
       employeeId: warehouseQuery.data.employeeId ?? '',
       companyId: warehouseQuery.data.companyId != null ? String(warehouseQuery.data.companyId) : '',
       countryId: warehouseQuery.data.countryId ?? null,
@@ -209,17 +200,6 @@ export default function WarehouseFormPage({ mode }: Props) {
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
-                name="status"
-                control={control}
-                label="Status"
-                options={[...warehouseStatusOptions]}
-                required
-                disabled={mode === 'edit'}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
               <FormCheckbox name="binTrackingEnabled" control={control} label="Enable bin tracking" helperText="When enabled, stock movements must select bins and internal movements become available." />
             </Grid>
 
@@ -278,7 +258,6 @@ export default function WarehouseFormPage({ mode }: Props) {
               if (mode === 'create') {
                 createWarehouse.mutate({
                   ...basePayload,
-                  status: values.status,
                   employeeId: Number(values.employeeId),
                   companyId: values.companyId ? Number(values.companyId) : undefined,
                 }, {
@@ -294,7 +273,7 @@ export default function WarehouseFormPage({ mode }: Props) {
 
               updateWarehouse.mutate({
                 id: warehouseId,
-                data: basePayload,
+                data: { ...basePayload, expectedVersion: warehouseQuery.data!.version },
               }, {
                 onSuccess: (updated) => {
                   const currentManagerId = warehouseQuery.data?.employeeId ?? null;

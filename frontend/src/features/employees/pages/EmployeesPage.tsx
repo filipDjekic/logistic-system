@@ -152,7 +152,7 @@ export default function EmployeesPage() {
     updateEmployeeMutation.isPending ||
     updateUserMutation.isPending;
 
-  const rows = employeesQuery.data?.content ?? [];
+  const rows = useMemo(() => employeesQuery.data?.content ?? [], [employeesQuery.data?.content]);
   const hasActiveFilters =
     filters.search.trim().length > 0 ||
     filters.position !== 'ALL' ||

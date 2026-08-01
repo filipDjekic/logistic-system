@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { Alert, Button, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
-import { appEnv } from '../../../core/config/env';
+import { downloadFile } from '../../../core/utils/downloadFile';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { activityTimelineApi } from '../../../features/activity-timeline/api/activityTimelineApi';
 import {
   useOperationalAttachments,
   useUploadOperationalAttachment,
@@ -61,12 +62,8 @@ function formatBytes(value: number | null) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function resolveAttachmentUrl(fileUrl: string) {
-  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
-    return fileUrl;
-  }
-
-  return `${appEnv.apiBaseUrl}${fileUrl}`;
+function isExternalAttachmentUrl(fileUrl: string) {
+  return fileUrl.startsWith('http://') || fileUrl.startsWith('https://');
 }
 
 export default function AttachmentsPanel({
@@ -86,6 +83,7 @@ export default function AttachmentsPanel({
   const [fileError, setFileError] = useState<string | null>(null);
   const [attachmentType, setAttachmentType] = useState<OperationalAttachmentType>(defaultAttachmentType);
   const [attachmentDescription, setAttachmentDescription] = useState('');
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
 
   const attachments = attachmentsQuery.data ?? [];
   const canSubmit = Boolean(entityId && file && !fileError) && !uploadAttachmentMutation.isPending;
@@ -124,6 +122,18 @@ export default function AttachmentsPanel({
         },
       },
     );
+  };
+
+  const handleDownload = async (attachmentId: number, fileName: string, contentType: string | null) => {
+    setDownloadingAttachmentId(attachmentId);
+    try {
+      const blob = await activityTimelineApi.downloadAttachment(attachmentId);
+      downloadFile({ data: blob, fileName, mimeType: contentType ?? undefined });
+    } catch (error) {
+      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
   };
 
   return (
@@ -190,7 +200,21 @@ export default function AttachmentsPanel({
           {attachments.map((attachment) => (
             <Stack key={attachment.id} spacing={0.5} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Link href={resolveAttachmentUrl(attachment.fileUrl)} target="_blank" rel="noreferrer" fontWeight={800}>{attachment.fileName}</Link>
+                {isExternalAttachmentUrl(attachment.fileUrl) ? (
+                  <Link href={attachment.fileUrl} target="_blank" rel="noreferrer" fontWeight={800}>
+                    {attachment.fileName}
+                  </Link>
+                ) : (
+                  <Button
+                    variant="text"
+                    size="small"
+                    disabled={downloadingAttachmentId === attachment.id}
+                    onClick={() => { void handleDownload(attachment.id, attachment.fileName, attachment.contentType); }}
+                    sx={{ minWidth: 0, p: 0, fontWeight: 800, textTransform: 'none' }}
+                  >
+                    {downloadingAttachmentId === attachment.id ? 'Downloading...' : attachment.fileName}
+                  </Button>
+                )}
                 <Typography variant="caption" color="text.secondary" sx={{ px: 1, py: 0.25, border: 1, borderColor: 'divider', borderRadius: 999 }}>
                   {attachmentTypeLabel(attachment.attachmentType, attachmentTypeOptions)}
                 </Typography>

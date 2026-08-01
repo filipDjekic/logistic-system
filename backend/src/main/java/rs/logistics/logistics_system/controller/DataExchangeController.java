@@ -402,7 +402,7 @@ public class DataExchangeController {
         List<String> requiredHeaders = switch (type) {
             case "products" -> List.of("name", "sku", "unit", "price", "fragile", "weight");
             case "vehicles" -> List.of("registrationnumber", "brand", "model", "type", "capacity", "maxweight", "fueltype", "yearofproduction", "status");
-            case "warehouses" -> List.of("name", "address", "cityid", "postalcode", "countryid", "capacity", "status", "employeeid");
+            case "warehouses" -> List.of("name", "address", "cityid", "postalcode", "countryid", "capacity", "employeeid");
             case "warehouse-inventory" -> List.of("warehouseid", "productid", "quantity", "minstocklevel");
             case "employees" -> List.of("firstname", "lastname", "jmbg", "phonenumber", "email", "position", "employmentdate", "salary");
             default -> List.of();
@@ -456,7 +456,6 @@ public class DataExchangeController {
                 optionalDecimal(row, "latitude"),
                 optionalDecimal(row, "longitude"),
                 positiveDecimal(required(row, "capacity"), "capacity"),
-                enumValue(WarehouseStatus.class, required(row, "status"), "status"),
                 positiveLongValue(required(row, "employeeid"), "employeeId"),
                 optionalPositiveLong(row, "companyid")
         );

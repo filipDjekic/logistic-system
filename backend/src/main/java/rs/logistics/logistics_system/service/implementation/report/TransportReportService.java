@@ -92,6 +92,7 @@ public class TransportReportService implements TransportReportServiceDefinition 
                 List.of(-1L),
                 status,
                 priority,
+                null,
                 sourceWarehouseId,
                 destinationWarehouseId,
                 vehicleId,

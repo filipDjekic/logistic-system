@@ -252,6 +252,7 @@ export {
   AuditTimelinePanel,
   CommentsAndAttachmentsPanel,
   OperationalDetailsTabPanels,
+  // eslint-disable-next-line react-refresh/only-export-components -- this module is a shared panel API, not a route refresh boundary
   buildOperationalTabs,
 };
 export type {

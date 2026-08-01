@@ -23,8 +23,8 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.service.definition.report.EmployeeTaskReportServiceDefinition;
 import rs.logistics.logistics_system.service.definition.report.InventoryReportServiceDefinition;
 import rs.logistics.logistics_system.service.definition.report.TransportReportServiceDefinition;
+import rs.logistics.logistics_system.service.support.CsvXlsxConverter;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 @RestController
@@ -189,7 +189,7 @@ public class ReportsController {
 
     private ResponseEntity<byte[]> exportResponse(byte[] csv, String baseFileName, String format) {
         if ("XLSX".equalsIgnoreCase(format)) {
-            byte[] workbook = toSpreadsheetXml(csv);
+            byte[] workbook = CsvXlsxConverter.convert(csv, "Report");
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + baseFileName + ".xlsx\"")
@@ -204,30 +204,4 @@ public class ReportsController {
                 .body(csv);
     }
 
-    private byte[] toSpreadsheetXml(byte[] csv) {
-        String csvText = new String(csv, StandardCharsets.UTF_8).replace("\uFEFF", "");
-        StringBuilder xml = new StringBuilder();
-        xml.append("<?xml version=\"1.0\"?>");
-        xml.append("<?mso-application progid=\"Excel.Sheet\"?>");
-        xml.append("<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" ");
-        xml.append("xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"><Worksheet ss:Name=\"Report\"><Table>");
-        for (String line : csvText.split("\\n")) {
-            xml.append("<Row>");
-            for (String cell : line.split(",", -1)) {
-                xml.append("<Cell><Data ss:Type=\"String\">").append(escapeXml(cell.replace("\"", ""))).append("</Data></Cell>");
-            }
-            xml.append("</Row>");
-        }
-        xml.append("</Table></Worksheet></Workbook>");
-        return xml.toString().getBytes(StandardCharsets.UTF_8);
-    }
-
-    private String escapeXml(String value) {
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&apos;");
-    }
 }
