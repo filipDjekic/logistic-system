@@ -33,14 +33,14 @@ public class UserController {
 
     private final UserServiceDefinition userService;
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserCreate dto) {
         UserResponse userResponse = userService.create(dto);
         return new ResponseEntity<>(userResponse, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdate dto) {
         UserResponse userResponse = userService.update(id, dto);
@@ -62,35 +62,35 @@ public class UserController {
         return ResponseEntity.ok(userService.getAll(pageable));
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PatchMapping("/{id}/enable")
     public ResponseEntity<Void> enableUser(@PathVariable Long id) {
         userService.enableUser(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PatchMapping("/{id}/disable")
     public ResponseEntity<Void> disableUser(@PathVariable Long id) {
         userService.disableUser(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasRole('OVERLORD') or @authenticatedUserProvider.isSelf(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER') or @authenticatedUserProvider.isSelf(#id)")
     @PatchMapping("/{id}/change_password")
     public ResponseEntity<Void> changePassword(@PathVariable Long id, @Valid @RequestBody ChangePasswordRequest request) {
         userService.changePassword(id, request);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PatchMapping("/{id}/assign-role")
     public ResponseEntity<UserResponse> assignRole(@PathVariable Long id, @Valid @RequestBody AssignRoleRequest request) {
         return ResponseEntity.ok(userService.assignRole(id, request.getRoleId()));

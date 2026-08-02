@@ -20,31 +20,31 @@ public class EmployeeWarehouseAssignmentController {
 
     private final EmployeeWarehouseAssignmentServiceDefinition assignmentService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping
     public ResponseEntity<EmployeeWarehouseAssignmentResponse> create(@Valid @RequestBody EmployeeWarehouseAssignmentCreate dto) {
         return new ResponseEntity<>(assignmentService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<EmployeeWarehouseAssignmentResponse> update(@PathVariable Long id, @Valid @RequestBody EmployeeWarehouseAssignmentUpdate dto) {
         return ResponseEntity.ok(assignmentService.update(id, dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @GetMapping("/employee/{employeeId}")
     public ResponseEntity<List<EmployeeWarehouseAssignmentResponse>> getByEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(assignmentService.getByEmployee(employeeId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @GetMapping("/warehouse/{warehouseId}")
     public ResponseEntity<List<EmployeeWarehouseAssignmentResponse>> getByWarehouse(@PathVariable Long warehouseId) {
         return ResponseEntity.ok(assignmentService.getByWarehouse(warehouseId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         assignmentService.delete(id);

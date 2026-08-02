@@ -21,7 +21,7 @@ import rs.logistics.logistics_system.dto.response.CompanyResponse;
 import rs.logistics.logistics_system.dto.update.CompanyUpdate;
 import rs.logistics.logistics_system.service.definition.CompanyServiceDefinition;
 
-@PreAuthorize("hasRole('OVERLORD')")
+@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
 @RestController
 @RequestMapping("/api/companies")
 @RequiredArgsConstructor
@@ -30,11 +30,13 @@ public class CompanyController {
     private final CompanyServiceDefinition companyService;
 
     @PostMapping
+    @PreAuthorize("hasRole('OVERLORD')")
     public ResponseEntity<CompanyResponse> create(@Valid @RequestBody CompanyCreate dto) {
         return new ResponseEntity<>(companyService.create(dto), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('OVERLORD')")
     public ResponseEntity<CompanyResponse> update(@PathVariable Long id, @Valid @RequestBody CompanyUpdate dto) {
         return ResponseEntity.ok(companyService.update(id, dto));
     }
@@ -50,6 +52,7 @@ public class CompanyController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('OVERLORD')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         companyService.delete(id);
         return ResponseEntity.ok().build();

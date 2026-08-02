@@ -43,10 +43,11 @@ class LifecycleAuthorizationContractTest {
     void taskLifecycleAllowsAssignedExecutionButKeepsCancelWithManagers() {
         LifecycleTransitionPolicy<TaskStatus> policy = registry().getPolicy(LifecycleEntityType.TASK, TaskStatus.class);
 
-        assertAllowed(policy, TaskStatus.ASSIGNED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER");
-        assertAllowed(policy, TaskStatus.IN_PROGRESS, "DRIVER", "WORKER");
-        assertAllowed(policy, TaskStatus.COMPLETED, "DRIVER", "WORKER");
-        assertNotAllowed(policy, TaskStatus.CANCELLED, "DRIVER", "WORKER", "HR_MANAGER");
+        assertAllowed(policy, TaskStatus.ASSIGNED, "OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER");
+        assertAllowed(policy, TaskStatus.IN_PROGRESS, "HR_MANAGER", "DRIVER", "WORKER");
+        assertAllowed(policy, TaskStatus.COMPLETED, "HR_MANAGER", "DRIVER", "WORKER");
+        assertAllowed(policy, TaskStatus.CANCELLED, "HR_MANAGER");
+        assertNotAllowed(policy, TaskStatus.CANCELLED, "DRIVER", "WORKER");
     }
 
     @Test
@@ -55,18 +56,18 @@ class LifecycleAuthorizationContractTest {
 
         assertAllowed(policy, InventoryCountSessionStatus.COUNTING, "WORKER", "WAREHOUSE_MANAGER");
         assertNotAllowed(policy, InventoryCountSessionStatus.REVIEW, "WORKER", "DRIVER", "DISPATCHER");
-        assertNotAllowed(policy, InventoryCountSessionStatus.APPROVED, "WORKER", "COMPANY_ADMIN");
-        assertAllowed(policy, InventoryCountSessionStatus.CLOSED, "OVERLORD", "WAREHOUSE_MANAGER");
+        assertNotAllowed(policy, InventoryCountSessionStatus.APPROVED, "WORKER");
+        assertAllowed(policy, InventoryCountSessionStatus.CLOSED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
     }
 
     @Test
     void stockMovementLifecycleIsWarehouseManagerOnlyOutsideOverlord() {
         LifecycleTransitionPolicy<StockMovementStatus> policy = StockMovementLifecyclePolicy.create(stockMovementTransitions());
 
-        assertAllowed(policy, StockMovementStatus.APPROVED, "OVERLORD", "WAREHOUSE_MANAGER");
-        assertAllowed(policy, StockMovementStatus.EXECUTED, "OVERLORD", "WAREHOUSE_MANAGER");
-        assertAllowed(policy, StockMovementStatus.REVERSED, "OVERLORD", "WAREHOUSE_MANAGER");
-        assertNotAllowed(policy, StockMovementStatus.EXECUTED, "DISPATCHER", "WORKER", "DRIVER", "COMPANY_ADMIN");
+        assertAllowed(policy, StockMovementStatus.APPROVED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
+        assertAllowed(policy, StockMovementStatus.EXECUTED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
+        assertAllowed(policy, StockMovementStatus.REVERSED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
+        assertNotAllowed(policy, StockMovementStatus.EXECUTED, "DISPATCHER", "WORKER", "DRIVER");
     }
 
     @Test
@@ -82,10 +83,10 @@ class LifecycleAuthorizationContractTest {
     void shiftLifecycleIsHrManagedAndRuntimeStateChangesAreSystemOnly() {
         LifecycleTransitionPolicy<ShiftStatus> policy = ShiftLifecyclePolicy.create(shiftTransitions());
 
-        assertAllowed(policy, ShiftStatus.CANCELLED, "OVERLORD", "HR_MANAGER");
+        assertAllowed(policy, ShiftStatus.CANCELLED, "OVERLORD", "COMPANY_ADMIN", "HR_MANAGER");
         assertAllowed(policy, ShiftStatus.ACTIVE, "SYSTEM");
         assertAllowed(policy, ShiftStatus.FINISHED, "SYSTEM");
-        assertNotAllowed(policy, ShiftStatus.CANCELLED, "COMPANY_ADMIN", "DISPATCHER", "WAREHOUSE_MANAGER", "DRIVER", "WORKER");
+        assertNotAllowed(policy, ShiftStatus.CANCELLED, "DISPATCHER", "WAREHOUSE_MANAGER", "DRIVER", "WORKER");
     }
 
     private static LifecyclePolicyRegistry registry() {

@@ -10,7 +10,7 @@ export const MODULE_ROLE_MATRIX: Record<string, readonly Role[]> = {
     ROLES.DRIVER,
     ROLES.WORKER,
   ],
-  companies: [ROLES.OVERLORD],
+  companies: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN],
   companyRequests: [ROLES.OVERLORD],
   employees: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER],
   shifts: [ROLES.OVERLORD, ROLES.HR_MANAGER, ROLES.DISPATCHER],
@@ -54,7 +54,7 @@ export const MODULE_ROLE_MATRIX: Record<string, readonly Role[]> = {
   ],
   activityTimeline: [ROLES.OVERLORD],
   changeHistory: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER],
-  audit: [ROLES.OVERLORD],
+  audit: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN],
 } as const;
 
 export type ModuleKey = keyof typeof MODULE_ROLE_MATRIX;

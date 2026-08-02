@@ -89,10 +89,6 @@ public class UserService implements UserServiceDefinition {
     @Override
     @Transactional
     public UserResponse update(Long id, UserUpdate dto) {
-        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
-            throw new ForbiddenException("HR_MANAGER cannot update user accounts through the general user update flow");
-        }
-
         User user = getUserOrThrow(id);
 
         Role role = roleRepository.findById(dto.getRoleId())
@@ -124,10 +120,6 @@ public class UserService implements UserServiceDefinition {
         Object oldStatus = user.getStatus();
         Long oldRoleId = user.getRole() != null ? user.getRole().getId() : null;
         Boolean oldEnabled = user.getEnabled();
-
-        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER) && !java.util.Objects.equals(oldEnabled, dto.getEnabled())) {
-            throw new ForbiddenException("HR_MANAGER cannot enable or disable user accounts");
-        }
 
         UserMapper.updateEntity(user, dto, role);
 
@@ -325,13 +317,7 @@ public class UserService implements UserServiceDefinition {
     }
 
     private void validateHrUserReadScope(User user) {
-        if (!authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER) || authenticatedUserProvider.isSelf(user.getId())) {
-            return;
-        }
-
-        if (user.getEmployee() == null) {
-            throw new ForbiddenException("HR_MANAGER can read only employee-linked users");
-        }
+        // Company-scoped loading is sufficient for roles with User READ/ALL access.
     }
 
     private void validateSupportedRole(Role role) {
@@ -353,6 +339,16 @@ public class UserService implements UserServiceDefinition {
 
         if (authenticatedUserProvider.isCompanyAdmin()) {
             if (RoleCatalog.OVERLORD.equals(normalizedRole) || RoleCatalog.COMPANY_ADMIN.equals(normalizedRole)) {
+                throw new ForbiddenException("You cannot assign this role.");
+            }
+
+            return;
+        }
+
+        if (authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER)) {
+            if (RoleCatalog.OVERLORD.equals(normalizedRole)
+                    || RoleCatalog.COMPANY_ADMIN.equals(normalizedRole)
+                    || RoleCatalog.HR_MANAGER.equals(normalizedRole)) {
                 throw new ForbiddenException("You cannot assign this role.");
             }
 

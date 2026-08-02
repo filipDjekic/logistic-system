@@ -12,6 +12,8 @@ import { useCreateCompany } from '../hooks/useCreateCompany';
 import { useUpdateCompany } from '../hooks/useUpdateCompany';
 import type { CompanyResponse } from '../types/company.types';
 import type { CompanySchemaValues } from '../validation/companySchema';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 
 type CompanyFiltersState = {
   search: string;
@@ -38,6 +40,8 @@ const companyBasePayload = (values: CompanySchemaValues) => ({
 });
 
 export default function CompaniesPage() {
+  const auth = useAuthStore();
+  const canManage = auth.user?.role === ROLES.OVERLORD;
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<CompanyFiltersState>({
     search: '',
@@ -80,7 +84,7 @@ export default function CompaniesPage() {
   const isSaving = createCompanyMutation.isPending || updateCompanyMutation.isPending;
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1' || dialogOpen) {
+    if (!canManage || searchParams.get('create') !== '1' || dialogOpen) {
       return;
     }
 
@@ -91,14 +95,14 @@ export default function CompaniesPage() {
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete('create');
     setSearchParams(nextSearchParams, { replace: true });
-  }, [dialogOpen, searchParams, setSearchParams]);
+  }, [canManage, dialogOpen, searchParams, setSearchParams]);
 
   return (
     <Stack spacing={3}>
       <PageHeader
         overline="Organization"
         title="Companies"
-        actions={
+        actions={canManage ? (
           <Button
             variant="contained"
             onClick={() => {
@@ -109,7 +113,7 @@ export default function CompaniesPage() {
           >
             Create company
           </Button>
-        }
+        ) : undefined}
       />
 
       <TableLayout
@@ -150,16 +154,16 @@ export default function CompaniesPage() {
             loading={companiesQuery.isLoading}
             error={companiesQuery.isError}
             onRetry={() => { void companiesQuery.refetch(); }}
-            onEdit={(company: CompanyResponse) => {
+            onEdit={canManage ? (company: CompanyResponse) => {
               setDialogMode('edit');
               setSelectedCompany(company);
               setDialogOpen(true);
-            }}
+            } : undefined}
           />
         }
       />
 
-      <CompanyFormDialog
+      {canManage ? <CompanyFormDialog
         open={dialogOpen}
         mode={dialogMode}
         initialData={selectedCompany}
@@ -193,7 +197,7 @@ export default function CompaniesPage() {
             },
           });
         }}
-      />
+      /> : null}
     </Stack>
   );
 }

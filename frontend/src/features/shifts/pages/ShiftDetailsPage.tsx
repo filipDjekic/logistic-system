@@ -34,7 +34,7 @@ export default function ShiftDetailsPage() {
 
   const shiftQuery = useShift(isValidShiftId ? shiftId : null);
   const saveShiftMutation = useCreateShift();
-  const canManageShifts = auth.user?.role === ROLES.HR_MANAGER;
+  const canManageShifts = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canViewHistory = auth.user?.role !== ROLES.DRIVER && auth.user?.role !== ROLES.WORKER;
 
   const employeesQuery = useQuery({

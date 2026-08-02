@@ -27,13 +27,13 @@ public class WarehouseInventoryController {
 
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping
     public ResponseEntity<WarehouseInventoryResponse> create(@Valid @RequestBody WarehouseInventoryCreate dto) {
         return new ResponseEntity<>(warehouseInventoryService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PutMapping("/{warehouseId}/{productId}")
     public ResponseEntity<WarehouseInventoryResponse> update(
             @PathVariable Long warehouseId,
@@ -44,13 +44,13 @@ public class WarehouseInventoryController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/reserve")
     public ResponseEntity<WarehouseInventoryResponse> reserve(@Valid @RequestBody StockReservationCreate dto) {
         return ResponseEntity.ok(warehouseInventoryService.reserveStock(dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/release-reservation")
     public ResponseEntity<WarehouseInventoryResponse> releaseReservation(@Valid @RequestBody StockReservationCreate dto) {
         return ResponseEntity.ok(warehouseInventoryService.releaseReservedStock(dto));
@@ -99,7 +99,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.findByProduct(productId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @DeleteMapping("/{warehouseId}/{productId}")
     public ResponseEntity<Void> delete(
             @PathVariable Long warehouseId,

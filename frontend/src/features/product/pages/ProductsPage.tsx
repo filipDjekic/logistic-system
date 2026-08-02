@@ -53,7 +53,7 @@ export default function ProductsPage() {
   const { showSnackbar } = useAppSnackbar();
   const queryClient = useQueryClient();
 
-  const canManage = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const [filters, setFilters] = useState<ProductFiltersState>({
     search: '',

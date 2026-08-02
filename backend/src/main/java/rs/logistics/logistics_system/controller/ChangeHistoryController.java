@@ -49,14 +49,14 @@ public class ChangeHistoryController {
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @GetMapping({"/user_id/{id}", "/user-id/{id}"})
     public ResponseEntity<List<ChangeHistoryResponse>> getByUserId(@PathVariable Long id) {
         List<ChangeHistoryResponse> responses = changeHistoryService.getByUserId(id);
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @GetMapping("/{start_date}/{end_date}")
     public ResponseEntity<List<ChangeHistoryResponse>> getByBetweenDate(
             @PathVariable("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,

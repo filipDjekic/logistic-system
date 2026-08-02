@@ -81,12 +81,12 @@ public class LifecyclePolicyRegistry {
 
     private static Map<TaskStatus, Set<String>> taskRoleMatrix() {
         Map<TaskStatus, Set<String>> matrix = new EnumMap<>(TaskStatus.class);
-        Set<String> managers = Set.of("OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER");
+        Set<String> managers = Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER");
         matrix.put(TaskStatus.OPEN, managers);
         matrix.put(TaskStatus.ASSIGNED, managers);
-        matrix.put(TaskStatus.IN_PROGRESS, Set.of("OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
-        matrix.put(TaskStatus.BLOCKED, Set.of("OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
-        matrix.put(TaskStatus.COMPLETED, Set.of("OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
+        matrix.put(TaskStatus.IN_PROGRESS, Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
+        matrix.put(TaskStatus.BLOCKED, Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
+        matrix.put(TaskStatus.COMPLETED, Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
         matrix.put(TaskStatus.CANCELLED, managers);
         return matrix;
     }

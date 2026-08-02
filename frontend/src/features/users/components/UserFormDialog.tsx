@@ -166,8 +166,8 @@ export default function UserFormDialog({
 
   const auth = useAuthStore();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
-  const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN;
-  const canManageUserActivation = auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
+  const canManageUserActivation = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
 
   const visibleRoles = useMemo(
     () =>
@@ -178,6 +178,12 @@ export default function UserFormDialog({
 
         if (auth.user?.role === ROLES.COMPANY_ADMIN) {
           return role.name !== ROLES.OVERLORD && role.name !== ROLES.COMPANY_ADMIN;
+        }
+
+        if (auth.user?.role === ROLES.HR_MANAGER) {
+          return role.name !== ROLES.OVERLORD
+            && role.name !== ROLES.COMPANY_ADMIN
+            && role.name !== ROLES.HR_MANAGER;
         }
 
         return false;

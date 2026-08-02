@@ -50,14 +50,14 @@ export default function UserDetailsPage() {
   const userId = Number(params.id);
 
   const userQuery = useUser(Number.isFinite(userId) ? userId : null);
-  const canEdit = auth.user?.role === ROLES.COMPANY_ADMIN;
-  const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canEdit = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
+  const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
 
   const rolesQuery = useRoles(canAssignRoles);
   const companiesQuery = useCompanies(false);
   const updateUserMutation = useUpdateUser();
 
-  const canToggle = false;
+  const canToggle = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
 
   const enableDisableMutation = useMutation({
     mutationFn: async (enabled: boolean) => {

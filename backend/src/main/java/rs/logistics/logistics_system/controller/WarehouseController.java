@@ -105,7 +105,7 @@ public class WarehouseController {
         return ResponseEntity.ok(warehouseService.getIncomingTransportOrders(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @GetMapping("/manager/{managerId}")
     public ResponseEntity<List<WarehouseResponse>> getByManager(@PathVariable Long managerId) {
         return ResponseEntity.ok(warehouseService.getByManager(managerId));

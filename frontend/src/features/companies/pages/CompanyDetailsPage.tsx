@@ -29,7 +29,7 @@ export default function CompanyDetailsPage() {
   const isValidId = Number.isInteger(id) && id > 0;
   const [activeTab, setActiveTab] = useState<CompanyDetailsTab>('overview');
 
-  const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManage = auth.user?.role === ROLES.OVERLORD;
 
   const companyQuery = useCompany(id, isValidId);
   const resourcesTabEnabled = isValidId && activeTab === 'resources';

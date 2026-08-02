@@ -40,7 +40,7 @@ public class EmployeeController {
 
     private final EmployeeServiceDefinition employeeService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PostMapping
     public ResponseEntity<EmployeeResponse> createUser(@Valid @RequestBody EmployeeCreate dto) {
         EmployeeResponse response = employeeService.create(dto);
@@ -98,26 +98,26 @@ public class EmployeeController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PatchMapping("/{id}/archive")
     public ResponseEntity<EmployeeResponse> archiveEmployee(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.archiveEmployee(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PatchMapping("/{id}/restore")
     public ResponseEntity<EmployeeResponse> restoreEmployee(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.restoreEmployee(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         employeeService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PatchMapping("/terminate/{id}")
     public ResponseEntity<Void> terminateEmployee(@PathVariable Long id) {
         employeeService.terminateEmployee(id);

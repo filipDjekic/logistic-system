@@ -41,14 +41,14 @@ public class TransportOrderController {
 
     private final TransportOrderServiceDefinition transportOrderService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PostMapping
     public ResponseEntity<TransportOrderResponse> create(@Valid @RequestBody TransportOrderCreate dto){
         TransportOrderResponse response = transportOrderService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PutMapping("/{id}")
     public ResponseEntity<TransportOrderResponse> update(@PathVariable Long id,@Valid @RequestBody TransportOrderUpdate dto) {
         TransportOrderResponse response = transportOrderService.update(id, dto);
@@ -107,7 +107,7 @@ public class TransportOrderController {
         return new ResponseEntity<>(responses, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id) {
         transportOrderService.delete(id);

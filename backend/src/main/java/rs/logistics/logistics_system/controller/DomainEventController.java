@@ -20,13 +20,13 @@ public class DomainEventController {
 
     private final DomainEventServiceDefinition domainEventService;
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PostMapping
     public ResponseEntity<DomainEventResponse> create(@Valid @RequestBody DomainEventCreate dto) {
         return new ResponseEntity<>(domainEventService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
     @GetMapping
     public ResponseEntity<List<DomainEventResponse>> getForEntity(@RequestParam OperationalEntityType entityType, @RequestParam Long entityId) {
         return ResponseEntity.ok(domainEventService.getForEntity(entityType, entityId));

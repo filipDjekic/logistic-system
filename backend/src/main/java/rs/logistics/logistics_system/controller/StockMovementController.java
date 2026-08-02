@@ -34,68 +34,68 @@ public class StockMovementController {
 
     private final StockMovementServiceDefinition stockMovementService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/inbound")
     public ResponseEntity<StockMovementResponse> inbound(@Valid @RequestBody StockInboundCreate dto) {
         return new ResponseEntity<>(stockMovementService.inbound(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/outbound")
     public ResponseEntity<StockMovementResponse> outbound(@Valid @RequestBody StockOutboundCreate dto) {
         return new ResponseEntity<>(stockMovementService.outbound(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/transfer")
     public ResponseEntity<List<StockMovementResponse>> transfer(@Valid @RequestBody StockTransferCreate dto) {
         return new ResponseEntity<>(stockMovementService.transfer(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/adjustment")
     public ResponseEntity<StockMovementResponse> adjustment(@Valid @RequestBody StockAdjustmentCreate dto) {
         return new ResponseEntity<>(stockMovementService.adjustment(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/write-off")
     public ResponseEntity<StockMovementResponse> writeOff(@Valid @RequestBody StockWriteOffCreate dto) {
         return new ResponseEntity<>(stockMovementService.writeOff(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/return")
     public ResponseEntity<StockMovementResponse> returnStock(@Valid @RequestBody StockReturnCreate dto) {
         return new ResponseEntity<>(stockMovementService.returnStock(dto), HttpStatus.CREATED);
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/execute")
     public ResponseEntity<StockMovementResponse> execute(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.execute(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<StockMovementResponse> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.cancel(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<StockMovementResponse> approve(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.approve(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/reject")
     public ResponseEntity<StockMovementResponse> reject(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.reject(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/{id}/reverse")
     public ResponseEntity<StockMovementResponse> reverse(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.reverse(id));

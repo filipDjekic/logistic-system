@@ -44,21 +44,21 @@ public class TaskController {
     private final TaskServiceDefinition taskService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
     @PostMapping
     public ResponseEntity<TaskResponse> create(@Valid @RequestBody TaskCreate dto) {
         TaskResponse response = taskService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<TaskResponse> update(@PathVariable Long id, @Valid @RequestBody TaskUpdate dto) {
         TaskResponse response = taskService.update(id, dto);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<TaskResponse> get(@PathVariable Long id) {
         TaskResponse response = taskService.getById(id);
@@ -71,7 +71,7 @@ public class TaskController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
     @GetMapping("/status-counts")
     public ResponseEntity<List<StatusCountResponse>> countByStatus(
             @RequestParam(required = false) String search,
@@ -84,7 +84,7 @@ public class TaskController {
         return ResponseEntity.ok(taskService.countByStatus(search, priority, assignedEmployeeId, transportOrderId, stockMovementId, linkedProcessType));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
     @GetMapping
     public ResponseEntity<PageResponse<TaskResponse>> getAll(
             @RequestParam(required = false) String search,
@@ -122,27 +122,27 @@ public class TaskController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('OVERLORD')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         taskService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TaskResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TaskStatusUpdate dto) {
         TaskResponse response = taskService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.isAssignedToCurrentUser(#id)")
     @GetMapping("/{id}/status-transitions")
     public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
         return ResponseEntity.ok(taskService.allowedStatusTransitions(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
     @PatchMapping("/{id}/employee/{employeeId}")
     public ResponseEntity<TaskResponse> assignTask(@PathVariable Long id, @PathVariable Long employeeId) {
         TaskResponse response = taskService.assignTask(id, employeeId);

@@ -98,7 +98,7 @@ public class WarehouseLocationController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/bin-inventory")
     public ResponseEntity<BinInventoryResponse> setBinInventory(@Valid @RequestBody BinInventoryCreate dto) {
         return ResponseEntity.ok(warehouseLocationService.setBinInventory(dto));
@@ -121,7 +121,7 @@ public class WarehouseLocationController {
         return ResponseEntity.ok(warehouseLocationService.searchBinInventory(warehouseId, zoneId, binLocationId, productId, quantityMin, quantityMax, reserved, available, search, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
     @PostMapping("/internal-movements")
     public ResponseEntity<InternalWarehouseMovementResponse> moveInternal(@Valid @RequestBody InternalWarehouseMovementCreate dto) {
         return new ResponseEntity<>(warehouseLocationService.moveInternal(dto), HttpStatus.CREATED);

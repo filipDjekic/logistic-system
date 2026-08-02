@@ -111,6 +111,9 @@ function canViewActivityTimeline(): boolean {
 
 function canCreateOperationalData(entityType: string, requested: boolean): boolean {
   const role = authStore.getState().user?.role;
+  if (role === ROLES.HR_MANAGER) {
+    return false;
+  }
   return requested && (role !== ROLES.OVERLORD || entityType === 'COMPANY');
 }
 

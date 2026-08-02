@@ -73,7 +73,7 @@ export default function EmployeeDetailsPage() {
 
   const transportOrdersQuery = useTransportOrders(
     { assignedEmployeeId: validEmployeeId, page: 0, size: 10, sort: 'departureTime,desc' },
-    Boolean(validEmployeeId) && activeTab === 'transportActivity',
+    Boolean(validEmployeeId) && activeTab === 'transportActivity' && auth.user?.role !== ROLES.HR_MANAGER,
   );
 
   const archiveMutation = useMutation({
@@ -167,15 +167,19 @@ export default function EmployeeDetailsPage() {
 
   const employee = employeeQuery.data;
   const linkedUser = employee.userId ? usersById[employee.userId] : null;
-  const canArchiveEmployee = auth.user?.role === ROLES.HR_MANAGER;
+  const canArchiveEmployee = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canViewHistory = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
-  const canManageOperationalNotes = canViewHistory || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canManageOperationalNotes =
+    auth.user?.role !== ROLES.HR_MANAGER
+    && (canViewHistory || auth.user?.role === ROLES.WAREHOUSE_MANAGER);
 
   const tabs: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
     { value: 'tasks', label: `Tasks${tasksQuery.data ? ` (${tasksQuery.data.length})` : ''}` },
     { value: 'shifts', label: `Shifts${shiftsQuery.data ? ` (${shiftsQuery.data.length})` : ''}` },
-    { value: 'transportActivity', label: `Transport activity${transportOrdersQuery.data ? ` (${transportOrdersQuery.data.totalElements})` : ''}` },
+    ...(auth.user?.role !== ROLES.HR_MANAGER
+      ? [{ value: 'transportActivity', label: `Transport activity${transportOrdersQuery.data ? ` (${transportOrdersQuery.data.totalElements})` : ''}` }]
+      : []),
     ...buildOperationalTabs({ entityType: 'EMPLOYEE', entityName: 'EMPLOYEE', entityId: employee.id, allowCreateAttachments: canManageOperationalNotes, allowCreateComments: canManageOperationalNotes }),
   ];
 

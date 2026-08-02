@@ -80,6 +80,10 @@ public class OperationalEntityAccessValidator {
             return false;
         }
 
+        if (authenticatedUserProvider.hasRole("HR_MANAGER")) {
+            return false;
+        }
+
         if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
             return true;
         }
@@ -104,6 +108,10 @@ public class OperationalEntityAccessValidator {
 
     public boolean canCreateOperationalContent(OperationalEntityType entityType, Long entityId) {
         if (!canAccess(entityType, entityId)) {
+            return false;
+        }
+
+        if (authenticatedUserProvider.hasRole("HR_MANAGER")) {
             return false;
         }
 
@@ -193,6 +201,14 @@ public class OperationalEntityAccessValidator {
 
         if (authenticatedUserProvider.isOverlord()) {
             return existsGlobally(entityType, entityId);
+        }
+
+        if (authenticatedUserProvider.hasRole("HR_MANAGER")
+                && entityType != OperationalEntityType.EMPLOYEE
+                && entityType != OperationalEntityType.SHIFT
+                && entityType != OperationalEntityType.TASK
+                && entityType != OperationalEntityType.NOTIFICATION) {
+            return false;
         }
 
         Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();

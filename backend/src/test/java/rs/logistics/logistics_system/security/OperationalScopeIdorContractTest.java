@@ -158,6 +158,7 @@ class OperationalScopeIdorContractTest extends ServiceTestSupport {
     private void mockScopedDriver(User user) {
         when(authenticatedUserProvider.isOverlord()).thenReturn(false);
         when(authenticatedUserProvider.isCompanyAdmin()).thenReturn(false);
+        when(authenticatedUserProvider.hasRole("HR_MANAGER")).thenReturn(false);
         when(authenticatedUserProvider.hasRole("DISPATCHER")).thenReturn(false);
         when(authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")).thenReturn(false);
         when(authenticatedUserProvider.hasRole("DRIVER")).thenReturn(true);

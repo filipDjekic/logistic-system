@@ -34,11 +34,16 @@ export default function TasksPage() {
   const canListManaged = canListManagedTasks(currentRole);
   const canCreateOrAssign = canCreateTasks(currentRole);
   const isWarehouseManager = currentRole === ROLES.WAREHOUSE_MANAGER;
+  const isHrManager = currentRole === ROLES.HR_MANAGER;
   const canExecuteTaskStatus =
+    currentRole === ROLES.COMPANY_ADMIN ||
+    currentRole === ROLES.HR_MANAGER ||
     currentRole === ROLES.DISPATCHER ||
     currentRole === ROLES.WAREHOUSE_MANAGER ||
     currentRole === ROLES.WORKER;
   const canShowTaskActions =
+    currentRole === ROLES.COMPANY_ADMIN ||
+    currentRole === ROLES.HR_MANAGER ||
     currentRole === ROLES.DISPATCHER ||
     currentRole === ROLES.WAREHOUSE_MANAGER;
 
@@ -128,7 +133,7 @@ export default function TasksPage() {
   const transportOrdersQuery = useQuery({
     queryKey: queryKeys.tasks.transportOrders(),
     queryFn: () => transportOrdersApi.getAll({ size: 25, sort: 'createdAt,desc' }),
-    enabled: canCreateOrAssign && !isWarehouseManager,
+    enabled: canCreateOrAssign && !isWarehouseManager && !isHrManager,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -136,7 +141,7 @@ export default function TasksPage() {
   const stockMovementsQuery = useQuery({
     queryKey: queryKeys.tasks.stockMovements(),
     queryFn: () => stockMovementsApi.getAll({ size: 25, sort: 'createdAt,desc' }),
-    enabled: canCreateOrAssign,
+    enabled: canCreateOrAssign && !isHrManager,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -297,7 +302,7 @@ export default function TasksPage() {
         }
         filters={
           <>
-            {canCreateOrAssign && !taskSetupLoading ? (
+            {canCreateOrAssign && !isHrManager && !taskSetupLoading ? (
               <SetupGuide
                 title="Task setup has missing context"
                 description="Create the required assignment data first. Process links are optional, but they make execution clearer."

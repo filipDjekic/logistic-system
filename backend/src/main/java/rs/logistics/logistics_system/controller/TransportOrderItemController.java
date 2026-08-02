@@ -31,14 +31,14 @@ public class TransportOrderItemController {
 
     private final TransportOrderItemServiceDefinition transportOrderItemService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PostMapping
     public ResponseEntity<TransportOrderItemResponse> createTransportOrderItem(@Valid @RequestBody TransportOrderItemCreate dto) {
         TransportOrderItemResponse response = transportOrderItemService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PutMapping("/{id}")
     public ResponseEntity<TransportOrderItemResponse> updateTransportOrderItem(@PathVariable Long id,@Valid @RequestBody TransportOrderItemUpdate dto) {
         TransportOrderItemResponse response = transportOrderItemService.update(id, dto);
@@ -72,7 +72,7 @@ public class TransportOrderItemController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTransportOrderItem(@PathVariable Long id) {
         transportOrderItemService.delete(id);

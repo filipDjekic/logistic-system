@@ -25,7 +25,7 @@ import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.service.definition.ActivityLogServiceDefinition;
 import rs.logistics.logistics_system.service.support.CsvXlsxConverter;
 
-@PreAuthorize("hasRole('OVERLORD')")
+@PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
 @RestController
 @RequestMapping({"/api/activity_logs", "/api/activity-logs"})
 @RequiredArgsConstructor

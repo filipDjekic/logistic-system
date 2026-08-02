@@ -37,7 +37,7 @@ class InventoryCountLifecyclePolicyTest {
 
         assertTrue(policy.allowedRoles(InventoryCountSessionStatus.COUNTING).contains("WORKER"));
         assertTrue(policy.allowedRoles(InventoryCountSessionStatus.REVIEW).contains("WAREHOUSE_MANAGER"));
-        assertFalse(policy.allowedRoles(InventoryCountSessionStatus.APPROVED).contains("COMPANY_ADMIN"));
+        assertTrue(policy.allowedRoles(InventoryCountSessionStatus.APPROVED).contains("COMPANY_ADMIN"));
         assertTrue(policy.allowedRoles(InventoryCountSessionStatus.CLOSED).contains("OVERLORD"));
     }
 

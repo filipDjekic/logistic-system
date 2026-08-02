@@ -169,6 +169,11 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
         Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
         Long currentUserId = authenticatedUserProvider.getAuthenticatedUserId();
 
+        if (authenticatedUserProvider.hasRole("HR_MANAGER")
+                && !List.of("USER", "EMPLOYEE", "SHIFT", "TASK", "NOTIFICATION").contains(entityName)) {
+            return false;
+        }
+
         return switch (entityName) {
             case "COMPANY" -> canAccessCompanyScopedHistory(entityId, companyId);
 

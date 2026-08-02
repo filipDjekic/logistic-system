@@ -33,6 +33,7 @@ import rs.logistics.logistics_system.repository.CountryRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
+import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.CityServiceDefinition;
 import rs.logistics.logistics_system.service.definition.CompanyServiceDefinition;
@@ -56,6 +57,7 @@ public class CompanyService implements CompanyServiceDefinition {
     private final AuditFacadeDefinition auditFacade;
     private final TimezoneServiceDefinition timezoneService;
     private final CityServiceDefinition cityService;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Override
     @Transactional
@@ -184,6 +186,7 @@ public class CompanyService implements CompanyServiceDefinition {
     @Override
     @Transactional(readOnly = true)
     public CompanyResponse getById(Long id) {
+        authenticatedUserProvider.ensureCompanyAccess(id);
         Company company = companyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
 
@@ -193,6 +196,9 @@ public class CompanyService implements CompanyServiceDefinition {
     @Override
     @Transactional(readOnly = true)
     public List<CompanyResponse> getAll() {
+        if (!authenticatedUserProvider.isOverlord()) {
+            return List.of(CompanyMapper.toResponse(authenticatedUserProvider.getAuthenticatedCompanyOrThrow()));
+        }
         return companyRepository.findAll()
                 .stream()
                 .map(CompanyMapper::toResponse)
