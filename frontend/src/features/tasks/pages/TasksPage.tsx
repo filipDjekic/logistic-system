@@ -35,12 +35,10 @@ export default function TasksPage() {
   const canCreateOrAssign = canCreateTasks(currentRole);
   const isWarehouseManager = currentRole === ROLES.WAREHOUSE_MANAGER;
   const canExecuteTaskStatus =
-    currentRole === ROLES.OVERLORD ||
     currentRole === ROLES.DISPATCHER ||
     currentRole === ROLES.WAREHOUSE_MANAGER ||
     currentRole === ROLES.WORKER;
   const canShowTaskActions =
-    currentRole === ROLES.OVERLORD ||
     currentRole === ROLES.DISPATCHER ||
     currentRole === ROLES.WAREHOUSE_MANAGER;
 

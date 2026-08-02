@@ -192,10 +192,8 @@ export default function InventoryCountDetailsPage() {
     getAllowedInventoryCountLifecycleStatuses(userRole),
   );
   const canMutateSelectedWarehouse = Boolean(
-    session && (
-      userRole === ROLES.OVERLORD
-      || (mutableWarehousesQuery.data?.content ?? []).some((warehouse) => warehouse.id === session.warehouseId)
-    )
+    session && userRole !== ROLES.OVERLORD
+      && (mutableWarehousesQuery.data?.content ?? []).some((warehouse) => warehouse.id === session.warehouseId)
   );
   const canEditLines = session?.status === 'COUNTING' && canCountInventoryLines && canMutateSelectedWarehouse;
 

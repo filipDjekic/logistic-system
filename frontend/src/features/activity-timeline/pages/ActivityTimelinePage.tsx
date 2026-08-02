@@ -174,10 +174,10 @@ export default function ActivityTimelinePage() {
       {activeTab === 'commentsAttachments' ? (
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, lg: 6 }}>
-            <CommentsPanel entityType={entityType} entityId={entityId} />
+            <CommentsPanel entityType={entityType} entityId={entityId} allowCreate={false} />
           </Grid>
           <Grid size={{ xs: 12, lg: 6 }}>
-            <AttachmentsPanel entityType={entityType} entityId={entityId} />
+            <AttachmentsPanel entityType={entityType} entityId={entityId} allowCreate={false} />
           </Grid>
         </Grid>
       ) : null}

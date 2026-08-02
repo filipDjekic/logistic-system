@@ -167,7 +167,7 @@ export default function EmployeeDetailsPage() {
 
   const employee = employeeQuery.data;
   const linkedUser = employee.userId ? usersById[employee.userId] : null;
-  const canArchiveEmployee = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+  const canArchiveEmployee = auth.user?.role === ROLES.HR_MANAGER;
   const canViewHistory = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canManageOperationalNotes = canViewHistory || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 

@@ -40,7 +40,7 @@ export default function InventoryCountsPage() {
   const auth = useAuthStore();
   const userRole = auth.user?.role ?? null;
   const isWorkerView = userRole === ROLES.WORKER;
-  const canCreateInventoryCount = userRole === ROLES.OVERLORD || userRole === ROLES.WAREHOUSE_MANAGER;
+  const canCreateInventoryCount = userRole === ROLES.WAREHOUSE_MANAGER;
   const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
   const [warehouseFilter, setWarehouseFilter] = useState<LookupOption | null>(null);
   const [description, setDescription] = useState('');

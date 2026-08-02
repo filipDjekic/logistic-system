@@ -215,7 +215,6 @@ export default function StockMovementDetailsPage() {
     },
   });
   const canManageOperationalNotes =
-    auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
   const canExecuteLifecycleAction = canExecuteStockMovementLifecycle(auth.user?.role);

@@ -34,6 +34,8 @@ import type { DataTableColumn } from '../../../shared/types/common.types';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import StatCard from '../../../shared/components/StatCard/StatCard';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '-';
@@ -41,6 +43,8 @@ function formatDateTime(value: string | null | undefined) {
 }
 
 export default function EmployeeProfileChangeRequestsPage() {
+  const auth = useAuthStore();
+  const canReview = auth.user?.role !== ROLES.OVERLORD;
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
   const [status, setStatus] = useState<EmployeeProfileChangeRequestStatus | ''>('PENDING');
@@ -84,7 +88,7 @@ export default function EmployeeProfileChangeRequestsPage() {
     { id: 'status', header: 'Status', render: (request) => <ProfileChangeRequestStatusChip status={request.status} /> },
     { id: 'submitted', header: 'Submitted', render: (request) => formatDateTime(request.createdAt) },
     { id: 'reviewed', header: 'Reviewed', render: (request) => formatDateTime(request.reviewedAt) },
-    { id: 'actions', header: 'Actions', align: 'right', render: (request) => { const pending = request.status === 'PENDING'; return <><Tooltip title="Details"><IconButton aria-label="View request details" size="small" onClick={() => openDialog(request, 'details')}><VisibilityRoundedIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Approve"><span><IconButton aria-label="Approve request" size="small" color="success" disabled={!pending} onClick={() => openDialog(request, 'approve')}><CheckCircleRoundedIcon fontSize="small" /></IconButton></span></Tooltip><Tooltip title="Reject"><span><IconButton aria-label="Reject request" size="small" color="error" disabled={!pending} onClick={() => openDialog(request, 'reject')}><CancelRoundedIcon fontSize="small" /></IconButton></span></Tooltip></>; } },
+    { id: 'actions', header: 'Actions', align: 'right', render: (request) => { const pending = request.status === 'PENDING'; return <><Tooltip title="Details"><IconButton aria-label="View request details" size="small" onClick={() => openDialog(request, 'details')}><VisibilityRoundedIcon fontSize="small" /></IconButton></Tooltip>{canReview ? <><Tooltip title="Approve"><span><IconButton aria-label="Approve request" size="small" color="success" disabled={!pending} onClick={() => openDialog(request, 'approve')}><CheckCircleRoundedIcon fontSize="small" /></IconButton></span></Tooltip><Tooltip title="Reject"><span><IconButton aria-label="Reject request" size="small" color="error" disabled={!pending} onClick={() => openDialog(request, 'reject')}><CancelRoundedIcon fontSize="small" /></IconButton></span></Tooltip></> : null}</>; } },
   ];
 
   return (

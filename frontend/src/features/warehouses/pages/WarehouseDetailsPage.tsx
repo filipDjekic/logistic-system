@@ -685,11 +685,9 @@ export default function WarehouseDetailsPage() {
   const [movementTypeFilter, setMovementTypeFilter] = useState<StockMovementFiltersState['movementType']>('ALL');
   const [internalMovementSearch, setInternalMovementSearch] = useState('');
 
-  const canManage =
-    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const canManageStorage =
-    auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
@@ -697,7 +695,6 @@ export default function WarehouseDetailsPage() {
   const [selectedZone, setSelectedZone] = useState<WarehouseZoneResponse | null>(null);
 
   const canManageAccess =
-    auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 

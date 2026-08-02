@@ -190,7 +190,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.DISPATCHER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.DISPATCHER]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -214,7 +214,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -225,7 +225,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -298,7 +298,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.WAREHOUSE_MANAGER]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -310,7 +310,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -321,7 +321,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -346,7 +346,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.WAREHOUSE_MANAGER]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),

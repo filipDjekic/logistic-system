@@ -77,9 +77,7 @@ export default function VehicleDetailsPage() {
     useState<VehicleStatus | null>(null);
 
   const isDriver = auth.user?.role === ROLES.DRIVER;
-  const canManage =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN;
   const canReadLifecycleTransitions = canReadVehicleStatusTransitions(auth.user?.role);
 
   const vehicleQuery = useVehicle(validVehicleId);

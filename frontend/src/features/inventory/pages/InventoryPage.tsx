@@ -37,9 +37,7 @@ export default function InventoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const isWorker = auth.user?.role === ROLES.WORKER;
-  const canManage =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canManage = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const [filters, setFilters] = useState<InventoryFiltersState>({
     search: '',

@@ -21,7 +21,7 @@ export function filterAllowedStatusesByRole<TStatus extends string>(
 }
 
 export function canManageTransportOrders(role: Role | null | undefined) {
-  return role === ROLES.OVERLORD || role === ROLES.DISPATCHER;
+  return role === ROLES.DISPATCHER;
 }
 
 export function canReadTransportOrderStatusTransitions(role: Role | null | undefined) {
@@ -97,7 +97,6 @@ export function canListManagedTasks(role: Role | null | undefined) {
 
 export function canCreateTasks(role: Role | null | undefined) {
   return (
-    role === ROLES.OVERLORD ||
     role === ROLES.COMPANY_ADMIN ||
     role === ROLES.DISPATCHER
   );
@@ -114,7 +113,7 @@ export function canMutateManagedTask(role: Role | null | undefined, task: TaskRe
     return false;
   }
 
-  if (role === ROLES.OVERLORD || role === ROLES.DISPATCHER) {
+  if (role === ROLES.DISPATCHER) {
     return true;
   }
 
@@ -130,7 +129,6 @@ export function getAllowedTaskStatusTransitions(
   }
 
   const canExecute =
-    role === ROLES.OVERLORD ||
     role === ROLES.COMPANY_ADMIN ||
     role === ROLES.DISPATCHER ||
     role === ROLES.WAREHOUSE_MANAGER ||
@@ -183,7 +181,7 @@ export function getAllowedVehicleStatusTransitions(
     return [];
   }
 
-  if (role === ROLES.OVERLORD || role === ROLES.COMPANY_ADMIN) {
+  if (role === ROLES.COMPANY_ADMIN) {
     if (vehicle.status === 'OUT_OF_SERVICE') return ['AVAILABLE', 'MAINTENANCE'];
     if (vehicle.status === 'MAINTENANCE') return ['AVAILABLE', 'OUT_OF_SERVICE'];
     if (vehicle.status === 'AVAILABLE') return ['RESERVED', 'IN_USE', 'MAINTENANCE', 'OUT_OF_SERVICE'];
@@ -206,15 +204,15 @@ export function canChangeVehicleStatus(role: Role | null | undefined, vehicle: V
 }
 
 export function canApproveStockMovementLifecycle(role: Role | null | undefined) {
-  return role === ROLES.OVERLORD || role === ROLES.WAREHOUSE_MANAGER;
+  return role === ROLES.WAREHOUSE_MANAGER;
 }
 
 export function canExecuteStockMovementLifecycle(role: Role | null | undefined) {
-  return role === ROLES.OVERLORD || role === ROLES.WAREHOUSE_MANAGER;
+  return role === ROLES.WAREHOUSE_MANAGER;
 }
 
 export function canReverseStockMovementLifecycle(role: Role | null | undefined) {
-  return role === ROLES.OVERLORD || role === ROLES.WAREHOUSE_MANAGER;
+  return role === ROLES.WAREHOUSE_MANAGER;
 }
 
 export function canReadStockMovementLifecycle(role: Role | null | undefined) {
@@ -236,7 +234,7 @@ export function getAllowedStockMovementLifecycleStatuses(
 }
 
 export function canManageInventoryCountLifecycle(role: Role | null | undefined) {
-  return role === ROLES.OVERLORD || role === ROLES.WAREHOUSE_MANAGER;
+  return role === ROLES.WAREHOUSE_MANAGER;
 }
 
 export function canCountInventoryCountLines(role: Role | null | undefined) {

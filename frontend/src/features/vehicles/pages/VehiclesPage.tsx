@@ -60,7 +60,7 @@ export default function VehiclesPage() {
   const { showSnackbar } = useAppSnackbar();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
   const isDriver = auth.user?.role === ROLES.DRIVER;
-  const canManage = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN;
   const pageTitle = isDriver ? 'Assigned Vehicles' : 'Vehicles';
   const pageDescription = isDriver
     ? 'Review vehicles assigned through your transport work.'

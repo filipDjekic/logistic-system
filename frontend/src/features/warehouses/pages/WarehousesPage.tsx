@@ -33,11 +33,9 @@ export default function WarehousesPage() {
 
   const isWorkerView = auth.user?.role === ROLES.WORKER;
 
-  const canCreate =
-    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canCreate = auth.user?.role === ROLES.COMPANY_ADMIN;
 
-  const canManage =
-    auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const canEdit = canManage || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 

@@ -41,15 +41,12 @@ export default function EmployeesPage() {
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
 
   const canEditEmployees =
-    auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.HR_MANAGER;
   const canCreateEmployees =
-    auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.HR_MANAGER ||
     auth.user?.role === ROLES.COMPANY_ADMIN;
   const canManageLinkedUserSecurity =
-    auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const [filters, setFilters] = useState<EmployeeFiltersState>({

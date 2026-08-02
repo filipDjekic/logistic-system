@@ -56,9 +56,7 @@ export default function StockMovementsPage() {
   const isWorkerView = auth.user?.role === ROLES.WORKER;
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
-  const canCreate =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canCreate = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const [filters, setFilters] = useState<StockMovementFiltersState>({
     search: '',

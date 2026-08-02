@@ -139,7 +139,7 @@ export default function ProfilePage() {
   const { data: profile, isLoading, error } = useProfile();
   const hasEmployee = Boolean(profile?.employeeId);
   const role = profile?.role;
-  const canReviewProfileRequests = role === ROLES.OVERLORD || role === ROLES.COMPANY_ADMIN || role === ROLES.HR_MANAGER;
+  const canReviewProfileRequests = role === ROLES.COMPANY_ADMIN || role === ROLES.HR_MANAGER;
   const isDriver = profile?.position === 'DRIVER' || role === ROLES.DRIVER;
 
   const { data: shifts = [], isLoading: shiftsLoading } = useMyShifts(hasEmployee);

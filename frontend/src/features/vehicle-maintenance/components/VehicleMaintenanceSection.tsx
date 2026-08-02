@@ -72,7 +72,7 @@ function maintenanceToForm(row: VehicleMaintenanceResponse): MaintenanceFormStat
 
 export default function VehicleMaintenanceSection({ fixedVehicle, canManage = true }: VehicleMaintenanceSectionProps) {
   const auth = useAuthStore();
-  const canUseMaintenanceWriteApi = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canUseMaintenanceWriteApi = auth.user?.role === ROLES.COMPANY_ADMIN;
   const canManageMaintenance = canManage && canUseMaintenanceWriteApi;
 
   const [page, setPage] = useState(0);

@@ -28,7 +28,7 @@ import { ROLES } from '../../../core/constants/roles';
 
 export default function ShiftsPage() {
   const auth = useAuthStore();
-  const canManageShifts = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.HR_MANAGER;
+  const canManageShifts = auth.user?.role === ROLES.HR_MANAGER;
 
   const [filters, setFilters] = useState<ShiftFiltersState>({
     search: '',

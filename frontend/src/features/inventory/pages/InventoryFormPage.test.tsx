@@ -26,7 +26,7 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('../../../core/auth/authStore', () => ({
-  useAuthStore: () => ({ user: { role: 'OVERLORD' } }),
+  useAuthStore: () => ({ user: { role: 'WAREHOUSE_MANAGER' } }),
 }));
 
 vi.mock('../../lookup', () => ({

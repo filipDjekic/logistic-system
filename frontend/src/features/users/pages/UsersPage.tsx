@@ -27,11 +27,9 @@ import { userStatusOptions } from '../validation/userSchema';
 export default function UsersPage() {
   const auth = useAuthStore();
 
-  const canCreate = auth.user?.role === ROLES.OVERLORD;
-  const canEdit =
-    auth.user?.role === ROLES.OVERLORD ||
-    auth.user?.role === ROLES.COMPANY_ADMIN;
-  const canAssignRoles = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canCreate = false;
+  const canEdit = auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const [filters, setFilters] = useState<UserFiltersState>({
     search: '',

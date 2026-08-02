@@ -109,6 +109,11 @@ function canViewActivityTimeline(): boolean {
   return authStore.getState().user?.role === ROLES.OVERLORD;
 }
 
+function canCreateOperationalData(entityType: string, requested: boolean): boolean {
+  const role = authStore.getState().user?.role;
+  return requested && (role !== ROLES.OVERLORD || entityType === 'COMPANY');
+}
+
 function buildOperationalTabs({
   entityType,
   entityName,
@@ -131,7 +136,7 @@ function buildOperationalTabs({
     tabs.push({
       value: 'attachments',
       label: 'Attachments',
-      render: () => <AttachmentsPanel {...attachmentPanelProps} entityType={entityType} entityId={entityId} allowCreate={allowCreateAttachments} />,
+      render: () => <AttachmentsPanel {...attachmentPanelProps} entityType={entityType} entityId={entityId} allowCreate={canCreateOperationalData(entityType, allowCreateAttachments)} />,
     });
   }
 
@@ -139,7 +144,7 @@ function buildOperationalTabs({
     tabs.push({
       value: 'comments',
       label: 'Comments',
-      render: () => <CommentsPanel {...commentsPanelProps} entityType={entityType} entityId={entityId} allowCreate={allowCreateComments} />,
+      render: () => <CommentsPanel {...commentsPanelProps} entityType={entityType} entityId={entityId} allowCreate={canCreateOperationalData(entityType, allowCreateComments)} />,
     });
   }
 
@@ -193,18 +198,20 @@ function OperationalDetailsTabPanels({
 }: OperationalDetailsTabPanelsProps) {
   const auth = useAuthStore();
   const canViewActivity = auth.user?.role === ROLES.OVERLORD;
+  const effectiveAllowCreateAttachments = canCreateOperationalData(entityType, allowCreateAttachments);
+  const effectiveAllowCreateComments = canCreateOperationalData(entityType, allowCreateComments);
 
   return (
     <>
       {includeAttachments ? (
         <DetailsTabPanel value="attachments" activeValue={activeTab} labelledByPrefix={labelledByPrefix}>
-          <AttachmentsPanel {...attachmentPanelProps} entityType={entityType} entityId={entityId} allowCreate={allowCreateAttachments} />
+          <AttachmentsPanel {...attachmentPanelProps} entityType={entityType} entityId={entityId} allowCreate={effectiveAllowCreateAttachments} />
         </DetailsTabPanel>
       ) : null}
 
       {includeComments ? (
         <DetailsTabPanel value="comments" activeValue={activeTab} labelledByPrefix={labelledByPrefix}>
-          <CommentsPanel {...commentsPanelProps} entityType={entityType} entityId={entityId} allowCreate={allowCreateComments} />
+          <CommentsPanel {...commentsPanelProps} entityType={entityType} entityId={entityId} allowCreate={effectiveAllowCreateComments} />
         </DetailsTabPanel>
       ) : null}
 

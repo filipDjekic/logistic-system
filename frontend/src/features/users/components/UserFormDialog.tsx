@@ -166,8 +166,8 @@ export default function UserFormDialog({
 
   const auth = useAuthStore();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
-  const canAssignRoles = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
-  const canManageUserActivation = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN;
+  const canManageUserActivation = auth.user?.role === ROLES.COMPANY_ADMIN;
 
   const visibleRoles = useMemo(
     () =>

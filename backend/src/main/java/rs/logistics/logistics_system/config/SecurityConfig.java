@@ -34,6 +34,7 @@ import rs.logistics.logistics_system.exception.ErrorResponse;
 import rs.logistics.logistics_system.observability.RequestCorrelation;
 import rs.logistics.logistics_system.security.IdempotencyFilter;
 import rs.logistics.logistics_system.security.JwtAuthenticationFilter;
+import rs.logistics.logistics_system.security.OverlordWriteProtectionFilter;
 import rs.logistics.logistics_system.security.PublicStatusRateLimitFilter;
 
 @Configuration
@@ -43,6 +44,7 @@ import rs.logistics.logistics_system.security.PublicStatusRateLimitFilter;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final OverlordWriteProtectionFilter overlordWriteProtectionFilter;
     private final IdempotencyFilter idempotencyFilter;
     private final PublicStatusRateLimitFilter publicStatusRateLimitFilter;
     private final ObjectMapper objectMapper;
@@ -96,8 +98,12 @@ public class SecurityConfig {
                         org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class
                 )
                 .addFilterAfter(
-                        idempotencyFilter,
+                        overlordWriteProtectionFilter,
                         JwtAuthenticationFilter.class
+                )
+                .addFilterAfter(
+                        idempotencyFilter,
+                        OverlordWriteProtectionFilter.class
                 );
         return http.build();
     }
