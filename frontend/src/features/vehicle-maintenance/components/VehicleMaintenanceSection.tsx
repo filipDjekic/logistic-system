@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,6 +23,7 @@ import { useVehicleMaintenance } from '../hooks/useVehicleMaintenance';
 import type { VehicleMaintenanceResponse, VehicleMaintenanceStatus, VehicleMaintenanceType } from '../types/vehicleMaintenance.types';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn } from '../../../shared/types/common.types';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 const maintenanceTypes: VehicleMaintenanceType[] = ['ROUTINE_SERVICE', 'REPAIR', 'INSPECTION', 'TIRE_CHANGE', 'OIL_CHANGE', 'CLEANING', 'OTHER'];
 const maintenanceStatuses: Array<VehicleMaintenanceStatus | 'ALL'> = ['ALL', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
@@ -40,13 +40,6 @@ type VehicleMaintenanceSectionProps = {
   fixedVehicle?: LookupOption;
   canManage?: boolean;
 };
-
-function statusColor(status: VehicleMaintenanceStatus) {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'IN_PROGRESS') return 'warning';
-  if (status === 'CANCELLED') return 'default';
-  return 'info';
-}
 
 function toLocalInput(value: Date) {
   const pad = (input: number) => String(input).padStart(2, '0');
@@ -118,7 +111,7 @@ export default function VehicleMaintenanceSection({ fixedVehicle, canManage = tr
   const columns: DataTableColumn<VehicleMaintenanceResponse>[] = [
     ...(!fixedVehicle ? [{ id: 'vehicle', header: 'Vehicle', render: (row: VehicleMaintenanceResponse) => row.vehicleRegistrationNumber }] : []),
     { id: 'type', header: 'Type', accessor: 'type' },
-    { id: 'status', header: 'Status', render: (row) => <Chip size="small" label={row.status} color={statusColor(row.status)} /> },
+    { id: 'status', header: 'Status', render: (row) => <StatusChip value={row.status} /> },
     { id: 'scheduled', header: 'Scheduled', render: (row) => row.scheduledAt ? new Date(row.scheduledAt).toLocaleString() : '—' },
     { id: 'started', header: 'Started', render: (row) => row.startedAt ? new Date(row.startedAt).toLocaleString() : '—' },
     { id: 'completed', header: 'Completed', render: (row) => row.completedAt ? new Date(row.completedAt).toLocaleString() : '—' },

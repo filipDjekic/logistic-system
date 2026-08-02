@@ -1,7 +1,7 @@
 import { Chip } from '@mui/material';
 import { buildSortParam } from '../../../core/api/pagination';
-import { useChangeHistory } from '../../../features/change-history/hooks/useChangeHistory';
-import type { ChangeHistoryResponse } from '../../../features/change-history/types/changeHistory.types';
+import { useChangeHistory } from '../../operational-data/useChangeHistory';
+import type { ChangeHistoryResponse } from '../../operational-data/types';
 import { AuditTimeline } from '../AuditTimeline';
 import RelatedDataSection from '../EntityDetails/RelatedDataSection';
 

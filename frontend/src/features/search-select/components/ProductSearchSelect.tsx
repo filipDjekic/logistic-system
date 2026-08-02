@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Chip, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { useProducts } from '../../product/hooks/useProducts';
 import type { ProductResponse } from '../../product/types/product.types';
 import { SearchSelectPanel, useDebouncedValue } from '../../../shared/search-select';
 import type { SearchSelectColumn, SearchSelectFilterOption } from '../../../shared/search-select';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 export type ProductSearchSelectProps = {
   title?: string;
@@ -31,7 +32,7 @@ const productColumns: SearchSelectColumn<ProductResponse>[] = [
   },
   { key: 'unit', label: 'Unit', render: (product) => product.unit, width: 100 },
   { key: 'weight', label: 'Weight', render: (product) => product.weight, width: 110 },
-  { key: 'status', label: 'Status', render: (product) => <Chip size="small" color={product.active ? 'success' : 'default'} label={product.active ? 'ACTIVE' : 'INACTIVE'} />, width: 130 },
+  { key: 'status', label: 'Status', render: (product) => <StatusChip value={product.active ? 'ACTIVE' : 'INACTIVE'} />, width: 130 },
 ];
 
 const statusOptions: SearchSelectFilterOption<'ALL' | 'ACTIVE' | 'INACTIVE'>[] = [

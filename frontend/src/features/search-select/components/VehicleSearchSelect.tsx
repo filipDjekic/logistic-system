@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Chip, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { useVehicles } from '../../vehicles/hooks/useVehicles';
 import type { VehicleResponse, VehicleStatus } from '../../vehicles/types/vehicle.types';
 import { SearchSelectPanel, useDebouncedValue } from '../../../shared/search-select';
 import type { SearchSelectColumn, SearchSelectFilterOption } from '../../../shared/search-select';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 export type VehicleSearchSelectProps = {
   title?: string;
@@ -32,7 +33,7 @@ const vehicleColumns: SearchSelectColumn<VehicleResponse>[] = [
   },
   { key: 'capacity', label: 'Capacity', render: (vehicle) => vehicle.capacity, width: 120 },
   { key: 'fuel', label: 'Fuel', render: (vehicle) => vehicle.fuelType, width: 120 },
-  { key: 'status', label: 'Status', render: (vehicle) => <Chip size="small" label={vehicle.status} />, width: 170 },
+  { key: 'status', label: 'Status', render: (vehicle) => <StatusChip value={vehicle.status} />, width: 170 },
 ];
 
 const statusOptions: SearchSelectFilterOption<'ALL' | VehicleStatus>[] = [

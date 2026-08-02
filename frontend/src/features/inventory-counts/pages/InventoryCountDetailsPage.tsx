@@ -42,6 +42,7 @@ import InventoryCountAuditPanel from '../components/InventoryCountAuditPanel';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { InventoryCountLineStatusFilter } from '../types/inventoryCount.types';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 type InventoryCountDetailsTab = 'overview' | 'lines' | 'lifecycle' | 'audit';
 
@@ -49,10 +50,6 @@ function DifferenceCell({ value }: { value: number }) {
   const label = value > 0 ? `+${value}` : `${value}`;
   const color = value === 0 ? 'default' : value > 0 ? 'success' : 'warning';
   return <Chip size="small" color={color} label={label} />;
-}
-
-function statusLabel(status: string) {
-  return status.replaceAll('_', ' ');
 }
 
 
@@ -272,7 +269,7 @@ export default function InventoryCountDetailsPage() {
             title="Inventory count overview"
             description="Session identity, warehouse scope and current status."
             fields={[
-              { key: 'status', label: 'Status', value: <Chip label={statusLabel(session.status)} /> },
+              { key: 'status', label: 'Status', value: <StatusChip value={session.status} size="medium" /> },
               { key: 'code', label: 'Code', value: session.code },
               { key: 'warehouse', label: 'Warehouse', value: <Button size="small" component={RouterLink} to={`/warehouses/${session.warehouseId}`}>{session.warehouseName}</Button> },
               { key: 'lines', label: 'Lines', value: session.lineCount },

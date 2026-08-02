@@ -1,9 +1,10 @@
 import ClearIcon from '@mui/icons-material/Clear';
 import SearchIcon from '@mui/icons-material/Search';
-import { Box, Button, Chip, FormHelperText, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Button, FormHelperText, IconButton, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { EntityLookupDialog } from './EntityLookupDialog';
 import type { LookupEntityType, LookupOption, LookupParams } from '../types/lookup.types';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 export type EntityLookupFieldProps = {
   label: string;
@@ -90,7 +91,7 @@ export function EntityLookupField({
                 <Typography variant="body2" fontWeight={700} noWrap>
                   {value.label}
                 </Typography>
-                {value.status ? <Chip size="small" label={value.status} /> : null}
+                {value.status ? <StatusChip value={value.status} /> : null}
               </Stack>
               {value.subtitle ? (
                 <Typography variant="caption" color="text.secondary" noWrap>

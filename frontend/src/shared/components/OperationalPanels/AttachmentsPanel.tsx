@@ -3,12 +3,12 @@ import { Alert, Button, Link, MenuItem, Stack, TextField, Typography } from '@mu
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { downloadFile } from '../../../core/utils/downloadFile';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
-import { activityTimelineApi } from '../../../features/activity-timeline/api/activityTimelineApi';
+import { activityTimelineApi } from '../../operational-data/activityTimelineApi';
 import {
   useOperationalAttachments,
   useUploadOperationalAttachment,
-} from '../../../features/activity-timeline/hooks/useActivityTimeline';
-import type { OperationalAttachmentType, OperationalEntityType } from '../../../features/activity-timeline/types/activityTimeline.types';
+} from '../../operational-data/useActivityTimeline';
+import type { OperationalAttachmentType, OperationalEntityType } from '../../operational-data/types';
 import RelatedDataSection from '../EntityDetails/RelatedDataSection';
 
 type AttachmentTypeOption = {

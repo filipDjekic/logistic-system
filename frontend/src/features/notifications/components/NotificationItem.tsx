@@ -1,5 +1,6 @@
 import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import type { NotificationResponse } from '../types/notification.types';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 type NotificationItemProps = {
   notification: NotificationResponse;
@@ -79,7 +80,7 @@ export default function NotificationItem({
               label={notification.severity ?? notification.type}
               color={notification.severity === 'CRITICAL' ? 'error' : notification.severity === 'WARNING' ? 'warning' : notification.severity === 'SUCCESS' ? 'success' : 'info'}
             />
-            <Chip size="small" label={notification.status} variant={isUnread ? 'filled' : 'outlined'} />
+            <StatusChip value={notification.status} variant={isUnread ? 'filled' : 'outlined'} />
             {groupCount > 1 ? <Chip size="small" label={`x${groupCount}`} variant="outlined" /> : null}
           </Stack>
         </Stack>

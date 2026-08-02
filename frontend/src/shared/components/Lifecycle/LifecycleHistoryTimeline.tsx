@@ -1,6 +1,6 @@
 import { Chip, Stack, Typography } from '@mui/material';
 import { buildSortParam } from '../../../core/api/pagination';
-import { useChangeHistory } from '../../../features/change-history/hooks/useChangeHistory';
+import { useChangeHistory } from '../../operational-data/useChangeHistory';
 import { AuditTimeline } from '../AuditTimeline';
 import RelatedDataSection from '../EntityDetails/RelatedDataSection';
 

@@ -5,6 +5,7 @@ import { useEmployees } from '../../employees/hooks/useEmployees';
 import type { EmployeePosition, EmployeeResponse } from '../../employees/types/employee.types';
 import { SearchSelectPanel, useDebouncedValue } from '../../../shared/search-select';
 import type { SearchSelectColumn, SearchSelectFilterOption } from '../../../shared/search-select';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 export type EmployeeSearchSelectProps = {
   title?: string;
@@ -43,7 +44,7 @@ const employeeColumns: SearchSelectColumn<EmployeeResponse>[] = [
   {
     key: 'status',
     label: 'Status',
-    render: (employee) => <Chip size="small" color={employee.active ? 'success' : 'default'} label={employee.active ? 'ACTIVE' : 'INACTIVE'} />,
+    render: (employee) => <StatusChip value={employee.active ? 'ACTIVE' : 'INACTIVE'} />,
     width: 130,
   },
   {

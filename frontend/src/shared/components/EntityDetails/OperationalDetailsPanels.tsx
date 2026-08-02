@@ -2,8 +2,8 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Chip, Grid } from '@mui/material';
 import { useAuthStore, authStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
-import { useActivityTimeline } from '../../../features/activity-timeline/hooks/useActivityTimeline';
-import type { OperationalEntityType } from '../../../features/activity-timeline/types/activityTimeline.types';
+import { useActivityTimeline } from '../../operational-data/useActivityTimeline';
+import type { OperationalEntityType } from '../../operational-data/types';
 import { AuditTimeline } from '../AuditTimeline';
 import {
   AttachmentsPanel,

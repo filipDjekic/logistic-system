@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import { Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Link, Stack, TextField, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Link, Stack, TextField, Typography } from '@mui/material';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import DataTable from '../../../shared/components/DataTable/DataTable';
@@ -16,6 +16,7 @@ import { warehouseLocationsApi } from '../api/warehouseLocationsApi';
 import { useBinLocations, useInternalWarehouseMovements, useWarehouseZone } from '../hooks/useWarehouseLocations';
 import type { BinLocationResponse, InternalWarehouseMovementResponse } from '../types/warehouseLocation.types';
 import { warehouseLocationRoutes } from '../utils/warehouseLocationRoutes';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 type TabKey = 'overview' | 'bins' | 'movement-trace' | 'change-history';
 
@@ -141,8 +142,8 @@ function formatNumber(value: number | string | null | undefined) {
   return String(value);
 }
 
-function StatusChip({ active }: { active: boolean | undefined }) {
-  return <Chip size="small" label={active ? 'ACTIVE' : 'INACTIVE'} color={active ? 'success' : 'default'} />;
+function ActiveStatusChip({ active }: { active: boolean | undefined }) {
+  return <StatusChip value={active ? 'ACTIVE' : 'INACTIVE'} />;
 }
 
 export default function ZoneDetailsPage() {
@@ -216,7 +217,7 @@ export default function ZoneDetailsPage() {
     { id: 'code', header: 'Bin', render: (row) => <Link component="button" fontWeight={800} onClick={() => navigate(warehouseLocationRoutes.binDetails(row.warehouseId, row.zoneId, row.id))}>{row.code}</Link> },
     { id: 'name', header: 'Label', render: (row) => row.name },
     { id: 'capacity', header: 'Capacity', align: 'right', render: (row) => formatNumber(row.capacity) },
-    { id: 'active', header: 'Status', render: (row) => <StatusChip active={row.active} /> },
+    { id: 'active', header: 'Status', render: (row) => <ActiveStatusChip active={row.active} /> },
     { id: 'updatedAt', header: 'Updated', render: (row) => formatDate(row.updatedAt) },
     { id: 'actions', header: 'Actions', render: (row) => <Button size="small" onClick={(event) => { event.stopPropagation(); setSelectedBin(row); setCreateBinOpen(true); }}>Edit</Button> },
   ];
@@ -234,7 +235,7 @@ export default function ZoneDetailsPage() {
       </Stack>
     ) },
     { id: 'quantity', header: 'Quantity', align: 'right', render: (row) => row.quantity },
-    { id: 'status', header: 'Status', render: (row) => <Chip size="small" label={row.status} color={row.status === 'COMPLETED' ? 'success' : 'default'} /> },
+    { id: 'status', header: 'Status', render: (row) => <StatusChip value={row.status} /> },
   ];
 
   const tabs: { value: TabKey; label: string }[] = [
@@ -270,7 +271,7 @@ export default function ZoneDetailsPage() {
         <Stack spacing={2}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <SectionCard title="Status"><StatusChip active={currentZone?.active} /></SectionCard>
+              <SectionCard title="Status"><ActiveStatusChip active={currentZone?.active} /></SectionCard>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <SectionCard title="Type"><Typography variant="h6">{currentZone?.type ?? '—'}</Typography></SectionCard>

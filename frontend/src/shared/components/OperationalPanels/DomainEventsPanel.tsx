@@ -1,6 +1,6 @@
 import { Chip } from '@mui/material';
-import { useActivityTimeline } from '../../../features/activity-timeline/hooks/useActivityTimeline';
-import type { OperationalEntityType } from '../../../features/activity-timeline/types/activityTimeline.types';
+import { useActivityTimeline } from '../../operational-data/useActivityTimeline';
+import type { OperationalEntityType } from '../../operational-data/types';
 import { AuditTimeline } from '../AuditTimeline';
 import RelatedDataSection from '../EntityDetails/RelatedDataSection';
 

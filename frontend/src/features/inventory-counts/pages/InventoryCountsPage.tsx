@@ -30,10 +30,7 @@ import { inventoryCountsApi } from '../api/inventoryCountsApi';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import type { DataTableColumn, SortState } from '../../../shared/types/common.types';
 import type { InventoryCountSessionSummaryResponse } from '../types/inventoryCount.types';
-
-function statusLabel(status: string) {
-  return status.replaceAll('_', ' ');
-}
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 export default function InventoryCountsPage() {
   const navigate = useNavigate();
@@ -95,7 +92,7 @@ export default function InventoryCountsPage() {
     () => [
       { id: 'code', header: 'Code', sortField: 'code', render: (session) => session.code, nowrap: true },
       { id: 'warehouse', header: 'Warehouse', sortField: 'warehouse.name', render: (session) => session.warehouseName },
-      { id: 'status', header: 'Status', sortField: 'status', render: (session) => <Chip size="small" label={statusLabel(session.status)} /> },
+      { id: 'status', header: 'Status', sortField: 'status', render: (session) => <StatusChip value={session.status} /> },
       { id: 'lineCount', header: 'Lines', align: 'right', render: (session) => session.lineCount },
       { id: 'countedLineCount', header: 'Counted', align: 'right', render: (session) => session.countedLineCount },
       { id: 'discrepancyLineCount', header: 'Differences', align: 'right', render: (session) => session.discrepancyLineCount },

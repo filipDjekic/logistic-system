@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Chip, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { useWarehouses } from '../../warehouses/hooks/useWarehouses';
 import type { WarehouseResponse, WarehouseStatus } from '../../warehouses/types/warehouse.types';
 import { SearchSelectPanel, useDebouncedValue } from '../../../shared/search-select';
 import type { SearchSelectColumn, SearchSelectFilterOption } from '../../../shared/search-select';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 export type WarehouseSearchSelectProps = {
   title?: string;
@@ -32,7 +33,7 @@ const warehouseColumns: SearchSelectColumn<WarehouseResponse>[] = [
   },
   { key: 'capacity', label: 'Capacity', render: (warehouse) => warehouse.capacity, width: 120 },
   { key: 'manager', label: 'Manager', render: (warehouse) => warehouse.managerName ?? '-' },
-  { key: 'status', label: 'Status', render: (warehouse) => <Chip size="small" label={warehouse.status} />, width: 170 },
+  { key: 'status', label: 'Status', render: (warehouse) => <StatusChip value={warehouse.status} />, width: 170 },
 ];
 
 const statusOptions: SearchSelectFilterOption<'ALL' | WarehouseStatus>[] = [

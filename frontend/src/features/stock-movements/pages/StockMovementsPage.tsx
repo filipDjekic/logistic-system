@@ -19,6 +19,7 @@ import type { StockMovementFiltersState } from '../types/stockMovement.types';
 import type { InternalWarehouseMovementResponse } from '../../warehouse-locations/types/warehouseLocation.types';
 import { stockMovementStatusOptions, stockMovementTypeOptions } from '../validation/stockMovementSchema';
 import { warehouseLocationRoutes } from '../../warehouse-locations/utils/warehouseLocationRoutes';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 function InternalMovementsList({ rows }: { rows: InternalWarehouseMovementResponse[] }) {
   return (
@@ -29,7 +30,7 @@ function InternalMovementsList({ rows }: { rows: InternalWarehouseMovementRespon
             <Typography variant="body2" fontWeight={800}>
               {movement.sourceBinCode} → {movement.destinationBinCode}
             </Typography>
-            <Chip size="small" label={movement.status} variant="outlined" />
+            <StatusChip value={movement.status} variant="outlined" />
           </Stack>
           <Typography variant="body2" color="text.secondary">
             {movement.productName} {movement.sku ? `(${movement.sku})` : ''} · Qty {movement.quantity}

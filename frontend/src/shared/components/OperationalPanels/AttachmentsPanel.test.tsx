@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AttachmentsPanel from './AttachmentsPanel';
-import type { OperationalAttachment } from '../../../features/activity-timeline/types/activityTimeline.types';
+import type { OperationalAttachment } from '../../operational-data/types';
 
 const downloadAttachment = vi.hoisted(() => vi.fn());
 const showSnackbar = vi.hoisted(() => vi.fn());
@@ -14,11 +14,11 @@ const attachmentsQuery = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
-vi.mock('../../../features/activity-timeline/api/activityTimelineApi', () => ({
+vi.mock('../../operational-data/activityTimelineApi', () => ({
   activityTimelineApi: { downloadAttachment },
 }));
 
-vi.mock('../../../features/activity-timeline/hooks/useActivityTimeline', () => ({
+vi.mock('../../operational-data/useActivityTimeline', () => ({
   useOperationalAttachments: () => attachmentsQuery,
   useUploadOperationalAttachment: () => ({ mutate: vi.fn(), isPending: false }),
 }));

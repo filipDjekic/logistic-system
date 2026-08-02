@@ -5,6 +5,7 @@ import { useTransportOrders } from '../../transport-orders/hooks/useTransportOrd
 import type { TransportOrderResponse, TransportOrderStatus } from '../../transport-orders/types/transportOrder.types';
 import { SearchSelectPanel, useDebouncedValue } from '../../../shared/search-select';
 import type { SearchSelectColumn, SearchSelectFilterOption } from '../../../shared/search-select';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 export type TransportOrderSearchSelectProps = {
   title?: string;
@@ -27,7 +28,7 @@ const transportOrderColumns: SearchSelectColumn<TransportOrderResponse>[] = [
       </Stack>
     ),
   },
-  { key: 'status', label: 'Status', render: (order) => <Chip size="small" label={order.status} />, width: 130 },
+  { key: 'status', label: 'Status', render: (order) => <StatusChip value={order.status} />, width: 130 },
   { key: 'priority', label: 'Priority', render: (order) => <Chip size="small" label={order.priority} />, width: 120 },
   { key: 'date', label: 'Order date', render: (order) => order.orderDate, width: 140 },
 ];

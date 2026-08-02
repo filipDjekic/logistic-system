@@ -23,6 +23,7 @@ import { ChangeHistoryPanel } from "../../../shared/components/OperationalPanels
 import useDetailsPagination from "../../../shared/hooks/useDetailsPagination";
 import { stockMovementsApi } from "../../stock-movements/api/stockMovementsApi";
 import type { StockMovementResponse } from "../../stock-movements/types/stockMovement.types";
+import StatusChip from "../../../shared/components/StatusChip/StatusChip";
 import {
   useBinInventory,
   useBinLocation,
@@ -312,7 +313,7 @@ export default function BinDetailsPage() {
       {
         id: "status",
         header: "Status",
-        render: (row) => <Chip size="small" label={row.status} />,
+        render: (row) => <StatusChip value={row.status} />,
       },
       {
         id: "createdAt",

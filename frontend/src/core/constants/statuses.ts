@@ -19,6 +19,13 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   IN_PROGRESS: { label: 'In Progress', tone: 'primary' },
   COMPLETED: { label: 'Completed', tone: 'success' },
   CANCELLED: { label: 'Cancelled', tone: 'error' },
+  PENDING: { label: 'Pending', tone: 'warning' },
+  APPLIED: { label: 'Applied', tone: 'success' },
+  OPEN: { label: 'Open', tone: 'info' },
+  COUNTING: { label: 'Counting', tone: 'primary' },
+  REVIEW: { label: 'Review', tone: 'warning' },
+  ADJUSTMENTS_CREATED: { label: 'Adjustments Created', tone: 'primary' },
+  CLOSED: { label: 'Closed', tone: 'success' },
 
   // TransportOrderStatus
   ASSIGNED: { label: 'Assigned', tone: 'warning' },

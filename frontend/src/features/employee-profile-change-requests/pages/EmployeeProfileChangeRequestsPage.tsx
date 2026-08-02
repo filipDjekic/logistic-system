@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
   Chip,
   IconButton,
   MenuItem,
@@ -33,6 +31,9 @@ import type {
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
 import type { DataTableColumn } from '../../../shared/types/common.types';
+import PageHeader from '../../../shared/components/PageHeader/PageHeader';
+import SectionCard from '../../../shared/components/SectionCard/SectionCard';
+import StatCard from '../../../shared/components/StatCard/StatCard';
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '-';
@@ -83,43 +84,22 @@ export default function EmployeeProfileChangeRequestsPage() {
     { id: 'status', header: 'Status', render: (request) => <ProfileChangeRequestStatusChip status={request.status} /> },
     { id: 'submitted', header: 'Submitted', render: (request) => formatDateTime(request.createdAt) },
     { id: 'reviewed', header: 'Reviewed', render: (request) => formatDateTime(request.reviewedAt) },
-    { id: 'actions', header: 'Actions', align: 'right', render: (request) => { const pending = request.status === 'PENDING'; return <><Tooltip title="Details"><IconButton size="small" onClick={() => openDialog(request, 'details')}><VisibilityRoundedIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Approve"><span><IconButton size="small" color="success" disabled={!pending} onClick={() => openDialog(request, 'approve')}><CheckCircleRoundedIcon fontSize="small" /></IconButton></span></Tooltip><Tooltip title="Reject"><span><IconButton size="small" color="error" disabled={!pending} onClick={() => openDialog(request, 'reject')}><CancelRoundedIcon fontSize="small" /></IconButton></span></Tooltip></>; } },
+    { id: 'actions', header: 'Actions', align: 'right', render: (request) => { const pending = request.status === 'PENDING'; return <><Tooltip title="Details"><IconButton aria-label="View request details" size="small" onClick={() => openDialog(request, 'details')}><VisibilityRoundedIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Approve"><span><IconButton aria-label="Approve request" size="small" color="success" disabled={!pending} onClick={() => openDialog(request, 'approve')}><CheckCircleRoundedIcon fontSize="small" /></IconButton></span></Tooltip><Tooltip title="Reject"><span><IconButton aria-label="Reject request" size="small" color="error" disabled={!pending} onClick={() => openDialog(request, 'reject')}><CancelRoundedIcon fontSize="small" /></IconButton></span></Tooltip></>; } },
   ];
 
   return (
     <PageContainer>
       <Stack spacing={2.5}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>Profile Change Requests</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Review employee profile change requests submitted from My Profile.
-          </Typography>
-        </Box>
+        <PageHeader title="Profile Change Requests" description="Review employee profile change requests submitted from My Profile." />
 
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-          <Card sx={{ flex: 1 }}>
-            <CardContent>
-              <Typography variant="overline" color="text.secondary">Selected status</Typography>
-              <Typography variant="h5" fontWeight={850}>{status || 'ALL'}</Typography>
-            </CardContent>
-          </Card>
-          <Card sx={{ flex: 1 }}>
-            <CardContent>
-              <Typography variant="overline" color="text.secondary">Visible pending</Typography>
-              <Typography variant="h5" fontWeight={850}>{pendingCount}</Typography>
-            </CardContent>
-          </Card>
-          <Card sx={{ flex: 1 }}>
-            <CardContent>
-              <Typography variant="overline" color="text.secondary">Total results</Typography>
-              <Typography variant="h5" fontWeight={850}>{query.data?.totalElements ?? 0}</Typography>
-            </CardContent>
-          </Card>
+          <Box sx={{ flex: 1 }}><StatCard title="Selected status" value={status || 'ALL'} /></Box>
+          <Box sx={{ flex: 1 }}><StatCard title="Visible pending" value={pendingCount} accent="warning" /></Box>
+          <Box sx={{ flex: 1 }}><StatCard title="Total results" value={query.data?.totalElements ?? 0} /></Box>
         </Stack>
 
-        <Card>
-          <CardContent>
-            <Stack spacing={2}>
+        <SectionCard>
+          <Stack spacing={2}>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
                 <Box>
                   <Typography variant="h6" fontWeight={800}>Requests</Typography>
@@ -142,9 +122,8 @@ export default function EmployeeProfileChangeRequestsPage() {
               </Stack>
 
               <DataTable columns={columns} rows={requests} getRowId={(request) => request.id} size="small" loading={query.isLoading} error={query.isError} errorTitle="Profile change requests could not be loaded." emptyTitle="No profile change requests" emptyDescription="No profile change requests match the selected filters." pagination={<ServerTablePagination page={query.data} disabled={query.isFetching} onPageChange={setPage} onSizeChange={(value) => { setSize(value); setPage(0); }} />} />
-            </Stack>
-          </CardContent>
-        </Card>
+          </Stack>
+        </SectionCard>
       </Stack>
 
       <EmployeeProfileChangeRequestReviewDialog

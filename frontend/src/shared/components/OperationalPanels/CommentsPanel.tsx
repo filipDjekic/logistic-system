@@ -5,8 +5,8 @@ import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import {
   useCreateOperationalComment,
   useOperationalComments,
-} from '../../../features/activity-timeline/hooks/useActivityTimeline';
-import type { OperationalEntityType } from '../../../features/activity-timeline/types/activityTimeline.types';
+} from '../../operational-data/useActivityTimeline';
+import type { OperationalEntityType } from '../../operational-data/types';
 import RelatedDataSection from '../EntityDetails/RelatedDataSection';
 
 type CommentsPanelProps = {

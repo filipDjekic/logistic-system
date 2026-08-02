@@ -413,7 +413,7 @@ function InternalMovementsTable({ rows }: { rows: InternalWarehouseMovementRespo
           ),
         },
         { id: 'quantity', header: 'Quantity', align: 'right', accessor: 'quantity' },
-        { id: 'status', header: 'Status', render: (row) => <Chip size="small" label={row.status} color={row.status === 'COMPLETED' ? 'success' : 'default'} /> },
+        { id: 'status', header: 'Status', render: (row) => <StatusChip value={row.status} /> },
         { id: 'createdBy', header: 'Created by', render: (row) => row.createdByEmail ?? '—' },
         { id: 'created', header: 'Created', render: (row) => formatDate(row.createdAt) },
       ]}

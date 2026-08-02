@@ -1,11 +1,12 @@
 import CloseIcon from '@mui/icons-material/Close';
-import { Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { SearchSelectPanel, useDebouncedValue } from '../../../shared/search-select';
 import type { SearchSelectColumn } from '../../../shared/search-select';
 import { useEntityLookup } from '../hooks/useEntityLookup';
 import type { LookupEntityType, LookupOption, LookupParams } from '../types/lookup.types';
+import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 
 const nonSelectableStatuses = new Set(['INACTIVE', 'ARCHIVED', 'DISABLED', 'DELETED']);
 
@@ -30,7 +31,7 @@ const lookupColumns: SearchSelectColumn<LookupOption>[] = [
     key: 'status',
     label: 'Status',
     width: 160,
-    render: (option) => (option.status ? <Chip size="small" label={option.status} /> : '-'),
+    render: (option) => option.status ? <StatusChip value={option.status} /> : '-',
   },
 ];
 
