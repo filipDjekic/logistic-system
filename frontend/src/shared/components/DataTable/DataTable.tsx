@@ -43,7 +43,11 @@ type DataTableProps<T> = {
   onSortChange?: (sort: SortState) => void;
   getRowStatus?: (row: T) => string | null | undefined;
   onRowClick?: (row: T) => void;
+  isRowClickDisabled?: (row: T) => boolean;
+  selectedRowId?: RowId | null;
+  getRowSx?: (row: T) => SxProps<Theme>;
   rowClickLabel?: string;
+  maxHeight?: number | string;
   enableClientWindowing?: boolean;
   windowingThreshold?: number;
   maxRenderedRows?: number;
@@ -88,7 +92,11 @@ export default function DataTable<T>({
   onSortChange,
   getRowStatus,
   onRowClick,
+  isRowClickDisabled,
+  selectedRowId,
+  getRowSx,
   rowClickLabel = 'Open details',
+  maxHeight,
   enableClientWindowing = true,
   windowingThreshold = 150,
   maxRenderedRows = 90,
@@ -213,7 +221,8 @@ export default function DataTable<T>({
           overflowX: 'auto',
           WebkitOverflowScrolling: 'touch',
           overscrollBehaviorX: 'contain',
-          ...(shouldWindowRows ? { maxHeight: { xs: 520, md: 720 }, overflowY: 'auto' } : {}),
+          ...(maxHeight != null ? { maxHeight, overflowY: 'auto' } : {}),
+          ...(shouldWindowRows && maxHeight == null ? { maxHeight: { xs: 520, md: 720 }, overflowY: 'auto' } : {}),
           '&::-webkit-scrollbar': { height: 8 },
           '&::-webkit-scrollbar-thumb': { borderRadius: 999, backgroundColor: 'divider' },
         }}
@@ -338,16 +347,20 @@ export default function DataTable<T>({
                   const rowKey = getRowId ? getRowId(row, index) : index;
                   const rowStatus = getRowStatus?.(row);
                   const rowStatusTone = rowStatus ? getStatusConfig(rowStatus).tone : null;
+                  const rowClickDisabled = isRowClickDisabled?.(row) ?? false;
+                  const rowInteractive = Boolean(onRowClick) && !rowClickDisabled;
 
                   return (
                     <TableRow
                       key={rowKey}
                       hover
-                      role={onRowClick ? 'button' : undefined}
-                      aria-label={onRowClick ? `${rowClickLabel}` : undefined}
-                      tabIndex={onRowClick ? 0 : undefined}
-                      onClick={(event) => handleRowClick(event, row)}
-                      onKeyDown={(event) => handleRowKeyDown(event, row)}
+                      selected={selectedRowId != null && String(selectedRowId) === String(rowKey)}
+                      role={rowInteractive ? 'button' : undefined}
+                      aria-label={rowInteractive ? `${rowClickLabel}` : undefined}
+                      aria-disabled={rowClickDisabled || undefined}
+                      tabIndex={rowInteractive ? 0 : undefined}
+                      onClick={rowInteractive ? (event) => handleRowClick(event, row) : undefined}
+                      onKeyDown={rowInteractive ? (event) => handleRowKeyDown(event, row) : undefined}
                       sx={(theme) => {
                         const toneColor = rowStatusTone === 'success'
                           ? theme.palette.success.main
@@ -364,9 +377,9 @@ export default function DataTable<T>({
                                     : null;
 
                         return {
-                          cursor: onRowClick ? 'pointer' : 'default',
+                          cursor: rowInteractive ? 'pointer' : 'default',
                           transition: theme.transitions.create(['background-color', 'box-shadow'], { duration: theme.transitions.duration.shortest }),
-                          '&:hover': onRowClick ? {
+                          '&:hover': rowInteractive ? {
                             backgroundColor: alpha(theme.palette.primary.main, 0.035),
                           } : undefined,
                           '&:last-child td': {
@@ -388,6 +401,7 @@ export default function DataTable<T>({
                                 backgroundColor: alpha(toneColor ?? theme.palette.text.primary, 0.035),
                               }
                             : {}),
+                          ...(getRowSx?.(row) as object),
                         };
                       }}
                     >

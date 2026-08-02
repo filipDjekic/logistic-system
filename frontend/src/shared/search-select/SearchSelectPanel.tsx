@@ -1,24 +1,18 @@
 import SearchIcon from '@mui/icons-material/Search';
 import {
-  Alert,
   Box,
   Button,
-  CircularProgress,
   InputAdornment,
   MenuItem,
   Pagination,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
 import type { ReactNode } from 'react';
+import DataTable from '../components/DataTable/DataTable';
+import type { DataTableColumn } from '../types/common.types';
 
 export type SearchSelectColumn<T> = {
   key: string;
@@ -83,6 +77,10 @@ export function SearchSelectPanel<T, TStatus extends string = string>({
 }: SearchSelectPanelProps<T, TStatus>) {
   const hasStatusFilter = Boolean(statusOptions?.length && onStatusChange && statusValue !== undefined);
   const hasPagination = Boolean(onPageChange && pageCount && pageCount > 1 && page !== undefined);
+  const tableColumns: DataTableColumn<T>[] = [
+    ...columns.map((column) => ({ id: column.key, header: column.label, width: column.width, render: column.render })),
+    { id: 'actions', header: 'Action', align: 'right', render: (row: T) => { const rowKey = getRowKey(row); const isSelected = selectedId != null && String(selectedId) === String(rowKey); return <Button size="small" variant={isSelected ? 'contained' : 'outlined'} onClick={() => onSelect(row)} disabled={getSelectDisabled?.(row) ?? false}>{isSelected ? 'Selected' : selectLabel}</Button>; } },
+  ];
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -132,68 +130,7 @@ export function SearchSelectPanel<T, TStatus extends string = string>({
           ) : null}
         </Stack>
 
-        {error ? <Alert severity="error">{error}</Alert> : null}
-
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                {columns.map((column) => (
-                  <TableCell key={column.key} sx={{ width: column.width }}>
-                    {column.label}
-                  </TableCell>
-                ))}
-                <TableCell align="right">Action</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length + 1} align="center">
-                    <CircularProgress size={24} />
-                  </TableCell>
-                </TableRow>
-              ) : rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length + 1}>
-                    <Typography variant="body2" color="text.secondary" textAlign="center">
-                      {emptyMessage}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map((row) => {
-                  const rowKey = getRowKey(row);
-                  const isSelected = selectedId != null && String(selectedId) === String(rowKey);
-
-                  return (
-                    <TableRow key={rowKey} selected={isSelected} hover>
-                      {columns.map((column) => (
-                        <TableCell key={column.key}>{column.render(row)}</TableCell>
-                      ))}
-                      <TableCell align="right">
-                        <Button
-                          size="small"
-                          variant={isSelected ? 'contained' : 'outlined'}
-                          onClick={() => onSelect(row)}
-                          disabled={getSelectDisabled?.(row) ?? false}
-                        >
-                          {isSelected ? 'Selected' : selectLabel}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        {hasPagination ? (
-          <Stack alignItems="center">
-            <Pagination count={pageCount} page={(page ?? 0) + 1} onChange={(_, nextPage) => onPageChange?.(nextPage - 1)} />
-          </Stack>
-        ) : null}
+        <DataTable columns={tableColumns} rows={rows} getRowId={getRowKey} size="small" loading={loading} error={Boolean(error)} errorTitle={error ?? undefined} emptyTitle={emptyMessage} emptyDescription="" selectedRowId={selectedId} onRowClick={onSelect} isRowClickDisabled={(row) => getSelectDisabled?.(row) ?? false} rowClickLabel="Select row" pagination={hasPagination ? <Stack alignItems="center" sx={{ py: 1 }}><Pagination count={pageCount} page={(page ?? 0) + 1} onChange={(_, nextPage) => onPageChange?.(nextPage - 1)} /></Stack> : undefined} />
       </Stack>
     </Paper>
   );

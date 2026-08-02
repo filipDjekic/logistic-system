@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Button,
   Chip,
   Dialog,
@@ -9,14 +8,7 @@ import {
   DialogTitle,
   Grid,
   MenuItem,
-  Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
@@ -30,6 +22,8 @@ import type { LookupOption } from '../../lookup';
 import { useCreateVehicleMaintenance, useUpdateVehicleMaintenance, useVehicleMaintenanceAction } from '../hooks/useVehicleMaintenanceMutations';
 import { useVehicleMaintenance } from '../hooks/useVehicleMaintenance';
 import type { VehicleMaintenanceResponse, VehicleMaintenanceStatus, VehicleMaintenanceType } from '../types/vehicleMaintenance.types';
+import DataTable from '../../../shared/components/DataTable/DataTable';
+import type { DataTableColumn } from '../../../shared/types/common.types';
 
 const maintenanceTypes: VehicleMaintenanceType[] = ['ROUTINE_SERVICE', 'REPAIR', 'INSPECTION', 'TIRE_CHANGE', 'OIL_CHANGE', 'CLEANING', 'OTHER'];
 const maintenanceStatuses: Array<VehicleMaintenanceStatus | 'ALL'> = ['ALL', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
@@ -121,6 +115,15 @@ export default function VehicleMaintenanceSection({ fixedVehicle, canManage = tr
   const rows = maintenanceQuery.data?.content ?? [];
   const canSubmit = Boolean(vehicle?.id) && scheduledAt.trim().length > 0;
   const canSubmitEdit = Boolean(editingRow?.id) && editForm.scheduledAt.trim().length > 0;
+  const columns: DataTableColumn<VehicleMaintenanceResponse>[] = [
+    ...(!fixedVehicle ? [{ id: 'vehicle', header: 'Vehicle', render: (row: VehicleMaintenanceResponse) => row.vehicleRegistrationNumber }] : []),
+    { id: 'type', header: 'Type', accessor: 'type' },
+    { id: 'status', header: 'Status', render: (row) => <Chip size="small" label={row.status} color={statusColor(row.status)} /> },
+    { id: 'scheduled', header: 'Scheduled', render: (row) => row.scheduledAt ? new Date(row.scheduledAt).toLocaleString() : '—' },
+    { id: 'started', header: 'Started', render: (row) => row.startedAt ? new Date(row.startedAt).toLocaleString() : '—' },
+    { id: 'completed', header: 'Completed', render: (row) => row.completedAt ? new Date(row.completedAt).toLocaleString() : '—' },
+    { id: 'actions', header: 'Actions', align: 'right', render: (row) => canManageMaintenance ? <Stack direction="row" spacing={1} justifyContent="flex-end"><Button size="small" disabled={row.status !== 'PLANNED' || updateMutation.isPending} onClick={() => setEditingRow(row)}>Edit</Button><Button size="small" disabled={row.status !== 'PLANNED' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'start' })}>Start</Button><Button size="small" disabled={row.status !== 'IN_PROGRESS' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'complete' })}>Complete</Button><Button size="small" color="error" disabled={(row.status === 'COMPLETED' || row.status === 'CANCELLED') || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'cancel', reason: 'Cancelled from UI' })}>Cancel</Button></Stack> : <Typography variant="caption" color="text.secondary">Read only</Typography> },
+  ];
 
   useEffect(() => {
     if (fixedVehicle) {
@@ -215,50 +218,7 @@ export default function VehicleMaintenanceSection({ fixedVehicle, canManage = tr
           {maintenanceStatuses.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
         </TextField>
       }>
-        {maintenanceQuery.isError ? <Alert severity="error">Unable to load maintenance records.</Alert> : null}
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                {!fixedVehicle ? <TableCell>Vehicle</TableCell> : null}
-                <TableCell>Type</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Scheduled</TableCell>
-                <TableCell>Started</TableCell>
-                <TableCell>Completed</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id} hover>
-                  {!fixedVehicle ? <TableCell>{row.vehicleRegistrationNumber}</TableCell> : null}
-                  <TableCell>{row.type}</TableCell>
-                  <TableCell><Chip size="small" label={row.status} color={statusColor(row.status)} /></TableCell>
-                  <TableCell>{row.scheduledAt ? new Date(row.scheduledAt).toLocaleString() : '—'}</TableCell>
-                  <TableCell>{row.startedAt ? new Date(row.startedAt).toLocaleString() : '—'}</TableCell>
-                  <TableCell>{row.completedAt ? new Date(row.completedAt).toLocaleString() : '—'}</TableCell>
-                  <TableCell align="right">
-                    {canManageMaintenance ? (
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Button size="small" disabled={row.status !== 'PLANNED' || updateMutation.isPending} onClick={() => setEditingRow(row)}>Edit</Button>
-                        <Button size="small" disabled={row.status !== 'PLANNED' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'start' })}>Start</Button>
-                        <Button size="small" disabled={row.status !== 'IN_PROGRESS' || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'complete' })}>Complete</Button>
-                        <Button size="small" color="error" disabled={(row.status === 'COMPLETED' || row.status === 'CANCELLED') || actionMutation.isPending} onClick={() => actionMutation.mutate({ id: row.id, action: 'cancel', reason: 'Cancelled from UI' })}>Cancel</Button>
-                      </Stack>
-                    ) : (
-                      <Typography variant="caption" color="text.secondary">Read only</Typography>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={fixedVehicle ? 6 : 7}><Typography color="text.secondary">No maintenance records.</Typography></TableCell></TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <ServerTablePagination page={maintenanceQuery.data} disabled={maintenanceQuery.isFetching} onPageChange={setPage} onSizeChange={(value) => { setSize(value); setPage(0); }} />
+        <DataTable columns={columns} rows={rows} getRowId={(row) => row.id} size="small" loading={maintenanceQuery.isLoading} error={maintenanceQuery.isError} errorTitle="Unable to load maintenance records." emptyTitle="No maintenance records" emptyDescription="No maintenance records." pagination={<ServerTablePagination page={maintenanceQuery.data} disabled={maintenanceQuery.isFetching} onPageChange={setPage} onSizeChange={(value) => { setSize(value); setPage(0); }} />} />
       </SectionCard>
 
       <Dialog open={canManageMaintenance && Boolean(editingRow)} onClose={() => setEditingRow(null)} fullWidth maxWidth="sm">

@@ -13,16 +13,12 @@ import {
   DialogTitle,
   LinearProgress,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from '@mui/material';
 import { downloadFile } from '../../../core/utils/downloadFile';
 import type { ShiftImportPreviewResponse } from '../types/shift.types';
+import DataTable from '../../../shared/components/DataTable/DataTable';
+import type { DataTableColumn } from '../../../shared/types/common.types';
 
 const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -63,6 +59,16 @@ export default function ShiftImportDialog({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileError, setSelectedFileError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  type PreviewRow = ShiftImportPreviewResponse['rows'][number];
+  const previewColumns: DataTableColumn<PreviewRow>[] = [
+    { id: 'line', header: 'Line', accessor: 'rowNumber' },
+    { id: 'status', header: 'Status', render: (row) => <Chip size="small" label={row.valid ? 'Valid' : 'Invalid'} color={row.valid ? 'success' : 'error'} /> },
+    { id: 'employee', header: 'Employee', render: (row) => row.employeeLabel ?? row.employeeId ?? '-' },
+    { id: 'start', header: 'Start', render: (row) => row.startTime ?? '-' },
+    { id: 'end', header: 'End', render: (row) => row.endTime ?? '-' },
+    { id: 'warehouse', header: 'Warehouse', render: (row) => row.warehouseId ?? '-' },
+    { id: 'errors', header: 'Errors', render: (row) => row.errors.length > 0 ? row.errors.join(' | ') : '-' },
+  ];
 
   const resetLocalState = () => {
     setSelectedFile(null);
@@ -169,36 +175,7 @@ export default function ShiftImportDialog({
                 <Chip label={`Valid: ${preview.validRows}`} color="success" />
                 <Chip label={`Invalid: ${preview.invalidRows}`} color={preview.invalidRows > 0 ? 'error' : 'default'} />
               </Stack>
-              <TableContainer sx={{ maxHeight: 420 }}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Line</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Employee</TableCell>
-                      <TableCell>Start</TableCell>
-                      <TableCell>End</TableCell>
-                      <TableCell>Warehouse</TableCell>
-                      <TableCell>Errors</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {preview.rows.map((row) => (
-                      <TableRow key={row.rowNumber}>
-                        <TableCell>{row.rowNumber}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={row.valid ? 'Valid' : 'Invalid'} color={row.valid ? 'success' : 'error'} />
-                        </TableCell>
-                        <TableCell>{row.employeeLabel ?? row.employeeId ?? '-'}</TableCell>
-                        <TableCell>{row.startTime ?? '-'}</TableCell>
-                        <TableCell>{row.endTime ?? '-'}</TableCell>
-                        <TableCell>{row.warehouseId ?? '-'}</TableCell>
-                        <TableCell>{row.errors.length > 0 ? row.errors.join(' | ') : '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <DataTable columns={previewColumns} rows={preview.rows} getRowId={(row) => row.rowNumber} size="small" maxHeight={420} minWidth={900} enableClientWindowing={false} getRowStatus={(row) => row.valid ? 'COMPLETED' : 'FAILED'} />
             </Stack>
           ) : null}
         </Stack>

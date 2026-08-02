@@ -10,11 +10,6 @@ import {
   DialogContent,
   DialogTitle,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
 } from '@mui/material';
 import { useRef, useState } from 'react';
@@ -23,6 +18,8 @@ import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import { normalizeApiError } from '../../../core/api/apiError';
 import { downloadFile } from '../../../core/utils/downloadFile';
 import { importTemplates, type ImportResultResponse, type ImportType } from '../api/dataExchangeApi';
+import DataTable from '../../../shared/components/DataTable/DataTable';
+import type { DataTableColumn } from '../../../shared/types/common.types';
 
 const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -76,6 +73,13 @@ export default function CsvImportDialog({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileError, setSelectedFileError] = useState<string | null>(null);
+  type ImportError = ImportResultResponse['errors'][number];
+  const errorColumns: DataTableColumn<ImportError>[] = [
+    { id: 'line', header: 'Line', accessor: 'line' },
+    { id: 'field', header: 'Field', accessor: 'field' },
+    { id: 'value', header: 'Value', render: (row) => row.value ?? '-' },
+    { id: 'error', header: 'Error', accessor: 'message' },
+  ];
 
   const resetLocalState = () => {
     setSelectedFile(null);
@@ -193,28 +197,7 @@ export default function CsvImportDialog({
                   Mode: {result.transactionMode}. Imported {result.importedRows} of {result.totalRows} rows. Failed rows: {result.failedRows}.
                 </Typography>
                 {result.errors.length > 0 ? (
-                  <Box sx={{ maxHeight: 280, overflow: 'auto' }}>
-                    <Table size="small" stickyHeader>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Line</TableCell>
-                          <TableCell>Field</TableCell>
-                          <TableCell>Value</TableCell>
-                          <TableCell>Error</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {result.errors.map((rowError) => (
-                          <TableRow key={`${rowError.line}-${rowError.field}-${rowError.message}-${rowError.value ?? ''}`}>
-                            <TableCell>{rowError.line}</TableCell>
-                            <TableCell>{rowError.field}</TableCell>
-                            <TableCell>{rowError.value ?? '-'}</TableCell>
-                            <TableCell>{rowError.message}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Box>
+                  <DataTable columns={errorColumns} rows={result.errors} getRowId={(row) => `${row.line}-${row.field}-${row.message}-${row.value ?? ''}`} size="small" maxHeight={280} minWidth={640} enableClientWindowing={false} />
                 ) : null}
               </Stack>
             </Alert>

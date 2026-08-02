@@ -10,15 +10,8 @@ import {
   Chip,
   Divider,
   Grid,
-  LinearProgress,
   Skeleton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tab,
   Tabs,
   Typography,
@@ -52,6 +45,8 @@ import TransportOrderStatusChip from '../../transport-orders/components/Transpor
 import ProfileChangeRequestsTable from '../components/ProfileChangeRequestsTable';
 import ProfileChangeRequestForm from '../components/ProfileChangeRequestForm';
 import type { ProfileResponse } from '../types/profile.types';
+import DataTable from '../../../shared/components/DataTable/DataTable';
+import type { DataTableColumn } from '../../../shared/types/common.types';
 
 function display(value: unknown) {
   if (value === null || value === undefined || value === '') {
@@ -181,6 +176,21 @@ export default function ProfilePage() {
     () => (tasks?.content ?? []).filter((task) => !['COMPLETED', 'CANCELLED'].includes(task.status)),
     [tasks?.content],
   );
+  const activeTransports = transports?.content ?? [];
+  type TaskRow = (typeof activeTasks)[number];
+  type TransportRow = (typeof activeTransports)[number];
+  const taskColumns: DataTableColumn<TaskRow>[] = [
+    { id: 'title', header: 'Title', render: (task) => <Button component={RouterLink} to={`/tasks/${task.id}`} size="small" sx={{ px: 0, minWidth: 0, fontWeight: 750 }}>{task.title}</Button> },
+    { id: 'status', header: 'Status', render: (task) => <TaskStatusChip status={task.status} /> },
+    { id: 'priority', header: 'Priority', accessor: 'priority' },
+    { id: 'dueDate', header: 'Due date', render: (task) => formatDateTime(task.dueDate) },
+  ];
+  const transportColumns: DataTableColumn<TransportRow>[] = [
+    { id: 'order', header: 'Order', render: (transport) => <Button component={RouterLink} to={`/transport-orders/${transport.id}`} size="small" sx={{ px: 0, minWidth: 0, fontWeight: 750 }}>{transport.orderNumber}</Button> },
+    { id: 'status', header: 'Status', render: (transport) => <TransportOrderStatusChip status={transport.status} /> },
+    { id: 'priority', header: 'Priority', accessor: 'priority' },
+    { id: 'departure', header: 'Departure', render: (transport) => formatDateTime(transport.departureTime) },
+  ];
 
   const pendingRequestsCount = useMemo(
     () => (profileChangeRequests?.content ?? []).filter((request) => request.status === 'PENDING').length,
@@ -422,37 +432,7 @@ export default function ProfilePage() {
                       <SectionHeader title="Active tasks" description="Latest open tasks assigned to you." />
                       <Button component={RouterLink} to="/tasks" variant="outlined" size="small">Open tasks</Button>
                     </Stack>
-                    {tasksLoading ? <LinearProgress /> : null}
-                    {!tasksLoading && activeTasks.length === 0 ? (
-                      <EmptyState title="No active tasks" description="There are no open assigned tasks in your current task queue." icon={<AssignmentTurnedInRoundedIcon />} />
-                    ) : (
-                      <TableContainer>
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Title</TableCell>
-                              <TableCell>Status</TableCell>
-                              <TableCell>Priority</TableCell>
-                              <TableCell>Due date</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {activeTasks.map((task) => (
-                              <TableRow key={task.id} hover>
-                                <TableCell>
-                                  <Button component={RouterLink} to={`/tasks/${task.id}`} size="small" sx={{ px: 0, minWidth: 0, fontWeight: 750 }}>
-                                    {task.title}
-                                  </Button>
-                                </TableCell>
-                                <TableCell><TaskStatusChip status={task.status} /></TableCell>
-                                <TableCell>{task.priority}</TableCell>
-                                <TableCell>{formatDateTime(task.dueDate)}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    )}
+                    <DataTable columns={taskColumns} rows={activeTasks} getRowId={(task) => task.id} size="small" stickyHeader={false} enableClientWindowing={false} loading={tasksLoading} emptyTitle="No active tasks" emptyDescription="There are no open assigned tasks in your current task queue." />
                   </CardContent>
                 </Card>
 
@@ -463,37 +443,7 @@ export default function ProfilePage() {
                         <SectionHeader title="Active transports" description="Transport orders assigned to you as driver/operator." />
                         <Button component={RouterLink} to="/transport-orders" variant="outlined" size="small">Open transports</Button>
                       </Stack>
-                      {transportsLoading ? <LinearProgress /> : null}
-                      {!transportsLoading && (transports?.content?.length ?? 0) === 0 ? (
-                        <EmptyState title="No assigned transports" description="There are no transport orders assigned to your profile." icon={<LocalShippingRoundedIcon />} />
-                      ) : (
-                        <TableContainer>
-                          <Table size="small">
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Order</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell>Priority</TableCell>
-                                <TableCell>Departure</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {(transports?.content ?? []).map((transport) => (
-                                <TableRow key={transport.id} hover>
-                                  <TableCell>
-                                    <Button component={RouterLink} to={`/transport-orders/${transport.id}`} size="small" sx={{ px: 0, minWidth: 0, fontWeight: 750 }}>
-                                      {transport.orderNumber}
-                                    </Button>
-                                  </TableCell>
-                                  <TableCell><TransportOrderStatusChip status={transport.status} /></TableCell>
-                                  <TableCell>{transport.priority}</TableCell>
-                                  <TableCell>{formatDateTime(transport.departureTime)}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                      )}
+                      <DataTable columns={transportColumns} rows={activeTransports} getRowId={(transport) => transport.id} size="small" stickyHeader={false} enableClientWindowing={false} loading={transportsLoading} emptyTitle="No assigned transports" emptyDescription="There are no transport orders assigned to your profile." />
                     </CardContent>
                   </Card>
                 ) : null}

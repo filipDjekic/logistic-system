@@ -86,6 +86,35 @@ describe('DataTable', () => {
     expect(onRowClick).toHaveBeenNthCalledWith(2, rows[1]);
   });
 
+  it('marks the selected row and disables row activation selectively', () => {
+    const onRowClick = vi.fn();
+
+    renderWithProviders(
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowId={(row) => row.id}
+        selectedRowId={2}
+        onRowClick={onRowClick}
+        isRowClickDisabled={(row) => row.id === 1}
+        rowClickLabel="Select product"
+      />,
+    );
+
+    const disabledRow = screen.getByText('Euro pallet').closest('tr');
+    const selectedRow = screen.getByText('Storage box').closest('tr');
+
+    expect(disabledRow).toHaveAttribute('aria-disabled', 'true');
+    expect(disabledRow).not.toHaveAttribute('role', 'button');
+    expect(selectedRow).toHaveClass('Mui-selected');
+
+    if (disabledRow) fireEvent.click(disabledRow);
+    if (selectedRow) fireEvent.click(selectedRow);
+
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+    expect(onRowClick).toHaveBeenCalledWith(rows[1]);
+  });
+
   it('renders the configured empty state when there are no rows', () => {
     renderWithProviders(
       <DataTable

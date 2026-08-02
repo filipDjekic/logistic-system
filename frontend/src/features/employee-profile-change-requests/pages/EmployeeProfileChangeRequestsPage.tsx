@@ -1,21 +1,12 @@
 import { useMemo, useState } from 'react';
 import {
-  Alert,
   Box,
   Card,
   CardContent,
   Chip,
   IconButton,
-  LinearProgress,
   MenuItem,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -39,6 +30,9 @@ import type {
   EmployeeProfileChangeRequestResponse,
   EmployeeProfileChangeRequestStatus,
 } from '../types/employeeProfileChangeRequest.types';
+import DataTable from '../../../shared/components/DataTable/DataTable';
+import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
+import type { DataTableColumn } from '../../../shared/types/common.types';
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '-';
@@ -82,6 +76,15 @@ export default function EmployeeProfileChangeRequestsPage() {
   };
 
   const pendingCount = requests.filter((request) => request.status === 'PENDING').length;
+  const columns: DataTableColumn<EmployeeProfileChangeRequestResponse>[] = [
+    { id: 'employee', header: 'Employee', render: (request) => <Stack spacing={0.25}><Typography variant="body2" fontWeight={700}>{request.employeeFullName ?? `Employee #${request.employeeId}`}</Typography><Typography variant="caption" color="text.secondary">Requested by {request.requestedByFullName ?? `User #${request.requestedByUserId}`}</Typography></Stack> },
+    { id: 'company', header: 'Company', render: (request) => request.companyName ?? '-' },
+    { id: 'changes', header: 'Changes', render: (request) => <Chip label={formatProfileChangeSummary(request.requestedChanges, { countries: countriesQuery.data, cities: citiesQuery.data })} size="small" variant="outlined" /> },
+    { id: 'status', header: 'Status', render: (request) => <ProfileChangeRequestStatusChip status={request.status} /> },
+    { id: 'submitted', header: 'Submitted', render: (request) => formatDateTime(request.createdAt) },
+    { id: 'reviewed', header: 'Reviewed', render: (request) => formatDateTime(request.reviewedAt) },
+    { id: 'actions', header: 'Actions', align: 'right', render: (request) => { const pending = request.status === 'PENDING'; return <><Tooltip title="Details"><IconButton size="small" onClick={() => openDialog(request, 'details')}><VisibilityRoundedIcon fontSize="small" /></IconButton></Tooltip><Tooltip title="Approve"><span><IconButton size="small" color="success" disabled={!pending} onClick={() => openDialog(request, 'approve')}><CheckCircleRoundedIcon fontSize="small" /></IconButton></span></Tooltip><Tooltip title="Reject"><span><IconButton size="small" color="error" disabled={!pending} onClick={() => openDialog(request, 'reject')}><CancelRoundedIcon fontSize="small" /></IconButton></span></Tooltip></>; } },
+  ];
 
   return (
     <PageContainer>
@@ -138,91 +141,7 @@ export default function EmployeeProfileChangeRequestsPage() {
                 </TextField>
               </Stack>
 
-              {query.isLoading ? <LinearProgress /> : null}
-              {query.isError ? <Alert severity="error">Profile change requests could not be loaded.</Alert> : null}
-
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Employee</TableCell>
-                      <TableCell>Company</TableCell>
-                      <TableCell>Changes</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Submitted</TableCell>
-                      <TableCell>Reviewed</TableCell>
-                      <TableCell align="right">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {requests.map((request) => {
-                      const pending = request.status === 'PENDING';
-                      return (
-                        <TableRow key={request.id} hover>
-                          <TableCell>
-                            <Stack spacing={0.25}>
-                              <Typography variant="body2" fontWeight={700}>{request.employeeFullName ?? `Employee #${request.employeeId}`}</Typography>
-                              <Typography variant="caption" color="text.secondary">Requested by {request.requestedByFullName ?? `User #${request.requestedByUserId}`}</Typography>
-                            </Stack>
-                          </TableCell>
-                          <TableCell>{request.companyName ?? '-'}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={formatProfileChangeSummary(request.requestedChanges, { countries: countriesQuery.data, cities: citiesQuery.data })}
-                              size="small"
-                              variant="outlined"
-                            />
-                          </TableCell>
-                          <TableCell><ProfileChangeRequestStatusChip status={request.status} /></TableCell>
-                          <TableCell>{formatDateTime(request.createdAt)}</TableCell>
-                          <TableCell>{formatDateTime(request.reviewedAt)}</TableCell>
-                          <TableCell align="right">
-                            <Tooltip title="Details">
-                              <IconButton size="small" onClick={() => openDialog(request, 'details')}>
-                                <VisibilityRoundedIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Approve">
-                              <span>
-                                <IconButton size="small" color="success" disabled={!pending} onClick={() => openDialog(request, 'approve')}>
-                                  <CheckCircleRoundedIcon fontSize="small" />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                            <Tooltip title="Reject">
-                              <span>
-                                <IconButton size="small" color="error" disabled={!pending} onClick={() => openDialog(request, 'reject')}>
-                                  <CancelRoundedIcon fontSize="small" />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {!requests.length && !query.isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={7}>
-                          <Alert severity="info">No profile change requests match the selected filters.</Alert>
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <TablePagination
-                component="div"
-                count={query.data?.totalElements ?? 0}
-                page={page}
-                onPageChange={(_, nextPage) => setPage(nextPage)}
-                rowsPerPage={size}
-                onRowsPerPageChange={(event) => {
-                  setSize(Number(event.target.value));
-                  setPage(0);
-                }}
-                rowsPerPageOptions={[10, 20, 50]}
-              />
+              <DataTable columns={columns} rows={requests} getRowId={(request) => request.id} size="small" loading={query.isLoading} error={query.isError} errorTitle="Profile change requests could not be loaded." emptyTitle="No profile change requests" emptyDescription="No profile change requests match the selected filters." pagination={<ServerTablePagination page={query.data} disabled={query.isFetching} onPageChange={setPage} onSizeChange={(value) => { setSize(value); setPage(0); }} />} />
             </Stack>
           </CardContent>
         </Card>
