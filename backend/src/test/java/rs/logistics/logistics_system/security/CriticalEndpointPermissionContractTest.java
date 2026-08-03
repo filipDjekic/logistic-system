@@ -55,14 +55,14 @@ class CriticalEndpointPermissionContractTest {
     void warehouseWriteEndpointsStayAdministrativeOrManagedWarehouseOnly() throws NoSuchMethodException {
         assertRoles(WarehouseController.class, "createWarehouse", "OVERLORD", "COMPANY_ADMIN");
         assertRoles(WarehouseController.class, "update", "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
-        assertRoles(WarehouseController.class, "deleteById", "OVERLORD", "COMPANY_ADMIN");
+        assertRoles(WarehouseController.class, "deleteById", "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
     }
 
     @Test
     void transportLifecycleEndpointsDoNotExposeWorkerWriteAccess() throws NoSuchMethodException {
         assertRoles(TransportOrderController.class, "create", "OVERLORD", "DISPATCHER");
-        assertRoles(TransportOrderController.class, "updateStatus", "OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "WAREHOUSE_MANAGER", "DRIVER");
-        assertNoRoles(TransportOrderController.class, "updateStatus", "WORKER", "HR_MANAGER");
+        assertRoles(TransportOrderController.class, "updateStatus", "OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER");
+        assertNoRoles(TransportOrderController.class, "updateStatus", "WORKER", "HR_MANAGER", "WAREHOUSE_MANAGER");
     }
 
     @Test

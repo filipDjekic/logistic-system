@@ -30,6 +30,7 @@ import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.shiftimport.ShiftImportPreviewResponse;
 import rs.logistics.logistics_system.dto.update.ShiftUpdate;
+import rs.logistics.logistics_system.dto.statusUpdate.ShiftSicknessCancellationRequest;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
@@ -71,14 +72,14 @@ public class ShiftController {
         return ResponseEntity.ok(shiftResponse);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER') or @shiftSecurity.isOwner(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER') or @shiftSecurity.isOwner(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<ShiftResponse> getById(@PathVariable Long id) {
         ShiftResponse shiftResponse = shiftService.getById(id);
         return ResponseEntity.ok(shiftResponse);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping
     public ResponseEntity<PageResponse<ShiftResponse>> getAllShifts(
             @PageableDefault(size = 20, sort = "startTime", direction = Sort.Direction.DESC) Pageable pageable
@@ -99,14 +100,14 @@ public class ShiftController {
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/by-date")
     public ResponseEntity<List<ShiftResponse>> getShiftsByDate(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<ShiftResponse> response = shiftService.getShiftsByDate(date);
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/between-dates")
     public ResponseEntity<List<ShiftResponse>> getShiftsBetweenDates(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
@@ -126,6 +127,16 @@ public class ShiftController {
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<Void> cancelShift(@PathVariable Long id) {
         shiftService.cancelShift(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('WAREHOUSE_MANAGER')")
+    @PatchMapping("/{id}/cancel-due-to-sickness")
+    public ResponseEntity<Void> cancelShiftDueToSickness(
+            @PathVariable Long id,
+            @Valid @RequestBody ShiftSicknessCancellationRequest request
+    ) {
+        shiftService.cancelShiftDueToSickness(id, request.getReason());
         return ResponseEntity.noContent().build();
     }
 }

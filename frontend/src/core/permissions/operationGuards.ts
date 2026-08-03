@@ -66,12 +66,7 @@ export function getAllowedTransportOrderStatusTransitions(
     return [];
   }
 
-  if (role === ROLES.WAREHOUSE_MANAGER) {
-    if (status === 'PICKING') return ['PACKING'];
-    if (status === 'PACKING') return ['READY_FOR_LOADING'];
-    if (status === 'READY_FOR_LOADING') return ['LOADING'];
-    return [];
-  }
+  if (role === ROLES.WAREHOUSE_MANAGER) return [];
 
   if (role === ROLES.COMPANY_ADMIN || canManageTransportOrders(role)) {
     return [...appConfig.statusTransitions.transportOrder[status]];

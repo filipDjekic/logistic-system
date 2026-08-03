@@ -83,10 +83,10 @@ class LifecycleAuthorizationContractTest {
     void shiftLifecycleIsHrManagedAndRuntimeStateChangesAreSystemOnly() {
         LifecycleTransitionPolicy<ShiftStatus> policy = ShiftLifecyclePolicy.create(shiftTransitions());
 
-        assertAllowed(policy, ShiftStatus.CANCELLED, "OVERLORD", "COMPANY_ADMIN", "HR_MANAGER");
+        assertAllowed(policy, ShiftStatus.CANCELLED, "OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER");
         assertAllowed(policy, ShiftStatus.ACTIVE, "SYSTEM");
         assertAllowed(policy, ShiftStatus.FINISHED, "SYSTEM");
-        assertNotAllowed(policy, ShiftStatus.CANCELLED, "DISPATCHER", "WAREHOUSE_MANAGER", "DRIVER", "WORKER");
+        assertNotAllowed(policy, ShiftStatus.CANCELLED, "DISPATCHER", "DRIVER", "WORKER");
     }
 
     private static LifecyclePolicyRegistry registry() {

@@ -465,7 +465,27 @@ public class ShiftService implements ShiftServiceDefinition {
         Shift shift = getShiftOrThrow(id);
 
         validateShiftCanBeCancelled(shift);
+        cancelShift(shift, "Shift cancelled", null);
+    }
 
+    @Override
+    @Transactional
+    public void cancelShiftDueToSickness(Long id, String reason) {
+        Shift shift = getShiftOrThrow(id);
+        String normalizedReason = reason == null ? "" : reason.trim();
+        if (normalizedReason.isEmpty()) {
+            throw new BadRequestException("Cancellation reason is required");
+        }
+        if (shift.getStatus() == ShiftStatus.CANCELLED || shift.getStatus() == ShiftStatus.FINISHED) {
+            throw new BadRequestException("Finished or cancelled shift cannot be cancelled due to sickness");
+        }
+
+        String auditReason = "Cancelled due to sickness: " + normalizedReason;
+        shift.setNotes(auditReason);
+        cancelShift(shift, auditReason, normalizedReason);
+    }
+
+    private void cancelShift(Shift shift, String transitionReason, String notificationReason) {
         ShiftStatus oldStatus = shift.getStatus();
         LifecycleTransitionContext<ShiftStatus> lifecycleContext = lifecycleTransitionEngine.validate(
                 LifecycleEntityType.SHIFT,
@@ -473,7 +493,7 @@ public class ShiftService implements ShiftServiceDefinition {
                 ShiftStatus.class,
                 oldStatus,
                 ShiftStatus.CANCELLED,
-                "Shift cancelled",
+                transitionReason,
                 null,
                 null
         );
@@ -483,10 +503,11 @@ public class ShiftService implements ShiftServiceDefinition {
 
         auditFacade.recordStatusChange("SHIFT", saved.getId(), "status", oldStatus, saved.getStatus());
         auditFacade.log(
-                "SHIFT_CANCELLED",
+                notificationReason == null ? "SHIFT_CANCELLED" : "SHIFT_CANCELLED_DUE_TO_SICKNESS",
                 "SHIFT",
                 saved.getId(),
                 "SHIFT " + saved.getId() + " is cancelled"
+                        + (notificationReason == null ? "" : " due to sickness: " + notificationReason)
         );
 
         lifecycleTransitionEngine.afterTransition(lifecycleContext, ShiftStatus.class);
@@ -494,7 +515,9 @@ public class ShiftService implements ShiftServiceDefinition {
         notifyEmployee(
                 saved.getEmployee(),
                 "Shift cancelled",
-                "Your shift from " + saved.getStartTime() + " to " + saved.getEndTime() + " has been cancelled.",
+                "Your shift from " + saved.getStartTime() + " to " + saved.getEndTime()
+                        + " has been cancelled."
+                        + (notificationReason == null ? "" : " Reason: " + notificationReason),
                 NotificationType.WARNING
         );
     }

@@ -120,7 +120,7 @@ public class TransportOrderController {
         return ResponseEntity.ok(transportOrderService.allowedStatusTransitions(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','WAREHOUSE_MANAGER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TransportOrderResponse> updateStatus(@PathVariable Long id, @Valid @RequestBody TransportOrderStatusUpdate dto) {
         TransportOrderResponse response = transportOrderService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion());

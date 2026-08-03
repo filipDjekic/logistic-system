@@ -70,6 +70,10 @@ export const shiftsApi = {
     return apiClient.patch<void>(`/api/shifts/${id}/cancel`).then((response) => response.data);
   },
 
+  cancelDueToSickness(id: number, reason: string) {
+    return apiClient.patch<void>(`/api/shifts/${id}/cancel-due-to-sickness`, { reason }).then((response) => response.data);
+  },
+
 
   previewImport(file: File) {
     const formData = new FormData();

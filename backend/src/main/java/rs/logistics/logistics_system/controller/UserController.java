@@ -47,14 +47,14 @@ public class UserController {
         return ResponseEntity.ok(userResponse);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER') or @authenticatedUserProvider.isSelf(#id)")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER') or @authenticatedUserProvider.isSelf(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getById(@PathVariable Long id) {
         UserResponse response = userService.getById(id);
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
     @GetMapping
     public ResponseEntity<PageResponse<UserResponse>> getAll(
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable

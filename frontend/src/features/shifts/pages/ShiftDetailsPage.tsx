@@ -16,6 +16,7 @@ import { warehousesApi } from '../../warehouses/api/warehousesApi';
 import ShiftFormDialog from '../components/ShiftFormDialog';
 import ShiftLifecycleCard from '../components/ShiftLifecycleCard';
 import ShiftStatusChip from '../components/ShiftStatusChip';
+import ShiftSicknessCancellationDialog from '../components/ShiftSicknessCancellationDialog';
 import { useCreateShift } from '../hooks/useCreateShift';
 import { useShift } from '../hooks/useShift';
 import { isShiftCancellable, isShiftEditable } from '../utils/shiftLifecycle';
@@ -31,10 +32,12 @@ export default function ShiftDetailsPage() {
   const isValidShiftId = Number.isInteger(shiftId) && shiftId > 0;
   const [activeTab, setActiveTab] = useState<ShiftDetailsTab>('overview');
   const [editOpen, setEditOpen] = useState(false);
+  const [sicknessCancelOpen, setSicknessCancelOpen] = useState(false);
 
   const shiftQuery = useShift(isValidShiftId ? shiftId : null);
   const saveShiftMutation = useCreateShift();
   const canManageShifts = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
+  const canCancelDueToSickness = auth.user?.role === ROLES.WAREHOUSE_MANAGER;
   const canViewHistory = auth.user?.role !== ROLES.DRIVER && auth.user?.role !== ROLES.WORKER;
 
   const employeesQuery = useQuery({
@@ -83,6 +86,7 @@ export default function ShiftDetailsPage() {
   const warehouse = warehouseQuery.data ?? null;
   const canEdit = canManageShifts && isShiftEditable(shift);
   const canCancel = canManageShifts && isShiftCancellable(shift);
+  const sicknessCancellationAllowed = canCancelDueToSickness && (shift.status === 'PLANNED' || shift.status === 'ACTIVE');
 
   const tabs = [
     { value: 'overview', label: 'Overview' },
@@ -109,6 +113,7 @@ export default function ShiftDetailsPage() {
         { key: 'back', label: 'Back to list', onClick: () => navigate('/shifts') },
         ...(canManageShifts ? [{ key: 'edit', label: 'Edit', disabled: !canEdit, onClick: () => setEditOpen(true) }] : []),
         ...(canManageShifts ? [{ key: 'cancel', label: 'Cancel shift', color: 'warning' as const, variant: 'contained' as const, disabled: !canCancel || saveShiftMutation.isPending, onClick: () => saveShiftMutation.mutate({ mode: 'cancel', id: shift.id }) }] : []),
+        ...(canCancelDueToSickness ? [{ key: 'cancel-sickness', label: 'Cancel due to sickness', color: 'warning' as const, variant: 'contained' as const, disabled: !sicknessCancellationAllowed || saveShiftMutation.isPending, onClick: () => setSicknessCancelOpen(true) }] : []),
       ]}
       tabs={tabs}
       activeTab={activeTab}
@@ -165,6 +170,15 @@ export default function ShiftDetailsPage() {
           onSubmit={(values) => saveShiftMutation.mutate({ mode: 'edit', id: shift.id, data: { startTime: values.startTime, endTime: values.endTime, notes: values.notes.trim(), timezoneId: Number(values.timezoneId), warehouseId: values.warehouseId ? Number(values.warehouseId) : null } }, { onSuccess: () => setEditOpen(false) })}
         />
       ) : null}
+      <ShiftSicknessCancellationDialog
+        open={sicknessCancelOpen}
+        loading={saveShiftMutation.isPending}
+        onClose={() => setSicknessCancelOpen(false)}
+        onConfirm={(reason) => saveShiftMutation.mutate(
+          { mode: 'cancel-sickness', id: shift.id, reason },
+          { onSuccess: () => setSicknessCancelOpen(false) },
+        )}
+      />
     </EntityDetailsLayout>
   );
 }

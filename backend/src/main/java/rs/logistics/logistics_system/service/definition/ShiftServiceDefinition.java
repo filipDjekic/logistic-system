@@ -35,6 +35,8 @@ public interface ShiftServiceDefinition {
 
     void cancelShift(Long id);
 
+    void cancelShiftDueToSickness(Long id, String reason);
+
     ShiftResponse assignShiftToEmployee(Long shiftId, Long employeeId);
 
     void synchronizeShiftStatuses();

@@ -45,7 +45,7 @@ public class WarehouseAccessGuard {
         }
 
         if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
-            return hasAssignedWarehouseManagerMutationAccess(warehouse);
+            return belongsToAuthenticatedCompany(warehouse);
         }
 
         if (authenticatedUserProvider.hasRole("WORKER")) {
@@ -74,26 +74,7 @@ public class WarehouseAccessGuard {
             return false;
         }
 
-        List<Long> managedWarehouseIds = mutationWarehouseIdsForScopedUser();
-        if (managedWarehouseIds == null) {
-            return true;
-        }
-        if (managedWarehouseIds.isEmpty()) {
-            return false;
-        }
-
-        if (targetEmployee.getPrimaryWarehouse() != null
-                && targetEmployee.getPrimaryWarehouse().getId() != null
-                && managedWarehouseIds.contains(targetEmployee.getPrimaryWarehouse().getId())) {
-            return true;
-        }
-
-        return employeeWarehouseAssignmentRepository.hasActiveAssignmentInWarehouses(
-                targetEmployee.getId(),
-                companyId,
-                managedWarehouseIds,
-                LocalDate.now()
-        );
+        return true;
     }
 
     public List<Long> assignedWarehouseIdsForScopedUser() {
@@ -132,7 +113,9 @@ public class WarehouseAccessGuard {
     }
 
     public List<Long> mutationWarehouseIdsForScopedUser() {
-        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
+        if (authenticatedUserProvider.isOverlord()
+                || authenticatedUserProvider.isCompanyAdmin()
+                || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
             return null;
         }
 
@@ -175,7 +158,8 @@ public class WarehouseAccessGuard {
     public boolean canReadAllWarehouses() {
         return authenticatedUserProvider.isOverlord()
                 || authenticatedUserProvider.isCompanyAdmin()
-                || authenticatedUserProvider.hasRole("DISPATCHER");
+                || authenticatedUserProvider.hasRole("DISPATCHER")
+                || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER");
     }
 
     private void ensureWarehouseAccess(Warehouse warehouse, boolean write) {
@@ -193,7 +177,7 @@ public class WarehouseAccessGuard {
 
         if (write) {
             if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
-                if (hasAssignedWarehouseManagerMutationAccess(warehouse)) {
+                if (belongsToAuthenticatedCompany(warehouse)) {
                     return;
                 }
                 throw new ForbiddenException("You cannot modify this warehouse");
@@ -207,7 +191,11 @@ public class WarehouseAccessGuard {
             throw new ForbiddenException("You cannot modify this warehouse");
         }
 
-        if ((authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || authenticatedUserProvider.hasRole("WORKER"))
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") && belongsToAuthenticatedCompany(warehouse)) {
+            return;
+        }
+
+        if (authenticatedUserProvider.hasRole("WORKER")
                 && hasAssignedWarehouseReadAccess(warehouse.getId())) {
             return;
         }
@@ -254,6 +242,12 @@ public class WarehouseAccessGuard {
                     );
                 })
                 .orElse(false);
+    }
+
+    private boolean belongsToAuthenticatedCompany(Warehouse warehouse) {
+        return warehouse.getCompany() != null
+                && warehouse.getCompany().getId() != null
+                && warehouse.getCompany().getId().equals(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow());
     }
 
 

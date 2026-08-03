@@ -18,6 +18,11 @@ type SaveShiftPayload =
   | {
       mode: 'cancel';
       id: number;
+    }
+  | {
+      mode: 'cancel-sickness';
+      id: number;
+      reason: string;
     };
 
 export function useCreateShift() {
@@ -36,6 +41,11 @@ export function useCreateShift() {
         return;
       }
 
+      if (payload.mode === 'cancel-sickness') {
+        await shiftsApi.cancelDueToSickness(payload.id, payload.reason);
+        return;
+      }
+
       await shiftsApi.update(payload.id, payload.data);
     },
     onSuccess: async (_, variables) => {
@@ -43,13 +53,13 @@ export function useCreateShift() {
         message:
           variables.mode === 'create'
             ? 'Shift created successfully.'
-            : variables.mode === 'cancel'
+            : variables.mode === 'cancel' || variables.mode === 'cancel-sickness'
               ? 'Shift cancelled successfully.'
               : 'Shift updated successfully.',
         severity: 'success',
       });
 
-      await invalidateShiftState(queryClient, variables.mode === 'edit' ? variables.id : undefined);
+      await invalidateShiftState(queryClient, variables.mode === 'create' ? undefined : variables.id);
     },
     onError: (error) => {
       showSnackbar({
