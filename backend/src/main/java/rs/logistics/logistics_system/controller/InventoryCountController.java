@@ -30,7 +30,7 @@ public class InventoryCountController {
         return new ResponseEntity<>(inventoryCountService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<InventoryCountSessionSummaryResponse>> getAll(
             @RequestParam(required = false) Long warehouseId,
@@ -39,13 +39,13 @@ public class InventoryCountController {
         return ResponseEntity.ok(inventoryCountService.getAll(warehouseId, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}")
     public ResponseEntity<InventoryCountSessionResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(inventoryCountService.getById(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}/lines")
     public ResponseEntity<PageResponse<InventoryCountLineResponse>> getLines(
             @PathVariable Long id,

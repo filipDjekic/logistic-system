@@ -57,13 +57,13 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
 
   'transport-orders': { key: 'transport-orders', label: 'Transport Orders', to: '/transport-orders', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: LocalShippingRoundedIcon },
   tasks: { key: 'tasks', label: 'Tasks', to: '/tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: AssignmentRoundedIcon },
-  vehicles: { key: 'vehicles', label: 'Vehicles', to: '/vehicles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.DRIVER], icon: DirectionsCarFilledRoundedIcon },
+  vehicles: { key: 'vehicles', label: 'Vehicles', to: '/vehicles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: DirectionsCarFilledRoundedIcon },
 
-  warehouses: { key: 'warehouses', label: 'Warehouses', to: '/warehouses', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: WarehouseRoundedIcon },
-  products: { key: 'products', label: 'Products', to: '/products', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: CategoryRoundedIcon },
-  inventory: { key: 'inventory', label: 'Inventory', to: '/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: Inventory2RoundedIcon },
+  warehouses: { key: 'warehouses', label: 'Warehouses', to: '/warehouses', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: WarehouseRoundedIcon },
+  products: { key: 'products', label: 'Products', to: '/products', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: CategoryRoundedIcon },
+  inventory: { key: 'inventory', label: 'Inventory', to: '/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: Inventory2RoundedIcon },
   'stock-movements': { key: 'stock-movements', label: 'Stock Movements', to: '/stock-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: SyncAltRoundedIcon },
-  'inventory-counts': { key: 'inventory-counts', label: 'Inventory Counts', to: '/inventory-counts', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER], icon: PlaylistAddCheckRoundedIcon },
+  'inventory-counts': { key: 'inventory-counts', label: 'Inventory Counts', to: '/inventory-counts', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: PlaylistAddCheckRoundedIcon },
 
   'transport-report': { key: 'transport-report', label: 'Transport Report', to: '/reports/transport', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
   'inventory-report': { key: 'inventory-report', label: 'Inventory Report', to: '/reports/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
@@ -121,11 +121,12 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   [ROLES.DRIVER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
     { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'transport-orders', 'tasks', 'vehicles', 'my-shifts'] },
+    { key: 'workplace', label: 'My Workplace', itemKeys: ['warehouses', 'products', 'inventory', 'inventory-counts'] },
   ],
   [ROLES.WORKER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'inventory', 'stock-movements', 'inventory-counts', 'my-shifts'] },
-    { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses'] },
+    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'vehicles', 'inventory', 'inventory-counts', 'my-shifts'] },
+    { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses', 'products'] },
   ],
 };
 
@@ -145,6 +146,10 @@ function getNavigationItemForRole(itemKey: string, role?: Role | null): Navigati
 
   if (role === ROLES.WORKER && itemKey === 'transport-orders') {
     return { ...item, label: 'Assigned Transport Orders' };
+  }
+
+  if (role === ROLES.WORKER && itemKey === 'vehicles') {
+    return { ...item, label: 'Related Vehicles' };
   }
 
 

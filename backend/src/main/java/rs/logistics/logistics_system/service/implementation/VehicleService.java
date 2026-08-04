@@ -100,7 +100,7 @@ public class VehicleService implements VehicleServiceDefinition {
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
-        Long driverUserId = authenticatedUserProvider.hasRole("DRIVER")
+        Long driverUserId = hasRelatedVehicleScope()
                 ? authenticatedUserProvider.getAuthenticatedUserId()
                 : null;
 
@@ -130,7 +130,7 @@ public class VehicleService implements VehicleServiceDefinition {
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
-        Long driverUserId = authenticatedUserProvider.hasRole("DRIVER")
+        Long driverUserId = hasRelatedVehicleScope()
                 ? authenticatedUserProvider.getAuthenticatedUserId()
                 : null;
 
@@ -164,6 +164,7 @@ public class VehicleService implements VehicleServiceDefinition {
     @Transactional
     public VehicleResponse changeStatus(Long id, VehicleStatus newStatus, String reason, Long expectedVersion) {
         Vehicle vehicle = findVehicleById(id);
+        validateDriverCanAccessVehicle(vehicle.getId());
         VehicleStatus currentStatus = vehicle.getStatus();
         Boolean oldActive = vehicle.getActive();
 
@@ -213,11 +214,11 @@ public class VehicleService implements VehicleServiceDefinition {
     }
 
     private void validateDriverCanAccessVehicle(Long vehicleId) {
-        if (!authenticatedUserProvider.hasRole("DRIVER")) {
+        if (!hasRelatedVehicleScope()) {
             return;
         }
 
-        boolean assignedInTransportHistory = vehicleRepository.existsVehicleAssignedToDriverHistory(
+        boolean assignedInTransportHistory = vehicleRepository.existsVehicleRelatedToOperationalUser(
                 vehicleId,
                 authenticatedUserProvider.getAuthenticatedUserId()
         );
@@ -225,6 +226,11 @@ public class VehicleService implements VehicleServiceDefinition {
         if (!assignedInTransportHistory) {
             throw new ResourceNotFoundException("Vehicle not found");
         }
+    }
+
+    private boolean hasRelatedVehicleScope() {
+        return authenticatedUserProvider.hasRole("DRIVER")
+                || authenticatedUserProvider.hasRole("WORKER");
     }
 
     private Vehicle findVehicleById(Long id) {

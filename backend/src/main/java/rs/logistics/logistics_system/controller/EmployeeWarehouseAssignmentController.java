@@ -20,31 +20,37 @@ public class EmployeeWarehouseAssignmentController {
 
     private final EmployeeWarehouseAssignmentServiceDefinition assignmentService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('DRIVER','WORKER')")
+    @GetMapping("/me")
+    public ResponseEntity<List<EmployeeWarehouseAssignmentResponse>> getMine() {
+        return ResponseEntity.ok(assignmentService.getCurrentEmployeeAssignments());
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping
     public ResponseEntity<EmployeeWarehouseAssignmentResponse> create(@Valid @RequestBody EmployeeWarehouseAssignmentCreate dto) {
         return new ResponseEntity<>(assignmentService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PutMapping("/{id}")
     public ResponseEntity<EmployeeWarehouseAssignmentResponse> update(@PathVariable Long id, @Valid @RequestBody EmployeeWarehouseAssignmentUpdate dto) {
         return ResponseEntity.ok(assignmentService.update(id, dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/employee/{employeeId}")
     public ResponseEntity<List<EmployeeWarehouseAssignmentResponse>> getByEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(assignmentService.getByEmployee(employeeId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/warehouse/{warehouseId}")
     public ResponseEntity<List<EmployeeWarehouseAssignmentResponse>> getByWarehouse(@PathVariable Long warehouseId) {
         return ResponseEntity.ok(assignmentService.getByWarehouse(warehouseId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         assignmentService.delete(id);

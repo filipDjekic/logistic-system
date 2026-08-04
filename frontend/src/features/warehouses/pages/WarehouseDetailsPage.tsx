@@ -696,7 +696,8 @@ export default function WarehouseDetailsPage() {
 
   const canManageAccess =
     auth.user?.role === ROLES.COMPANY_ADMIN ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER ||
+    auth.user?.role === ROLES.DISPATCHER;
 
   const canViewInventoryTab = auth.user?.role !== ROLES.WORKER;
 

@@ -49,13 +49,13 @@ public class WarehouseController {
         return new ResponseEntity<>(warehouseService.update(id, dto), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}")
     public ResponseEntity<WarehouseResponse> getById(@PathVariable Long id) {
         return new ResponseEntity<>(warehouseService.getById(id), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<WarehouseResponse>> getAll(
             @RequestParam(required = false) String search,
@@ -87,7 +87,7 @@ public class WarehouseController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}/inventory")
     public ResponseEntity<List<WarehouseInventoryResponse>> getInventoryByWarehouse(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseService.getInventoryByWarehouse(id));

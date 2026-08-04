@@ -26,7 +26,7 @@ public class DomainEventController {
         return new ResponseEntity<>(domainEventService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<List<DomainEventResponse>> getForEntity(@RequestParam OperationalEntityType entityType, @RequestParam Long entityId) {
         return ResponseEntity.ok(domainEventService.getForEntity(entityType, entityId));

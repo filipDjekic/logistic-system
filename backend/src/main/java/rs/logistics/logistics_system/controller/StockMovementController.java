@@ -71,67 +71,67 @@ public class StockMovementController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/execute")
     public ResponseEntity<StockMovementResponse> execute(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.execute(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<StockMovementResponse> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.cancel(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<StockMovementResponse> approve(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.approve(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/reject")
     public ResponseEntity<StockMovementResponse> reject(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.reject(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/reverse")
     public ResponseEntity<StockMovementResponse> reverse(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.reverse(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}")
     public ResponseEntity<StockMovementResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.getById(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}/status-transitions")
     public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.allowedStatusTransitions(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}/trace")
     public ResponseEntity<StockMovementTraceResponse> trace(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementService.trace(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/batches/{lotNumber}/history")
     public ResponseEntity<List<StockMovementResponse>> batchHistory(@PathVariable String lotNumber) {
         return ResponseEntity.ok(stockMovementService.batchHistory(lotNumber));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/serials/{serialNumber}/history")
     public ResponseEntity<List<StockMovementResponse>> serialHistory(@PathVariable String serialNumber) {
         return ResponseEntity.ok(stockMovementService.serialHistory(serialNumber));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<StockMovementResponse>> search(
             @RequestParam(required = false) String search,

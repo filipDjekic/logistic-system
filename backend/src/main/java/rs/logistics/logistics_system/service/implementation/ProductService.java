@@ -24,6 +24,7 @@ import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
+import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,7 @@ public class ProductService implements ProductServiceDefinition {
     private final CompanyRepository companyRepository;
     private final AuditFacadeDefinition auditFacade;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final WarehouseAccessGuard warehouseAccessGuard;
 
     @Override
     @Transactional
@@ -87,7 +89,17 @@ public class ProductService implements ProductServiceDefinition {
 
     @Override
     public ProductResponse getById(Long id) {
-        return ProductMapper.toResponse(getProductOrThrow(id));
+        Product product = getProductOrThrow(id);
+        if (isWorkplaceScopedOperator()) {
+            List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            if (!_productRepository.isAccessibleToDriver(id,
+                    authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                    warehouseIds == null ? List.of() : warehouseIds,
+                    authenticatedUserProvider.getAuthenticatedUserId())) {
+                throw new ResourceNotFoundException("Product not found");
+            }
+        }
+        return ProductMapper.toResponse(product);
     }
 
     @Override
@@ -97,13 +109,17 @@ public class ProductService implements ProductServiceDefinition {
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
         String normalizedSearch = QueryParameterNormalizer.trimToNull(search);
-        Page<Product> page = _productRepository.searchProducts(
-                companyId,
-                normalizedSearch,
-                QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
-                active,
-                pageable
-        );
+        Page<Product> page;
+        if (isWorkplaceScopedOperator()) {
+            List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            page = _productRepository.searchDriverAccessibleProducts(
+                    companyId, warehouseIds == null ? List.of() : warehouseIds,
+                    authenticatedUserProvider.getAuthenticatedUserId(), normalizedSearch,
+                    QueryParameterNormalizer.parseLongOrNull(normalizedSearch), active, pageable);
+        } else {
+            page = _productRepository.searchProducts(companyId, normalizedSearch,
+                    QueryParameterNormalizer.parseLongOrNull(normalizedSearch), active, pageable);
+        }
         List<ProductResponse> content = page.getContent()
                 .stream()
                 .map(ProductMapper::toResponse)
@@ -230,6 +246,11 @@ public class ProductService implements ProductServiceDefinition {
         Company company = authenticatedUserProvider.getAuthenticatedCompanyOrThrow();
         validateTargetCompany(company);
         return company;
+    }
+
+    private boolean isWorkplaceScopedOperator() {
+        return authenticatedUserProvider.hasRole("DRIVER")
+                || authenticatedUserProvider.hasRole("WORKER");
     }
 
     private void validateTargetCompany(Company company) {

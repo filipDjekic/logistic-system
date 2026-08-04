@@ -11,5 +11,6 @@ public interface EmployeeWarehouseAssignmentServiceDefinition {
     EmployeeWarehouseAssignmentResponse update(Long id, EmployeeWarehouseAssignmentUpdate dto);
     List<EmployeeWarehouseAssignmentResponse> getByEmployee(Long employeeId);
     List<EmployeeWarehouseAssignmentResponse> getByWarehouse(Long warehouseId);
+    List<EmployeeWarehouseAssignmentResponse> getCurrentEmployeeAssignments();
     void delete(Long id);
 }

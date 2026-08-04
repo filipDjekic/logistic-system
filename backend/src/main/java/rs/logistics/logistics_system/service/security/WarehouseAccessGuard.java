@@ -87,16 +87,9 @@ public class WarehouseAccessGuard {
             return List.of();
         }
 
-        List<Long> assignedWarehouseIds = employeeWarehouseAssignmentRepository.findByEmployee_IdAndCompany_IdOrderByWarehouse_NameAsc(
-                        employee.get().getId(),
-                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-                )
-                .stream()
-                .filter(assignment -> Boolean.TRUE.equals(assignment.getActive()))
-                .filter(assignment -> assignment.getWarehouse() != null && assignment.getWarehouse().getId() != null)
-                .map(assignment -> assignment.getWarehouse().getId())
-                .distinct()
-                .toList();
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        List<Long> assignedWarehouseIds = employeeWarehouseAssignmentRepository.findActiveWarehouseIds(
+                employee.get().getId(), companyId, LocalDate.now());
 
         if (employee.get().getPrimaryWarehouse() == null || employee.get().getPrimaryWarehouse().getId() == null) {
             return assignedWarehouseIds;
@@ -195,7 +188,7 @@ public class WarehouseAccessGuard {
             return;
         }
 
-        if (authenticatedUserProvider.hasRole("WORKER")
+        if ((authenticatedUserProvider.hasRole("WORKER") || authenticatedUserProvider.hasRole("DRIVER"))
                 && hasAssignedWarehouseReadAccess(warehouse.getId())) {
             return;
         }
@@ -269,12 +262,14 @@ public class WarehouseAccessGuard {
                         return true;
                     }
 
-                    return employeeWarehouseAssignmentRepository.hasActiveAccess(
-                            employee.getId(),
-                            warehouseId,
-                            accessTypes,
-                            LocalDate.now()
-                    );
+                    if (authenticatedUserProvider.hasRole("DRIVER")) {
+                        return employeeWarehouseAssignmentRepository.findActiveWarehouseIds(
+                                employee.getId(),
+                                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                                LocalDate.now()
+                        ).contains(warehouseId);
+                    }
+                    return employeeWarehouseAssignmentRepository.hasActiveAccess(employee.getId(), warehouseId, accessTypes, LocalDate.now());
                 })
                 .orElse(false);
     }

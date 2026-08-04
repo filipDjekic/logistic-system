@@ -39,7 +39,9 @@ export default function InventoryFormPage({ mode }: Props) {
   const navigate = useNavigate();
   const params = useParams();
   const auth = useAuthStore();
-  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN
+    || auth.user?.role === ROLES.WAREHOUSE_MANAGER
+    || auth.user?.role === ROLES.WORKER;
 
   const routeWarehouseId = useMemo(() => Number(params.warehouseId), [params.warehouseId]);
   const routeProductId = useMemo(() => Number(params.productId), [params.productId]);
@@ -97,7 +99,7 @@ export default function InventoryFormPage({ mode }: Props) {
     return (
       <ErrorState
         title="Access denied"
-          description="Inventory records can be created and edited only by company admin or warehouse manager roles."
+          description="Inventory records can be created and edited only inside an authorized warehouse scope."
       />
     );
   }

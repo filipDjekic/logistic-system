@@ -130,7 +130,7 @@ public class ShiftController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasRole('WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @PatchMapping("/{id}/cancel-due-to-sickness")
     public ResponseEntity<Void> cancelShiftDueToSickness(
             @PathVariable Long id,

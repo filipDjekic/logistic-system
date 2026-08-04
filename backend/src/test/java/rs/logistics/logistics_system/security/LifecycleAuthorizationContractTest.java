@@ -61,13 +61,13 @@ class LifecycleAuthorizationContractTest {
     }
 
     @Test
-    void stockMovementLifecycleIsWarehouseManagerOnlyOutsideOverlord() {
+    void stockMovementLifecycleAllowsWarehouseManagersAndDispatchers() {
         LifecycleTransitionPolicy<StockMovementStatus> policy = StockMovementLifecyclePolicy.create(stockMovementTransitions());
 
-        assertAllowed(policy, StockMovementStatus.APPROVED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
-        assertAllowed(policy, StockMovementStatus.EXECUTED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
-        assertAllowed(policy, StockMovementStatus.REVERSED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
-        assertNotAllowed(policy, StockMovementStatus.EXECUTED, "DISPATCHER", "WORKER", "DRIVER");
+        assertAllowed(policy, StockMovementStatus.APPROVED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER");
+        assertAllowed(policy, StockMovementStatus.EXECUTED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER");
+        assertAllowed(policy, StockMovementStatus.REVERSED, "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER");
+        assertNotAllowed(policy, StockMovementStatus.EXECUTED, "WORKER", "DRIVER");
     }
 
     @Test
@@ -83,10 +83,9 @@ class LifecycleAuthorizationContractTest {
     void shiftLifecycleIsHrManagedAndRuntimeStateChangesAreSystemOnly() {
         LifecycleTransitionPolicy<ShiftStatus> policy = ShiftLifecyclePolicy.create(shiftTransitions());
 
-        assertAllowed(policy, ShiftStatus.CANCELLED, "OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER");
+        assertAllowed(policy, ShiftStatus.CANCELLED, "OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER");
         assertAllowed(policy, ShiftStatus.ACTIVE, "SYSTEM");
         assertAllowed(policy, ShiftStatus.FINISHED, "SYSTEM");
-        assertNotAllowed(policy, ShiftStatus.CANCELLED, "DISPATCHER", "DRIVER", "WORKER");
     }
 
     private static LifecyclePolicyRegistry registry() {

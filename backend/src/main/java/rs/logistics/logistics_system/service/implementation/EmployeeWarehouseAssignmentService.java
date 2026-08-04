@@ -121,6 +121,21 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<EmployeeWarehouseAssignmentResponse> getCurrentEmployeeAssignments() {
+        Employee employee = employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        if (employee.getCompany() == null || !companyId.equals(employee.getCompany().getId())) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+        return assignmentRepository.findByEmployee_IdAndCompany_IdOrderByWarehouse_NameAsc(employee.getId(), companyId)
+                .stream()
+                .map(EmployeeWarehouseAssignmentMapper::toResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public void delete(Long id) {
         EmployeeWarehouseAssignment assignment = resolveAssignment(id);

@@ -37,7 +37,10 @@ export default function InventoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const isWorker = auth.user?.role === ROLES.WORKER;
-  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN
+    || auth.user?.role === ROLES.WAREHOUSE_MANAGER
+    || isWorker;
+  const canImport = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
   const [filters, setFilters] = useState<InventoryFiltersState>({
     search: '',
@@ -62,7 +65,7 @@ export default function InventoryPage() {
   const productsQuery = useQuery({
     queryKey: queryKeys.inventory.products(),
     queryFn: inventoryApi.getProducts,
-    enabled: !isWorker,
+    enabled: true,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -93,8 +96,8 @@ export default function InventoryPage() {
     },
   });
 
-  const isLoadingLookups = warehousesQuery.isLoading || (!isWorker && productsQuery.isLoading);
-  const hasLookupError = warehousesQuery.isError || (!isWorker && productsQuery.isError);
+  const isLoadingLookups = warehousesQuery.isLoading || productsQuery.isLoading;
+  const hasLookupError = warehousesQuery.isError || productsQuery.isError;
 
   const statusOverviewItems = useMemo(
     () => {
@@ -213,22 +216,24 @@ export default function InventoryPage() {
         overline={isWorker ? 'Assigned inventory' : 'Inventory'}
         title={isWorker ? 'Assigned Inventory' : 'Inventory'}
         description={isWorker
-          ? 'Read-only inventory visibility for warehouses assigned to your work scope.'
+          ? 'Inventory operations are limited to warehouses assigned to your current workplace scope.'
           : 'Company admin has read-only visibility here. Inventory manipulation remains an operational warehouse responsibility.'}
         actions={
           canManage ? (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <Button
-                variant="outlined"
-                startIcon={<CloudUploadRoundedIcon />}
-                disabled={hasSetupBlockers}
-                onClick={() => {
-                  importMutation.reset();
-                  setImportDialogOpen(true);
-                }}
-              >
-                Import CSV
-              </Button>
+              {canImport ? (
+                <Button
+                  variant="outlined"
+                  startIcon={<CloudUploadRoundedIcon />}
+                  disabled={hasSetupBlockers}
+                  onClick={() => {
+                    importMutation.reset();
+                    setImportDialogOpen(true);
+                  }}
+                >
+                  Import CSV
+                </Button>
+              ) : null}
               <Button
                 variant="contained"
                 disabled={hasSetupBlockers}
@@ -342,7 +347,7 @@ export default function InventoryPage() {
         }}
       />
 
-      {canManage ? (
+      {canImport ? (
         <CsvImportDialog
           open={importDialogOpen}
           type="warehouse-inventory"

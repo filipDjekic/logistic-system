@@ -76,11 +76,11 @@ class CriticalEndpointPermissionContractTest {
 
     @Test
     void stockMovementMutationEndpointsStayWarehouseScoped() throws NoSuchMethodException {
-        assertRoles(StockMovementController.class, "approve", "OVERLORD", "WAREHOUSE_MANAGER");
-        assertRoles(StockMovementController.class, "reject", "OVERLORD", "WAREHOUSE_MANAGER");
-        assertRoles(StockMovementController.class, "execute", "OVERLORD", "WAREHOUSE_MANAGER");
-        assertRoles(StockMovementController.class, "reverse", "OVERLORD", "WAREHOUSE_MANAGER");
-        assertNoRoles(StockMovementController.class, "execute", "DISPATCHER", "WORKER", "DRIVER", "HR_MANAGER");
+        assertRoles(StockMovementController.class, "approve", "OVERLORD", "WAREHOUSE_MANAGER", "DISPATCHER");
+        assertRoles(StockMovementController.class, "reject", "OVERLORD", "WAREHOUSE_MANAGER", "DISPATCHER");
+        assertRoles(StockMovementController.class, "execute", "OVERLORD", "WAREHOUSE_MANAGER", "DISPATCHER");
+        assertRoles(StockMovementController.class, "reverse", "OVERLORD", "WAREHOUSE_MANAGER", "DISPATCHER");
+        assertNoRoles(StockMovementController.class, "execute", "WORKER", "DRIVER", "HR_MANAGER");
     }
 
     @Test

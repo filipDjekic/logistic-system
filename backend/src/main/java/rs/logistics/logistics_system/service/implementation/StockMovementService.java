@@ -1763,7 +1763,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
         }
 
         Page<StockMovement> page;
-        if (authenticatedUserProvider.hasRole("WORKER")) {
+        if (authenticatedUserProvider.hasRole("WORKER") || authenticatedUserProvider.hasRole("DRIVER")) {
             page = stockMovementRepository.searchMovementsAssignedToEmployee(
                     companyId,
                     currentEmployeeIdOrNotFound(),

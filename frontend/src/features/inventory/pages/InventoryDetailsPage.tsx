@@ -88,8 +88,9 @@ export default function InventoryDetailsPage() {
   const auth = useAuthStore();
   const isWorker = auth.user?.role === ROLES.WORKER;
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
-  const canManage = isOverlord || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
-  const canOpenProductDetails = !isWorker;
+  const canManage = isOverlord || auth.user?.role === ROLES.WAREHOUSE_MANAGER || isWorker;
+  const canCreateStockMovement = isOverlord || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+  const canOpenProductDetails = true;
   const [activeTab, setActiveTab] = useState<InventoryDetailsTab>('overview');
   const binDistributionPage = usePagedState(20);
   const stockMovementPage = usePagedState(20);
@@ -191,7 +192,7 @@ export default function InventoryDetailsPage() {
         description: 'Current quantity is at or below the minimum stock level. Review stock movements and create an inbound or adjustment operation if this level is not intentional.',
         severity: 'warning' as const,
         actions: [
-          ...(canManage ? [{ label: 'Create stock movement', to: '/stock-movements/create' }] : []),
+          ...(canCreateStockMovement ? [{ label: 'Create stock movement', to: '/stock-movements/create' }] : []),
           { label: 'Open stock movements', onClick: () => setActiveTab('stockMovements'), variant: 'outlined' as const },
         ],
       };
@@ -231,7 +232,7 @@ export default function InventoryDetailsPage() {
       overline={isWorker ? 'Assigned inventory' : 'Storage'}
       title={`${record.warehouseName} · ${record.productName}`}
       description={isWorker
-        ? 'Read-only inventory details inside your assigned warehouse scope.'
+        ? 'Inventory details and permitted operations inside your assigned warehouse scope.'
         : 'Warehouse/product inventory record, physical bin distribution and stock movement history.'}
       tabs={[
         { value: 'overview', label: 'Overview' },

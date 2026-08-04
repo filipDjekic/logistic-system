@@ -81,4 +81,36 @@ public interface StockMovementRequestRepository extends JpaRepository<StockMovem
     Page<StockMovementRequest> searchByRequestedBy(@Param("userId") Long userId,
                                                     @Param("status") StockMovementRequestStatus status,
                                                     Pageable pageable);
+
+    @Query("""
+        select smr from StockMovementRequest smr
+        where smr.warehouse.company.id = :companyId
+          and smr.createdMovement is not null
+          and (
+            smr.createdMovement.transportOrder.assignedEmployee.user.id = :userId
+            or exists (select 1 from Task t
+                       where t.stockMovement = smr.createdMovement
+                         and t.assignedEmployee.user.id = :userId)
+          )
+          and (:status is null or smr.status = :status)
+    """)
+    Page<StockMovementRequest> searchForDriver(@Param("companyId") Long companyId,
+                                               @Param("userId") Long userId,
+                                               @Param("status") StockMovementRequestStatus status,
+                                               Pageable pageable);
+
+    @Query("""
+        select count(smr) > 0 from StockMovementRequest smr
+        where smr.id = :id and smr.warehouse.company.id = :companyId
+          and smr.createdMovement is not null
+          and (
+            smr.createdMovement.transportOrder.assignedEmployee.user.id = :userId
+            or exists (select 1 from Task t
+                       where t.stockMovement = smr.createdMovement
+                         and t.assignedEmployee.user.id = :userId)
+          )
+    """)
+    boolean isRelatedToDriver(@Param("id") Long id,
+                              @Param("companyId") Long companyId,
+                              @Param("userId") Long userId);
 }

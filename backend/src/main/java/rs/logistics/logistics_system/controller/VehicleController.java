@@ -39,26 +39,26 @@ public class VehicleController {
 
     private final VehicleServiceDefinition vehicleService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PostMapping
     public ResponseEntity<VehicleResponse> createVehicle(@Valid @RequestBody VehicleCreate dto) {
         return new ResponseEntity<>(vehicleService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PutMapping("/{id}")
     public ResponseEntity<VehicleResponse> updateVehicle(@PathVariable Long id, @Valid @RequestBody VehicleUpdate dto) {
         return new ResponseEntity<>(vehicleService.update(id, dto), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}")
     public ResponseEntity<VehicleResponse> getVehicle(@PathVariable Long id) {
         return new ResponseEntity<>(vehicleService.getById(id), HttpStatus.OK);
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/status-counts")
     public ResponseEntity<List<StatusCountResponse>> countByStatus(
             @RequestParam(required = false) String search,
@@ -70,7 +70,7 @@ public class VehicleController {
         return ResponseEntity.ok(vehicleService.countByStatus(search, type, available, capacityFrom, capacityTo));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<VehicleResponse>> getAllVehicles(
             @RequestParam(required = false) String search,
@@ -88,32 +88,32 @@ public class VehicleController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PatchMapping("/{id}/archive")
     public ResponseEntity<VehicleResponse> archiveVehicle(@PathVariable Long id) {
         return ResponseEntity.ok(vehicleService.archiveVehicle(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PatchMapping("/{id}/restore")
     public ResponseEntity<VehicleResponse> restoreVehicle(@PathVariable Long id) {
         return ResponseEntity.ok(vehicleService.restoreVehicle(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
         vehicleService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @GetMapping("/{id}/status-transitions")
     public ResponseEntity<AllowedStatusTransitionsResponse> allowedStatusTransitions(@PathVariable Long id) {
         return ResponseEntity.ok(vehicleService.allowedStatusTransitions(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<VehicleResponse> changeStatus(@PathVariable Long id, @Valid @RequestBody VehicleStatusUpdate dto) {
         return ResponseEntity.ok(vehicleService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion()));

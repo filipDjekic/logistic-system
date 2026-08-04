@@ -35,13 +35,13 @@ public class WarehouseLocationController {
         return ResponseEntity.ok(warehouseLocationService.updateZone(id, dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/zones/{id}")
     public ResponseEntity<WarehouseZoneResponse> getZone(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseLocationService.getZone(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/zones")
     public ResponseEntity<PageResponse<WarehouseZoneResponse>> searchZones(
             @RequestParam(required = false) Long warehouseId,
@@ -72,13 +72,13 @@ public class WarehouseLocationController {
         return ResponseEntity.ok(warehouseLocationService.updateBin(id, dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/bins/{id}")
     public ResponseEntity<BinLocationResponse> getBin(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseLocationService.getBin(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/bins")
     public ResponseEntity<PageResponse<BinLocationResponse>> searchBins(
             @RequestParam(required = false) Long warehouseId,
@@ -104,7 +104,7 @@ public class WarehouseLocationController {
         return ResponseEntity.ok(warehouseLocationService.setBinInventory(dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/bin-inventory")
     public ResponseEntity<PageResponse<BinInventoryResponse>> searchBinInventory(
             @RequestParam(required = false) Long warehouseId,
@@ -121,13 +121,13 @@ public class WarehouseLocationController {
         return ResponseEntity.ok(warehouseLocationService.searchBinInventory(warehouseId, zoneId, binLocationId, productId, quantityMin, quantityMax, reserved, available, search, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
     @PostMapping("/internal-movements")
     public ResponseEntity<InternalWarehouseMovementResponse> moveInternal(@Valid @RequestBody InternalWarehouseMovementCreate dto) {
         return new ResponseEntity<>(warehouseLocationService.moveInternal(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/internal-movements")
     public ResponseEntity<PageResponse<InternalWarehouseMovementResponse>> searchInternalMovements(
             @RequestParam(required = false) Long warehouseId,

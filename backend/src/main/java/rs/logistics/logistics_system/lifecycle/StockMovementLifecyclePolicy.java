@@ -30,17 +30,20 @@ public final class StockMovementLifecyclePolicy {
         Set<String> warehouseOperators = Set.of(
                 "OVERLORD",
                 "COMPANY_ADMIN",
-                "WAREHOUSE_MANAGER"
+                "WAREHOUSE_MANAGER",
+                "DISPATCHER"
         );
         Set<String> approvers = Set.of(
                 "OVERLORD",
                 "COMPANY_ADMIN",
-                "WAREHOUSE_MANAGER"
+                "WAREHOUSE_MANAGER",
+                "DISPATCHER"
         );
         Set<String> reversalOperators = Set.of(
                 "OVERLORD",
                 "COMPANY_ADMIN",
-                "WAREHOUSE_MANAGER"
+                "WAREHOUSE_MANAGER",
+                "DISPATCHER"
         );
 
         matrix.put(StockMovementStatus.DRAFT, warehouseOperators);

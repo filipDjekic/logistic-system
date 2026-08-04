@@ -92,7 +92,7 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
     @Override
     @Transactional(readOnly = true)
     public PageResponse<VehicleMaintenanceResponse> getAll(Long vehicleId, VehicleMaintenanceStatus status, Pageable pageable) {
-        if (authenticatedUserProvider.hasRole("DRIVER")) {
+        if (hasRelatedVehicleScope()) {
             var page = maintenanceRepository.findForDriverRelatedVehicles(
                     authenticatedUserProvider.getAuthenticatedUserId(),
                     vehicleId,
@@ -212,7 +212,7 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
             }
         }
 
-        if (authenticatedUserProvider.hasRole("DRIVER")) {
+        if (hasRelatedVehicleScope()) {
             boolean related = maintenanceRepository.existsForDriverRelatedVehicle(
                     id,
                     authenticatedUserProvider.getAuthenticatedUserId()
@@ -222,6 +222,11 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
             }
         }
         return maintenance;
+    }
+
+    private boolean hasRelatedVehicleScope() {
+        return authenticatedUserProvider.hasRole("DRIVER")
+                || authenticatedUserProvider.hasRole("WORKER");
     }
 
     private void validateVehicleCanEnterMaintenance(Vehicle vehicle, Long excludedMaintenanceId) {

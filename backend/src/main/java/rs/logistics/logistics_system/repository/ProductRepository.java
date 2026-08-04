@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import rs.logistics.logistics_system.entity.Product;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -100,4 +101,50 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("active") Boolean active,
             Pageable pageable
     );
+
+    @EntityGraph(attributePaths = {"company", "company.timezone"})
+    @Query("""
+        select distinct p from Product p
+        where p.company.id = :companyId
+        and (
+          exists (select 1 from WarehouseInventory wi
+                  where wi.product = p and wi.warehouse.id in :warehouseIds)
+          or exists (select 1 from TransportOrderItem toi
+                     where toi.product = p and toi.transportOrder.assignedEmployee.user.id = :userId)
+          or exists (select 1 from StockMovement sm
+                     where sm.product = p and (
+                       sm.transportOrder.assignedEmployee.user.id = :userId
+                       or exists (select 1 from Task t where t.stockMovement = sm and t.assignedEmployee.user.id = :userId)
+                     ))
+        )
+        and (:active is null or p.active = :active)
+        and (:search is null or lower(p.name) like lower(concat('%', :search, '%'))
+             or lower(p.sku) like lower(concat('%', :search, '%'))
+             or (:searchId is not null and p.id = :searchId))
+    """)
+    Page<Product> searchDriverAccessibleProducts(
+            @Param("companyId") Long companyId,
+            @Param("warehouseIds") Collection<Long> warehouseIds,
+            @Param("userId") Long userId,
+            @Param("search") String search,
+            @Param("searchId") Long searchId,
+            @Param("active") Boolean active,
+            Pageable pageable
+    );
+
+    @Query("""
+        select count(p) > 0 from Product p
+        where p.id = :productId and p.company.id = :companyId and (
+          exists (select 1 from WarehouseInventory wi where wi.product = p and wi.warehouse.id in :warehouseIds)
+          or exists (select 1 from TransportOrderItem toi where toi.product = p and toi.transportOrder.assignedEmployee.user.id = :userId)
+          or exists (select 1 from StockMovement sm where sm.product = p and (
+            sm.transportOrder.assignedEmployee.user.id = :userId
+            or exists (select 1 from Task t where t.stockMovement = sm and t.assignedEmployee.user.id = :userId)
+          ))
+        )
+    """)
+    boolean isAccessibleToDriver(@Param("productId") Long productId,
+                                 @Param("companyId") Long companyId,
+                                 @Param("warehouseIds") Collection<Long> warehouseIds,
+                                 @Param("userId") Long userId);
 }

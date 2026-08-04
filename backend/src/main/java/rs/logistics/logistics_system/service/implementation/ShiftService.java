@@ -472,6 +472,13 @@ public class ShiftService implements ShiftServiceDefinition {
     @Transactional
     public void cancelShiftDueToSickness(Long id, String reason) {
         Shift shift = getShiftOrThrow(id);
+        if (authenticatedUserProvider.hasRole("DRIVER") || authenticatedUserProvider.hasRole("WORKER")) {
+            Long currentUserId = authenticatedUserProvider.getAuthenticatedUserId();
+            if (shift.getEmployee() == null || shift.getEmployee().getUser() == null
+                    || !currentUserId.equals(shift.getEmployee().getUser().getId())) {
+                throw new ResourceNotFoundException("Shift not found");
+            }
+        }
         String normalizedReason = reason == null ? "" : reason.trim();
         if (normalizedReason.isEmpty()) {
             throw new BadRequestException("Cancellation reason is required");

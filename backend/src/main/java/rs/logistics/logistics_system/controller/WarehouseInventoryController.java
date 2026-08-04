@@ -27,13 +27,13 @@ public class WarehouseInventoryController {
 
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
     @PostMapping
     public ResponseEntity<WarehouseInventoryResponse> create(@Valid @RequestBody WarehouseInventoryCreate dto) {
         return new ResponseEntity<>(warehouseInventoryService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
     @PutMapping("/{warehouseId}/{productId}")
     public ResponseEntity<WarehouseInventoryResponse> update(
             @PathVariable Long warehouseId,
@@ -44,19 +44,19 @@ public class WarehouseInventoryController {
     }
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
     @PostMapping("/reserve")
     public ResponseEntity<WarehouseInventoryResponse> reserve(@Valid @RequestBody StockReservationCreate dto) {
         return ResponseEntity.ok(warehouseInventoryService.reserveStock(dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
     @PostMapping("/release-reservation")
     public ResponseEntity<WarehouseInventoryResponse> releaseReservation(@Valid @RequestBody StockReservationCreate dto) {
         return ResponseEntity.ok(warehouseInventoryService.releaseReservedStock(dto));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/status-counts")
     public ResponseEntity<List<StatusCountResponse>> countByStatus(
             @RequestParam(required = false) String search,
@@ -66,7 +66,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.countByStatus(search, warehouseId, productId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<WarehouseInventoryResponse>> search(
             @RequestParam(required = false) String search,
@@ -78,7 +78,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.search(search, warehouseId, productId, status, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{warehouseId}/{productId}")
     public ResponseEntity<WarehouseInventoryResponse> getById(
             @PathVariable Long warehouseId,
@@ -87,7 +87,7 @@ public class WarehouseInventoryController {
         return ResponseEntity.ok(warehouseInventoryService.findByWarehouseAndProduct(warehouseId, productId));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/warehouse/{warehouseId}")
     public ResponseEntity<List<WarehouseInventoryResponse>> getByWarehouse(@PathVariable Long warehouseId) {
         return ResponseEntity.ok(warehouseInventoryService.findByWarehouse(warehouseId));

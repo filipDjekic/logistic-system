@@ -58,10 +58,13 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
         select distinct v from Vehicle v
         where (:companyId is null or v.company.id = :companyId)
         and (:driverUserId is null or exists (
-            select 1
-            from TransportOrder t
-            where t.vehicle.id = v.id
-            and t.assignedEmployee.user.id = :driverUserId
+            select 1 from TransportOrder t
+            where t.vehicle.id = v.id and (
+              t.assignedEmployee.user.id = :driverUserId
+              or exists (select 1 from Task workerTask
+                         where workerTask.transportOrder = t
+                           and workerTask.assignedEmployee.user.id = :driverUserId)
+            )
         ))
         and (:status is null or v.status = :status)
         and (:available is null or v.active = :available)
@@ -140,10 +143,13 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
         from Vehicle v
         where (:companyId is null or v.company.id = :companyId)
         and (:driverUserId is null or exists (
-            select 1
-            from TransportOrder t
-            where t.vehicle.id = v.id
-            and t.assignedEmployee.user.id = :driverUserId
+            select 1 from TransportOrder t
+            where t.vehicle.id = v.id and (
+              t.assignedEmployee.user.id = :driverUserId
+              or exists (select 1 from Task workerTask
+                         where workerTask.transportOrder = t
+                           and workerTask.assignedEmployee.user.id = :driverUserId)
+            )
         ))
         and (:available is null or v.active = :available)
         and (:type is null or lower(v.type) like lower(concat('%', :type, '%')))
@@ -192,5 +198,20 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
         and t.assignedEmployee.user.id = :driverUserId
     """)
     boolean existsVehicleAssignedToDriverHistory(@Param("vehicleId") Long vehicleId, @Param("driverUserId") Long driverUserId);
+
+    @Query("""
+        select count(v) > 0 from Vehicle v
+        where v.id = :vehicleId and exists (
+          select 1 from TransportOrder t
+          where t.vehicle = v and (
+            t.assignedEmployee.user.id = :userId
+            or exists (select 1 from Task workerTask
+                       where workerTask.transportOrder = t
+                         and workerTask.assignedEmployee.user.id = :userId)
+          )
+        )
+    """)
+    boolean existsVehicleRelatedToOperationalUser(@Param("vehicleId") Long vehicleId,
+                                                   @Param("userId") Long userId);
 
 }

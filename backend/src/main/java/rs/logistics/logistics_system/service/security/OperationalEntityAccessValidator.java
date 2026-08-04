@@ -222,7 +222,14 @@ public class OperationalEntityAccessValidator {
             case NOTIFICATION -> notificationRepository.findByIdAndUser_Company_Id(entityId, companyId)
                     .map(notification -> notification.getUser() != null && notification.getUser().getId().equals(currentUserId))
                     .orElse(false);
-            case PRODUCT -> productRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+            case PRODUCT -> {
+                if (authenticatedUserProvider.hasRole("DRIVER") || authenticatedUserProvider.hasRole("WORKER")) {
+                    List<Long> warehouseIds = currentDriverWarehouseIds();
+                    yield productRepository.isAccessibleToDriver(
+                            entityId, companyId, warehouseIds, currentUserId);
+                }
+                yield productRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+            }
             case SHIFT -> shiftRepository.findByIdAndEmployee_Company_Id(entityId, companyId).isPresent();
             case STOCK_MOVEMENT -> canAccessStockMovement(entityId, companyId, currentUserId);
             case INTERNAL_WAREHOUSE_MOVEMENT -> internalWarehouseMovementRepository.findById(entityId)
@@ -236,9 +243,16 @@ public class OperationalEntityAccessValidator {
             case INVENTORY_COUNT -> canAccessInventoryCount(entityId, companyId);
             case TASK -> canAccessTask(entityId, companyId, currentUserId);
             case TRANSPORT_ORDER -> canAccessTransportOrder(entityId, companyId, currentUserId);
-            case VEHICLE -> vehicleRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+            case VEHICLE -> {
+                if (authenticatedUserProvider.hasRole("DRIVER") || authenticatedUserProvider.hasRole("WORKER")) {
+                    yield vehicleRepository.findByIdAndCompany_Id(entityId, companyId).isPresent()
+                            && vehicleRepository.existsVehicleRelatedToOperationalUser(entityId, currentUserId);
+                }
+                yield vehicleRepository.findByIdAndCompany_Id(entityId, companyId).isPresent();
+            }
             case VEHICLE_MAINTENANCE -> {
-                if (authenticatedUserProvider.hasRole("DRIVER") && !hasOperationalCoordinatorRole()) {
+                if ((authenticatedUserProvider.hasRole("DRIVER") || authenticatedUserProvider.hasRole("WORKER"))
+                        && !hasOperationalCoordinatorRole()) {
                     yield vehicleMaintenanceRepository.existsForDriverRelatedVehicle(entityId, currentUserId);
                 }
                 yield vehicleMaintenanceRepository.findById(entityId)
@@ -488,6 +502,15 @@ public class OperationalEntityAccessValidator {
 
     private Optional<Long> currentEmployeeId() {
         return currentEmployee().map(Employee::getId);
+    }
+
+    private List<Long> currentDriverWarehouseIds() {
+        return currentEmployee()
+                .map(employee -> employeeWarehouseAssignmentRepository.findActiveWarehouseIds(
+                        employee.getId(),
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                        LocalDate.now()))
+                .orElseGet(List::of);
     }
 
     private boolean isAssignedToCurrentUser(Task task, Long currentUserId) {

@@ -23,13 +23,13 @@ public class StockMovementRequestController {
 
     private final StockMovementRequestServiceDefinition stockMovementRequestService;
 
-    @PreAuthorize("hasAnyRole('COMPANY_ADMIN','WORKER')")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN','DISPATCHER')")
     @PostMapping
     public ResponseEntity<StockMovementRequestResponse> create(@Valid @RequestBody StockMovementRequestCreate dto) {
         return new ResponseEntity<>(stockMovementRequestService.create(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<StockMovementRequestResponse>> search(
             @RequestParam(required = false) StockMovementRequestStatus status,
@@ -38,25 +38,25 @@ public class StockMovementRequestController {
         return ResponseEntity.ok(stockMovementRequestService.search(status, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}")
     public ResponseEntity<StockMovementRequestResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(stockMovementRequestService.getById(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<StockMovementRequestResponse> approve(@PathVariable Long id, @Valid @RequestBody(required = false) StockMovementRequestReview review) {
         return ResponseEntity.ok(stockMovementRequestService.approve(id, review));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER')")
     @PostMapping("/{id}/reject")
     public ResponseEntity<StockMovementRequestResponse> reject(@PathVariable Long id, @Valid @RequestBody(required = false) StockMovementRequestReview review) {
         return ResponseEntity.ok(stockMovementRequestService.reject(id, review));
     }
 
-    @PreAuthorize("hasAnyRole('COMPANY_ADMIN','WORKER')")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN','DISPATCHER')")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<StockMovementRequestResponse> cancel(@PathVariable Long id, @Valid @RequestBody(required = false) StockMovementRequestReview review) {
         return ResponseEntity.ok(stockMovementRequestService.cancel(id, review));

@@ -44,10 +44,13 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
         select count(sm) > 0
         from StockMovement sm
         where sm.id = :stockMovementId
-        and exists (
+        and (
+          exists (
             select 1 from Task workerTask
             where workerTask.stockMovement = sm
             and workerTask.assignedEmployee.id = :employeeId
+          )
+          or (sm.transportOrder is not null and sm.transportOrder.assignedEmployee.id = :employeeId)
         )
     """)
     boolean existsAssignedWorkerTaskForStockMovement(@Param("stockMovementId") Long stockMovementId, @Param("employeeId") Long employeeId);

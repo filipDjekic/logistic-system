@@ -55,7 +55,10 @@ public interface VehicleMaintenanceRepository extends JpaRepository<VehicleMaint
         where vm.vehicle.id in (
             select distinct t.vehicle.id
             from TransportOrder t
-            where t.assignedEmployee.user.id = :driverUserId
+            where (t.assignedEmployee.user.id = :driverUserId
+              or exists (select 1 from Task workerTask
+                         where workerTask.transportOrder = t
+                           and workerTask.assignedEmployee.user.id = :driverUserId))
             and t.vehicle is not null
         )
         and (:vehicleId is null or vm.vehicle.id = :vehicleId)
@@ -75,7 +78,10 @@ public interface VehicleMaintenanceRepository extends JpaRepository<VehicleMaint
         and vm.vehicle.id in (
             select distinct t.vehicle.id
             from TransportOrder t
-            where t.assignedEmployee.user.id = :driverUserId
+            where (t.assignedEmployee.user.id = :driverUserId
+              or exists (select 1 from Task workerTask
+                         where workerTask.transportOrder = t
+                           and workerTask.assignedEmployee.user.id = :driverUserId))
             and t.vehicle is not null
         )
     """)

@@ -31,7 +31,7 @@ public final class ShiftLifecyclePolicy {
         matrix.put(ShiftStatus.PLANNED, shiftManagers);
         matrix.put(ShiftStatus.ACTIVE, Set.of("SYSTEM"));
         matrix.put(ShiftStatus.FINISHED, Set.of("SYSTEM"));
-        matrix.put(ShiftStatus.CANCELLED, Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER"));
+        matrix.put(ShiftStatus.CANCELLED, Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
 
         return matrix;
     }

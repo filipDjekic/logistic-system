@@ -114,6 +114,13 @@ public class StockMovementRequestService implements StockMovementRequestServiceD
                     : warehouseIds.isEmpty()
                     ? Page.empty(pageable)
                     : stockMovementRequestRepository.searchByWarehouseIds(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), warehouseIds, status, pageable);
+        } else if (authenticatedUserProvider.hasRole("DRIVER")) {
+            page = stockMovementRequestRepository.searchForDriver(
+                    authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                    authenticatedUserProvider.getAuthenticatedUserId(),
+                    status,
+                    pageable
+            );
         } else if (authenticatedUserProvider.hasRole("WORKER")) {
             page = stockMovementRequestRepository.searchByRequestedBy(authenticatedUserProvider.getAuthenticatedUserId(), status, pageable);
         } else {
@@ -349,6 +356,13 @@ public class StockMovementRequestService implements StockMovementRequestServiceD
             if (request.getRequestedBy() != null && request.getRequestedBy().getId().equals(authenticatedUserProvider.getAuthenticatedUserId())) {
                 return request;
             }
+            throw new ResourceNotFoundException("Stock movement request not found");
+        }
+        if (authenticatedUserProvider.hasRole("DRIVER")
+                && !stockMovementRequestRepository.isRelatedToDriver(
+                        id,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                        authenticatedUserProvider.getAuthenticatedUserId())) {
             throw new ResourceNotFoundException("Stock movement request not found");
         }
         if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {

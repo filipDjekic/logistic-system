@@ -44,14 +44,14 @@ public class TaskController {
     private final TaskServiceDefinition taskService;
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PostMapping
     public ResponseEntity<TaskResponse> create(@Valid @RequestBody TaskCreate dto) {
         TaskResponse response = taskService.create(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<TaskResponse> update(@PathVariable Long id, @Valid @RequestBody TaskUpdate dto) {
         TaskResponse response = taskService.update(id, dto);
@@ -142,7 +142,7 @@ public class TaskController {
         return ResponseEntity.ok(taskService.allowedStatusTransitions(id));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER')")
     @PatchMapping("/{id}/employee/{employeeId}")
     public ResponseEntity<TaskResponse> assignTask(@PathVariable Long id, @PathVariable Long employeeId) {
         TaskResponse response = taskService.assignTask(id, employeeId);
