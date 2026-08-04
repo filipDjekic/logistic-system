@@ -72,7 +72,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login",
                                 "/api/company-registration-requests",
                                 "/api/company-registration-requests/validate",
-                                "/api/company-registration-requests/status/**",
+                                "/api/company-registration-requests/status/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
                                 "/api/countries/**",
                                 "/api/cities/**",
                                 "/api/timezones/**").permitAll()

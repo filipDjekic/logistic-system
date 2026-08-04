@@ -157,7 +157,7 @@ Microsoft SQL Server            — relaciona baza podataka
 Maven                           — upravljanje zavisnostima i build sistem
 Bean Validation                 — validacija ulaznih podataka
 Lombok                          — smanjenje boilerplate koda
-WebSocket                       — notifikacije i komunikacija u realnom vremenu
+Server-Sent Events (SSE)       — jednosmerne notifikacije u realnom vremenu
 ```
 
 ## Frontend

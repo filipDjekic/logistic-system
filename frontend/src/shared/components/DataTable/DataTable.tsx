@@ -49,6 +49,7 @@ type DataTableProps<T> = {
   rowClickLabel?: string;
   maxHeight?: number | string;
   enableClientWindowing?: boolean;
+  fixedRowHeight?: number;
   windowingThreshold?: number;
   maxRenderedRows?: number;
 };
@@ -97,7 +98,8 @@ export default function DataTable<T>({
   getRowSx,
   rowClickLabel = 'Open details',
   maxHeight,
-  enableClientWindowing = true,
+  enableClientWindowing = false,
+  fixedRowHeight,
   windowingThreshold = 150,
   maxRenderedRows = 90,
 }: DataTableProps<T>) {
@@ -120,8 +122,27 @@ export default function DataTable<T>({
   const hasRows = rows.length > 0;
   const showMobileCards = Boolean(renderMobileCard);
   const [scrollTop, setScrollTop] = useState(0);
-  const estimatedRowHeight = effectiveSize === 'small' ? 44 : 56;
-  const shouldWindowRows = enableClientWindowing && !loading && !error && rows.length > windowingThreshold;
+  const estimatedRowHeight = fixedRowHeight ?? (effectiveSize === 'small' ? 44 : 56);
+  const shouldWindowRows = enableClientWindowing
+    && fixedRowHeight != null
+    && fixedRowHeight > 0
+    && !loading
+    && !error
+    && rows.length > windowingThreshold;
+  const resolveRowId = (row: T, index: number): RowId => {
+    if (getRowId) {
+      return getRowId(row, index);
+    }
+
+    if (typeof row === 'object' && row !== null && 'id' in row) {
+      const id = (row as { id?: RowId }).id;
+      if (id !== null && id !== undefined && id !== '') {
+        return id;
+      }
+    }
+
+    throw new Error('DataTable requires getRowId for rows without a stable id property');
+  };
   const windowState = useMemo(() => {
     if (!shouldWindowRows) {
       return { start: 0, end: rows.length, topPadding: 0, bottomPadding: 0, visibleRows: rows };
@@ -202,7 +223,7 @@ export default function DataTable<T>({
           }}
         >
           {rows.map((row, index) => (
-            <Box key={getRowId ? getRowId(row, index) : index}>
+            <Box key={resolveRowId(row, index)}>
               {renderMobileCard(row)}
             </Box>
           ))}
@@ -344,7 +365,7 @@ export default function DataTable<T>({
             {!loading && !error && hasRows
               ? windowState.visibleRows.map((row, visibleIndex) => {
                   const index = windowState.start + visibleIndex;
-                  const rowKey = getRowId ? getRowId(row, index) : index;
+                  const rowKey = resolveRowId(row, index);
                   const rowStatus = getRowStatus?.(row);
                   const rowStatusTone = rowStatus ? getStatusConfig(rowStatus).tone : null;
                   const rowClickDisabled = isRowClickDisabled?.(row) ?? false;

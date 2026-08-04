@@ -5,6 +5,7 @@ import type { TransportOrderResponse, TransportOrderStatus } from '../../feature
 import type { VehicleResponse, VehicleStatus } from '../../features/vehicles/types/vehicle.types';
 import type { StockMovementResponse, StockMovementStatus } from '../../features/stock-movements/types/stockMovement.types';
 import type { InventoryCountSessionStatus } from '../../features/inventory-counts/types/inventoryCount.types';
+import { CAPABILITIES, hasCapability } from './capabilities';
 
 
 function uniqueStatuses<TStatus extends string>(statuses: readonly TStatus[]) {
@@ -201,19 +202,19 @@ export function canChangeVehicleStatus(role: Role | null | undefined, vehicle: V
 }
 
 export function canApproveStockMovementLifecycle(role: Role | null | undefined) {
-  return role === ROLES.COMPANY_ADMIN || role === ROLES.WAREHOUSE_MANAGER || role === ROLES.DISPATCHER;
+  return hasCapability(role, CAPABILITIES.STOCK_MOVEMENT_APPROVE);
 }
 
 export function canExecuteStockMovementLifecycle(role: Role | null | undefined) {
-  return role === ROLES.COMPANY_ADMIN || role === ROLES.WAREHOUSE_MANAGER || role === ROLES.DISPATCHER;
+  return hasCapability(role, CAPABILITIES.STOCK_MOVEMENT_EXECUTE);
 }
 
 export function canReverseStockMovementLifecycle(role: Role | null | undefined) {
-  return role === ROLES.COMPANY_ADMIN || role === ROLES.WAREHOUSE_MANAGER || role === ROLES.DISPATCHER;
+  return hasCapability(role, CAPABILITIES.STOCK_MOVEMENT_EXECUTE);
 }
 
 export function canReadStockMovementLifecycle(role: Role | null | undefined) {
-  return role === ROLES.OVERLORD || role === ROLES.COMPANY_ADMIN || role === ROLES.WAREHOUSE_MANAGER || role === ROLES.DISPATCHER || role === ROLES.WORKER;
+  return hasCapability(role, CAPABILITIES.STOCK_MOVEMENT_READ);
 }
 
 export function getAllowedStockMovementLifecycleStatuses(

@@ -76,11 +76,10 @@ class CriticalEndpointPermissionContractTest {
 
     @Test
     void stockMovementMutationEndpointsStayWarehouseScoped() throws NoSuchMethodException {
-        assertRoles(StockMovementController.class, "approve", "OVERLORD", "WAREHOUSE_MANAGER", "DISPATCHER");
-        assertRoles(StockMovementController.class, "reject", "OVERLORD", "WAREHOUSE_MANAGER", "DISPATCHER");
-        assertRoles(StockMovementController.class, "execute", "OVERLORD", "WAREHOUSE_MANAGER", "DISPATCHER");
-        assertRoles(StockMovementController.class, "reverse", "OVERLORD", "WAREHOUSE_MANAGER", "DISPATCHER");
-        assertNoRoles(StockMovementController.class, "execute", "WORKER", "DRIVER", "HR_MANAGER");
+        assertAuthorizationHelper(StockMovementController.class, "approve", "canApproveStockMovement(#id)");
+        assertAuthorizationHelper(StockMovementController.class, "reject", "canApproveStockMovement(#id)");
+        assertAuthorizationHelper(StockMovementController.class, "execute", "canExecuteStockMovement(#id)");
+        assertAuthorizationHelper(StockMovementController.class, "reverse", "canExecuteStockMovement(#id)");
     }
 
     @Test
@@ -121,6 +120,13 @@ class CriticalEndpointPermissionContractTest {
         for (String role : roles) {
             assertTrue(!expression.contains("'" + role + "'"), controller.getSimpleName() + "." + methodName + " must not allow " + role);
         }
+    }
+
+    private static void assertAuthorizationHelper(
+            Class<?> controller, String methodName, String helperCall) throws NoSuchMethodException {
+        String expression = preAuthorize(controller, methodName).value();
+        assertTrue(expression.contains("@authorization." + helperCall),
+                controller.getSimpleName() + "." + methodName + " must use central authorization helper");
     }
 
     private static PreAuthorize preAuthorize(Class<?> controller, String methodName) throws NoSuchMethodException {

@@ -13,6 +13,7 @@ import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementType;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -314,4 +315,48 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
             "sourceBin", "sourceBin.zone", "destinationBin", "destinationBin.zone"
     })
     List<StockMovement> findSerialHistory(@Param("serialNumber") String serialNumber, @Param("companyId") Long companyId);
+
+    @Query("""
+        select distinct sm from StockMovement sm
+        where sm.batchLotNumber = :lotNumber and sm.warehouse.company.id = :companyId
+          and (sm.transportOrder.assignedEmployee.user.id = :userId
+               or exists (select 1 from Task t where t.stockMovement = sm and t.assignedEmployee.user.id = :userId))
+        order by sm.createdAt desc
+    """)
+    List<StockMovement> findBatchHistoryForOperationalUser(@Param("lotNumber") String lotNumber,
+                                                            @Param("companyId") Long companyId,
+                                                            @Param("userId") Long userId);
+
+    @Query("""
+        select sm from StockMovement sm
+        where sm.batchLotNumber = :lotNumber and sm.warehouse.company.id = :companyId
+          and sm.warehouse.id in :warehouseIds
+        order by sm.createdAt desc
+    """)
+    List<StockMovement> findBatchHistoryForWarehouses(@Param("lotNumber") String lotNumber,
+                                                       @Param("companyId") Long companyId,
+                                                       @Param("warehouseIds") Collection<Long> warehouseIds);
+
+    @Query("""
+        select distinct sm from StockMovement sm
+        where sm.warehouse.company.id = :companyId and sm.serialNumbers is not null
+          and lower(concat(',', sm.serialNumbers, ',')) like lower(concat('%,', :serialNumber, ',%'))
+          and (sm.transportOrder.assignedEmployee.user.id = :userId
+               or exists (select 1 from Task t where t.stockMovement = sm and t.assignedEmployee.user.id = :userId))
+        order by sm.createdAt desc
+    """)
+    List<StockMovement> findSerialHistoryForOperationalUser(@Param("serialNumber") String serialNumber,
+                                                             @Param("companyId") Long companyId,
+                                                             @Param("userId") Long userId);
+
+    @Query("""
+        select sm from StockMovement sm
+        where sm.warehouse.company.id = :companyId and sm.serialNumbers is not null
+          and lower(concat(',', sm.serialNumbers, ',')) like lower(concat('%,', :serialNumber, ',%'))
+          and sm.warehouse.id in :warehouseIds
+        order by sm.createdAt desc
+    """)
+    List<StockMovement> findSerialHistoryForWarehouses(@Param("serialNumber") String serialNumber,
+                                                        @Param("companyId") Long companyId,
+                                                        @Param("warehouseIds") Collection<Long> warehouseIds);
 }

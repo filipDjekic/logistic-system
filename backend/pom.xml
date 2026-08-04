@@ -12,19 +12,13 @@
 	<artifactId>logistics-system</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>logistics-system</name>
-	<description>Demo project for Spring Boot</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
+	<description>Multi-tenant logistics operations and warehouse management system</description>
+	<url>https://github.com/filipDjekic/logistic-system</url>
 	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
+		<connection>scm:git:https://github.com/filipDjekic/logistic-system.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/filipDjekic/logistic-system.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/filipDjekic/logistic-system</url>
 	</scm>
 	<properties>
 		<java.version>21</java.version>

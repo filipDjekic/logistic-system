@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.handler;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "APP_CORS_ALLOWED_ORIGINS=https://app.example.test")
 @AutoConfigureMockMvc
 @ActiveProfiles({"test", "prod"})
 class ProductionSpringDocIntegrationTest {

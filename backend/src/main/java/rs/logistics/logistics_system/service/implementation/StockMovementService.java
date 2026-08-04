@@ -1654,14 +1654,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
         if (normalizedLotNumber == null) {
             throw new BadRequestException("Batch/lot number is required");
         }
-        List<StockMovement> movements = authenticatedUserProvider.isOverlord()
-                ? stockMovementRepository.findByBatchLotNumberOrderByCreatedAtDesc(normalizedLotNumber)
-                : stockMovementRepository.findByBatchLotNumberAndWarehouse_Company_IdOrderByCreatedAtDesc(
-                        normalizedLotNumber,
-                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
-                );
+        List<StockMovement> movements = scopedBatchHistory(normalizedLotNumber);
         return movements.stream()
-                .filter(this::isStockMovementReadableByCurrentUser)
                 .map(this::toResponseWithLifecycle)
                 .toList();
     }
@@ -1673,14 +1667,47 @@ public class StockMovementService implements StockMovementServiceDefinition {
         if (normalizedSerialNumber == null || normalizedSerialNumber.isBlank()) {
             throw new BadRequestException("Serial number is required");
         }
-        Long companyId = authenticatedUserProvider.isOverlord()
-                ? null
-                : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
-        return stockMovementRepository.findSerialHistory(normalizedSerialNumber, companyId)
+        return scopedSerialHistory(normalizedSerialNumber)
                 .stream()
-                .filter(this::isStockMovementReadableByCurrentUser)
                 .map(this::toResponseWithLifecycle)
                 .toList();
+    }
+
+    private List<StockMovement> scopedBatchHistory(String lotNumber) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return stockMovementRepository.findByBatchLotNumberOrderByCreatedAtDesc(lotNumber);
+        }
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        if (authenticatedUserProvider.hasRole("DRIVER") || authenticatedUserProvider.hasRole("WORKER")) {
+            return stockMovementRepository.findBatchHistoryForOperationalUser(
+                    lotNumber, companyId, authenticatedUserProvider.getAuthenticatedUserId());
+        }
+        List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+        if (warehouseIds != null) {
+            return warehouseIds.isEmpty()
+                    ? List.of()
+                    : stockMovementRepository.findBatchHistoryForWarehouses(lotNumber, companyId, warehouseIds);
+        }
+        return stockMovementRepository.findByBatchLotNumberAndWarehouse_Company_IdOrderByCreatedAtDesc(
+                lotNumber, companyId);
+    }
+
+    private List<StockMovement> scopedSerialHistory(String serialNumber) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return stockMovementRepository.findSerialHistory(serialNumber, null);
+        }
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        if (authenticatedUserProvider.hasRole("DRIVER") || authenticatedUserProvider.hasRole("WORKER")) {
+            return stockMovementRepository.findSerialHistoryForOperationalUser(
+                    serialNumber, companyId, authenticatedUserProvider.getAuthenticatedUserId());
+        }
+        List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+        if (warehouseIds != null) {
+            return warehouseIds.isEmpty()
+                    ? List.of()
+                    : stockMovementRepository.findSerialHistoryForWarehouses(serialNumber, companyId, warehouseIds);
+        }
+        return stockMovementRepository.findSerialHistory(serialNumber, companyId);
     }
 
 
@@ -1916,8 +1943,16 @@ public class StockMovementService implements StockMovementServiceDefinition {
             }
         }
 
-        return !authenticatedUserProvider.hasRole("WORKER")
-                || stockMovementRepository.existsAssignedWorkerTaskForStockMovement(candidate.getId(), currentEmployeeIdOrNotFound());
+        if (authenticatedUserProvider.hasRole("WORKER") || authenticatedUserProvider.hasRole("DRIVER")) {
+            return stockMovementRepository.existsAssignedWorkerTaskForStockMovement(
+                    candidate.getId(), currentEmployeeIdOrNotFound())
+                    || (candidate.getTransportOrder() != null
+                    && candidate.getTransportOrder().getAssignedEmployee() != null
+                    && candidate.getTransportOrder().getAssignedEmployee().getUser() != null
+                    && authenticatedUserProvider.getAuthenticatedUserId().equals(
+                    candidate.getTransportOrder().getAssignedEmployee().getUser().getId()));
+        }
+        return true;
     }
 
     private List<StockMovement> movementsByRoot(Long rootMovementId) {
