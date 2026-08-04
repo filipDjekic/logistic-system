@@ -5,6 +5,7 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.testcontainers.containers.MSSQLServerContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -26,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers
 class SqlServerFlywayIT {
 
-    private static final String LATEST_VERSION = "42";
+    private static final String LATEST_VERSION = "44";
     private static final String UPGRADE_BASELINE_VERSION = "40";
     private static final String OVERLORD_EMAIL = "filip.djekic@slu.admin.rs";
     private static final String ACTIVE_CHANGED_EMAIL = "ana.nikolic@adriatrans.company-admin.rs";
@@ -52,6 +53,17 @@ class SqlServerFlywayIT {
             "tamara.ristic@adriatrans.dispatcher.rs",
             "ognjen.lazic@adriatrans.worker.rs"
     );
+    private static final List<String> DUNAV_TRANSIT_EMAILS = List.of(
+            "company.admin@dunavtransit.rs", "hr.manager@dunavtransit.rs",
+            "warehouse.bg@dunavtransit.rs", "warehouse.ns@dunavtransit.rs",
+            "dispatcher.bg@dunavtransit.rs", "dispatcher.ns@dunavtransit.rs",
+            "driver.luka@dunavtransit.rs", "driver.mina@dunavtransit.rs",
+            "driver.vuk@dunavtransit.rs", "driver.tamara@dunavtransit.rs",
+            "worker.filip@dunavtransit.rs", "worker.sara@dunavtransit.rs",
+            "worker.nemanja@dunavtransit.rs", "worker.ivana@dunavtransit.rs",
+            "worker.ognjen@dunavtransit.rs", "worker.marija@dunavtransit.rs",
+            "worker.andrej@dunavtransit.rs", "worker.katarina@dunavtransit.rs"
+    );
 
     @Container
     private static final MSSQLServerContainer<?> SQL_SERVER =
@@ -71,18 +83,19 @@ class SqlServerFlywayIT {
         Flyway flyway = flyway(LATEST_VERSION, false);
         MigrateResult firstMigrate = flyway.migrate();
 
-        assertEquals(42, firstMigrate.migrationsExecuted);
+        assertEquals(44, firstMigrate.migrationsExecuted);
         assertEquals(LATEST_VERSION, flyway.info().current().getVersion().getVersion());
         assertTrue(flyway.validateWithResult().validationSuccessful);
-        assertEquals(42, successfulVersionedMigrationCount());
-        assertEquals(42, latestSuccessfulVersion());
+        assertEquals(44, successfulVersionedMigrationCount());
+        assertEquals(44, latestSuccessfulVersion());
         assertFalse(flyway.info().pending().length != 0);
+        assertDunavTransitPasswords();
 
         MigrateResult secondMigrate = flyway.migrate();
 
         assertEquals(0, secondMigrate.migrationsExecuted);
         assertTrue(flyway.validateWithResult().validationSuccessful);
-        assertEquals(42, successfulVersionedMigrationCount());
+        assertEquals(44, successfulVersionedMigrationCount());
     }
 
     @Test
@@ -108,7 +121,7 @@ class SqlServerFlywayIT {
         assertUserState(OUTSIDE_EMAIL, "ACTIVE", true, CHANGED_PASSWORD_MARKER, UNCHANGED_MARKER);
 
         Flyway toLatest = flyway(LATEST_VERSION, false);
-        assertEquals(1, toLatest.migrate().migrationsExecuted);
+        assertEquals(3, toLatest.migrate().migrationsExecuted);
         assertTrue(toLatest.validateWithResult().validationSuccessful);
         assertEquals(LATEST_VERSION, toLatest.info().current().getVersion().getVersion());
 
@@ -119,6 +132,7 @@ class SqlServerFlywayIT {
         assertEquals(overlordSeedHash, passwordFor(OVERLORD_EMAIL));
         assertEquals(demoSeedHash, passwordFor("petar.markovic@adriatrans.warehouse-manager.rs"));
         assertEquals(preservedCompanyName, queryString("SELECT name FROM companies WHERE id = 1"));
+        assertDunavTransitPasswords();
 
         assertEquals(0, toLatest.migrate().migrationsExecuted);
         assertTrue(toLatest.validateWithResult().validationSuccessful);
@@ -264,6 +278,13 @@ class SqlServerFlywayIT {
                 assertTrue(resultSet.next());
                 return resultSet.getString(1);
             }
+        }
+    }
+
+    private void assertDunavTransitPasswords() throws SQLException {
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        for (String email : DUNAV_TRANSIT_EMAILS) {
+            assertTrue(encoder.matches("Admin123!", passwordFor(email)), "Invalid seed password for " + email);
         }
     }
 

@@ -357,13 +357,8 @@ public class OperationalEntityAccessValidator {
         return stockMovementRepository.findByIdAndWarehouse_Company_Id(stockMovementId, companyId)
                 .map(movement -> {
                     if (authenticatedUserProvider.isCompanyAdmin()
-                            || authenticatedUserProvider.hasRole("DISPATCHER")) {
-                        return true;
-                    }
-
-                    if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                            && movement.getWarehouse() != null
-                            && hasWarehouseAccess(movement.getWarehouse().getId())) {
+                            || authenticatedUserProvider.hasRole("DISPATCHER")
+                            || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
                         return true;
                     }
 

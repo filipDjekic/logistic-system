@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { buildSortParam } from '../../../core/api/pagination';
+import { normalizeApiError } from '../../../core/api/apiError';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import {
@@ -275,10 +276,15 @@ export default function StockMovementDetailsPage() {
   }
 
   if (stockMovementQuery.isError || !movement) {
+    const error = normalizeApiError(
+      stockMovementQuery.error,
+      'The requested stock movement details are not available.',
+    );
     return (
       <ErrorState
-        title="Stock movement could not be loaded"
-        description="The requested stock movement details are not available."
+        title={error.status === 403 ? 'Access denied' : error.status === 404 ? 'Stock movement not found' : error.title}
+        description={error.message}
+        details={error.fieldErrors}
         onRetry={() => { void stockMovementQuery.refetch(); }}
       />
     );

@@ -1936,7 +1936,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
             }
         }
 
-        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER") || authenticatedUserProvider.hasRole("WORKER")) {
+        if (authenticatedUserProvider.hasRole("WORKER")) {
             List<Long> scopedWarehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
             if (scopedWarehouseIds != null && !scopedWarehouseIds.contains(candidate.getWarehouse().getId())) {
                 return false;
