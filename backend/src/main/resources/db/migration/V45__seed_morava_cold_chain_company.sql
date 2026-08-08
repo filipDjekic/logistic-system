@@ -163,7 +163,7 @@ INSERT INTO transport_orders(order_number,description,order_date,departure_time,
  source_warehouse_id,destination_warehouse_id,vehicle_id,assigned_employee_id,created_by_user_id,version)
 SELECT CONCAT(N'MCC-TO-',RIGHT(N'0000'+CAST(n.rn AS NVARCHAR(4)),4)),N'Isporuka u kontrolisanom temperaturnom režimu',
        DATEADD(DAY,CASE WHEN n.rn<=96 THEN -60+((n.rn-1)/2) ELSE n.rn-97 END,@Now),
-       CASE WHEN n.rn<=80 OR n.rn BETWEEN 91 AND 96 THEN DATEADD(HOUR,CASE WHEN ((n.rn-1)%12)%2=0 THEN 15 ELSE 7 END,DATEADD(DAY,-60+((n.rn-1)/2),CAST(@Today AS DATETIME2)))
+       CASE WHEN n.rn<=96 THEN DATEADD(HOUR,CASE WHEN ((n.rn-1)%12)%2=0 THEN 15 ELSE 7 END,DATEADD(DAY,-60+((n.rn-1)/2),CAST(@Today AS DATETIME2)))
             WHEN n.rn=97 THEN DATEADD(HOUR,-2,@Now)
             ELSE DATEADD(HOUR,CASE WHEN ((n.rn-1)%12)%2=0 THEN 15 ELSE 7 END,DATEADD(DAY,n.rn-97,CAST(@Today AS DATETIME2))) END,
        CASE WHEN n.rn<=80 THEN DATEADD(HOUR,CASE WHEN ((n.rn-1)%12)%2=0 THEN 20 ELSE 12 END,DATEADD(DAY,-60+((n.rn-1)/2),CAST(@Today AS DATETIME2))) END,
@@ -464,18 +464,73 @@ IF EXISTS(SELECT 1 FROM domain_events d WHERE d.company_id=@CompanyId AND d.enti
     THROW 51171,'V45 validation failed: orphan audit or domain event reference.',1;
 
 /* Final-schema and backend-workflow validation matrix. Child scope follows real FK chains. */
+/*
+ * Diagnostic projections for the three independent invariants below:
+ * SELECT t.id,t.order_number,t.status,t.source_warehouse_id,t.destination_warehouse_id,
+ *        t.assigned_employee_id,CONCAT(e.first_name,N' ',e.last_name) employee_name,
+ *        e.position employee_position,r.name employee_role,e.company_id employee_company_id,e.active employee_active,
+ *        t.vehicle_id,v.company_id vehicle_company_id,v.active vehicle_active,
+ *        N'Invalid or inactive driver/vehicle assignment' violation_reason
+ * FROM transport_orders t LEFT JOIN employees e ON e.id=t.assigned_employee_id
+ * LEFT JOIN users u ON u.id=e.user_id LEFT JOIN roles r ON r.id=u.role_id
+ * LEFT JOIN vehicles v ON v.id=t.vehicle_id WHERE t.order_number LIKE N'MCC-TO-%'
+ * AND (e.id IS NULL OR v.id IS NULL OR e.active=0 OR e.position<>N'DRIVER' OR v.active=0);
+ *
+ * SELECT t.id,t.order_number,t.status,t.source_warehouse_id,sw.company_id source_company_id,
+ *        t.destination_warehouse_id,dw.company_id destination_company_id,
+ *        e.company_id employee_company_id,v.company_id vehicle_company_id,
+ *        N'Cross-company, same-warehouse, or unavailable warehouse link' violation_reason
+ * FROM transport_orders t LEFT JOIN warehouses sw ON sw.id=t.source_warehouse_id
+ * LEFT JOIN warehouses dw ON dw.id=t.destination_warehouse_id
+ * LEFT JOIN employees e ON e.id=t.assigned_employee_id LEFT JOIN vehicles v ON v.id=t.vehicle_id
+ * WHERE t.order_number LIKE N'MCC-TO-%' AND
+ *   (sw.id IS NULL OR dw.id IS NULL OR sw.id=dw.id OR sw.company_id<>@CompanyId
+ *    OR dw.company_id<>@CompanyId OR e.company_id<>@CompanyId OR v.company_id<>@CompanyId
+ *    OR sw.active=0 OR sw.status<>N'ACTIVE' OR dw.active=0 OR dw.status<>N'ACTIVE');
+ *
+ * SELECT t.id,t.order_number,t.status,t.departure_time transport_start,
+ *        COALESCE(t.actual_arrival_time,t.planned_arrival_time) effective_end,
+ *        s.id shift_id,s.start_time shift_start,s.end_time shift_end,s.status shift_status,
+ *        N'Invalid planned/actual transport interval' violation_reason
+ * FROM transport_orders t LEFT JOIN shifts s ON s.employee_id=t.assigned_employee_id
+ *   AND s.status<>N'CANCELLED' AND s.start_time<=t.departure_time
+ *   AND s.end_time>=t.planned_arrival_time
+ * WHERE t.order_number LIKE N'MCC-TO-%' AND
+ *   (t.departure_time IS NULL OR t.planned_arrival_time IS NULL
+ *    OR t.departure_time>=t.planned_arrival_time
+ *    OR (t.actual_arrival_time IS NOT NULL AND t.actual_arrival_time<t.departure_time));
+ */
+IF EXISTS(
+    SELECT 1 FROM transport_orders t
+    LEFT JOIN employees e ON e.id=t.assigned_employee_id
+    LEFT JOIN vehicles v ON v.id=t.vehicle_id
+    WHERE t.order_number LIKE N'MCC-TO-%'
+      AND (e.id IS NULL OR v.id IS NULL OR e.active=0 OR e.position<>N'DRIVER' OR v.active=0)
+)
+    THROW 51172,'V45 validation failed: transport has an invalid driver or vehicle assignment.',1;
+
+IF EXISTS(
+    SELECT 1 FROM transport_orders t
+    LEFT JOIN warehouses sw ON sw.id=t.source_warehouse_id
+    LEFT JOIN warehouses dw ON dw.id=t.destination_warehouse_id
+    LEFT JOIN employees e ON e.id=t.assigned_employee_id
+    LEFT JOIN vehicles v ON v.id=t.vehicle_id
+    WHERE t.order_number LIKE N'MCC-TO-%'
+      AND (sw.id IS NULL OR dw.id IS NULL OR sw.id=dw.id
+           OR sw.company_id<>@CompanyId OR dw.company_id<>@CompanyId
+           OR e.company_id<>@CompanyId OR v.company_id<>@CompanyId
+           OR sw.active=0 OR sw.status<>N'ACTIVE' OR dw.active=0 OR dw.status<>N'ACTIVE')
+)
+    THROW 51189,'V45 validation failed: transport has a cross-company or unavailable warehouse/resource link.',1;
+
 IF EXISTS(
     SELECT 1 FROM transport_orders t
     JOIN warehouses sw ON sw.id=t.source_warehouse_id AND sw.company_id=@CompanyId
-    JOIN warehouses dw ON dw.id=t.destination_warehouse_id
-    JOIN employees e ON e.id=t.assigned_employee_id
-    JOIN vehicles v ON v.id=t.vehicle_id
     WHERE t.order_number LIKE N'MCC-TO-%'
-      AND (sw.id=dw.id OR dw.company_id<>@CompanyId OR e.company_id<>@CompanyId OR e.active=0 OR e.position<>N'DRIVER'
-           OR v.company_id<>@CompanyId OR v.active=0 OR sw.active=0 OR sw.status<>N'ACTIVE' OR dw.active=0 OR dw.status<>N'ACTIVE'
-           OR t.departure_time IS NULL OR t.planned_arrival_time IS NULL OR t.departure_time>=t.planned_arrival_time)
+      AND (t.departure_time IS NULL OR t.planned_arrival_time IS NULL OR t.departure_time>=t.planned_arrival_time
+           OR (t.actual_arrival_time IS NOT NULL AND t.actual_arrival_time<t.departure_time))
 )
-    THROW 51172,'V45 validation failed: transport assignment, warehouse, or schedule invariant.',1;
+    THROW 51190,'V45 validation failed: transport has an invalid planned or actual schedule interval.',1;
 
 IF EXISTS(
     SELECT 1 FROM transport_orders t

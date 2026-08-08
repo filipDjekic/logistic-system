@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers
 class SqlServerFlywayIT {
 
-    private static final String LATEST_VERSION = "45";
+    private static final String LATEST_VERSION = "46";
     private static final String UPGRADE_BASELINE_VERSION = "40";
     private static final String OVERLORD_EMAIL = "filip.djekic@slu.admin.rs";
     private static final String ACTIVE_CHANGED_EMAIL = "ana.nikolic@adriatrans.company-admin.rs";
@@ -35,6 +35,10 @@ class SqlServerFlywayIT {
     private static final String OUTSIDE_EMAIL = "migration-it.outside@example.test";
     private static final String CHANGED_PASSWORD_MARKER = "changed-password-hash";
     private static final Instant UNCHANGED_MARKER = Instant.parse("2001-01-01T00:00:00Z");
+    private static final String MORAVA_ADMIN_EMAIL = "mihajlo.radosavljevic@morava-cold-chain-d-o-o.company-admin.rs";
+    private static final String MORAVA_MANAGER_EMAIL = "veljko.mitrovic@morava-cold-chain-d-o-o.warehouse-manager.rs";
+    private static final String MORAVA_DRIVER_EMAIL = "vladimir.mladenovic@morava-cold-chain-d-o-o.driver.rs";
+    private static final String MORAVA_WORKER_EMAIL = "vladimir.stevanovic@morava-cold-chain-d-o-o.worker.rs";
 
     private static final List<String> TARGET_EMAILS = List.of(
             OVERLORD_EMAIL,
@@ -83,11 +87,11 @@ class SqlServerFlywayIT {
         Flyway flyway = flyway(LATEST_VERSION, false);
         MigrateResult firstMigrate = flyway.migrate();
 
-        assertEquals(45, firstMigrate.migrationsExecuted);
+        assertEquals(46, firstMigrate.migrationsExecuted);
         assertEquals(LATEST_VERSION, flyway.info().current().getVersion().getVersion());
         assertTrue(flyway.validateWithResult().validationSuccessful);
-        assertEquals(45, successfulVersionedMigrationCount());
-        assertEquals(45, latestSuccessfulVersion());
+        assertEquals(46, successfulVersionedMigrationCount());
+        assertEquals(46, latestSuccessfulVersion());
         assertFalse(flyway.info().pending().length != 0);
         assertDunavTransitPasswords();
         assertMoravaColdChainSeed();
@@ -96,7 +100,7 @@ class SqlServerFlywayIT {
 
         assertEquals(0, secondMigrate.migrationsExecuted);
         assertTrue(flyway.validateWithResult().validationSuccessful);
-        assertEquals(45, successfulVersionedMigrationCount());
+        assertEquals(46, successfulVersionedMigrationCount());
     }
 
     @Test
@@ -122,7 +126,7 @@ class SqlServerFlywayIT {
         assertUserState(OUTSIDE_EMAIL, "ACTIVE", true, CHANGED_PASSWORD_MARKER, UNCHANGED_MARKER);
 
         Flyway toLatest = flyway(LATEST_VERSION, false);
-        assertEquals(5, toLatest.migrate().migrationsExecuted);
+        assertEquals(6, toLatest.migrate().migrationsExecuted);
         assertTrue(toLatest.validateWithResult().validationSuccessful);
         assertEquals(LATEST_VERSION, toLatest.info().current().getVersion().getVersion());
 
@@ -138,6 +142,23 @@ class SqlServerFlywayIT {
 
         assertEquals(0, toLatest.migrate().migrationsExecuted);
         assertTrue(toLatest.validateWithResult().validationSuccessful);
+    }
+
+    @Test
+    void upgradesAppliedMoravaV45DataWithV46WithoutChangingPasswordsOrOtherCompanies() throws SQLException {
+        Flyway toV45 = flyway("45", false);
+        assertEquals(45, toV45.migrate().migrationsExecuted);
+
+        String moravaPassword = passwordFor("mcc.01@moravacold.rs");
+        String preservedCompanyName = queryString("SELECT name FROM companies WHERE id=1");
+
+        Flyway toV46 = flyway(LATEST_VERSION, false);
+        assertEquals(1, toV46.migrate().migrationsExecuted);
+        assertTrue(toV46.validateWithResult().validationSuccessful);
+        assertEquals(LATEST_VERSION, toV46.info().current().getVersion().getVersion());
+        assertEquals(preservedCompanyName, queryString("SELECT name FROM companies WHERE id=1"));
+        assertEquals(moravaPassword, passwordFor(MORAVA_ADMIN_EMAIL));
+        assertMoravaColdChainSeed();
     }
 
     private Flyway flyway(String targetVersion, boolean cleanDisabled) {
@@ -320,10 +341,35 @@ class SqlServerFlywayIT {
                        OR dw.company_id<>sw.company_id OR v.company_id<>sw.company_id OR e.company_id<>sw.company_id)
                 """));
 
+        assertEquals(0, queryInt("""
+                SELECT COUNT(*) FROM products p
+                JOIN companies c ON c.id=p.company_id
+                WHERE c.tax_number=N'118462730' AND c.registration_number=N'22916485'
+                  AND p.unit NOT IN(N'PIECE',N'KG',N'LITER',N'PALLET',N'BOX')
+                """));
+        assertEquals(10, queryInt("""
+                SELECT COUNT(*) FROM products p
+                JOIN companies c ON c.id=p.company_id
+                WHERE c.tax_number=N'118462730' AND c.registration_number=N'22916485'
+                  AND p.sku LIKE N'MCC-FRE-%' AND p.unit=N'BOX'
+                """));
+        assertEquals(0, queryInt("""
+                SELECT COUNT(*) FROM employees e
+                JOIN users u ON u.id=e.user_id
+                JOIN companies c ON c.id=e.company_id
+                WHERE c.tax_number=N'118462730' AND c.registration_number=N'22916485'
+                  AND (u.company_id<>e.company_id OR LOWER(u.email)<>LOWER(e.email))
+                """));
+        assertEquals("contact@morava-cold-chain-d-o-o.rs", queryString("""
+                SELECT email FROM companies
+                WHERE tax_number=N'118462730' AND registration_number=N'22916485'
+                """));
+
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        assertTrue(encoder.matches("Admin123!", passwordFor("mcc.01@moravacold.rs")));
-        assertTrue(encoder.matches("Admin123!", passwordFor("mcc.03@moravacold.rs")));
-        assertTrue(encoder.matches("Admin123!", passwordFor("mcc.11@moravacold.rs")));
+        assertTrue(encoder.matches("Admin123!", passwordFor(MORAVA_ADMIN_EMAIL)));
+        assertTrue(encoder.matches("Admin123!", passwordFor(MORAVA_MANAGER_EMAIL)));
+        assertTrue(encoder.matches("Admin123!", passwordFor(MORAVA_DRIVER_EMAIL)));
+        assertTrue(encoder.matches("Admin123!", passwordFor(MORAVA_WORKER_EMAIL)));
     }
 
     private int queryInt(String sql) throws SQLException {
