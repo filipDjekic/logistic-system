@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers
 class SqlServerFlywayIT {
 
-    private static final String LATEST_VERSION = "44";
+    private static final String LATEST_VERSION = "45";
     private static final String UPGRADE_BASELINE_VERSION = "40";
     private static final String OVERLORD_EMAIL = "filip.djekic@slu.admin.rs";
     private static final String ACTIVE_CHANGED_EMAIL = "ana.nikolic@adriatrans.company-admin.rs";
@@ -83,19 +83,20 @@ class SqlServerFlywayIT {
         Flyway flyway = flyway(LATEST_VERSION, false);
         MigrateResult firstMigrate = flyway.migrate();
 
-        assertEquals(44, firstMigrate.migrationsExecuted);
+        assertEquals(45, firstMigrate.migrationsExecuted);
         assertEquals(LATEST_VERSION, flyway.info().current().getVersion().getVersion());
         assertTrue(flyway.validateWithResult().validationSuccessful);
-        assertEquals(44, successfulVersionedMigrationCount());
-        assertEquals(44, latestSuccessfulVersion());
+        assertEquals(45, successfulVersionedMigrationCount());
+        assertEquals(45, latestSuccessfulVersion());
         assertFalse(flyway.info().pending().length != 0);
         assertDunavTransitPasswords();
+        assertMoravaColdChainSeed();
 
         MigrateResult secondMigrate = flyway.migrate();
 
         assertEquals(0, secondMigrate.migrationsExecuted);
         assertTrue(flyway.validateWithResult().validationSuccessful);
-        assertEquals(44, successfulVersionedMigrationCount());
+        assertEquals(45, successfulVersionedMigrationCount());
     }
 
     @Test
@@ -121,7 +122,7 @@ class SqlServerFlywayIT {
         assertUserState(OUTSIDE_EMAIL, "ACTIVE", true, CHANGED_PASSWORD_MARKER, UNCHANGED_MARKER);
 
         Flyway toLatest = flyway(LATEST_VERSION, false);
-        assertEquals(3, toLatest.migrate().migrationsExecuted);
+        assertEquals(5, toLatest.migrate().migrationsExecuted);
         assertTrue(toLatest.validateWithResult().validationSuccessful);
         assertEquals(LATEST_VERSION, toLatest.info().current().getVersion().getVersion());
 
@@ -133,6 +134,7 @@ class SqlServerFlywayIT {
         assertEquals(demoSeedHash, passwordFor("petar.markovic@adriatrans.warehouse-manager.rs"));
         assertEquals(preservedCompanyName, queryString("SELECT name FROM companies WHERE id = 1"));
         assertDunavTransitPasswords();
+        assertMoravaColdChainSeed();
 
         assertEquals(0, toLatest.migrate().migrationsExecuted);
         assertTrue(toLatest.validateWithResult().validationSuccessful);
@@ -286,6 +288,42 @@ class SqlServerFlywayIT {
         for (String email : DUNAV_TRANSIT_EMAILS) {
             assertTrue(encoder.matches("Admin123!", passwordFor(email)), "Invalid seed password for " + email);
         }
+    }
+
+    private void assertMoravaColdChainSeed() throws SQLException {
+        String companyPredicate = "c.name = N'Morava Cold Chain d.o.o.'";
+        assertEquals(48, queryInt("SELECT COUNT(*) FROM users u JOIN companies c ON c.id=u.company_id WHERE " + companyPredicate));
+        assertEquals(48, queryInt("SELECT COUNT(*) FROM employees e JOIN companies c ON c.id=e.company_id WHERE " + companyPredicate));
+        assertEquals(4, queryInt("SELECT COUNT(*) FROM warehouses w JOIN companies c ON c.id=w.company_id WHERE " + companyPredicate));
+        assertEquals(60, queryInt("SELECT COUNT(*) FROM products p JOIN companies c ON c.id=p.company_id WHERE " + companyPredicate));
+        assertEquals(18, queryInt("SELECT COUNT(*) FROM vehicles v JOIN companies c ON c.id=v.company_id WHERE " + companyPredicate));
+        assertEquals(120, queryInt("""
+                SELECT COUNT(*) FROM transport_orders t
+                JOIN warehouses w ON w.id=t.source_warehouse_id
+                JOIN companies c ON c.id=w.company_id
+                WHERE c.name=N'Morava Cold Chain d.o.o.'
+                """));
+        assertEquals(30, queryInt("""
+                SELECT COUNT(*) FROM inventory_count_sessions s
+                JOIN warehouses w ON w.id=s.warehouse_id
+                JOIN companies c ON c.id=w.company_id
+                WHERE c.name=N'Morava Cold Chain d.o.o.'
+                """));
+        assertEquals(0, queryInt("""
+                SELECT COUNT(*) FROM transport_orders t
+                JOIN warehouses sw ON sw.id=t.source_warehouse_id
+                JOIN warehouses dw ON dw.id=t.destination_warehouse_id
+                JOIN vehicles v ON v.id=t.vehicle_id
+                JOIN employees e ON e.id=t.assigned_employee_id
+                WHERE t.order_number LIKE N'MCC-TO-%'
+                  AND (sw.company_id<>(SELECT id FROM companies WHERE name=N'Morava Cold Chain d.o.o.')
+                       OR dw.company_id<>sw.company_id OR v.company_id<>sw.company_id OR e.company_id<>sw.company_id)
+                """));
+
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        assertTrue(encoder.matches("Admin123!", passwordFor("mcc.01@moravacold.rs")));
+        assertTrue(encoder.matches("Admin123!", passwordFor("mcc.03@moravacold.rs")));
+        assertTrue(encoder.matches("Admin123!", passwordFor("mcc.11@moravacold.rs")));
     }
 
     private int queryInt(String sql) throws SQLException {
