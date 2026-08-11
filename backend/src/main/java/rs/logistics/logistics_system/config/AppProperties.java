@@ -25,7 +25,6 @@ public class AppProperties {
     private final Warehouse warehouse = new Warehouse();
     private final StockMovement stockMovement = new StockMovement();
     private final StatusTransitions statusTransitions = new StatusTransitions();
-    private final FailProtection failProtection = new FailProtection();
 
     public Pagination getPagination() {
         return pagination;
@@ -45,10 +44,6 @@ public class AppProperties {
 
     public StatusTransitions getStatusTransitions() {
         return statusTransitions;
-    }
-
-    public FailProtection getFailProtection() {
-        return failProtection;
     }
 
     public int getDefaultPageSize() {
@@ -203,31 +198,6 @@ public class AppProperties {
         }
     }
 
-    public static class FailProtection {
-        private boolean enabled = true;
-        private long idempotencyTtlSeconds = 30;
-        private int writeRequestsPerMinute = 120;
-
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-
-        public long getIdempotencyTtlSeconds() { return idempotencyTtlSeconds; }
-        public void setIdempotencyTtlSeconds(long idempotencyTtlSeconds) {
-            if (idempotencyTtlSeconds <= 0) {
-                throw new IllegalArgumentException("logistics.fail-protection.idempotency-ttl-seconds must be greater than zero");
-            }
-            this.idempotencyTtlSeconds = idempotencyTtlSeconds;
-        }
-
-        public int getWriteRequestsPerMinute() { return writeRequestsPerMinute; }
-        public void setWriteRequestsPerMinute(int writeRequestsPerMinute) {
-            if (writeRequestsPerMinute <= 0) {
-                throw new IllegalArgumentException("logistics.fail-protection.write-requests-per-minute must be greater than zero");
-            }
-            this.writeRequestsPerMinute = writeRequestsPerMinute;
-        }
-    }
-
     public static class StatusTransitions {
         private Map<String, List<String>> task = defaultTaskTransitions();
         private Map<String, List<String>> transportOrder = defaultTransportOrderTransitions();
@@ -286,7 +256,7 @@ public class AppProperties {
 
         private static Map<String, List<String>> defaultTaskTransitions() {
             Map<String, List<String>> transitions = new LinkedHashMap<>();
-            transitions.put("NEW", List.of("ASSIGNED", "IN_PROGRESS", "CANCELLED"));
+            transitions.put("NEW", List.of("OPEN", "ASSIGNED", "IN_PROGRESS", "CANCELLED"));
             transitions.put("OPEN", List.of("ASSIGNED", "IN_PROGRESS", "CANCELLED"));
             transitions.put("ASSIGNED", List.of("IN_PROGRESS", "BLOCKED", "CANCELLED"));
             transitions.put("IN_PROGRESS", List.of("BLOCKED", "COMPLETED", "CANCELLED"));

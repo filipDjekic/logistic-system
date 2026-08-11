@@ -8,20 +8,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
-import rs.logistics.logistics_system.config.AppProperties;
+import rs.logistics.logistics_system.config.FailProtectionProperties;
 import rs.logistics.logistics_system.exception.ConflictException;
 
 @Service
 @RequiredArgsConstructor
 public class IdempotencyService {
 
-    private final AppProperties appProperties;
+    private final FailProtectionProperties failProtectionProperties;
     private final Map<String, CachedWriteResponse> responses = new ConcurrentHashMap<>();
     private final Map<String, Instant> inProgressKeys = new ConcurrentHashMap<>();
     private final Map<String, RateWindow> rateWindows = new ConcurrentHashMap<>();
 
     public Optional<CachedWriteResponse> getCachedResponse(String idempotencyKey) {
-        if (!appProperties.getFailProtection().isEnabled() || isBlank(idempotencyKey)) {
+        if (!failProtectionProperties.isEnabled() || isBlank(idempotencyKey)) {
             return Optional.empty();
         }
 
@@ -30,7 +30,7 @@ public class IdempotencyService {
     }
 
     public void registerWriteRequest(String rateLimitKey, String idempotencyKey) {
-        if (!appProperties.getFailProtection().isEnabled()) {
+        if (!failProtectionProperties.isEnabled()) {
             return;
         }
 
@@ -47,13 +47,13 @@ public class IdempotencyService {
 
         Instant now = Instant.now();
         Instant existing = inProgressKeys.putIfAbsent(idempotencyKey, now);
-        if (existing != null && existing.plusSeconds(appProperties.getFailProtection().getIdempotencyTtlSeconds()).isAfter(now)) {
+        if (existing != null && existing.plusSeconds(failProtectionProperties.getIdempotencyTtlSeconds()).isAfter(now)) {
             throw new ConflictException("Duplicate write request is still being processed");
         }
     }
 
     public void storeWriteResponse(String idempotencyKey, int status, String contentType, byte[] body) {
-        if (!appProperties.getFailProtection().isEnabled() || isBlank(idempotencyKey)) {
+        if (!failProtectionProperties.isEnabled() || isBlank(idempotencyKey)) {
             return;
         }
 
@@ -68,7 +68,7 @@ public class IdempotencyService {
     }
 
     private void enforceRateLimit(String rateLimitKey) {
-        int limit = appProperties.getFailProtection().getWriteRequestsPerMinute();
+        int limit = failProtectionProperties.getWriteRequestsPerMinute();
         Instant now = Instant.now();
         RateWindow window = rateWindows.compute(rateLimitKey, (key, current) -> {
             if (current == null || current.windowStart.plusSeconds(60).isBefore(now)) {
@@ -84,7 +84,7 @@ public class IdempotencyService {
     }
 
     private void cleanupExpiredIdempotencyEntries() {
-        Instant expiresBefore = Instant.now().minusSeconds(appProperties.getFailProtection().getIdempotencyTtlSeconds());
+        Instant expiresBefore = Instant.now().minusSeconds(failProtectionProperties.getIdempotencyTtlSeconds());
         responses.entrySet().removeIf(entry -> entry.getValue().createdAt().isBefore(expiresBefore));
         inProgressKeys.entrySet().removeIf(entry -> entry.getValue().isBefore(expiresBefore));
     }

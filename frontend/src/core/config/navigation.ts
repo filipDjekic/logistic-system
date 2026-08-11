@@ -20,6 +20,7 @@ import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { ALL_ROLES, ROLES, type Role } from '../constants/roles';
+import { CAPABILITIES, rolesForCapability } from '../permissions/capabilities';
 
 export type NavigationItem = {
   key: string;
@@ -50,7 +51,7 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
   companies: { key: 'companies', label: 'Companies', to: '/companies', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
   'company-registration-requests': { key: 'company-registration-requests', label: 'Registration Requests', to: '/company-registration-requests', roles: [ROLES.OVERLORD], icon: BusinessRoundedIcon },
   employees: { key: 'employees', label: 'Employees', to: '/employees', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER], icon: GroupsRoundedIcon },
-    shifts: { key: 'shifts', label: 'Shifts', to: '/shifts', roles: [ROLES.OVERLORD, ROLES.HR_MANAGER, ROLES.DISPATCHER], icon: ScheduleRoundedIcon },
+  shifts: { key: 'shifts', label: 'Shifts', to: '/shifts', roles: rolesForCapability(CAPABILITIES.SHIFT_READ_ALL), icon: ScheduleRoundedIcon },
   users: { key: 'users', label: 'Users', to: '/users', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: ManageAccountsRoundedIcon },
   'employee-profile-change-requests': { key: 'employee-profile-change-requests', label: 'Profile Requests', to: '/employee-profile-change-requests', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: FactCheckRoundedIcon },
   roles: { key: 'roles', label: 'Roles', to: '/roles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AdminPanelSettingsRoundedIcon },
@@ -89,7 +90,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
     { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
     { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'users'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
     { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
@@ -104,7 +105,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
     { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'inventory', 'products', 'stock-movements', 'inventory-counts'] },
     { key: 'transport', label: 'Transport', itemKeys: ['tasks', 'transport-orders'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employees'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'shifts'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['inventory-report', 'transport-report'] },
     { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },

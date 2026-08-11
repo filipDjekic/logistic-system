@@ -28,8 +28,7 @@ import { ROLES } from '../../../core/constants/roles';
 import {
   canCountInventoryCountLines,
   canManageInventoryCountLifecycle,
-  filterAllowedStatusesByRole,
-  getAllowedInventoryCountLifecycleStatuses,
+  resolveBackendAllowedStatuses,
 } from '../../../core/permissions/operationGuards';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { lookupApi } from '../../lookup/api/lookupApi';
@@ -187,9 +186,8 @@ export default function InventoryCountDetailsPage() {
 
   const zones = zonesQuery.data?.content ?? [];
   const bins = binsQuery.data?.content ?? [];
-  const allowed = filterAllowedStatusesByRole(
+  const allowed = resolveBackendAllowedStatuses(
     allowedTransitionsQuery.data?.allowedStatuses as InventoryCountSessionStatus[] | undefined,
-    getAllowedInventoryCountLifecycleStatuses(userRole),
   );
   const canMutateSelectedWarehouse = Boolean(
     session && userRole !== ROLES.OVERLORD

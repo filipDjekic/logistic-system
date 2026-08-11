@@ -24,8 +24,8 @@ import { useAuthStore } from "../../../core/auth/authStore";
 import { ROLES } from "../../../core/constants/roles";
 import {
   canReadVehicleStatusTransitions,
-  filterAllowedStatusesByRole,
-  getAllowedVehicleStatusTransitions,
+  resolveBackendAllowedStatuses,
+  canManageVehicles,
 } from "../../../core/permissions/operationGuards";
 import { getErrorMessage } from "../../../core/utils/getErrorMessage";
 import { invalidateVehicleState } from "../../../core/utils/invalidateAppState";
@@ -77,7 +77,7 @@ export default function VehicleDetailsPage() {
     useState<VehicleStatus | null>(null);
 
   const isDriver = auth.user?.role === ROLES.DRIVER;
-  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DISPATCHER;
+  const canManage = canManageVehicles(auth.user?.role);
   const canReadLifecycleTransitions = canReadVehicleStatusTransitions(auth.user?.role);
 
   const vehicleQuery = useVehicle(validVehicleId);
@@ -200,8 +200,7 @@ export default function VehicleDetailsPage() {
     );
   }
 
-  const fallbackVehicleStatuses = getAllowedVehicleStatusTransitions(auth.user?.role, vehicle);
-  const allowedVehicleStatuses = filterAllowedStatusesByRole(allowedTransitionsQuery.data?.allowedStatuses, fallbackVehicleStatuses);
+  const allowedVehicleStatuses = resolveBackendAllowedStatuses(allowedTransitionsQuery.data?.allowedStatuses);
   const vehicleLifecycleStatuses: VehicleStatus[] = vehicle.status === "OUT_OF_SERVICE"
     ? ["AVAILABLE", "MAINTENANCE", "OUT_OF_SERVICE"]
     : ["AVAILABLE", "RESERVED", "IN_USE", "MAINTENANCE"];

@@ -21,6 +21,8 @@ public interface LookupServiceDefinition {
         String search,
         VehicleStatus status,
         Boolean available,
+        LocalDateTime availableFrom,
+        LocalDateTime availableTo,
         Pageable pageable
     );
 

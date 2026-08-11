@@ -396,7 +396,7 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
     public AllowedStatusTransitionsResponse allowedStatusTransitions(Long id) {
         InventoryCountSession session = getSessionHeader(id);
         warehouseAccessGuard.ensureCanReadWarehouse(session.getWarehouse());
-        List<String> allowed = lifecycleTransitionEngine.allowedStatuses(
+        List<String> allowed = lifecycleTransitionEngine.allowedStatusesForCurrentUser(
                         LifecycleEntityType.INVENTORY_COUNT,
                         InventoryCountSessionStatus.class,
                         session.getStatus()

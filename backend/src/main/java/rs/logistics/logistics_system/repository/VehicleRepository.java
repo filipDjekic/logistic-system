@@ -102,6 +102,47 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"company", "company.timezone", "vehicleModel", "vehicleModel.brand"})
+    @Query("""
+        select v from Vehicle v
+        where (:companyId is null or v.company.id = :companyId)
+        and v.active = true
+        and v.status = rs.logistics.logistics_system.enums.VehicleStatus.AVAILABLE
+        and not exists (
+            select 1 from TransportOrder t
+            where t.vehicle = v and t.status in :transportStatuses
+            and (:availableFrom is null or :availableTo is null
+                 or (t.departureTime < :availableTo and t.plannedArrivalTime > :availableFrom))
+        )
+        and not exists (
+            select 1 from VehicleMaintenance vm
+            where vm.vehicle = v and vm.status in :maintenanceStatuses
+            and (:availableTo is null
+                 or vm.status = rs.logistics.logistics_system.enums.VehicleMaintenanceStatus.IN_PROGRESS
+                 or vm.scheduledAt < :availableTo)
+        )
+        and (:status is null or v.status = :status)
+        and (:search is null
+             or lower(v.registrationNumber) like lower(concat('%', :search, '%'))
+             or lower(v.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
+             or lower(v.vehicleModel.name) like lower(concat('%', :search, '%'))
+             or lower(v.type) like lower(concat('%', :search, '%'))
+             or (:searchId is not null and v.id = :searchId)
+             or (:searchYear is not null and v.yearOfProduction = :searchYear))
+        """)
+    Page<Vehicle> searchSelectableVehicles(
+            @Param("companyId") Long companyId,
+            @Param("search") String search,
+            @Param("searchId") Long searchId,
+            @Param("searchYear") Integer searchYear,
+            @Param("status") VehicleStatus status,
+            @Param("availableFrom") LocalDateTime availableFrom,
+            @Param("availableTo") LocalDateTime availableTo,
+            @Param("transportStatuses") Collection<rs.logistics.logistics_system.enums.TransportOrderStatus> transportStatuses,
+            @Param("maintenanceStatuses") Collection<rs.logistics.logistics_system.enums.VehicleMaintenanceStatus> maintenanceStatuses,
+            Pageable pageable
+    );
+
     @Query("select v.status, count(v) from Vehicle v group by v.status")
     List<Object[]> countGroupedByStatus();
 

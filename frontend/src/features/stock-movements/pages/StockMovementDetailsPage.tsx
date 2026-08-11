@@ -18,8 +18,7 @@ import {
   canExecuteStockMovementLifecycle,
   canReadStockMovementLifecycle,
   canReverseStockMovementLifecycle,
-  filterAllowedStatusesByRole,
-  getAllowedStockMovementLifecycleStatuses,
+  resolveBackendAllowedStatuses,
 } from '../../../core/permissions/operationGuards';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
@@ -137,15 +136,8 @@ export default function StockMovementDetailsPage() {
 
   const movement = stockMovementQuery.data;
   const currentStatus = statusTransitionsQuery.data?.currentStatus ?? movement?.status ?? 'EXECUTED';
-  const fallbackAllowedNextStatuses = movement?.allowedNextStatuses?.length
-    ? filterAllowedStatusesByRole(
-        movement.allowedNextStatuses as string[],
-        getAllowedStockMovementLifecycleStatuses(auth.user?.role, movement),
-      )
-    : getAllowedStockMovementLifecycleStatuses(auth.user?.role, movement);
-  const allowedNextStatuses = filterAllowedStatusesByRole(
+  const allowedNextStatuses = resolveBackendAllowedStatuses(
     statusTransitionsQuery.data?.allowedStatuses as string[] | undefined,
-    fallbackAllowedNextStatuses,
   );
 
   const refreshStockMovementDetails = async () => {

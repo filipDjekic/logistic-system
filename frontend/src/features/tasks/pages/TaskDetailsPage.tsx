@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { queryKeys } from '../../../core/constants/queryKeys';
-import { filterAllowedStatusesByRole, getAllowedTaskStatusTransitions } from '../../../core/permissions/operationGuards';
+import { resolveBackendAllowedStatuses } from '../../../core/permissions/operationGuards';
 import { DetailsLifecycleCard, EntityDetailsLayout, OperationalDetailsTabPanels, buildOperationalTabs } from '../../../shared/components/EntityDetails';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import { StickyMobileActions } from '../../../shared/components/Mobile';
@@ -120,8 +120,7 @@ export default function TaskDetailsPage() {
   }
 
   const task = taskQuery.data;
-  const fallbackAllowedStatuses = getAllowedTaskStatusTransitions(auth.user?.role, task);
-  const allowedStatuses = filterAllowedStatusesByRole(allowedTransitionsQuery.data?.allowedStatuses, fallbackAllowedStatuses);
+  const allowedStatuses = resolveBackendAllowedStatuses(allowedTransitionsQuery.data?.allowedStatuses);
   const taskLifecycleStatuses: TaskStatus[] = task.status === 'CANCELLED'
     ? ['NEW', 'OPEN', 'CANCELLED']
     : ['NEW', 'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED'];

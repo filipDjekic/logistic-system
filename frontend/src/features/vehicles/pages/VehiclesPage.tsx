@@ -4,6 +4,7 @@ import { Button, MenuItem, Stack, TextField } from '@mui/material';
 import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { canManageVehicles } from '../../../core/permissions/operationGuards';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import { useCompanies } from '../../companies/hooks/useCompanies';
@@ -60,7 +61,7 @@ export default function VehiclesPage() {
   const { showSnackbar } = useAppSnackbar();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
   const isDriver = auth.user?.role === ROLES.DRIVER;
-  const canManage = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DISPATCHER;
+  const canManage = canManageVehicles(auth.user?.role);
   const pageTitle = isDriver ? 'Assigned Vehicles' : 'Vehicles';
   const pageDescription = isDriver
     ? 'Review vehicles assigned through your transport work.'

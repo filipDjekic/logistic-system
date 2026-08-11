@@ -101,13 +101,32 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             and (
                 :availableFrom is null
                 or :availableTo is null
-                or exists (
-                    select 1
-                    from Shift s
-                    where s.employee = e
-                    and s.status in (rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE)
-                    and s.startTime <= :availableFrom
-                    and s.endTime >= :availableTo
+                or (
+                    e.active = true
+                    and e.position = rs.logistics.logistics_system.enums.EmployeePosition.DRIVER
+                    and exists (
+                        select 1 from Shift s
+                        where s.employee = e
+                        and s.status in (rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE)
+                        and s.startTime <= :availableFrom
+                        and s.endTime >= :availableTo
+                    )
+                    and not exists (
+                        select 1 from TransportOrder availabilityTransport
+                        where availabilityTransport.assignedEmployee = e
+                        and availabilityTransport.status in (
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.ASSIGNED,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.PICKING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.PACKING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.READY_FOR_LOADING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.LOADING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.IN_TRANSIT,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.RETURNING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.RESCHEDULED
+                        )
+                        and availabilityTransport.departureTime < :availableTo
+                        and availabilityTransport.plannedArrivalTime > :availableFrom
+                    )
                 )
             )
             and (
@@ -184,13 +203,32 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             and (
                 :availableFrom is null
                 or :availableTo is null
-                or exists (
-                    select 1
-                    from Shift s
-                    where s.employee = e
-                    and s.status in (rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE)
-                    and s.startTime <= :availableFrom
-                    and s.endTime >= :availableTo
+                or (
+                    e.active = true
+                    and e.position = rs.logistics.logistics_system.enums.EmployeePosition.DRIVER
+                    and exists (
+                        select 1 from Shift s
+                        where s.employee = e
+                        and s.status in (rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE)
+                        and s.startTime <= :availableFrom
+                        and s.endTime >= :availableTo
+                    )
+                    and not exists (
+                        select 1 from TransportOrder availabilityTransport
+                        where availabilityTransport.assignedEmployee = e
+                        and availabilityTransport.status in (
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.ASSIGNED,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.PICKING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.PACKING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.READY_FOR_LOADING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.LOADING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.IN_TRANSIT,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.RETURNING,
+                            rs.logistics.logistics_system.enums.TransportOrderStatus.RESCHEDULED
+                        )
+                        and availabilityTransport.departureTime < :availableTo
+                        and availabilityTransport.plannedArrivalTime > :availableFrom
+                    )
                 )
             )
             and (

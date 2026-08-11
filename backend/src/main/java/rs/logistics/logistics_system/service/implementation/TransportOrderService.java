@@ -60,6 +60,7 @@ import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
 import rs.logistics.logistics_system.service.definition.DriverWorkloadServiceDefinition;
+import rs.logistics.logistics_system.service.implementation.vehicle.VehicleAvailabilityPolicy;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
@@ -89,6 +90,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final TimeServiceDefinition timeService;
     private final TaskServiceDefinition taskService;
     private final DriverWorkloadServiceDefinition driverWorkloadService;
+    private final VehicleAvailabilityPolicy vehicleAvailabilityPolicy;
     private final AuditFacadeDefinition auditFacade;
     private final LifecycleNotificationService lifecycleNotificationService;
     private final DomainEventServiceDefinition domainEventService;
@@ -1174,29 +1176,9 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
     private void refreshVehicleAvailability(Long vehicleId) {
         Vehicle vehicle = getVehicleForWorkflowUpdate(vehicleId);
-
-        boolean hasInTransitTransport = _transportOrderRepository.existsByVehicleIdAndStatusIn(
-                vehicleId,
-                lifecycleStatusClassifier.vehicleInUseTransportStatuses()
-        );
-
-        if (hasInTransitTransport) {
-            transitionVehicleByWorkflow(vehicle.getId(), VehicleStatus.IN_USE, "Synchronized with active transport workflow", "transport availability refresh");
-            return;
-        }
-
-        boolean hasReservedTransport = _transportOrderRepository.existsByVehicleIdAndStatusIn(
-                vehicleId,
-                lifecycleStatusClassifier.vehicleReservedTransportStatuses()
-        );
-
-        if (hasReservedTransport) {
-            transitionVehicleByWorkflow(vehicle.getId(), VehicleStatus.RESERVED, "Synchronized with reserved transport workflow", "transport availability refresh");
-            return;
-        }
-
-        if (vehicle.getStatus() == VehicleStatus.RESERVED || vehicle.getStatus() == VehicleStatus.IN_USE) {
-            transitionVehicleByWorkflow(vehicle.getId(), VehicleStatus.AVAILABLE, "Released by transport workflow", "transport availability refresh");
+        VehicleStatus reconciledStatus = vehicleAvailabilityPolicy.reconcileStatus(vehicleId, vehicle.getStatus());
+        if (reconciledStatus != vehicle.getStatus()) {
+            transitionVehicleByWorkflow(vehicle.getId(), reconciledStatus, "Synchronized with operational blockers", "vehicle availability reconciliation");
         }
     }
 

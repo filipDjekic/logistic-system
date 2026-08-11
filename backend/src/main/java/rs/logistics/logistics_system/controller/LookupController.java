@@ -54,12 +54,16 @@ public class LookupController {
             @RequestParam(required = false) VehicleStatus status,
             @RequestParam(required = false) Boolean availableOnly,
             @RequestParam(required = false, name = "available") Boolean legacyAvailable,
+            @RequestParam(required = false) LocalDateTime availableFrom,
+            @RequestParam(required = false) LocalDateTime availableTo,
             @PageableDefault(size = 20, sort = "registrationNumber", direction = Sort.Direction.ASC) Pageable pageable
     ) {
         return ResponseEntity.ok(lookupService.vehicles(
                 search,
                 status,
                 availableOnly != null ? availableOnly : legacyAvailable,
+                availableFrom,
+                availableTo,
                 pageable
         ));
     }

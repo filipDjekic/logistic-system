@@ -24,6 +24,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleMaintenanceServiceDefinition;
+import rs.logistics.logistics_system.service.implementation.vehicle.VehicleAvailabilityPolicy;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +37,7 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
     private final AuditFacadeDefinition auditFacade;
     private final TimeServiceDefinition timeService;
     private final LifecycleStatusClassifier lifecycleStatusClassifier;
+    private final VehicleAvailabilityPolicy vehicleAvailabilityPolicy;
 
     @Override
     @Transactional
@@ -127,14 +129,14 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
         if (maintenance.getStatus() != VehicleMaintenanceStatus.PLANNED) {
             throw new BadRequestException("Only planned maintenance can be started");
         }
-        validateVehicleCanEnterMaintenance(maintenance.getVehicle(), maintenance.getId());
+        Vehicle vehicle = getAccessibleVehicleForUpdate(maintenance.getVehicle().getId());
+        maintenance.setVehicle(vehicle);
+        validateVehicleCanEnterMaintenance(vehicle, maintenance.getId());
         maintenance.setStatus(VehicleMaintenanceStatus.IN_PROGRESS);
         maintenance.setStartedAt(timeService.nowSystem());
-        maintenance.getVehicle().setStatus(VehicleStatus.MAINTENANCE);
-        vehicleRepository.save(maintenance.getVehicle());
-        VehicleMaintenance saved = maintenanceRepository.save(maintenance);
+        VehicleMaintenance saved = maintenanceRepository.saveAndFlush(maintenance);
+        reconcileVehicleStatus(vehicle);
         auditFacade.recordStatusChange("VEHICLE_MAINTENANCE", saved.getId(), "status", VehicleMaintenanceStatus.PLANNED, VehicleMaintenanceStatus.IN_PROGRESS);
-        auditFacade.recordStatusChange("VEHICLE", maintenance.getVehicle().getId(), "status", VehicleStatus.AVAILABLE, VehicleStatus.MAINTENANCE);
         return VehicleMaintenanceMapper.toResponse(saved);
     }
 
@@ -145,12 +147,12 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
         if (maintenance.getStatus() != VehicleMaintenanceStatus.IN_PROGRESS) {
             throw new BadRequestException("Only in-progress maintenance can be completed");
         }
+        Vehicle vehicle = getAccessibleVehicleForUpdate(maintenance.getVehicle().getId());
+        maintenance.setVehicle(vehicle);
         maintenance.setStatus(VehicleMaintenanceStatus.COMPLETED);
         maintenance.setCompletedAt(timeService.nowSystem());
-        maintenance.getVehicle().setStatus(VehicleStatus.AVAILABLE);
-        maintenance.getVehicle().setActive(true);
-        vehicleRepository.save(maintenance.getVehicle());
-        VehicleMaintenance saved = maintenanceRepository.save(maintenance);
+        VehicleMaintenance saved = maintenanceRepository.saveAndFlush(maintenance);
+        reconcileVehicleStatus(vehicle);
         auditFacade.recordStatusChange("VEHICLE_MAINTENANCE", saved.getId(), "status", VehicleMaintenanceStatus.IN_PROGRESS, VehicleMaintenanceStatus.COMPLETED);
         return VehicleMaintenanceMapper.toResponse(saved);
     }
@@ -162,15 +164,14 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
         if (maintenance.getStatus() == VehicleMaintenanceStatus.COMPLETED || maintenance.getStatus() == VehicleMaintenanceStatus.CANCELLED) {
             throw new BadRequestException("Completed or cancelled maintenance cannot be cancelled again");
         }
+        Vehicle vehicle = getAccessibleVehicleForUpdate(maintenance.getVehicle().getId());
+        maintenance.setVehicle(vehicle);
         VehicleMaintenanceStatus oldStatus = maintenance.getStatus();
         maintenance.setStatus(VehicleMaintenanceStatus.CANCELLED);
         maintenance.setCancelledAt(timeService.nowSystem());
         maintenance.setCancelReason(dto != null ? dto.getCancelReason() : null);
-        if (maintenance.getVehicle().getStatus() == VehicleStatus.MAINTENANCE) {
-            maintenance.getVehicle().setStatus(VehicleStatus.AVAILABLE);
-            vehicleRepository.save(maintenance.getVehicle());
-        }
-        VehicleMaintenance saved = maintenanceRepository.save(maintenance);
+        VehicleMaintenance saved = maintenanceRepository.saveAndFlush(maintenance);
+        reconcileVehicleStatus(vehicle);
         auditFacade.recordStatusChange("VEHICLE_MAINTENANCE", saved.getId(), "status", oldStatus, VehicleMaintenanceStatus.CANCELLED);
         return VehicleMaintenanceMapper.toResponse(saved);
     }
@@ -182,6 +183,30 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
         }
         return vehicleRepository.findByIdAndCompany_Id(vehicleId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+    }
+
+    private Vehicle getAccessibleVehicleForUpdate(Long vehicleId) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return vehicleRepository.findByIdForUpdate(vehicleId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+        }
+        return vehicleRepository.findByIdAndCompanyIdForUpdate(
+                        vehicleId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+    }
+
+    private void reconcileVehicleStatus(Vehicle vehicle) {
+        VehicleStatus oldStatus = vehicle.getStatus();
+        VehicleStatus reconciledStatus = vehicleAvailabilityPolicy.reconcileStatus(vehicle.getId(), oldStatus);
+        if (reconciledStatus == oldStatus) {
+            return;
+        }
+        vehicle.setStatus(reconciledStatus);
+        vehicle.setActive(reconciledStatus != VehicleStatus.OUT_OF_SERVICE);
+        vehicleRepository.save(vehicle);
+        auditFacade.recordStatusChange("VEHICLE", vehicle.getId(), "status", oldStatus, reconciledStatus);
     }
 
     private VehicleMaintenance getAccessibleMaintenance(Long id) {

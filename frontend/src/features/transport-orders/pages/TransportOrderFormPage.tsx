@@ -250,12 +250,14 @@ export default function TransportOrderFormPage({ mode }: Props) {
               <EntityLookupField label="Source warehouse" entityType="warehouses" value={sourceWarehouse} onChange={setSourceWarehouse} required disabled={isSubmitting} error={submitted && !sourceWarehouse} helperText={submitted && !sourceWarehouse ? 'Source warehouse is required.' : undefined} disabledOptionIds={destinationWarehouse ? [destinationWarehouse.id] : []} searchPlaceholder="Search warehouses..." />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
-              <EntityLookupField label="Destination warehouse" entityType="warehouses" value={destinationWarehouse} onChange={setDestinationWarehouse} required disabled={isSubmitting} error={submitted && !destinationWarehouse} helperText={submitted && !destinationWarehouse ? 'Destination warehouse is required.' : undefined} disabledOptionIds={sourceWarehouse ? [sourceWarehouse.id] : []} searchPlaceholder="Search warehouses..." />
+              <EntityLookupField label="Destination warehouse" entityType="warehouses" value={destinationWarehouse} onChange={setDestinationWarehouse} required disabled={isSubmitting} error={submitted && !destinationWarehouse} helperText={submitted && !destinationWarehouse ? 'Destination warehouse is required.' : undefined} disabledOptionIds={sourceWarehouse ? [sourceWarehouse.id] : []} searchPlaceholder="Search warehouses..." accessMode="select" />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
               <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicle} onChange={setVehicle} required disabled={isSubmitting} error={submitted && !vehicle} helperText={submitted && !vehicle ? 'Vehicle is required.' : undefined} searchPlaceholder="Search vehicles..." lookupParams={{
                 status: 'AVAILABLE',
                 availableOnly: true,
+                availableFrom: departureTime || undefined,
+                availableTo: plannedArrivalTime || undefined,
               }}  />
             </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>

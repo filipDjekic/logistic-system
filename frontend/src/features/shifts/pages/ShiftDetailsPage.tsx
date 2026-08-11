@@ -4,6 +4,7 @@ import { Button, Grid, Typography } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
+import { canCancelShiftDueToSickness, canManageShifts as hasShiftManagementCapability } from '../../../core/permissions/operationGuards';
 import { invalidateShiftState } from '../../../core/utils/invalidateAppState';
 import { formatTemporalView } from '../../../core/utils/timezoneFormat';
 import { normalizeApiError } from '../../../core/api/apiError';
@@ -36,12 +37,8 @@ export default function ShiftDetailsPage() {
 
   const shiftQuery = useShift(isValidShiftId ? shiftId : null);
   const saveShiftMutation = useCreateShift();
-  const canManageShifts = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
-  const canCancelDueToSickness =
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER ||
-    auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.DRIVER ||
-    auth.user?.role === ROLES.WORKER;
+  const canManageShifts = hasShiftManagementCapability(auth.user?.role);
+  const canCancelDueToSickness = canCancelShiftDueToSickness(auth.user?.role);
   const canViewHistory = auth.user?.role !== ROLES.DRIVER && auth.user?.role !== ROLES.WORKER;
 
   const employeesQuery = useQuery({

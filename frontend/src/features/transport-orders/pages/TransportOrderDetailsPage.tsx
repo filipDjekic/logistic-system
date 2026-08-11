@@ -17,8 +17,7 @@ import {
   canManageTransportOrders,
   canReadTransportOrderStatusTransitions,
   canMutateTransportOrderItems,
-  filterAllowedStatusesByRole,
-  getAllowedTransportOrderStatusTransitions,
+  resolveBackendAllowedStatuses,
 } from "../../../core/permissions/operationGuards";
 import SectionCard from "../../../shared/components/SectionCard/SectionCard";
 import { StickyMobileActions } from "../../../shared/components/Mobile";
@@ -380,18 +379,7 @@ export default function TransportOrderDetailsPage() {
     relatedStockMovementsQuery,
   ]);
 
-  const fallbackNextStatuses = transportOrder?.allowedNextStatuses?.length
-    ? transportOrder.allowedNextStatuses
-    : transportOrder
-      ? getAllowedTransportOrderStatusTransitions(
-          currentRole,
-          transportOrder.status,
-        )
-      : [];
-  const nextStatuses = filterAllowedStatusesByRole(
-    allowedTransitionsQuery.data?.allowedStatuses,
-    fallbackNextStatuses,
-  );
+  const nextStatuses = resolveBackendAllowedStatuses(allowedTransitionsQuery.data?.allowedStatuses);
   const canChangeStatus = transportOrder != null && nextStatuses.length > 0;
   const isEditableItems = canMutateTransportOrderItems(
     currentRole,

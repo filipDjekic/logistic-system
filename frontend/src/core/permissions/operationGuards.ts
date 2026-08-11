@@ -12,17 +12,14 @@ function uniqueStatuses<TStatus extends string>(statuses: readonly TStatus[]) {
   return Array.from(new Set(statuses));
 }
 
-export function filterAllowedStatusesByRole<TStatus extends string>(
+export function resolveBackendAllowedStatuses<TStatus extends string>(
   backendAllowedStatuses: readonly TStatus[] | null | undefined,
-  roleAllowedStatuses: readonly TStatus[],
 ) {
-  const roleAllowed = new Set(roleAllowedStatuses);
-  const source = backendAllowedStatuses ?? roleAllowedStatuses;
-  return uniqueStatuses(source.filter((status) => roleAllowed.has(status)));
+  return backendAllowedStatuses == null ? [] : uniqueStatuses(backendAllowedStatuses);
 }
 
 export function canManageTransportOrders(role: Role | null | undefined) {
-  return role === ROLES.COMPANY_ADMIN || role === ROLES.DISPATCHER;
+  return hasCapability(role, CAPABILITIES.TRANSPORT_MANAGE);
 }
 
 export function canReadTransportOrderStatusTransitions(role: Role | null | undefined) {
@@ -93,10 +90,7 @@ export function canListManagedTasks(role: Role | null | undefined) {
 }
 
 export function canCreateTasks(role: Role | null | undefined) {
-  return (
-    role === ROLES.COMPANY_ADMIN ||
-    role === ROLES.HR_MANAGER
-  );
+  return hasCapability(role, CAPABILITIES.TASK_CREATE);
 }
 
 const WAREHOUSE_SIDE_TASK_TYPES = ['PICKING', 'PACKING', 'LOADING', 'UNLOADING', 'COUNTING', 'STOCK_MOVEMENT'];
@@ -232,7 +226,19 @@ export function getAllowedStockMovementLifecycleStatuses(
 }
 
 export function canManageInventoryCountLifecycle(role: Role | null | undefined) {
-  return role === ROLES.COMPANY_ADMIN || role === ROLES.WAREHOUSE_MANAGER;
+  return hasCapability(role, CAPABILITIES.INVENTORY_COUNT_MANAGE);
+}
+
+export function canManageShifts(role: Role | null | undefined) {
+  return hasCapability(role, CAPABILITIES.SHIFT_MANAGE);
+}
+
+export function canCancelShiftDueToSickness(role: Role | null | undefined) {
+  return hasCapability(role, CAPABILITIES.SHIFT_SICKNESS_CANCEL);
+}
+
+export function canManageVehicles(role: Role | null | undefined) {
+  return hasCapability(role, CAPABILITIES.VEHICLE_MANAGE);
 }
 
 export function canCountInventoryCountLines(role: Role | null | undefined) {

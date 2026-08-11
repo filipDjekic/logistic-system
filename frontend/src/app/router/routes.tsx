@@ -5,6 +5,7 @@ import AuthLayout from '../layout/AuthLayout';
 import PageLoader from '../../shared/components/Loader/PageLoader';
 import { GuestRoute, ProtectedRoute } from './guards';
 import { ROLES } from '../../core/constants/roles';
+import { CAPABILITIES, rolesForCapability } from '../../core/permissions/capabilities';
 
 const AppLayout = lazy(() => import('../layout/AppLayout'));
 const StarterPage = lazy(() => import('./StarterPage'));
@@ -155,7 +156,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.HR_MANAGER, ROLES.DISPATCHER]} />,
+    element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.SHIFT_READ_ALL)} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -356,7 +357,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.STOCK_MOVEMENT_CREATE)} />,
     children: [
       {
         element: lazyPage(<AppLayout />),

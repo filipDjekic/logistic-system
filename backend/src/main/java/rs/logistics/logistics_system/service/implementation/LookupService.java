@@ -20,6 +20,7 @@ import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.repository.BinLocationRepository;
 import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
@@ -30,6 +31,8 @@ import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.LookupServiceDefinition;
+import rs.logistics.logistics_system.service.definition.DriverWorkloadServiceDefinition;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.service.support.PageableSortMapper;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
@@ -53,6 +56,8 @@ public class LookupService implements LookupServiceDefinition {
     private final CompanyRepository companyRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final WarehouseAccessGuard warehouseAccessGuard;
+    private final DriverWorkloadServiceDefinition driverWorkloadService;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     private static final int MAX_SEARCH_LENGTH = 80;
 
@@ -62,7 +67,9 @@ public class LookupService implements LookupServiceDefinition {
         String normalizedSearch = normalize(search);
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
         Page<Warehouse> page;
-        if ("mutate".equalsIgnoreCase(accessMode) || "mutation".equalsIgnoreCase(accessMode)) {
+        if ("select".equalsIgnoreCase(accessMode) || "reference".equalsIgnoreCase(accessMode)) {
+            page = warehouseRepository.search(currentCompanyScope(), normalizedSearch, searchId, null, true, null, safePageable);
+        } else if ("mutate".equalsIgnoreCase(accessMode) || "mutation".equalsIgnoreCase(accessMode)) {
             List<Long> warehouseIds = warehouseAccessGuard.mutationWarehouseIdsForScopedUser();
             page = warehouseIds == null
                     ? warehouseRepository.search(currentCompanyScope(), normalizedSearch, searchId, null, true, null, safePageable)
@@ -97,12 +104,28 @@ public class LookupService implements LookupServiceDefinition {
             String search,
             VehicleStatus status,
             Boolean available,
+            LocalDateTime availableFrom,
+            LocalDateTime availableTo,
             Pageable pageable
     ) {
+        validateAvailabilityWindow(availableFrom, availableTo);
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "registrationNumber"));
         String normalizedSearch = normalize(search);
 
-        Page<Vehicle> page = vehicleRepository.searchVehicles(
+        Page<Vehicle> page = Boolean.TRUE.equals(available)
+                ? vehicleRepository.searchSelectableVehicles(
+                        currentCompanyScope(),
+                        normalizedSearch,
+                        QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
+                        QueryParameterNormalizer.parseIntegerOrNull(normalizedSearch),
+                        status,
+                        availableFrom,
+                        availableTo,
+                        lifecycleStatusClassifier.scheduleBlockingTransportStatuses(),
+                        lifecycleStatusClassifier.activeVehicleMaintenanceStatuses(),
+                        safePageable
+                )
+                : vehicleRepository.searchVehicles(
                 currentCompanyScope(),
                 null,
                 normalizedSearch,
@@ -110,7 +133,7 @@ public class LookupService implements LookupServiceDefinition {
                 QueryParameterNormalizer.parseIntegerOrNull(normalizedSearch),
                 status,
                 null,
-                available,
+                null,
                 null,
                 null,
                 safePageable
@@ -129,6 +152,7 @@ public class LookupService implements LookupServiceDefinition {
             LocalDateTime availableTo,
             Pageable pageable
     ) {
+        validateAvailabilityWindow(availableFrom, availableTo);
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "lastName"));
         String normalizedSearch = normalize(search);
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
@@ -158,7 +182,10 @@ public class LookupService implements LookupServiceDefinition {
                         safePageable
                 );
 
-        return PageResponse.fromContent(page.getContent().stream().map(this::employeeOption).toList(), page);
+        List<Employee> selectableEmployees = page.getContent().stream()
+                .filter(employee -> isSelectableDriver(employee, position, availableFrom, availableTo))
+                .toList();
+        return PageResponse.fromContent(selectableEmployees.stream().map(this::employeeOption).toList(), page);
     }
 
     @Override
@@ -338,6 +365,28 @@ public class LookupService implements LookupServiceDefinition {
         }
         String normalized = search.trim();
         return normalized.length() > MAX_SEARCH_LENGTH ? normalized.substring(0, MAX_SEARCH_LENGTH) : normalized;
+    }
+
+    private void validateAvailabilityWindow(LocalDateTime availableFrom, LocalDateTime availableTo) {
+        if ((availableFrom == null) != (availableTo == null)) {
+            throw new BadRequestException("Both availableFrom and availableTo are required");
+        }
+        if (availableFrom != null && !availableFrom.isBefore(availableTo)) {
+            throw new BadRequestException("availableFrom must be before availableTo");
+        }
+    }
+
+    private boolean isSelectableDriver(Employee employee, EmployeePosition position,
+                                       LocalDateTime availableFrom, LocalDateTime availableTo) {
+        if (availableFrom == null || availableTo == null || position != EmployeePosition.DRIVER) {
+            return true;
+        }
+        try {
+            driverWorkloadService.validateDriverCanTakeTransport(employee.getId(), availableFrom, availableTo, null);
+            return true;
+        } catch (BadRequestException ignored) {
+            return false;
+        }
     }
 
     private LookupOptionResponse warehouseOption(Warehouse warehouse) {
