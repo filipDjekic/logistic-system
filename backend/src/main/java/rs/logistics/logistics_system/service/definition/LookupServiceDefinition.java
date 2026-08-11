@@ -46,7 +46,9 @@ public interface LookupServiceDefinition {
 
     PageResponse<LookupOptionResponse> stockMovements(String search, Pageable pageable);
 
-    PageResponse<LookupOptionResponse> binLocations(String search, Long warehouseId, Boolean activeOnly, Pageable pageable);
+    PageResponse<LookupOptionResponse> binLocations(String search, Long warehouseId, Long zoneId, Boolean activeOnly, Pageable pageable);
+
+    PageResponse<LookupOptionResponse> warehouseZones(String search, Long warehouseId, Boolean activeOnly, Pageable pageable);
 
     PageResponse<LookupOptionResponse> companies(String search, Pageable pageable);
 }

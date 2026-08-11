@@ -1,47 +1,15 @@
 @echo off
-SET BACKEND_PATH=backend
-SET FRONTEND_PATH=frontend
-SET JAR_NAME=logistics-system-0.0.1-SNAPSHOT.jar
+setlocal
 
-echo [1/4] Testiranje i pakovanje backenda...
-cd %BACKEND_PATH%
-if exist .env (
-    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
-        if not "%%A"=="" set "%%A=%%B"
-    )
-)
-call mvnw.cmd clean package
-if %ERRORLEVEL% NEQ 0 (
-    echo [GRESKA] Backend build/test nije uspeo!
-    pause
-    exit /b %ERRORLEVEL%
+where docker >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Docker CLI is not available in PATH.
+    exit /b 1
 )
 
-echo [2/4] Testiranje frontenda...
-cd ..\%FRONTEND_PATH%
+pushd "%~dp0"
+docker compose up --build
+set "EXIT_CODE=%ERRORLEVEL%"
+popd
 
-if not exist node_modules (
-    echo Instaliranje frontend dependencies...
-    call npm install
-)
-
-call npm test
-if %ERRORLEVEL% NEQ 0 (
-    echo [GRESKA] Frontend testovi nisu prosli!
-    pause
-    exit /b %ERRORLEVEL%
-)
-
-echo [3/4] Pokretanje backenda...
-cd ..\%BACKEND_PATH%
-start "Backend - Logistics System" java -jar target\%JAR_NAME%
-
-echo Cekanje da se backend inicijalizuje...
-timeout /t 10 /nobreak
-
-echo [4/4] Pokretanje frontenda...
-cd ..\%FRONTEND_PATH%
-start "Frontend - React/Vite" npm run dev
-
-echo SVE JE POKRENUTO!
-pause
+exit /b %EXIT_CODE%

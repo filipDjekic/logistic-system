@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { EntityLookupDialog } from './EntityLookupDialog';
 import type { LookupEntityType, LookupOption, LookupParams } from '../types/lookup.types';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
+import { useEntityLookup } from '../hooks/useEntityLookup';
 
 export type EntityLookupFieldProps = {
   label: string;
@@ -48,6 +49,14 @@ export function EntityLookupField({
   lookupParams,
 }: EntityLookupFieldProps) {
   const [open, setOpen] = useState(false);
+  const resolvedValueQuery = useEntityLookup(
+    entityType,
+    { search: value ? String(value.id) : undefined, page: 0, size: 10 },
+    Boolean(value?.id),
+  );
+  const resolvedValue = value
+    ? resolvedValueQuery.data?.content.find((option) => option.id === value.id) ?? value
+    : null;
 
   return (
     <Box>
@@ -85,17 +94,17 @@ export function EntityLookupField({
         }}
       >
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          {value ? (
+          {resolvedValue ? (
             <Stack spacing={0.25}>
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                 <Typography variant="body2" fontWeight={700} noWrap>
-                  {value.label}
+                  {resolvedValue.label}
                 </Typography>
-                {value.status ? <StatusChip value={value.status} /> : null}
+                {resolvedValue.status ? <StatusChip value={resolvedValue.status} /> : null}
               </Stack>
-              {value.subtitle ? (
+              {resolvedValue.subtitle ? (
                 <Typography variant="caption" color="text.secondary" noWrap>
-                  {value.subtitle}
+                  {resolvedValue.subtitle}
                 </Typography>
               ) : null}
             </Stack>
@@ -107,7 +116,7 @@ export function EntityLookupField({
         </Box>
 
         <Stack direction="row" spacing={1} justifyContent="flex-end">
-          {value ? (
+          {resolvedValue ? (
             <IconButton
               size="small"
               aria-label={`Clear ${label}`}
@@ -122,7 +131,7 @@ export function EntityLookupField({
           ) : null}
           <Button
             size="small"
-            variant={value ? 'outlined' : 'contained'}
+            variant={resolvedValue ? 'outlined' : 'contained'}
             startIcon={<SearchIcon />}
             disabled={disabled}
             onClick={(event) => {
@@ -130,7 +139,7 @@ export function EntityLookupField({
               setOpen(true);
             }}
           >
-            {value ? 'Change' : 'Choose'}
+            {resolvedValue ? 'Change' : 'Choose'}
           </Button>
         </Stack>
       </Stack>
@@ -141,7 +150,7 @@ export function EntityLookupField({
         open={open}
         title={dialogTitle ?? `Choose ${label}`}
         entityType={entityType}
-        value={value}
+        value={resolvedValue}
         onClose={() => setOpen(false)}
         onSelect={onChange}
         searchPlaceholder={searchPlaceholder}

@@ -122,7 +122,9 @@ export function EntityLookupDialog({
           selectedLabel={value?.label ?? null}
           onSelect={handleSelect}
           getSelectDisabled={(option) =>
-            disabledOptionIds.includes(option.id) || nonSelectableStatuses.has((option.status ?? '').toUpperCase())
+            Boolean(option.disabled)
+            || disabledOptionIds.includes(option.id)
+            || nonSelectableStatuses.has((option.status ?? '').toUpperCase())
           }
           loading={lookupQuery.isFetching}
           error={lookupQuery.error ? getErrorMessage(lookupQuery.error) : null}

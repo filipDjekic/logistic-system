@@ -64,13 +64,13 @@ export default function InventoryCountsPage() {
   });
   const zonesQuery = useQuery({
     queryKey: ['warehouse-locations', 'zones', { warehouseId: selectedWarehouse?.id }],
-    queryFn: () => warehouseLocationsApi.zones({ warehouseId: selectedWarehouse!.id, size: 500 }),
+    queryFn: () => warehouseLocationsApi.zones({ warehouseId: selectedWarehouse!.id, size: 1 }),
     enabled: Boolean(selectedWarehouse?.id),
     staleTime: 30_000,
   });
   const binsQuery = useQuery({
     queryKey: ['warehouse-locations', 'bins', { warehouseId: selectedWarehouse?.id }],
-    queryFn: () => warehouseLocationsApi.bins({ warehouseId: selectedWarehouse!.id, size: 1000 }),
+    queryFn: () => warehouseLocationsApi.bins({ warehouseId: selectedWarehouse!.id, size: 1 }),
     enabled: Boolean(selectedWarehouse?.id),
     staleTime: 30_000,
   });

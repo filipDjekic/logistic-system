@@ -90,6 +90,10 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
 
   const transfer = movementType === 'TRANSFER_OUT';
   const adjustment = movementType === 'ADJUSTMENT';
+  const requiresExistingStock = movementType === 'OUTBOUND'
+    || movementType === 'TRANSFER_OUT'
+    || movementType === 'WRITE_OFF'
+    || (movementType === 'ADJUSTMENT' && adjustmentDirection === 'DECREASE');
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
@@ -99,7 +103,13 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
           <Typography variant="body2" color="text.secondary">
             This creates a request for your scoped warehouse. A warehouse manager must approve it before a real stock movement is created.
           </Typography>
-          <TextField select label="Movement type" value={movementType} onChange={(event) => setMovementType(event.target.value as RequestMovementType)} fullWidth>
+          <TextField select label="Movement type" value={movementType} onChange={(event) => {
+            setMovementType(event.target.value as RequestMovementType);
+            setProduct(null);
+            setDestinationWarehouse(null);
+            setBinLocation(null);
+            setDestinationBinLocation(null);
+          }} fullWidth>
             {movementTypes.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
           </TextField>
           <EntityLookupField
@@ -111,6 +121,7 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
             disabledOptionIds={destinationWarehouse ? [destinationWarehouse.id] : []}
             onChange={(value) => {
               setWarehouse(value);
+              setProduct(null);
               setBinLocation(null);
             }}
             searchPlaceholder="Search assigned warehouses..."
@@ -136,12 +147,18 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
             value={product}
             required
             activeOnly
+            warehouseId={requiresExistingStock ? warehouse?.id : undefined}
+            disabled={requiresExistingStock && !warehouse}
+            placeholder={requiresExistingStock && !warehouse ? 'Choose warehouse first' : 'Not selected'}
             onChange={setProduct}
             searchPlaceholder="Search products..."
           />
           <TextField label="Quantity" type="number" value={quantity} onChange={(event) => setQuantity(event.target.value)} fullWidth inputProps={{ min: 0, step: '0.01' }} />
           {adjustment ? (
-            <TextField select label="Adjustment direction" value={adjustmentDirection} onChange={(event) => setAdjustmentDirection(event.target.value as StockAdjustmentDirection)} fullWidth>
+            <TextField select label="Adjustment direction" value={adjustmentDirection} onChange={(event) => {
+              setAdjustmentDirection(event.target.value as StockAdjustmentDirection);
+              setProduct(null);
+            }} fullWidth>
               <MenuItem value="INCREASE">Increase</MenuItem>
               <MenuItem value="DECREASE">Decrease</MenuItem>
             </TextField>

@@ -16,6 +16,7 @@ import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.entity.WarehouseZone;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
@@ -29,6 +30,7 @@ import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
+import rs.logistics.logistics_system.repository.WarehouseZoneRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.LookupServiceDefinition;
 import rs.logistics.logistics_system.service.definition.DriverWorkloadServiceDefinition;
@@ -47,6 +49,7 @@ import java.util.Set;
 public class LookupService implements LookupServiceDefinition {
 
     private final WarehouseRepository warehouseRepository;
+    private final WarehouseZoneRepository warehouseZoneRepository;
     private final BinLocationRepository binLocationRepository;
     private final ProductRepository productRepository;
     private final VehicleRepository vehicleRepository;
@@ -157,35 +160,24 @@ public class LookupService implements LookupServiceDefinition {
         String normalizedSearch = normalize(search);
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
 
-        Page<Employee> page = shouldLimitEmployeeLookupToManagedWarehouses()
-                ? employeeRepository.searchEmployeesForManagedWarehouses(
-                        currentCompanyScope(),
-                        currentEmployeeIdOrNotFound(),
-                        normalizedSearch,
-                        searchId,
-                        position,
-                        active,
-                        linkedUser,
-                        availableFrom,
-                        availableTo,
-                        safePageable
-                )
-                : employeeRepository.searchEmployees(
-                        currentCompanyScope(),
-                        normalizedSearch,
-                        searchId,
-                        position,
-                        active,
-                        linkedUser,
-                        availableFrom,
-                        availableTo,
-                        safePageable
-                );
+        Page<Employee> page = employeeRepository.searchEmployees(
+                currentCompanyScope(),
+                normalizedSearch,
+                searchId,
+                position,
+                active,
+                linkedUser,
+                availableFrom,
+                availableTo,
+                safePageable
+        );
 
-        List<Employee> selectableEmployees = page.getContent().stream()
-                .filter(employee -> isSelectableDriver(employee, position, availableFrom, availableTo))
-                .toList();
-        return PageResponse.fromContent(selectableEmployees.stream().map(this::employeeOption).toList(), page);
+        return PageResponse.fromContent(page.getContent().stream()
+                .map(employee -> employeeOption(
+                        employee,
+                        !isSelectableDriver(employee, position, availableFrom, availableTo)
+                ))
+                .toList(), page);
     }
 
     @Override
@@ -200,21 +192,12 @@ public class LookupService implements LookupServiceDefinition {
         Long driverUserId = authenticatedUserProvider.hasRole("DRIVER") ? authenticatedUserProvider.getAuthenticatedUserId() : null;
         Long workerEmployeeId = authenticatedUserProvider.hasRole("WORKER") ? currentEmployeeIdOrNotFound() : null;
 
-        boolean warehouseScopeEnabled = authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                && !authenticatedUserProvider.hasRole("DISPATCHER")
-                && !authenticatedUserProvider.isCompanyAdmin()
-                && !authenticatedUserProvider.isOverlord();
-
-        List<Long> warehouseManagerWarehouseIds = warehouseScopeEnabled
-                ? warehouseAccessGuard.assignedWarehouseIdsForScopedUser()
-                : List.of(-1L);
-
         Page<TransportOrder> page = transportOrderRepository.searchTransportOrders(
                 currentCompanyScope(),
                 driverUserId,
                 workerEmployeeId,
-                warehouseScopeEnabled,
-                warehouseManagerWarehouseIds,
+                false,
+                List.of(-1L),
                 null,
                 null,
                 excludeStatuses == null || excludeStatuses.isEmpty() ? null : excludeStatuses,
@@ -296,7 +279,7 @@ public class LookupService implements LookupServiceDefinition {
     }
 
     @Override
-    public PageResponse<LookupOptionResponse> binLocations(String search, Long warehouseId, Boolean activeOnly, Pageable pageable) {
+    public PageResponse<LookupOptionResponse> binLocations(String search, Long warehouseId, Long zoneId, Boolean activeOnly, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "code"));
         List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
         Page<BinLocation> page;
@@ -307,7 +290,7 @@ public class LookupService implements LookupServiceDefinition {
                     currentCompanyScope(),
                     warehouseIds,
                     warehouseId,
-                    null,
+                    zoneId,
                     Boolean.TRUE.equals(activeOnly) ? Boolean.TRUE : null,
                     null,
                     normalize(search),
@@ -317,7 +300,7 @@ public class LookupService implements LookupServiceDefinition {
             page = binLocationRepository.search(
                     currentCompanyScope(),
                     warehouseId,
-                    null,
+                    zoneId,
                     Boolean.TRUE.equals(activeOnly) ? Boolean.TRUE : null,
                     null,
                     normalize(search),
@@ -325,6 +308,29 @@ public class LookupService implements LookupServiceDefinition {
             );
         }
         return PageResponse.fromContent(page.getContent().stream().map(this::binLocationOption).toList(), page);
+    }
+
+    @Override
+    public PageResponse<LookupOptionResponse> warehouseZones(String search, Long warehouseId, Boolean activeOnly, Pageable pageable) {
+        Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "code"));
+        List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+        Page<WarehouseZone> page;
+        if (warehouseIds != null) {
+            page = warehouseIds.isEmpty()
+                    ? Page.empty(safePageable)
+                    : warehouseZoneRepository.searchAssigned(
+                            currentCompanyScope(), warehouseIds, warehouseId,
+                            Boolean.TRUE.equals(activeOnly) ? Boolean.TRUE : null,
+                            null, normalize(search), safePageable
+                    );
+        } else {
+            page = warehouseZoneRepository.search(
+                    currentCompanyScope(), warehouseId,
+                    Boolean.TRUE.equals(activeOnly) ? Boolean.TRUE : null,
+                    null, normalize(search), safePageable
+            );
+        }
+        return PageResponse.fromContent(page.getContent().stream().map(this::warehouseZoneOption).toList(), page);
     }
 
     @Override
@@ -352,13 +358,6 @@ public class LookupService implements LookupServiceDefinition {
                 && !authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER");
     }
 
-    private boolean shouldLimitEmployeeLookupToManagedWarehouses() {
-        return authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                && !authenticatedUserProvider.isOverlord()
-                && !authenticatedUserProvider.isCompanyAdmin()
-                && !authenticatedUserProvider.hasRole("HR_MANAGER");
-    }
-
     private String normalize(String search) {
         if (search == null || search.trim().isEmpty()) {
             return null;
@@ -373,19 +372,6 @@ public class LookupService implements LookupServiceDefinition {
         }
         if (availableFrom != null && !availableFrom.isBefore(availableTo)) {
             throw new BadRequestException("availableFrom must be before availableTo");
-        }
-    }
-
-    private boolean isSelectableDriver(Employee employee, EmployeePosition position,
-                                       LocalDateTime availableFrom, LocalDateTime availableTo) {
-        if (availableFrom == null || availableTo == null || position != EmployeePosition.DRIVER) {
-            return true;
-        }
-        try {
-            driverWorkloadService.validateDriverCanTakeTransport(employee.getId(), availableFrom, availableTo, null);
-            return true;
-        } catch (BadRequestException ignored) {
-            return false;
         }
     }
 
@@ -410,9 +396,32 @@ public class LookupService implements LookupServiceDefinition {
     }
 
     private LookupOptionResponse employeeOption(Employee employee) {
+        return employeeOption(employee, false);
+    }
+
+    private LookupOptionResponse employeeOption(Employee employee, boolean disabled) {
         String label = joinNonBlank(employee.getFirstName(), employee.getLastName());
         String subtitle = joinNonBlank(employee.getPosition() != null ? employee.getPosition().name() : null, employee.getEmail());
-        return new LookupOptionResponse(employee.getId(), label, subtitle, Boolean.TRUE.equals(employee.getActive()) ? "ACTIVE" : "INACTIVE");
+        return new LookupOptionResponse(
+                employee.getId(),
+                label,
+                subtitle,
+                Boolean.TRUE.equals(employee.getActive()) ? "ACTIVE" : "INACTIVE",
+                disabled || !Boolean.TRUE.equals(employee.getActive())
+        );
+    }
+
+    private boolean isSelectableDriver(Employee employee, EmployeePosition position,
+                                       LocalDateTime availableFrom, LocalDateTime availableTo) {
+        if (availableFrom == null || availableTo == null || position != EmployeePosition.DRIVER) {
+            return true;
+        }
+        try {
+            driverWorkloadService.validateDriverCanTakeTransport(employee.getId(), availableFrom, availableTo, null);
+            return true;
+        } catch (BadRequestException ignored) {
+            return false;
+        }
     }
 
     private LookupOptionResponse transportOrderOption(TransportOrder transportOrder) {
@@ -445,6 +454,18 @@ public class LookupService implements LookupServiceDefinition {
                 joinNonBlank(binLocation.getCode(), binLocation.getName()),
                 subtitle,
                 Boolean.TRUE.equals(binLocation.getActive()) ? "ACTIVE" : "INACTIVE"
+        );
+    }
+
+    private LookupOptionResponse warehouseZoneOption(WarehouseZone zone) {
+        return new LookupOptionResponse(
+                zone.getId(),
+                joinNonBlank(zone.getCode(), zone.getName()),
+                joinNonBlank(
+                        zone.getWarehouse() != null ? zone.getWarehouse().getName() : null,
+                        zone.getType() != null ? zone.getType().name() : null
+                ),
+                Boolean.TRUE.equals(zone.getActive()) ? "ACTIVE" : "INACTIVE"
         );
     }
 

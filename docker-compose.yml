@@ -1,0 +1,90 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-CU25-ubuntu-22.04
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD:?Copy .env.example to .env and set DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-1433}:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -C -b -Q "SELECT 1" >/dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-CU25-ubuntu-22.04
+    environment:
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD:?Copy .env.example to .env and set DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-Logistics}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./docker/sql/init-database.sql:/docker-entrypoint-initdb.d/init-database.sql:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >-
+        /opt/mssql-tools18/bin/sqlcmd
+        -S db -U sa -P "$${MSSQL_SA_PASSWORD}" -C -b
+        -v DB_NAME="$${DB_NAME}"
+        -i /docker-entrypoint-initdb.d/init-database.sql
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:sqlserver://db:1433;databaseName=${DB_NAME:-Logistics};encrypt=true;trustServerCertificate=true
+      DB_USERNAME: ${DB_USERNAME:-sa}
+      DB_PASSWORD: ${DB_PASSWORD:?Copy .env.example to .env and set DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Copy .env.example to .env and set JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-5173}
+      LOGISTICS_ATTACHMENTS_STORAGE_DIRECTORY: /app/uploads/operational-attachments
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - attachment-data:/app/uploads
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_APP_NAME: ${VITE_APP_NAME:-Logistics management system}
+      VITE_API_BASE_URL: /
+      VITE_PROXY_TARGET: http://backend:8080
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: sh -c "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort"
+
+volumes:
+  sqlserver-data:
+  attachment-data:
+  frontend-node-modules:

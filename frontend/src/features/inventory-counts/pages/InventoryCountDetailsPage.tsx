@@ -32,7 +32,7 @@ import {
 } from '../../../core/permissions/operationGuards';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import { lookupApi } from '../../lookup/api/lookupApi';
-import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
+import { EntityLookupField, type LookupOption } from '../../lookup';
 import { inventoryCountsApi } from '../api/inventoryCountsApi';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import type { InventoryCountLineResponse, InventoryCountSessionStatus } from '../types/inventoryCount.types';
@@ -83,8 +83,8 @@ export default function InventoryCountDetailsPage() {
   const [editingLine, setEditingLine] = useState<InventoryCountLineResponse | null>(null);
   const [countedQuantity, setCountedQuantity] = useState('');
   const [note, setNote] = useState('');
-  const [zoneFilter, setZoneFilter] = useState('');
-  const [binFilter, setBinFilter] = useState('');
+  const [zoneFilter, setZoneFilter] = useState<LookupOption | null>(null);
+  const [binFilter, setBinFilter] = useState<LookupOption | null>(null);
   const [search, setSearch] = useState('');
   const [lineStatusFilter, setLineStatusFilter] = useState<InventoryCountLineStatusFilter | ''>('');
   const [linesPage, setLinesPage] = useState(0);
@@ -112,8 +112,8 @@ export default function InventoryCountDetailsPage() {
       size: linesSize,
       sort: 'product.name,asc',
       search: search.trim() || undefined,
-      zoneId: zoneFilter ? Number(zoneFilter) : undefined,
-      binLocationId: binFilter ? Number(binFilter) : undefined,
+      zoneId: zoneFilter?.id,
+      binLocationId: binFilter?.id,
       status: lineStatusFilter || undefined,
     }),
     enabled: Number.isFinite(id) && Boolean(session),
@@ -128,23 +128,13 @@ export default function InventoryCountDetailsPage() {
 
   const mutableWarehousesQuery = useQuery({
     queryKey: ['warehouses', 'lookup', 'mutate', { sessionWarehouseId: session?.warehouseId }],
-    queryFn: () => lookupApi.getOptions('warehouses', { accessMode: 'mutate', size: 1000 }),
+    queryFn: () => lookupApi.getOptions('warehouses', {
+      accessMode: 'mutate',
+      search: session ? String(session.warehouseId) : undefined,
+      size: 10,
+    }),
     enabled: Boolean(session?.warehouseId) && userRole !== ROLES.OVERLORD,
     staleTime: 60_000,
-  });
-
-  const zonesQuery = useQuery({
-    queryKey: ['warehouse-locations', 'zones', { warehouseId: session?.warehouseId }],
-    queryFn: () => warehouseLocationsApi.zones({ warehouseId: session!.warehouseId, size: 500 }),
-    enabled: Boolean(session?.warehouseId),
-    staleTime: 30_000,
-  });
-
-  const binsQuery = useQuery({
-    queryKey: ['warehouse-locations', 'bins', { warehouseId: session?.warehouseId, zoneId: zoneFilter || undefined }],
-    queryFn: () => warehouseLocationsApi.bins({ warehouseId: session!.warehouseId, zoneId: zoneFilter ? Number(zoneFilter) : undefined, size: 1000 }),
-    enabled: Boolean(session?.warehouseId),
-    staleTime: 30_000,
   });
 
   const invalidate = () => {
@@ -184,8 +174,6 @@ export default function InventoryCountDetailsPage() {
     },
   });
 
-  const zones = zonesQuery.data?.content ?? [];
-  const bins = binsQuery.data?.content ?? [];
   const allowed = resolveBackendAllowedStatuses(
     allowedTransitionsQuery.data?.allowedStatuses as InventoryCountSessionStatus[] | undefined,
   );
@@ -300,14 +288,8 @@ export default function InventoryCountDetailsPage() {
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField label="Search product/bin" value={search} onChange={(event) => { setSearch(event.target.value); setLinesPage(0); }} fullWidth />
-              <TextField select label="Zone" value={zoneFilter} onChange={(event) => { setZoneFilter(event.target.value); setBinFilter(''); setLinesPage(0); }} fullWidth>
-                <MenuItem value="">All zones</MenuItem>
-                {zones.map((zone) => <MenuItem key={zone.id} value={zone.id}>{zone.code} · {zone.name}</MenuItem>)}
-              </TextField>
-              <TextField select label="Bin" value={binFilter} onChange={(event) => { setBinFilter(event.target.value); setLinesPage(0); }} fullWidth>
-                <MenuItem value="">All bins</MenuItem>
-                {bins.map((bin) => <MenuItem key={bin.id} value={bin.id}>{bin.code} · {bin.name}</MenuItem>)}
-              </TextField>
+              <EntityLookupField label="Zone" entityType="warehouse-zones" value={zoneFilter} warehouseId={session.warehouseId} activeOnly placeholder="All zones" onChange={(value) => { setZoneFilter(value); setBinFilter(null); setLinesPage(0); }} />
+              <EntityLookupField label="Bin" entityType="bin-locations" value={binFilter} warehouseId={session.warehouseId} activeOnly lookupParams={{ zoneId: zoneFilter?.id }} placeholder="All bins" onChange={(value) => { setBinFilter(value); setLinesPage(0); }} />
               <TextField select label="Line status" value={lineStatusFilter} onChange={(event) => { setLineStatusFilter(event.target.value as InventoryCountLineStatusFilter | ''); setLinesPage(0); }} fullWidth>
                 <MenuItem value="">All lines</MenuItem>
                 <MenuItem value="UNCOUNTED">Uncounted</MenuItem>

@@ -125,10 +125,22 @@ public class LookupController {
     public ResponseEntity<PageResponse<LookupOptionResponse>> binLocations(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long zoneId,
             @RequestParam(defaultValue = "true") Boolean activeOnly,
             @PageableDefault(size = 20, sort = "code", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return ResponseEntity.ok(lookupService.binLocations(search, warehouseId, activeOnly, pageable));
+        return ResponseEntity.ok(lookupService.binLocations(search, warehouseId, zoneId, activeOnly, pageable));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @GetMapping("/warehouse-zones/lookup")
+    public ResponseEntity<PageResponse<LookupOptionResponse>> warehouseZones(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(defaultValue = "true") Boolean activeOnly,
+            @PageableDefault(size = 20, sort = "code", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(lookupService.warehouseZones(search, warehouseId, activeOnly, pageable));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")

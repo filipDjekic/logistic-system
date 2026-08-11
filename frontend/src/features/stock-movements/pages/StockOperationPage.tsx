@@ -162,6 +162,11 @@ export default function StockOperationPage() {
   const isTransfer = operation === 'transfer';
   const isInternal = operation === 'internal';
   const isAdjustment = operation === 'adjustment';
+  const requiresExistingStock = operation === 'outbound'
+    || operation === 'transfer'
+    || operation === 'internal'
+    || operation === 'write-off'
+    || (operation === 'adjustment' && values.adjustmentDirection === 'DECREASE');
   const usesTransportOrder = operation === 'transfer';
   const allowsStockMovementReference = operation === 'outbound' || operation === 'write-off' || operation === 'return';
   const submitDisabled = mutation.isPending || internalMovementMutation.isPending;
@@ -463,7 +468,14 @@ export default function StockOperationPage() {
                 activeOnly
                 searchPlaceholder="Search warehouses by name, city or code..."
                 onChange={(warehouse) => {
-                  setValues((prev) => ({ ...prev, warehouse, binLocation: null, destinationBinLocation: isInternal ? null : prev.destinationBinLocation }));
+                  setValues((prev) => ({
+                    ...prev,
+                    warehouse,
+                    product: requiresExistingStock ? null : prev.product,
+                    binLocation: null,
+                    destinationBinLocation: isInternal ? null : prev.destinationBinLocation,
+                    transportOrder: isTransfer ? null : prev.transportOrder,
+                  }));
                   setErrors((prev) => ({ ...prev, warehouse: undefined, binLocation: undefined }));
                 }}
               />
@@ -496,6 +508,9 @@ export default function StockOperationPage() {
                 value={values.product}
                 required
                 activeOnly
+                warehouseId={requiresExistingStock ? values.warehouse?.id : undefined}
+                disabled={requiresExistingStock && !values.warehouse}
+                placeholder={requiresExistingStock && !values.warehouse ? 'Choose source warehouse first' : 'Not selected'}
                 searchPlaceholder="Search products by name or SKU..."
                 onChange={(product) => {
                   setValues((prev) => ({ ...prev, product }));
@@ -596,6 +611,7 @@ export default function StockOperationPage() {
                     setValues((prev) => ({
                       ...prev,
                       adjustmentDirection: event.target.value === 'DECREASE' ? 'DECREASE' : 'INCREASE',
+                      product: null,
                     }))
                   }
                 >

@@ -5,6 +5,7 @@ export type LookupEntityType =
   | 'employees'
   | 'transport-orders'
   | 'stock-movements'
+  | 'warehouse-zones'
   | 'bin-locations'
   | 'companies';
 
@@ -13,6 +14,7 @@ export type LookupOption = {
   label: string;
   subtitle?: string | null;
   status?: string | null;
+  disabled?: boolean;
 };
 
 export type LookupParams = {
@@ -22,6 +24,7 @@ export type LookupParams = {
   sort?: string;
   activeOnly?: boolean;
   warehouseId?: number | string | null;
+  zoneId?: number | string | null;
   accessMode?: 'read' | 'mutate' | 'select';
   position?: string;
   status?: string;

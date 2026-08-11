@@ -231,11 +231,11 @@ export default function TransportOrderFormPage({ mode }: Props) {
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField label="Order date" type="datetime-local" value={orderDate} onChange={(event) => setOrderDate(event.target.value)} error={submitted && !orderDate} helperText={submitted && !orderDate ? 'Order date is required.' : undefined} fullWidth required disabled={isSubmitting} InputLabelProps={{ shrink: true }} />
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <TextField label="Departure time" type="datetime-local" value={departureTime} onChange={(event) => setDepartureTime(event.target.value)} error={submitted && !departureTime} helperText={submitted && !departureTime ? 'Departure time is required.' : undefined} fullWidth required disabled={isSubmitting} InputLabelProps={{ shrink: true }} />
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField label="Departure time" type="datetime-local" value={departureTime} onChange={(event) => { setDepartureTime(event.target.value); setVehicle(null); setAssignedEmployee(null); }} error={submitted && !departureTime} helperText={submitted && !departureTime ? 'Departure time is required.' : undefined} fullWidth required disabled={isSubmitting} InputLabelProps={{ shrink: true }} />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField label="Planned arrival time" type="datetime-local" value={plannedArrivalTime} onChange={(event) => setPlannedArrivalTime(event.target.value)} error={submitted && (!plannedArrivalTime || Boolean(dateTimeError))} helperText={submitted && !plannedArrivalTime ? 'Planned arrival time is required.' : submitted ? dateTimeError ?? undefined : undefined} fullWidth required disabled={isSubmitting} InputLabelProps={{ shrink: true }} />
+              <TextField label="Planned arrival time" type="datetime-local" value={plannedArrivalTime} onChange={(event) => { setPlannedArrivalTime(event.target.value); setVehicle(null); setAssignedEmployee(null); }} error={submitted && (!plannedArrivalTime || Boolean(dateTimeError))} helperText={submitted && !plannedArrivalTime ? 'Planned arrival time is required.' : submitted ? dateTimeError ?? undefined : undefined} fullWidth required disabled={isSubmitting} InputLabelProps={{ shrink: true }} />
           </Grid>
         </Grid>
       </SectionCard>
