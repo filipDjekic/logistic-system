@@ -5,17 +5,33 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    @EntityGraph(attributePaths = {"company", "company.timezone", "user", "primaryWarehouse", "primaryWarehouse.timezone"})
+    @Query("select e from Employee e where e.id = :id")
+    Optional<Employee> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    @EntityGraph(attributePaths = {"company", "company.timezone", "user", "primaryWarehouse", "primaryWarehouse.timezone"})
+    @Query("select e from Employee e where e.id = :id and e.company.id = :companyId")
+    Optional<Employee> findByIdAndCompanyIdForUpdate(@Param("id") Long id, @Param("companyId") Long companyId);
 
     boolean existsByJmbg(String jmbg);
 

@@ -14,7 +14,6 @@ import rs.logistics.logistics_system.entity.TransportOrderItem;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
-import rs.logistics.logistics_system.enums.OperationalEntityType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -30,6 +29,9 @@ import rs.logistics.logistics_system.service.definition.WarehouseInventoryServic
 import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -50,7 +52,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         validateRequestedQuantity(dto.getQuantity());
 
-        TransportOrder transportOrder = getTransportOrderOrThrow(dto.getTransportOrderId());
+        TransportOrder transportOrder = getTransportOrderForUpdateOrThrow(dto.getTransportOrderId());
 
         validateTransportOrderEditable(transportOrder);
 
@@ -90,7 +92,13 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         validateRequestedQuantity(dto.getQuantity());
 
-        TransportOrder transportOrderItemTargetOrder = getTransportOrderOrThrow(dto.getTransportOrderId());
+        TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
+        Long previousTransportOrderId = transportOrderItem.getTransportOrder().getId();
+        Map<Long, TransportOrder> lockedOrders = lockTransportOrders(
+                java.util.Arrays.asList(previousTransportOrderId, dto.getTransportOrderId())
+        );
+        TransportOrder transportOrderItemTargetOrder = lockedOrders.get(dto.getTransportOrderId());
+        TransportOrder previousTransportOrder = lockedOrders.get(previousTransportOrderId);
 
         validateTransportOrderEditable(transportOrderItemTargetOrder);
 
@@ -100,13 +108,10 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
 
         validateInventoryContextForTransportOrder(transportOrderItemTargetOrder, product);
 
-        TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
-
         if (_transportOrderItemRepository.existsByTransportOrderIdAndProductIdAndIdNot(dto.getTransportOrderId(), dto.getProductId(), id)) {
             throw new ConflictException("Transport Order Item Already Exists");
         }
 
-        TransportOrder previousTransportOrder = transportOrderItem.getTransportOrder();
         validateSharedCompanyContext(previousTransportOrder, transportOrderItem.getProduct());
 
         WarehouseInventory warehouseInventory = getWarehouseInventoryForTransportOrder(transportOrderItemTargetOrder, product);
@@ -219,7 +224,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     public void delete(Long id) {
         TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
 
-        TransportOrder transportOrder = getTransportOrderOrThrow(transportOrderItem.getTransportOrder().getId());
+        TransportOrder transportOrder = getTransportOrderForUpdateOrThrow(transportOrderItem.getTransportOrder().getId());
 
         validateTransportOrderEditable(transportOrder);
 
@@ -241,6 +246,29 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
                         transportOrderId,
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 ).orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
+    }
+
+    private TransportOrder getTransportOrderForUpdateOrThrow(Long transportOrderId) {
+        TransportOrder transportOrder = authenticatedUserProvider.isOverlord()
+                ? _transportOrderRepository.findByIdForUpdate(transportOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"))
+                : _transportOrderRepository.findByIdAndCreatedByCompanyIdForUpdate(
+                        transportOrderId,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Transport Order Not Found"));
+        operationalEntityAccessValidator.ensureCanAccess(OperationalEntityType.TRANSPORT_ORDER, transportOrderId);
+        return transportOrder;
+    }
+
+    private Map<Long, TransportOrder> lockTransportOrders(Collection<Long> transportOrderIds) {
+        Map<Long, TransportOrder> locked = new LinkedHashMap<>();
+        transportOrderIds.stream()
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .sorted()
+                .forEach(id -> locked.put(id, getTransportOrderForUpdateOrThrow(id)));
+        return locked;
     }
 
     private Product getProductOrThrow(Long productId) {
@@ -469,4 +497,3 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         }
     }
 }
-

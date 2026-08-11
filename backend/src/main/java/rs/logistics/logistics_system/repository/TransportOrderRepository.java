@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.repository;
 
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -13,6 +14,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import rs.logistics.logistics_system.entity.TransportOrder;
@@ -22,10 +24,12 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 public interface TransportOrderRepository extends JpaRepository<TransportOrder, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("select t from TransportOrder t where t.id = :id")
     Optional<TransportOrder> findByIdForUpdate(@Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("select t from TransportOrder t where t.id = :id and t.createdBy.company.id = :companyId")
     Optional<TransportOrder> findByIdAndCreatedByCompanyIdForUpdate(@Param("id") Long id, @Param("companyId") Long companyId);
 

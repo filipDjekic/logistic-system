@@ -1,5 +1,4 @@
 package rs.logistics.logistics_system.service.implementation;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
-import rs.logistics.logistics_system.dto.create.StockTransferCreate;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.create.TransportOrderCreate;
 import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
@@ -49,7 +47,6 @@ import rs.logistics.logistics_system.repository.DomainEventRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
-import rs.logistics.logistics_system.repository.TransportOrderItemRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleMaintenanceRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
@@ -57,16 +54,16 @@ import rs.logistics.logistics_system.repository.WarehouseRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
+import rs.logistics.logistics_system.service.implementation.transport.TransportAssignmentLockCoordinator;
+import rs.logistics.logistics_system.service.implementation.transport.TransportInventoryCoordinator;
 import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.DomainEventServiceDefinition;
 import rs.logistics.logistics_system.service.definition.DriverWorkloadServiceDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
-import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
-import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 
 @Service
 @RequiredArgsConstructor
@@ -74,7 +71,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
     private final TransportOrderRepository _transportOrderRepository;
     private final DomainEventRepository domainEventRepository;
-    private final TransportOrderItemRepository transportOrderItemRepository;
     private final TaskRepository taskRepository;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
     private final WarehouseRepository _warehouseRepository;
@@ -86,10 +82,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final OperationalEntityAccessValidator operationalEntityAccessValidator;
     private final LifecycleStatusClassifier lifecycleStatusClassifier;
     private final WarehouseAccessGuard warehouseAccessGuard;
+    private final TransportAssignmentLockCoordinator assignmentLockCoordinator;
+    private final TransportInventoryCoordinator transportInventoryCoordinator;
 
     private final NotificationServiceDefinition notificationService;
-    private final StockMovementServiceDefinition stockMovementService;
-    private final WarehouseInventoryServiceDefinition warehouseInventoryService;
     private final TimeServiceDefinition timeService;
     private final TaskServiceDefinition taskService;
     private final DriverWorkloadServiceDefinition driverWorkloadService;
@@ -105,8 +101,14 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         Warehouse warehouseSource = getAccessibleWarehouse(dto.getSourceWarehouseId(), "Source warehouse not found");
         Warehouse warehouseDestination = getAccessibleWarehouse(dto.getDestinationWarehouseId(), "Destination warehouse not found");
-        Vehicle vehicle = getAccessibleVehicle(dto.getVehicleId(), "Vehicle not found");
-        Employee assignedEmployee = getAccessibleEmployee(dto.getAssignedEmployeeId(), "Assigned employee not found");
+        var lockedAssignment = assignmentLockCoordinator.lockAssignment(
+                List.of(dto.getVehicleId()),
+                dto.getVehicleId(),
+                List.of(dto.getAssignedEmployeeId()),
+                dto.getAssignedEmployeeId()
+        );
+        Vehicle vehicle = lockedAssignment.vehicle();
+        Employee assignedEmployee = lockedAssignment.driver();
         User createdBy = authenticatedUserProvider.getAuthenticatedUser();
 
         validateCrossCompanyContext(warehouseSource, warehouseDestination, vehicle, assignedEmployee, createdBy);
@@ -155,7 +157,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             throw new BadRequestException("Invalid request");
         }
 
-        TransportOrder transportOrder = getTransportOrderOrThrow(id);
+        TransportOrder transportOrder = getTransportOrderForUpdateOrThrow(id);
         OptimisticLockGuard.requireExpectedVersion(dto.getExpectedVersion(), transportOrder.getVersion(), "Transport order");
 
         validateUniqueOrderNumberForUpdate(transportOrder.getId(), dto.getOrderNumber());
@@ -182,8 +184,14 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         Warehouse warehouseSource = getAccessibleWarehouse(dto.getSourceWarehouseId(), "Source warehouse not found");
         Warehouse warehouseDestination = getAccessibleWarehouse(dto.getDestinationWarehouseId(), "Destination warehouse not found");
-        Vehicle vehicle = getAccessibleVehicle(dto.getVehicleId(), "Vehicle not found");
-        Employee assignedEmployee = getAccessibleEmployee(dto.getAssignedEmployeeId(), "Assigned employee not found");
+        var lockedAssignment = assignmentLockCoordinator.lockAssignment(
+                java.util.Arrays.asList(transportOrder.getVehicle() != null ? transportOrder.getVehicle().getId() : null, dto.getVehicleId()),
+                dto.getVehicleId(),
+                java.util.Arrays.asList(transportOrder.getAssignedEmployee() != null ? transportOrder.getAssignedEmployee().getId() : null, dto.getAssignedEmployeeId()),
+                dto.getAssignedEmployeeId()
+        );
+        Vehicle vehicle = lockedAssignment.vehicle();
+        Employee assignedEmployee = lockedAssignment.driver();
 
         validateCrossCompanyContext(warehouseSource, warehouseDestination, vehicle, assignedEmployee, transportOrder.getCreatedBy());
         validateSchedule(dto.getDepartureTime(), dto.getPlannedArrivalTime());
@@ -422,6 +430,19 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     public TransportOrderResponse changeStatus(Long id, TransportOrderStatus status, String reason, Long expectedVersion) {
         TransportOrder transportOrder = getTransportOrderForUpdateOrThrow(id);
 
+        if (transportOrder.getVehicle() == null || transportOrder.getAssignedEmployee() == null) {
+            throw new BadRequestException("Transport order requires an assigned vehicle and driver before status transition");
+        }
+
+        var lockedAssignment = assignmentLockCoordinator.lockAssignment(
+                List.of(transportOrder.getVehicle().getId()),
+                transportOrder.getVehicle().getId(),
+                List.of(transportOrder.getAssignedEmployee().getId()),
+                transportOrder.getAssignedEmployee().getId()
+        );
+        transportOrder.setVehicle(lockedAssignment.vehicle());
+        transportOrder.setAssignedEmployee(lockedAssignment.driver());
+
         validateDriverStatusAccess(transportOrder, status);
         validateWarehouseManagerSourcePhaseAccess(transportOrder, status);
 
@@ -462,6 +483,11 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     transportOrder.getPlannedArrivalTime(),
                     transportOrder.getId()
             );
+            validateDriverShiftCoverage(
+                    transportOrder.getAssignedEmployee(),
+                    transportOrder.getDepartureTime(),
+                    transportOrder.getPlannedArrivalTime()
+            );
             driverWorkloadService.validateDriverCanTakeTransport(
                     transportOrder.getAssignedEmployee().getId(),
                     transportOrder.getDepartureTime(),
@@ -469,7 +495,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                     transportOrder.getId()
             );
 
-            validateReservedInventoryForOrder(transportOrder);
+            transportInventoryCoordinator.validateReservedInventory(transportOrder);
             markVehicleAsReserved(transportOrder.getVehicle());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
@@ -489,7 +515,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 || status == TransportOrderStatus.LOADING) {
             validateOperationalWarehousesForExecution(transportOrder);
             validateVehicleReservedForExecution(transportOrder);
-            validateReservedInventoryForOrder(transportOrder);
+            transportInventoryCoordinator.validateReservedInventory(transportOrder);
             validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
             createWarehouseTaskForTransportPhase(transportOrder, status);
         }
@@ -506,7 +532,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 throw new BadRequestException("Transport order must contain at least one item before transport starts");
             }
 
-            executeDispatchInventoryFlow(transportOrder);
+            transportInventoryCoordinator.dispatch(transportOrder);
             markVehicleAsInUse(transportOrder.getVehicle());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
@@ -541,7 +567,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 throw new BadRequestException("Vehicle must be IN_USE before transport can be delivered");
             }
 
-            executeDeliveryInventoryFlow(transportOrder);
+            transportInventoryCoordinator.receive(transportOrder);
             transportOrder.setActualArrivalTime(nowForTransportDestination(transportOrder));
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
@@ -573,7 +599,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 throw new BadRequestException("Only an IN_USE vehicle can be closed as failed transport");
             }
 
-            executeFailedReturnInventoryFlow(transportOrder);
+            transportInventoryCoordinator.returnFailed(transportOrder);
             transportOrder.setActualArrivalTime(nowForTransportSource(transportOrder));
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
@@ -613,7 +639,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         if (status == TransportOrderStatus.CANCELLED) {
             if (lifecycleStatusClassifier.isPreDispatchTransportStatus(current)) {
-                releaseInventoryForOrder(transportOrder);
+                transportInventoryCoordinator.releaseReservations(transportOrder);
             }
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
@@ -962,182 +988,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 current,
                 next,
                 "Transport order status cannot be changed from " + current + " to " + next
-        );
-    }
-
-    private void validateReservedInventoryForOrder(TransportOrder transportOrder) {
-        if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
-            throw new BadRequestException("Transport order must contain at least one reserved item before assignment");
-        }
-
-        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
-            validateTransportOrderItem(item);
-
-            var inventory = warehouseInventoryService.findByWarehouseAndProduct(
-                    transportOrder.getSourceWarehouse().getId(),
-                    item.getProduct().getId()
-            );
-
-            if (!item.isFullyReservedForRequestedQuantity()) {
-                throw new BadRequestException("Transport order item reservation does not match requested quantity");
-            }
-
-            if (inventory.getReservedQuantity() == null || inventory.getReservedQuantity().compareTo(item.getSafeReservedQuantity()) < 0) {
-                throw new BadRequestException("Source inventory does not contain this transport item reservation");
-            }
-        }
-    }
-
-    private void releaseInventoryForOrder(TransportOrder transportOrder) {
-        if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
-            return;
-        }
-
-        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
-            validateTransportOrderItem(item);
-
-            BigDecimal reservedByItem = item.getSafeReservedQuantity();
-            if (reservedByItem.compareTo(BigDecimal.ZERO) == 0) {
-                continue;
-            }
-
-            warehouseInventoryService.releaseReservedStock(
-                    transportOrder.getSourceWarehouse().getId(),
-                    item.getProduct().getId(),
-                    reservedByItem
-            );
-
-            item.releaseReservation();
-            transportOrderItemRepository.save(item);
-            auditTransportItemQuantity("TRANSPORT_ITEM_RESERVATION_RELEASED", item, "reservedQuantity", reservedByItem, BigDecimal.ZERO);
-        }
-    }
-
-    private void executeDispatchInventoryFlow(TransportOrder transportOrder) {
-        if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
-            throw new BadRequestException("Transport order must contain at least one item before transport starts");
-        }
-
-        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
-            validateTransportOrderItem(item);
-
-            if (!item.isFullyReservedForRequestedQuantity()) {
-                throw new BadRequestException("Transport order item must be fully reserved before dispatch");
-            }
-
-            BigDecimal quantityToDispatch = item.getSafeReservedQuantity();
-            StockTransferCreate transfer = buildTransportTransfer(transportOrder, item, quantityToDispatch, "Transport order dispatch", "Transport order source warehouse dispatch");
-            stockMovementService.dispatchTransport(transfer);
-
-            try {
-                item.markDispatched(quantityToDispatch);
-            } catch (IllegalArgumentException | IllegalStateException ex) {
-                throw new BadRequestException(ex.getMessage());
-            }
-
-            transportOrderItemRepository.save(item);
-            auditTransportItemQuantity("TRANSPORT_ITEM_DISPATCHED", item, "dispatchedQuantity", BigDecimal.ZERO, item.getSafeDispatchedQuantity());
-        }
-    }
-
-    private void executeDeliveryInventoryFlow(TransportOrder transportOrder) {
-        if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
-            throw new BadRequestException("Transport order must contain at least one item to complete delivery");
-        }
-
-        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
-            validateTransportOrderItem(item);
-
-            if (!item.isFullyDispatched()) {
-                throw new BadRequestException("Transport order item must be fully dispatched before delivery");
-            }
-
-            BigDecimal deliveredBefore = item.getSafeDeliveredQuantity();
-            BigDecimal quantityToDeliver = item.getPendingDeliveryQuantity();
-            if (quantityToDeliver.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new BadRequestException("Transport order item has no pending dispatched quantity to deliver");
-            }
-
-            StockTransferCreate transfer = buildTransportTransfer(transportOrder, item, quantityToDeliver, "Transport order delivery", "Transport order destination warehouse receipt");
-            stockMovementService.receiveTransport(transfer);
-
-            try {
-                item.markDelivered(quantityToDeliver);
-            } catch (IllegalArgumentException | IllegalStateException ex) {
-                throw new BadRequestException(ex.getMessage());
-            }
-
-            transportOrderItemRepository.save(item);
-            auditTransportItemQuantity("TRANSPORT_ITEM_DELIVERED", item, "deliveredQuantity", deliveredBefore, item.getSafeDeliveredQuantity());
-        }
-    }
-
-
-    private void executeFailedReturnInventoryFlow(TransportOrder transportOrder) {
-        if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
-            throw new BadRequestException("Transport order must contain at least one item before failure can be closed");
-        }
-
-        for (TransportOrderItem item : transportOrder.getTransportOrderItems()) {
-            validateTransportOrderItem(item);
-
-            BigDecimal returnedBefore = item.getSafeDispatchedQuantity();
-            BigDecimal quantityToReturn = item.getPendingDeliveryQuantity();
-            if (quantityToReturn.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new BadRequestException("Transport order item has no dispatched quantity pending return");
-            }
-
-            StockTransferCreate transfer = buildTransportTransfer(
-                    transportOrder,
-                    item,
-                    quantityToReturn,
-                    "Failed transport return",
-                    "Failed transport returned to source warehouse"
-            );
-            stockMovementService.returnFailedTransportToSource(transfer);
-
-            try {
-                item.markReturnedAfterFailure(quantityToReturn);
-            } catch (IllegalArgumentException | IllegalStateException ex) {
-                throw new BadRequestException(ex.getMessage());
-            }
-
-            transportOrderItemRepository.save(item);
-            auditTransportItemQuantity("TRANSPORT_ITEM_RETURNED_AFTER_FAILURE", item, "dispatchedQuantity", returnedBefore, item.getSafeDispatchedQuantity());
-        }
-    }
-
-    private StockTransferCreate buildTransportTransfer(TransportOrder transportOrder, TransportOrderItem item, BigDecimal quantity, String reasonDescription, String referenceNote) {
-        StockTransferCreate transfer = new StockTransferCreate();
-        transfer.setQuantity(quantity);
-        transfer.setReasonDescription(reasonDescription);
-        transfer.setReferenceNumber(transportOrder.getOrderNumber());
-        transfer.setReferenceNote(referenceNote);
-        transfer.setTransportOrderId(transportOrder.getId());
-        transfer.setSourceWarehouseId(transportOrder.getSourceWarehouse().getId());
-        transfer.setDestinationWarehouseId(transportOrder.getDestinationWarehouse().getId());
-        transfer.setProductId(item.getProduct().getId());
-        return transfer;
-    }
-
-
-    private void auditTransportItemQuantity(String action,
-                                            TransportOrderItem item,
-                                            String field,
-                                            BigDecimal oldValue,
-                                            BigDecimal newValue) {
-        if (item == null || item.getId() == null) {
-            return;
-        }
-
-        auditFacade.recordFieldChange("TRANSPORT_ORDER_ITEM", item.getId(), field, oldValue, newValue);
-        auditFacade.log(
-                action,
-                "TRANSPORT_ORDER_ITEM",
-                item.getId(),
-                "Transport order item " + item.getId()
-                        + " for transport order " + (item.getTransportOrder() != null ? item.getTransportOrder().getId() : null)
-                        + " changed " + field + " from " + oldValue + " to " + newValue
         );
     }
 

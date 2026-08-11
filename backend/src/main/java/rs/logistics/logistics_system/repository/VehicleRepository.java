@@ -1,6 +1,7 @@
 package rs.logistics.logistics_system.repository;
 
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import rs.logistics.logistics_system.entity.Vehicle;
@@ -22,10 +24,14 @@ import rs.logistics.logistics_system.enums.VehicleStatus;
 public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    @EntityGraph(attributePaths = {"company", "company.timezone", "vehicleModel", "vehicleModel.brand"})
     @Query("select v from Vehicle v where v.id = :id")
     Optional<Vehicle> findByIdForUpdate(@Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    @EntityGraph(attributePaths = {"company", "company.timezone", "vehicleModel", "vehicleModel.brand"})
     @Query("select v from Vehicle v where v.id = :id and v.company.id = :companyId")
     Optional<Vehicle> findByIdAndCompanyIdForUpdate(@Param("id") Long id, @Param("companyId") Long companyId);
 
