@@ -18,7 +18,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class OverlordWriteProtectionFilterTest {
 
     private final OncePerRequestFilter filter =
-            new OverlordWriteProtectionFilter(new ObjectMapper().findAndRegisterModules());
+            new OverlordWriteProtectionFilter(
+                    new ObjectMapper().findAndRegisterModules(),
+                    new OverlordAccessPolicy()
+            );
 
     @AfterEach
     void clearSecurityContext() {

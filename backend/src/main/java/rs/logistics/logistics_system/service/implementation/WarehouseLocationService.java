@@ -258,6 +258,7 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
         ensureSameCompany(bin.getWarehouse(), product);
         binIntegrityValidator.ensureBinTrackingEnabled(bin.getWarehouse(), "Bin inventory cannot be maintained because bin tracking is disabled for this warehouse");
         binIntegrityValidator.ensureActiveBin(bin, "Bin location is not active");
+        lockWarehouseAggregateForInventory(bin.getWarehouse());
 
         BigDecimal quantity = binIntegrityValidator.requireNonNegative(dto.getQuantity(), "Bin inventory quantity cannot be negative");
         WarehouseInventory warehouseInventory = binIntegrityValidator.lockWarehouseInventory(bin.getWarehouse(), product);
@@ -296,6 +297,7 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
 
         Product product = getProduct(dto.getProductId());
         ensureSameCompany(source.getWarehouse(), product);
+        lockWarehouseAggregateForInventory(source.getWarehouse());
         BigDecimal quantity = binIntegrityValidator.requirePositive(dto.getQuantity(), "Movement quantity must be greater than zero");
 
         WarehouseInventory warehouseInventory = binIntegrityValidator.lockWarehouseInventory(source.getWarehouse(), product);
@@ -477,6 +479,12 @@ public class WarehouseLocationService implements WarehouseLocationServiceDefinit
                 : binRepository.findByIdAndWarehouse_Company_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Bin location not found"));
         warehouseAccessGuard.ensureCanReadWarehouse(bin.getWarehouse());
         return bin;
+    }
+
+    private void lockWarehouseAggregateForInventory(Warehouse warehouse) {
+        Warehouse lockedWarehouse = warehouseRepository.findByIdForUpdate(warehouse.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        warehouseAccessGuard.ensureCanMutateWarehouse(lockedWarehouse);
     }
 
      private void validateZoneCapacityWithinWarehouse(Warehouse warehouse, BigDecimal capacity) {

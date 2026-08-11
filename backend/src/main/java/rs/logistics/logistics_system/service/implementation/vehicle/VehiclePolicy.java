@@ -1,20 +1,17 @@
 package rs.logistics.logistics_system.service.implementation.vehicle;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
 
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Vehicle;
-import rs.logistics.logistics_system.enums.TransportOrderStatus;
-import rs.logistics.logistics_system.enums.VehicleMaintenanceStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
 import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleMaintenanceRepository;
@@ -28,17 +25,7 @@ public class VehiclePolicy {
     private final TransportOrderRepository transportOrderRepository;
     private final VehicleMaintenanceRepository vehicleMaintenanceRepository;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
-
-    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = Arrays.asList(
-            TransportOrderStatus.ASSIGNED,
-            TransportOrderStatus.PICKING,
-            TransportOrderStatus.PACKING,
-            TransportOrderStatus.READY_FOR_LOADING,
-            TransportOrderStatus.LOADING,
-            TransportOrderStatus.IN_TRANSIT,
-            TransportOrderStatus.RETURNING,
-            TransportOrderStatus.RESCHEDULED
-    );
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     public void validateCreate(String registrationNumber, VehicleStatus status, Company targetCompany) {
         validateTargetCompany(targetCompany);
@@ -106,7 +93,10 @@ public class VehiclePolicy {
     }
 
     private boolean hasActiveTransport(Long vehicleId) {
-        return transportOrderRepository.existsByVehicleIdAndStatusIn(vehicleId, ACTIVE_TRANSPORT_STATUSES);
+        return transportOrderRepository.existsByVehicleIdAndStatusIn(
+                vehicleId,
+                lifecycleStatusClassifier.activeTransportStatuses()
+        );
     }
 
     private void validateStatusTransition(VehicleStatus currentStatus, VehicleStatus newStatus) {
@@ -134,7 +124,7 @@ public class VehiclePolicy {
     private void validateStatusChangeAgainstActiveMaintenance(Vehicle vehicle, VehicleStatus newStatus) {
         boolean hasActiveMaintenance = vehicleMaintenanceRepository.existsByVehicleIdAndStatusIn(
                 vehicle.getId(),
-                List.of(VehicleMaintenanceStatus.PLANNED, VehicleMaintenanceStatus.IN_PROGRESS)
+                lifecycleStatusClassifier.activeVehicleMaintenanceStatuses()
         );
 
         if (hasActiveMaintenance && newStatus != VehicleStatus.MAINTENANCE && newStatus != VehicleStatus.OUT_OF_SERVICE) {

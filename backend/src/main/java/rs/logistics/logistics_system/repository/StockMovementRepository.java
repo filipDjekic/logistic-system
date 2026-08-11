@@ -4,6 +4,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.QueryHints;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import rs.logistics.logistics_system.entity.StockMovement;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +22,12 @@ import java.util.List;
 import java.util.Optional;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long> {
+
+    @Query("select sm.warehouse.id from StockMovement sm where sm.id = :id")
+    Optional<Long> findWarehouseIdById(@Param("id") Long id);
+
+    @Query("select sm.warehouse.id from StockMovement sm where sm.id = :id and sm.warehouse.company.id = :companyId")
+    Optional<Long> findWarehouseIdByIdAndCompanyId(@Param("id") Long id, @Param("companyId") Long companyId);
 
     @EntityGraph(attributePaths = {
             "warehouse", "warehouse.company", "warehouse.timezone",
@@ -37,6 +47,30 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     })
     @Query("select sm from StockMovement sm where sm.id = :id")
     Optional<StockMovement> findByIdWithDetails(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    @EntityGraph(attributePaths = {
+            "warehouse", "warehouse.company", "warehouse.timezone",
+            "product", "product.company",
+            "createdBy", "createdBy.company",
+            "transportOrder", "transportOrder.sourceWarehouse", "transportOrder.destinationWarehouse",
+            "sourceBin", "sourceBin.zone", "destinationBin", "destinationBin.zone"
+    })
+    @Query("select sm from StockMovement sm where sm.id = :id")
+    Optional<StockMovement> findByIdWithDetailsForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+    @EntityGraph(attributePaths = {
+            "warehouse", "warehouse.company", "warehouse.timezone",
+            "product", "product.company",
+            "createdBy", "createdBy.company",
+            "transportOrder", "transportOrder.sourceWarehouse", "transportOrder.destinationWarehouse",
+            "sourceBin", "sourceBin.zone", "destinationBin", "destinationBin.zone"
+    })
+    @Query("select sm from StockMovement sm where sm.id = :id and sm.warehouse.company.id = :companyId")
+    Optional<StockMovement> findByIdAndCompanyIdForUpdate(@Param("id") Long id, @Param("companyId") Long companyId);
 
     List<StockMovement> findAllByWarehouse_Company_Id(Long companyId);
 

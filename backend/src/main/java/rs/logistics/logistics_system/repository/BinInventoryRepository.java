@@ -48,8 +48,6 @@ public interface BinInventoryRepository extends JpaRepository<BinInventory, BinI
     boolean existsByWarehouseIdAndProductId(@Param("warehouseId") Long warehouseId, @Param("productId") Long productId);
 
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("""
             select bi
             from BinInventory bi
@@ -64,8 +62,9 @@ public interface BinInventoryRepository extends JpaRepository<BinInventory, BinI
                 and line.binLocation = binLocation
                 and line.product = product
             )
+            order by product.id asc, binLocation.id asc
             """)
-    List<BinInventory> findAdjustmentStockRowsForUpdate(@Param("sessionId") Long sessionId);
+    List<BinInventory> findAdjustmentStockRows(@Param("sessionId") Long sessionId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))

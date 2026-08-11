@@ -41,6 +41,7 @@ import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.mapper.StockMovementMapper;
 import rs.logistics.logistics_system.repository.BinInventoryRepository;
@@ -70,6 +71,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -94,6 +96,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final BinIntegrityValidator binIntegrityValidator;
     private final LifecycleNotificationService lifecycleNotificationService;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
     private final WarehouseAccessGuard warehouseAccessGuard;
     private final InventoryCountSessionRepository inventoryCountSessionRepository;
 
@@ -798,12 +801,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
             return;
         }
 
-        List<InventoryCountSessionStatus> blockingStatuses = List.of(
-                InventoryCountSessionStatus.OPEN,
-                InventoryCountSessionStatus.COUNTING,
-                InventoryCountSessionStatus.REVIEW,
-                InventoryCountSessionStatus.APPROVED
-        );
+        Set<InventoryCountSessionStatus> blockingStatuses = lifecycleStatusClassifier
+                .stockBlockingInventoryCountStatuses();
 
         boolean blocked = binLocationId != null
                 ? inventoryCountSessionRepository.existsBlockingStockChangeForBinProduct(
@@ -1229,7 +1228,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     }
 
     private StockMovementResponse executeInternal(Long id, boolean systemTransition) {
-        StockMovement movement = getAccessibleStockMovement(id);
+        StockMovement movement = getAccessibleStockMovementForInventoryUpdate(id);
         enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), true);
 
     LifecycleTransitionContext<StockMovementStatus> context = systemTransition
@@ -1537,7 +1536,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     @Override
     @Transactional
     public StockMovementResponse reverse(Long id) {
-        StockMovement original = getAccessibleStockMovement(id);
+        StockMovement original = getAccessibleStockMovementForInventoryUpdate(id);
         enforceWarehouseScopeForCurrentRole(original.getWarehouse(), true);
         validateMovementCanBeReversed(original);
 
@@ -2187,6 +2186,33 @@ public class StockMovementService implements StockMovementServiceDefinition {
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 )
                 .orElseThrow(() -> new ResourceNotFoundException("Stock movement not found"));
+        if (!isStockMovementReadableByCurrentUser(movement)) {
+            throw new ResourceNotFoundException("Stock movement not found");
+        }
+        return movement;
+    }
+
+    private StockMovement getAccessibleStockMovementForInventoryUpdate(Long id) {
+        Long warehouseId = authenticatedUserProvider.isOverlord()
+                ? stockMovementRepository.findWarehouseIdById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Stock movement not found"))
+                : stockMovementRepository.findWarehouseIdByIdAndCompanyId(
+                        id,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Stock movement not found"));
+
+        getAccessibleWarehouseForUpdate(warehouseId);
+
+        StockMovement movement = authenticatedUserProvider.isOverlord()
+                ? stockMovementRepository.findByIdWithDetailsForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Stock movement not found"))
+                : stockMovementRepository.findByIdAndCompanyIdForUpdate(
+                        id,
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Stock movement not found"));
+
         if (!isStockMovementReadableByCurrentUser(movement)) {
             throw new ResourceNotFoundException("Stock movement not found");
         }

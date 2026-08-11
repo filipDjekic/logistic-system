@@ -14,6 +14,7 @@ import rs.logistics.logistics_system.entity.InventoryCountSession;
 import rs.logistics.logistics_system.enums.InventoryCountSessionStatus;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface InventoryCountSessionRepository extends JpaRepository<InventoryCountSession, Long> {
@@ -92,7 +93,7 @@ public interface InventoryCountSessionRepository extends JpaRepository<Inventory
             """)
     boolean existsBlockingStockChangeForWarehouseProduct(@Param("warehouseId") Long warehouseId,
                                                          @Param("productId") Long productId,
-                                                         @Param("statuses") List<InventoryCountSessionStatus> statuses);
+                                                         @Param("statuses") Collection<InventoryCountSessionStatus> statuses);
 
     @Query("""
             select case when count(line) > 0 then true else false end
@@ -106,6 +107,6 @@ public interface InventoryCountSessionRepository extends JpaRepository<Inventory
     boolean existsBlockingStockChangeForBinProduct(@Param("warehouseId") Long warehouseId,
                                                    @Param("productId") Long productId,
                                                    @Param("binLocationId") Long binLocationId,
-                                                   @Param("statuses") List<InventoryCountSessionStatus> statuses);
+                                                   @Param("statuses") Collection<InventoryCountSessionStatus> statuses);
 
 }

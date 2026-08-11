@@ -8,7 +8,6 @@ import rs.logistics.logistics_system.entity.InventoryCountSession;
 import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
-import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.repository.CompanyRepository;
@@ -54,6 +53,7 @@ public class OperationalEntityAccessValidator {
     private final VehicleRepository vehicleRepository;
     private final WarehouseInventoryRepository warehouseInventoryRepository;
     private final WarehouseRepository warehouseRepository;
+    private final WarehouseAccessGuard warehouseAccessGuard;
 
     public void ensureCanAccess(OperationalEntityType entityType, Long entityId) {
         if (!canAccess(entityType, entityId)) {
@@ -84,20 +84,24 @@ public class OperationalEntityAccessValidator {
             return false;
         }
 
-        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return false;
+        }
+
+        if (authenticatedUserProvider.isCompanyAdmin()) {
             return true;
         }
 
         return switch (entityType) {
             case TRANSPORT_ORDER, TASK, VEHICLE, VEHICLE_MAINTENANCE -> authenticatedUserProvider.hasRole("DISPATCHER");
             case WAREHOUSE -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                    && hasWarehouseManageAccess(entityId);
+                    && warehouseAccessGuard.canMutateWarehouse(entityId);
             case WAREHOUSE_INVENTORY -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                    && hasWarehouseManageAccess(entityId);
+                    && warehouseAccessGuard.canMutateWarehouse(entityId);
             case INVENTORY_COUNT -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
                     && inventoryCountSessionRepository.findById(entityId)
                             .map(InventoryCountSession::getWarehouse)
-                            .map(warehouse -> hasWarehouseManageAccess(warehouse.getId()))
+                            .map(warehouseAccessGuard::canMutateWarehouse)
                             .orElse(false);
             case STOCK_MOVEMENT -> canCreateStockMovementOperationalContent(entityId);
             case INTERNAL_WAREHOUSE_MOVEMENT -> canCreateInternalWarehouseMovementOperationalContent(entityId);
@@ -115,21 +119,25 @@ public class OperationalEntityAccessValidator {
             return false;
         }
 
-        if (authenticatedUserProvider.isOverlord() || authenticatedUserProvider.isCompanyAdmin()) {
+        if (authenticatedUserProvider.isOverlord()) {
+            return false;
+        }
+
+        if (authenticatedUserProvider.isCompanyAdmin()) {
             return true;
         }
 
         return switch (entityType) {
             case WAREHOUSE -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                    && hasWarehouseManageAccess(entityId);
+                    && warehouseAccessGuard.canMutateWarehouse(entityId);
             case STOCK_MOVEMENT -> canCreateStockMovementOperationalContent(entityId);
             case INTERNAL_WAREHOUSE_MOVEMENT -> canCreateInternalWarehouseMovementOperationalContent(entityId);
             case WAREHOUSE_INVENTORY -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                    && hasWarehouseManageAccess(entityId);
+                    && warehouseAccessGuard.canMutateWarehouse(entityId);
             case INVENTORY_COUNT -> authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
                     && inventoryCountSessionRepository.findById(entityId)
                             .map(InventoryCountSession::getWarehouse)
-                            .map(warehouse -> hasWarehouseManageAccess(warehouse.getId()))
+                            .map(warehouseAccessGuard::canMutateWarehouse)
                             .orElse(false);
             default -> true;
         };
@@ -238,7 +246,7 @@ public class OperationalEntityAccessValidator {
                             && companyId.equals(movement.getWarehouse().getCompany().getId())
                             && (authenticatedUserProvider.isCompanyAdmin()
                                 || authenticatedUserProvider.hasRole("DISPATCHER")
-                                || hasWarehouseAccess(movement.getWarehouse().getId())))
+                                || warehouseAccessGuard.canReadWarehouse(movement.getWarehouse())))
                     .orElse(false);
             case INVENTORY_COUNT -> canAccessInventoryCount(entityId, companyId);
             case TASK -> canAccessTask(entityId, companyId, currentUserId);
@@ -262,7 +270,7 @@ public class OperationalEntityAccessValidator {
             case WAREHOUSE -> warehouseRepository.findByIdAndCompany_Id(entityId, companyId)
                     .map(warehouse -> authenticatedUserProvider.isCompanyAdmin()
                             || authenticatedUserProvider.hasRole("DISPATCHER")
-                            || hasWarehouseAccess(warehouse.getId()))
+                            || warehouseAccessGuard.canReadWarehouse(warehouse))
                     .orElse(false);
             case WAREHOUSE_INVENTORY -> canAccessWarehouseInventory(entityId, companyId);
             case GENERAL -> false;
@@ -276,7 +284,7 @@ public class OperationalEntityAccessValidator {
                         && companyId.equals(session.getWarehouse().getCompany().getId())
                         && (authenticatedUserProvider.isCompanyAdmin()
                             || authenticatedUserProvider.hasRole("DISPATCHER")
-                            || hasWarehouseAccess(session.getWarehouse().getId())))
+                            || warehouseAccessGuard.canReadWarehouse(session.getWarehouse())))
                 .orElse(false);
     }
 
@@ -330,7 +338,7 @@ public class OperationalEntityAccessValidator {
         }
 
         if (task.getStockMovement() != null && task.getStockMovement().getWarehouse() != null) {
-            return hasWarehouseAccess(task.getStockMovement().getWarehouse().getId());
+            return warehouseAccessGuard.canReadWarehouse(task.getStockMovement().getWarehouse());
         }
 
         if (task.getTransportOrder() != null) {
@@ -346,9 +354,9 @@ public class OperationalEntityAccessValidator {
         }
 
         boolean sourceAllowed = order.getSourceWarehouse() != null
-                && hasWarehouseAccess(order.getSourceWarehouse().getId());
+                && warehouseAccessGuard.canReadWarehouse(order.getSourceWarehouse());
         boolean destinationAllowed = order.getDestinationWarehouse() != null
-                && hasWarehouseAccess(order.getDestinationWarehouse().getId());
+                && warehouseAccessGuard.canReadWarehouse(order.getDestinationWarehouse());
 
         return sourceAllowed || destinationAllowed;
     }
@@ -395,7 +403,7 @@ public class OperationalEntityAccessValidator {
 
         return authenticatedUserProvider.isCompanyAdmin()
                 || authenticatedUserProvider.hasRole("DISPATCHER")
-                || hasWarehouseAccess(warehouseId);
+                || warehouseAccessGuard.canReadWarehouse(warehouseId);
     }
 
     private boolean hasOperationalCoordinatorRole() {
@@ -417,7 +425,7 @@ public class OperationalEntityAccessValidator {
 
         return stockMovementRepository.findById(stockMovementId)
                 .map(StockMovement::getWarehouse)
-                .map(warehouse -> hasWarehouseManageAccess(warehouse.getId()))
+                .map(warehouseAccessGuard::canMutateWarehouse)
                 .orElse(false);
     }
 
@@ -431,72 +439,13 @@ public class OperationalEntityAccessValidator {
         }
 
         return internalWarehouseMovementRepository.findById(movementId)
-                .map(movement -> movement.getWarehouse() != null && hasWarehouseManageAccess(movement.getWarehouse().getId()))
+                .map(movement -> movement.getWarehouse() != null
+                        && warehouseAccessGuard.canMutateWarehouse(movement.getWarehouse()))
                 .orElse(false);
-    }
-
-    private boolean hasWarehouseManageAccess(Long warehouseId) {
-        if (warehouseId == null) {
-            return false;
-        }
-
-        Optional<Employee> employee = currentEmployee();
-        if (employee.isEmpty() || employee.get().getId() == null) {
-            return false;
-        }
-
-        if (employee.get().getPrimaryWarehouse() != null
-                && warehouseId.equals(employee.get().getPrimaryWarehouse().getId())) {
-            return true;
-        }
-
-        return employeeWarehouseAssignmentRepository.hasActiveAccess(
-                employee.get().getId(),
-                warehouseId,
-                List.of(
-                        EmployeeWarehouseAccessType.PRIMARY,
-                        EmployeeWarehouseAccessType.MANAGER
-                ),
-                LocalDate.now()
-        );
-    }
-
-
-    private boolean hasWarehouseAccess(Long warehouseId) {
-        if (warehouseId == null) {
-            return false;
-        }
-
-        Optional<Employee> employee = currentEmployee();
-        if (employee.isEmpty() || employee.get().getId() == null) {
-            return false;
-        }
-
-        if (employee.get().getPrimaryWarehouse() != null
-                && warehouseId.equals(employee.get().getPrimaryWarehouse().getId())) {
-            return true;
-        }
-
-        return employeeWarehouseAssignmentRepository.hasActiveAccess(
-                employee.get().getId(),
-                warehouseId,
-                List.of(
-                        EmployeeWarehouseAccessType.PRIMARY,
-                        EmployeeWarehouseAccessType.MANAGER,
-                        EmployeeWarehouseAccessType.WORKER,
-                        EmployeeWarehouseAccessType.DISPATCH,
-                        EmployeeWarehouseAccessType.VIEW_ONLY
-                ),
-                LocalDate.now()
-        );
     }
 
     private Optional<Employee> currentEmployee() {
         return employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId());
-    }
-
-    private Optional<Long> currentEmployeeId() {
-        return currentEmployee().map(Employee::getId);
     }
 
     private List<Long> currentDriverWarehouseIds() {

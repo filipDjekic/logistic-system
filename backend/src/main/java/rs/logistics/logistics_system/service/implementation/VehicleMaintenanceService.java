@@ -11,11 +11,11 @@ import rs.logistics.logistics_system.dto.response.VehicleMaintenanceResponse;
 import rs.logistics.logistics_system.dto.update.VehicleMaintenanceUpdate;
 import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.VehicleMaintenance;
-import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleMaintenanceStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.mapper.VehicleMaintenanceMapper;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleMaintenanceRepository;
@@ -25,28 +25,9 @@ import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.VehicleMaintenanceServiceDefinition;
 
-import java.util.List;
-import java.util.Set;
-
 @Service
 @RequiredArgsConstructor
 public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefinition {
-
-    private static final Set<VehicleMaintenanceStatus> ACTIVE_MAINTENANCE_STATUSES = Set.of(
-            VehicleMaintenanceStatus.PLANNED,
-            VehicleMaintenanceStatus.IN_PROGRESS
-    );
-
-    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = List.of(
-            TransportOrderStatus.ASSIGNED,
-            TransportOrderStatus.PICKING,
-            TransportOrderStatus.PACKING,
-            TransportOrderStatus.READY_FOR_LOADING,
-            TransportOrderStatus.LOADING,
-            TransportOrderStatus.IN_TRANSIT,
-            TransportOrderStatus.RETURNING,
-            TransportOrderStatus.RESCHEDULED
-    );
 
     private final VehicleMaintenanceRepository maintenanceRepository;
     private final VehicleRepository vehicleRepository;
@@ -54,6 +35,7 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final AuditFacadeDefinition auditFacade;
     private final TimeServiceDefinition timeService;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     @Override
     @Transactional
@@ -239,13 +221,23 @@ public class VehicleMaintenanceService implements VehicleMaintenanceServiceDefin
         if (vehicle.getStatus() == VehicleStatus.RESERVED || vehicle.getStatus() == VehicleStatus.IN_USE) {
             throw new BadRequestException("Vehicle with reserved or active transport cannot enter maintenance");
         }
-        boolean hasActiveTransport = transportOrderRepository.existsByVehicleIdAndStatusIn(vehicle.getId(), ACTIVE_TRANSPORT_STATUSES);
+        boolean hasActiveTransport = transportOrderRepository.existsByVehicleIdAndStatusIn(
+                vehicle.getId(),
+                lifecycleStatusClassifier.activeTransportStatuses()
+        );
         if (hasActiveTransport) {
             throw new BadRequestException("Vehicle has active transport and cannot enter maintenance");
         }
         boolean hasActiveMaintenance = excludedMaintenanceId == null
-                ? maintenanceRepository.existsByVehicleIdAndStatusIn(vehicle.getId(), ACTIVE_MAINTENANCE_STATUSES)
-                : maintenanceRepository.existsByVehicleIdAndStatusInAndIdNot(vehicle.getId(), ACTIVE_MAINTENANCE_STATUSES, excludedMaintenanceId);
+                ? maintenanceRepository.existsByVehicleIdAndStatusIn(
+                        vehicle.getId(),
+                        lifecycleStatusClassifier.activeVehicleMaintenanceStatuses()
+                )
+                : maintenanceRepository.existsByVehicleIdAndStatusInAndIdNot(
+                        vehicle.getId(),
+                        lifecycleStatusClassifier.activeVehicleMaintenanceStatuses(),
+                        excludedMaintenanceId
+                );
         if (hasActiveMaintenance) {
             throw new BadRequestException("Vehicle already has active maintenance");
         }

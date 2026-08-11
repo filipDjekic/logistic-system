@@ -317,12 +317,22 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
     @Override
     @Transactional
     public InventoryCountSessionResponse createAdjustments(Long id) {
+        InventoryCountSession sessionHeader = getSessionHeader(id);
+        Warehouse lockedWarehouse = warehouseRepository.findByIdForUpdate(sessionHeader.getWarehouse().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+        warehouseAccessGuard.ensureCanMutateWarehouse(lockedWarehouse);
+
         InventoryCountSession session = getSessionHeaderForUpdate(id);
         requireInventoryCountManager();
-        warehouseAccessGuard.ensureCanMutateWarehouse(session.getWarehouse());
         requireStatus(session, InventoryCountSessionStatus.APPROVED);
         validateAdjustmentBatchCanBeCreated(session);
-        List<InventoryCountLine> adjustmentLines = lineRepository.findAdjustmentCandidateLines(session.getId());
+        List<InventoryCountLine> adjustmentLines = lineRepository.findAdjustmentCandidateLines(session.getId())
+                .stream()
+                .sorted(Comparator
+                        .comparing((InventoryCountLine line) -> line.getProduct().getId())
+                        .thenComparing(line -> line.getBinLocation() != null ? line.getBinLocation().getId() : Long.MAX_VALUE)
+                        .thenComparing(InventoryCountLine::getId))
+                .toList();
         validateSnapshotStillMatchesCurrentStock(session.getId(), adjustmentLines);
 
         for (InventoryCountLine line : adjustmentLines) {
@@ -418,7 +428,7 @@ public class InventoryCountService implements InventoryCountServiceDefinition {
         }
 
         Map<BinProductKey, BigDecimal> currentQuantityByBinProduct = binInventoryRepository
-                .findAdjustmentStockRowsForUpdate(sessionId)
+                .findAdjustmentStockRows(sessionId)
                 .stream()
                 .collect(Collectors.toMap(
                         binInventory -> new BinProductKey(binInventory.getBinLocation().getId(), binInventory.getProduct().getId()),

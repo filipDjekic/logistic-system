@@ -19,9 +19,9 @@ public class AuthorizationService {
     private static final Set<String> STOCK_READ_ROLES = Set.of(
             "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER");
     private static final Set<String> STOCK_CREATE_ROLES = Set.of(
-            "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
+            "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
     private static final Set<String> STOCK_LIFECYCLE_ROLES = Set.of(
-            "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER");
+            "COMPANY_ADMIN", "WAREHOUSE_MANAGER", "DISPATCHER");
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final OperationalEntityAccessValidator entityAccessValidator;

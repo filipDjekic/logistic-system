@@ -16,6 +16,7 @@ import rs.logistics.logistics_system.enums.NotificationStatus;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.NotificationRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
@@ -50,17 +51,6 @@ public class OperationalDashboardService implements OperationalDashboardServiceD
             TaskStatus.BLOCKED
     );
 
-    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = List.of(
-            TransportOrderStatus.ASSIGNED,
-            TransportOrderStatus.PICKING,
-            TransportOrderStatus.PACKING,
-            TransportOrderStatus.READY_FOR_LOADING,
-            TransportOrderStatus.LOADING,
-            TransportOrderStatus.IN_TRANSIT,
-            TransportOrderStatus.RETURNING,
-            TransportOrderStatus.RESCHEDULED
-    );
-
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final EmployeeRepository employeeRepository;
     private final WarehouseRepository warehouseRepository;
@@ -70,6 +60,11 @@ public class OperationalDashboardService implements OperationalDashboardServiceD
     private final VehicleRepository vehicleRepository;
     private final StockMovementRepository stockMovementRepository;
     private final NotificationRepository notificationRepository;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
+
+    private Set<TransportOrderStatus> activeTransportStatuses() {
+        return lifecycleStatusClassifier.activeTransportStatuses();
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -287,17 +282,17 @@ public class OperationalDashboardService implements OperationalDashboardServiceD
 
     private long countDueSoonTransports(RoleProfile profile, Long companyId, Long userId, Set<Long> managedWarehouseIds, LocalDateTime now, LocalDateTime soon) {
         if (profile == RoleProfile.DRIVER) {
-            return transportOrderRepository.countByAssignedEmployee_User_IdAndPlannedArrivalTimeBetweenAndStatusIn(userId, now, soon, ACTIVE_TRANSPORT_STATUSES);
+            return transportOrderRepository.countByAssignedEmployee_User_IdAndPlannedArrivalTimeBetweenAndStatusIn(userId, now, soon, activeTransportStatuses());
         }
         if (!profile.showTransportWidgets()) {
             return 0;
         }
         if (profile == RoleProfile.WAREHOUSE_MANAGER) {
-            return managedWarehouseIds.isEmpty() ? 0 : transportOrderRepository.countByCompanyIdAndWarehouseIdsAndPlannedArrivalTimeBetweenAndStatusIn(companyId, managedWarehouseIds, now, soon, ACTIVE_TRANSPORT_STATUSES);
+            return managedWarehouseIds.isEmpty() ? 0 : transportOrderRepository.countByCompanyIdAndWarehouseIdsAndPlannedArrivalTimeBetweenAndStatusIn(companyId, managedWarehouseIds, now, soon, activeTransportStatuses());
         }
         return companyId == null
-                ? transportOrderRepository.countByPlannedArrivalTimeBetweenAndStatusIn(now, soon, ACTIVE_TRANSPORT_STATUSES)
-                : transportOrderRepository.countByCreatedBy_Company_IdAndPlannedArrivalTimeBetweenAndStatusIn(companyId, now, soon, ACTIVE_TRANSPORT_STATUSES);
+                ? transportOrderRepository.countByPlannedArrivalTimeBetweenAndStatusIn(now, soon, activeTransportStatuses())
+                : transportOrderRepository.countByCreatedBy_Company_IdAndPlannedArrivalTimeBetweenAndStatusIn(companyId, now, soon, activeTransportStatuses());
     }
 
     private OperationalDashboardResponse.OperationalLiveAlertResponse liveAlert(String key, String title, String message, String severity, String route, String actionLabel, LocalDateTime detectedAt) {
@@ -357,12 +352,12 @@ public class OperationalDashboardService implements OperationalDashboardServiceD
         PageRequest topFive = PageRequest.of(0, 5);
 
         List<TransportOrder> transportFlows = switch (profile) {
-            case OVERLORD, COMPANY_ADMIN -> transportOrderRepository.findTopOperationalTransports(companyId, ACTIVE_TRANSPORT_STATUSES, topFive);
-            case DISPATCHER -> transportOrderRepository.findTopOperationalTransports(companyId, ACTIVE_TRANSPORT_STATUSES, topFive);
-            case DRIVER -> transportOrderRepository.findTopOperationalTransportsForDriver(userId, ACTIVE_TRANSPORT_STATUSES, topFive);
+            case OVERLORD, COMPANY_ADMIN -> transportOrderRepository.findTopOperationalTransports(companyId, activeTransportStatuses(), topFive);
+            case DISPATCHER -> transportOrderRepository.findTopOperationalTransports(companyId, activeTransportStatuses(), topFive);
+            case DRIVER -> transportOrderRepository.findTopOperationalTransportsForDriver(userId, activeTransportStatuses(), topFive);
             case WAREHOUSE_MANAGER -> managedWarehouseIds.isEmpty()
                     ? List.of()
-                    : transportOrderRepository.findTopOperationalTransportsForWarehouses(companyId, managedWarehouseIds, ACTIVE_TRANSPORT_STATUSES, topFive);
+                    : transportOrderRepository.findTopOperationalTransportsForWarehouses(companyId, managedWarehouseIds, activeTransportStatuses(), topFive);
             default -> List.of();
         };
 
@@ -557,26 +552,26 @@ public class OperationalDashboardService implements OperationalDashboardServiceD
 
     private long countDelayedTransports(RoleProfile profile, Long companyId, Long userId, LocalDateTime now) {
         if (profile == RoleProfile.DRIVER) {
-            return transportOrderRepository.countByAssignedEmployee_User_IdAndPlannedArrivalTimeBeforeAndStatusIn(userId, now, ACTIVE_TRANSPORT_STATUSES);
+            return transportOrderRepository.countByAssignedEmployee_User_IdAndPlannedArrivalTimeBeforeAndStatusIn(userId, now, activeTransportStatuses());
         }
         if (!profile.showTransportWidgets()) {
             return 0;
         }
         return companyId == null
-                ? transportOrderRepository.countByPlannedArrivalTimeBeforeAndStatusIn(now, ACTIVE_TRANSPORT_STATUSES)
-                : transportOrderRepository.countByCreatedBy_Company_IdAndPlannedArrivalTimeBeforeAndStatusIn(companyId, now, ACTIVE_TRANSPORT_STATUSES);
+                ? transportOrderRepository.countByPlannedArrivalTimeBeforeAndStatusIn(now, activeTransportStatuses())
+                : transportOrderRepository.countByCreatedBy_Company_IdAndPlannedArrivalTimeBeforeAndStatusIn(companyId, now, activeTransportStatuses());
     }
 
     private long countActiveTransports(RoleProfile profile, Long companyId, Long userId) {
         if (profile == RoleProfile.DRIVER) {
-            return transportOrderRepository.countByAssignedEmployee_User_IdAndStatusIn(userId, ACTIVE_TRANSPORT_STATUSES);
+            return transportOrderRepository.countByAssignedEmployee_User_IdAndStatusIn(userId, activeTransportStatuses());
         }
         if (!profile.showTransportWidgets()) {
             return 0;
         }
         return companyId == null
-                ? transportOrderRepository.countByStatusIn(ACTIVE_TRANSPORT_STATUSES)
-                : transportOrderRepository.countByCreatedBy_Company_IdAndStatusIn(companyId, ACTIVE_TRANSPORT_STATUSES);
+                ? transportOrderRepository.countByStatusIn(activeTransportStatuses())
+                : transportOrderRepository.countByCreatedBy_Company_IdAndStatusIn(companyId, activeTransportStatuses());
     }
 
     private long countBlockedTasks(RoleProfile profile, Long companyId, Long userId, Set<Long> managedWarehouseIds) {

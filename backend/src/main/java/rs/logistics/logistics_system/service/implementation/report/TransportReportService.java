@@ -14,6 +14,7 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
@@ -38,27 +39,11 @@ import org.springframework.data.domain.Pageable;
 @RequiredArgsConstructor
 public class TransportReportService implements TransportReportServiceDefinition {
 
-    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = java.util.Arrays.asList(
-            TransportOrderStatus.ASSIGNED,
-            TransportOrderStatus.PICKING,
-            TransportOrderStatus.PACKING,
-            TransportOrderStatus.READY_FOR_LOADING,
-            TransportOrderStatus.LOADING,
-            TransportOrderStatus.IN_TRANSIT,
-            TransportOrderStatus.RETURNING,
-            TransportOrderStatus.RESCHEDULED
-    );
-
-    private static final Set<TransportOrderStatus> TERMINAL_STATUSES = Set.of(
-            TransportOrderStatus.DELIVERED,
-            TransportOrderStatus.FAILED,
-            TransportOrderStatus.CANCELLED
-    );
-
     private final TransportOrderRepository transportOrderRepository;
     private final EmployeeRepository employeeRepository;
     private final WarehouseRepository warehouseRepository;
     private final AuthenticatedUserProvider authenticatedUserProvider;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     @Override
     @Transactional(readOnly = true)
@@ -121,7 +106,7 @@ public class TransportReportService implements TransportReportServiceDefinition 
                 fromDate,
                 toDate,
                 orders.size(),
-                orders.stream().filter(order -> ACTIVE_TRANSPORT_STATUSES.contains(order.getStatus())).count(),
+                orders.stream().filter(order -> lifecycleStatusClassifier.isActiveTransportStatus(order.getStatus())).count(),
                 completedTransports,
                 cancelledTransports,
                 failedTransports,
@@ -223,7 +208,8 @@ public class TransportReportService implements TransportReportServiceDefinition 
                     if (order.getActualArrivalTime() != null) {
                         return order.getActualArrivalTime().isAfter(order.getPlannedArrivalTime());
                     }
-                    return !TERMINAL_STATUSES.contains(order.getStatus()) && now.isAfter(order.getPlannedArrivalTime());
+                    return !lifecycleStatusClassifier.isTerminalTransportStatus(order.getStatus())
+                            && now.isAfter(order.getPlannedArrivalTime());
                 })
                 .count();
     }

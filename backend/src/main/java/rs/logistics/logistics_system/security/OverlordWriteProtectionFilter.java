@@ -3,7 +3,6 @@ package rs.logistics.logistics_system.security;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -26,14 +25,8 @@ import rs.logistics.logistics_system.observability.RequestCorrelation;
 @RequiredArgsConstructor
 public class OverlordWriteProtectionFilter extends OncePerRequestFilter {
 
-    private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
-    private static final List<String> WRITE_ALLOWED_PATHS = List.of(
-            "/api/companies",
-            "/api/company-registration-requests",
-            "/api/notifications"
-    );
-
     private final ObjectMapper objectMapper;
+    private final OverlordAccessPolicy overlordAccessPolicy;
 
     @Override
     protected void doFilterInternal(
@@ -43,8 +36,7 @@ public class OverlordWriteProtectionFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (isAuthenticatedOverlord(authentication)
-                && !READ_METHODS.contains(request.getMethod())
-                && !isWriteAllowed(request.getRequestURI())) {
+                && !overlordAccessPolicy.canAccess(request.getMethod(), request.getRequestURI())) {
             writeForbidden(request, response);
             return;
         }
@@ -59,11 +51,6 @@ public class OverlordWriteProtectionFilter extends OncePerRequestFilter {
                         .anyMatch(authority -> "ROLE_OVERLORD".equals(authority.getAuthority()));
     }
 
-    private boolean isWriteAllowed(String path) {
-        return WRITE_ALLOWED_PATHS.stream()
-                .anyMatch(prefix -> path.equals(prefix) || path.startsWith(prefix + "/"));
-    }
-
     private void writeForbidden(HttpServletRequest request, HttpServletResponse response) throws IOException {
         Object traceIdValue = request.getAttribute(RequestCorrelation.TRACE_ID_ATTRIBUTE);
         String traceId = traceIdValue == null ? null : traceIdValue.toString();
@@ -72,7 +59,7 @@ public class OverlordWriteProtectionFilter extends OncePerRequestFilter {
                 HttpStatus.FORBIDDEN.value(),
                 HttpStatus.FORBIDDEN.getReasonPhrase(),
                 "FORBIDDEN",
-                "OVERLORD has read-only access to this resource",
+                "OVERLORD has read-only access to operational resources",
                 request.getRequestURI(),
                 traceId,
                 List.of()

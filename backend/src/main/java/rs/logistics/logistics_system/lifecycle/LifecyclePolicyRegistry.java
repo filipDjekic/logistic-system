@@ -65,6 +65,15 @@ public class LifecyclePolicyRegistry {
     }
 
     private static <S extends Enum<S>> Map<S, Set<S>> toEnumTransitionMap(Class<S> enumType, Map<String, List<String>> source) {
+        Set<String> missingStatuses = java.util.Arrays.stream(enumType.getEnumConstants())
+                .map(Enum::name)
+                .filter(status -> source == null || !source.containsKey(status))
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (!missingStatuses.isEmpty()) {
+            throw new IllegalArgumentException("Missing lifecycle transition configuration for "
+                    + enumType.getSimpleName() + ": " + missingStatuses);
+        }
+
         Map<S, Set<S>> result = new LinkedHashMap<>();
         for (S status : enumType.getEnumConstants()) {
             List<String> names = source.getOrDefault(status.name(), List.of());
@@ -81,42 +90,42 @@ public class LifecyclePolicyRegistry {
 
     private static Map<TaskStatus, Set<String>> taskRoleMatrix() {
         Map<TaskStatus, Set<String>> matrix = new EnumMap<>(TaskStatus.class);
-        Set<String> managers = Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER");
+        Set<String> managers = Set.of("COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER");
         matrix.put(TaskStatus.OPEN, managers);
         matrix.put(TaskStatus.ASSIGNED, managers);
-        matrix.put(TaskStatus.IN_PROGRESS, Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
-        matrix.put(TaskStatus.BLOCKED, Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
-        matrix.put(TaskStatus.COMPLETED, Set.of("OVERLORD", "COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
+        matrix.put(TaskStatus.IN_PROGRESS, Set.of("COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
+        matrix.put(TaskStatus.BLOCKED, Set.of("COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
+        matrix.put(TaskStatus.COMPLETED, Set.of("COMPANY_ADMIN", "HR_MANAGER", "WAREHOUSE_MANAGER", "DISPATCHER", "DRIVER", "WORKER"));
         matrix.put(TaskStatus.CANCELLED, managers);
         return matrix;
     }
 
     private static Map<TransportOrderStatus, Set<String>> transportRoleMatrix() {
         Map<TransportOrderStatus, Set<String>> matrix = new EnumMap<>(TransportOrderStatus.class);
-        Set<String> dispatch = Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER");
-        Set<String> operational = Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "WAREHOUSE_MANAGER");
+        Set<String> dispatch = Set.of("COMPANY_ADMIN", "DISPATCHER");
+        Set<String> operational = Set.of("COMPANY_ADMIN", "DISPATCHER", "WAREHOUSE_MANAGER");
         matrix.put(TransportOrderStatus.ASSIGNED, dispatch);
         matrix.put(TransportOrderStatus.PICKING, operational);
         matrix.put(TransportOrderStatus.PACKING, operational);
         matrix.put(TransportOrderStatus.READY_FOR_LOADING, operational);
-        matrix.put(TransportOrderStatus.LOADING, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "WAREHOUSE_MANAGER", "DRIVER"));
-        matrix.put(TransportOrderStatus.IN_TRANSIT, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
-        matrix.put(TransportOrderStatus.DELIVERED, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
-        matrix.put(TransportOrderStatus.RETURNING, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
+        matrix.put(TransportOrderStatus.LOADING, Set.of("COMPANY_ADMIN", "DISPATCHER", "WAREHOUSE_MANAGER", "DRIVER"));
+        matrix.put(TransportOrderStatus.IN_TRANSIT, Set.of("COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
+        matrix.put(TransportOrderStatus.DELIVERED, Set.of("COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
+        matrix.put(TransportOrderStatus.RETURNING, Set.of("COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
         matrix.put(TransportOrderStatus.RESCHEDULED, dispatch);
-        matrix.put(TransportOrderStatus.FAILED, Set.of("OVERLORD", "COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
+        matrix.put(TransportOrderStatus.FAILED, Set.of("COMPANY_ADMIN", "DISPATCHER", "DRIVER"));
         matrix.put(TransportOrderStatus.CANCELLED, dispatch);
         return matrix;
     }
 
     private static Map<VehicleStatus, Set<String>> vehicleRoleMatrix() {
         Map<VehicleStatus, Set<String>> matrix = new EnumMap<>(VehicleStatus.class);
-        Set<String> fleet = Set.of("OVERLORD", "COMPANY_ADMIN");
+        Set<String> fleet = Set.of("COMPANY_ADMIN");
         matrix.put(VehicleStatus.AVAILABLE, fleet);
         matrix.put(VehicleStatus.RESERVED, fleet);
         matrix.put(VehicleStatus.IN_USE, fleet);
-        matrix.put(VehicleStatus.MAINTENANCE, Set.of("OVERLORD", "COMPANY_ADMIN"));
-        matrix.put(VehicleStatus.OUT_OF_SERVICE, Set.of("OVERLORD", "COMPANY_ADMIN"));
+        matrix.put(VehicleStatus.MAINTENANCE, fleet);
+        matrix.put(VehicleStatus.OUT_OF_SERVICE, fleet);
         return matrix;
     }
 }

@@ -2,7 +2,6 @@ package rs.logistics.logistics_system.service.implementation;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -87,26 +86,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final OperationalEntityAccessValidator operationalEntityAccessValidator;
     private final LifecycleStatusClassifier lifecycleStatusClassifier;
     private final WarehouseAccessGuard warehouseAccessGuard;
-
-    private static final List<TransportOrderStatus> SCHEDULE_BLOCKING_STATUSES = Arrays.asList(
-            TransportOrderStatus.ASSIGNED,
-            TransportOrderStatus.PICKING,
-            TransportOrderStatus.PACKING,
-            TransportOrderStatus.READY_FOR_LOADING,
-            TransportOrderStatus.LOADING,
-            TransportOrderStatus.IN_TRANSIT,
-            TransportOrderStatus.RETURNING,
-            TransportOrderStatus.RESCHEDULED
-    );
-    private static final List<TransportOrderStatus> VEHICLE_RESERVED_STATUSES = Arrays.asList(
-            TransportOrderStatus.ASSIGNED,
-            TransportOrderStatus.PICKING,
-            TransportOrderStatus.PACKING,
-            TransportOrderStatus.READY_FOR_LOADING,
-            TransportOrderStatus.LOADING,
-            TransportOrderStatus.RESCHEDULED
-    );
-    private static final List<TransportOrderStatus> VEHICLE_BUSY_STATUSES = Arrays.asList(TransportOrderStatus.IN_TRANSIT, TransportOrderStatus.RETURNING);
 
     private final NotificationServiceDefinition notificationService;
     private final StockMovementServiceDefinition stockMovementService;
@@ -809,7 +788,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private void checkVehicleAvailability(Long vehicleId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime) {
         if (_transportOrderRepository.existsVehicleScheduleOverlap(
                 vehicleId,
-                SCHEDULE_BLOCKING_STATUSES,
+                lifecycleStatusClassifier.scheduleBlockingTransportStatuses(),
                 departureTime,
                 plannedArrivalTime
         )) {
@@ -820,7 +799,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private void checkDriverAvailability(Long employeeId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime) {
         if (_transportOrderRepository.existsDriverScheduleOverlap(
                 employeeId,
-                SCHEDULE_BLOCKING_STATUSES,
+                lifecycleStatusClassifier.scheduleBlockingTransportStatuses(),
                 departureTime,
                 plannedArrivalTime
         )) {
@@ -831,7 +810,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private void checkVehicleAvailabilityForUpdate(Long vehicleId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime, Long transportOrderId) {
         if (_transportOrderRepository.existsVehicleScheduleOverlapExcludingOrder(
                 vehicleId,
-                SCHEDULE_BLOCKING_STATUSES,
+                lifecycleStatusClassifier.scheduleBlockingTransportStatuses(),
                 departureTime,
                 plannedArrivalTime,
                 transportOrderId
@@ -843,7 +822,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private void checkDriverAvailabilityForUpdate(Long employeeId, LocalDateTime departureTime, LocalDateTime plannedArrivalTime, Long transportOrderId) {
         if (_transportOrderRepository.existsDriverScheduleOverlapExcludingOrder(
                 employeeId,
-                SCHEDULE_BLOCKING_STATUSES,
+                lifecycleStatusClassifier.scheduleBlockingTransportStatuses(),
                 departureTime,
                 plannedArrivalTime,
                 transportOrderId
@@ -1253,10 +1232,10 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         Vehicle vehicle = getVehicleForWorkflowUpdate(transportOrder.getVehicle().getId());
         TransportOrderStatus status = transportOrder.getStatus();
 
-        if (VEHICLE_RESERVED_STATUSES.contains(status) && vehicle.getStatus() != VehicleStatus.RESERVED) {
+        if (lifecycleStatusClassifier.reservesVehicle(status) && vehicle.getStatus() != VehicleStatus.RESERVED) {
             throw new BadRequestException("Transport workflow integrity check failed: vehicle must be RESERVED for pre-dispatch transport");
         }
-        if (VEHICLE_BUSY_STATUSES.contains(status) && vehicle.getStatus() != VehicleStatus.IN_USE) {
+        if (lifecycleStatusClassifier.vehicleIsInUse(status) && vehicle.getStatus() != VehicleStatus.IN_USE) {
             throw new BadRequestException("Transport workflow integrity check failed: vehicle must be IN_USE for active transport");
         }
     }
@@ -1348,7 +1327,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         boolean hasInTransitTransport = _transportOrderRepository.existsByVehicleIdAndStatusIn(
                 vehicleId,
-                VEHICLE_BUSY_STATUSES
+                lifecycleStatusClassifier.vehicleInUseTransportStatuses()
         );
 
         if (hasInTransitTransport) {
@@ -1358,7 +1337,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
 
         boolean hasReservedTransport = _transportOrderRepository.existsByVehicleIdAndStatusIn(
                 vehicleId,
-                VEHICLE_RESERVED_STATUSES
+                lifecycleStatusClassifier.vehicleReservedTransportStatuses()
         );
 
         if (hasReservedTransport) {

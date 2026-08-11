@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.TaskStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.VehicleStatus;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
@@ -52,25 +53,6 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
     private static final Duration TRANSPORT_STUCK_AFTER = Duration.ofHours(8);
     private static final Duration VEHICLE_RESERVED_STALE_AFTER = Duration.ofHours(6);
 
-    private static final List<TaskStatus> ACTIVE_TASK_STATUSES = List.of(
-            TaskStatus.NEW,
-            TaskStatus.OPEN,
-            TaskStatus.ASSIGNED,
-            TaskStatus.IN_PROGRESS,
-            TaskStatus.BLOCKED
-    );
-
-    private static final List<TransportOrderStatus> ACTIVE_TRANSPORT_STATUSES = List.of(
-            TransportOrderStatus.ASSIGNED,
-            TransportOrderStatus.PICKING,
-            TransportOrderStatus.PACKING,
-            TransportOrderStatus.READY_FOR_LOADING,
-            TransportOrderStatus.LOADING,
-            TransportOrderStatus.IN_TRANSIT,
-            TransportOrderStatus.RETURNING,
-            TransportOrderStatus.RESCHEDULED
-    );
-
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final EmployeeRepository employeeRepository;
     private final WarehouseRepository warehouseRepository;
@@ -81,6 +63,7 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
     private final NotificationServiceDefinition notificationService;
     private final TimeServiceDefinition timeService;
     private final DashboardResponseCache dashboardResponseCache;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     @Override
     @Transactional(readOnly = true)
@@ -191,12 +174,12 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
             return 0;
         }
         if (profile.isPersonal()) {
-            return taskRepository.countByAssignedEmployee_User_IdAndStatusIn(userId, ACTIVE_TASK_STATUSES);
+            return taskRepository.countByAssignedEmployee_User_IdAndStatusIn(userId, lifecycleStatusClassifier.activeTaskStatuses());
         }
         if (profile == RoleProfile.WAREHOUSE_MANAGER) {
-            return managedWarehouseIds.isEmpty() ? 0 : taskRepository.countForManagedWarehousesAndStatusIn(companyId, managedWarehouseIds, ACTIVE_TASK_STATUSES);
+            return managedWarehouseIds.isEmpty() ? 0 : taskRepository.countForManagedWarehousesAndStatusIn(companyId, managedWarehouseIds, lifecycleStatusClassifier.activeTaskStatuses());
         }
-        return companyId == null ? taskRepository.countByStatusIn(ACTIVE_TASK_STATUSES) : taskRepository.countByAssignedEmployee_Company_IdAndStatusIn(companyId, ACTIVE_TASK_STATUSES);
+        return companyId == null ? taskRepository.countByStatusIn(lifecycleStatusClassifier.activeTaskStatuses()) : taskRepository.countByAssignedEmployee_Company_IdAndStatusIn(companyId, lifecycleStatusClassifier.activeTaskStatuses());
     }
 
     private long countOverdueTasks(RoleProfile profile, Long companyId, Long userId, Set<Long> managedWarehouseIds, LocalDateTime now) {
@@ -204,12 +187,12 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
             return 0;
         }
         if (profile.isPersonal()) {
-            return taskRepository.countByAssignedEmployee_User_IdAndDueDateBeforeAndStatusIn(userId, now, ACTIVE_TASK_STATUSES);
+            return taskRepository.countByAssignedEmployee_User_IdAndDueDateBeforeAndStatusIn(userId, now, lifecycleStatusClassifier.activeTaskStatuses());
         }
         if (profile == RoleProfile.WAREHOUSE_MANAGER) {
-            return managedWarehouseIds.isEmpty() ? 0 : taskRepository.countForManagedWarehousesAndDueDateBeforeAndStatusIn(companyId, managedWarehouseIds, now, ACTIVE_TASK_STATUSES);
+            return managedWarehouseIds.isEmpty() ? 0 : taskRepository.countForManagedWarehousesAndDueDateBeforeAndStatusIn(companyId, managedWarehouseIds, now, lifecycleStatusClassifier.activeTaskStatuses());
         }
-        return companyId == null ? taskRepository.countByDueDateBeforeAndStatusIn(now, ACTIVE_TASK_STATUSES) : taskRepository.countByAssignedEmployee_Company_IdAndDueDateBeforeAndStatusIn(companyId, now, ACTIVE_TASK_STATUSES);
+        return companyId == null ? taskRepository.countByDueDateBeforeAndStatusIn(now, lifecycleStatusClassifier.activeTaskStatuses()) : taskRepository.countByAssignedEmployee_Company_IdAndDueDateBeforeAndStatusIn(companyId, now, lifecycleStatusClassifier.activeTaskStatuses());
     }
 
     private long countBlockedTasks(RoleProfile profile, Long companyId, Long userId, Set<Long> managedWarehouseIds) {
@@ -230,12 +213,12 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
             return 0;
         }
         if (profile.isPersonal()) {
-            return taskRepository.countStuckOperationalTasksForUser(userId, ACTIVE_TASK_STATUSES, threshold);
+            return taskRepository.countStuckOperationalTasksForUser(userId, lifecycleStatusClassifier.activeTaskStatuses(), threshold);
         }
         if (profile == RoleProfile.WAREHOUSE_MANAGER) {
-            return managedWarehouseIds.isEmpty() ? 0 : taskRepository.countStuckOperationalTasksForManagedWarehouses(companyId, managedWarehouseIds, ACTIVE_TASK_STATUSES, threshold);
+            return managedWarehouseIds.isEmpty() ? 0 : taskRepository.countStuckOperationalTasksForManagedWarehouses(companyId, managedWarehouseIds, lifecycleStatusClassifier.activeTaskStatuses(), threshold);
         }
-        return taskRepository.countStuckOperationalTasks(companyId, ACTIVE_TASK_STATUSES, threshold);
+        return taskRepository.countStuckOperationalTasks(companyId, lifecycleStatusClassifier.activeTaskStatuses(), threshold);
     }
 
     private long countActiveTransports(RoleProfile profile, Long companyId, Long userId, Set<Long> managedWarehouseIds) {
@@ -243,12 +226,12 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
             return 0;
         }
         if (profile == RoleProfile.DRIVER) {
-            return transportOrderRepository.countByAssignedEmployee_User_IdAndStatusIn(userId, ACTIVE_TRANSPORT_STATUSES);
+            return transportOrderRepository.countByAssignedEmployee_User_IdAndStatusIn(userId, lifecycleStatusClassifier.activeTransportStatuses());
         }
         if (profile == RoleProfile.WAREHOUSE_MANAGER) {
-            return managedWarehouseIds.isEmpty() ? 0 : transportOrderRepository.countByCompanyIdAndStatusInAndWarehouseIds(companyId, ACTIVE_TRANSPORT_STATUSES, managedWarehouseIds);
+            return managedWarehouseIds.isEmpty() ? 0 : transportOrderRepository.countByCompanyIdAndStatusInAndWarehouseIds(companyId, lifecycleStatusClassifier.activeTransportStatuses(), managedWarehouseIds);
         }
-        return companyId == null ? transportOrderRepository.countByStatusIn(ACTIVE_TRANSPORT_STATUSES) : transportOrderRepository.countByCreatedBy_Company_IdAndStatusIn(companyId, ACTIVE_TRANSPORT_STATUSES);
+        return companyId == null ? transportOrderRepository.countByStatusIn(lifecycleStatusClassifier.activeTransportStatuses()) : transportOrderRepository.countByCreatedBy_Company_IdAndStatusIn(companyId, lifecycleStatusClassifier.activeTransportStatuses());
     }
 
     private long countOverdueTransports(RoleProfile profile, Long companyId, Long userId, Set<Long> managedWarehouseIds, LocalDateTime now) {
@@ -256,12 +239,12 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
             return 0;
         }
         if (profile == RoleProfile.DRIVER) {
-            return transportOrderRepository.countByAssignedEmployee_User_IdAndPlannedArrivalTimeBeforeAndStatusIn(userId, now, ACTIVE_TRANSPORT_STATUSES);
+            return transportOrderRepository.countByAssignedEmployee_User_IdAndPlannedArrivalTimeBeforeAndStatusIn(userId, now, lifecycleStatusClassifier.activeTransportStatuses());
         }
         if (profile == RoleProfile.WAREHOUSE_MANAGER) {
-            return managedWarehouseIds.isEmpty() ? 0 : transportOrderRepository.countByCompanyIdAndWarehouseIdsAndPlannedArrivalTimeBeforeAndStatusIn(companyId, managedWarehouseIds, now, ACTIVE_TRANSPORT_STATUSES);
+            return managedWarehouseIds.isEmpty() ? 0 : transportOrderRepository.countByCompanyIdAndWarehouseIdsAndPlannedArrivalTimeBeforeAndStatusIn(companyId, managedWarehouseIds, now, lifecycleStatusClassifier.activeTransportStatuses());
         }
-        return companyId == null ? transportOrderRepository.countByPlannedArrivalTimeBeforeAndStatusIn(now, ACTIVE_TRANSPORT_STATUSES) : transportOrderRepository.countByCreatedBy_Company_IdAndPlannedArrivalTimeBeforeAndStatusIn(companyId, now, ACTIVE_TRANSPORT_STATUSES);
+        return companyId == null ? transportOrderRepository.countByPlannedArrivalTimeBeforeAndStatusIn(now, lifecycleStatusClassifier.activeTransportStatuses()) : transportOrderRepository.countByCreatedBy_Company_IdAndPlannedArrivalTimeBeforeAndStatusIn(companyId, now, lifecycleStatusClassifier.activeTransportStatuses());
     }
 
     private long countStuckTransports(RoleProfile profile, Long companyId, Long userId, Set<Long> managedWarehouseIds, LocalDateTime threshold) {
@@ -269,12 +252,12 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
             return 0;
         }
         if (profile == RoleProfile.DRIVER) {
-            return transportOrderRepository.countStuckOperationalTransportsForDriver(userId, ACTIVE_TRANSPORT_STATUSES, threshold);
+            return transportOrderRepository.countStuckOperationalTransportsForDriver(userId, lifecycleStatusClassifier.activeTransportStatuses(), threshold);
         }
         if (profile == RoleProfile.WAREHOUSE_MANAGER) {
-            return managedWarehouseIds.isEmpty() ? 0 : transportOrderRepository.countStuckOperationalTransportsForWarehouses(companyId, managedWarehouseIds, ACTIVE_TRANSPORT_STATUSES, threshold);
+            return managedWarehouseIds.isEmpty() ? 0 : transportOrderRepository.countStuckOperationalTransportsForWarehouses(companyId, managedWarehouseIds, lifecycleStatusClassifier.activeTransportStatuses(), threshold);
         }
-        return transportOrderRepository.countStuckOperationalTransports(companyId, ACTIVE_TRANSPORT_STATUSES, threshold);
+        return transportOrderRepository.countStuckOperationalTransports(companyId, lifecycleStatusClassifier.activeTransportStatuses(), threshold);
     }
 
     private LifecycleSnapshot snapshot(Long companyId, LocalDateTime now) {
@@ -282,16 +265,16 @@ public class LifecycleMonitoringService implements LifecycleMonitoringServiceDef
         LocalDateTime staleVehicleThreshold = now.minus(VEHICLE_RESERVED_STALE_AFTER);
 
         List<Task> blockedTasks = taskRepository.findBlockedTasksForMonitoring(companyId);
-        List<Task> stuckTasks = taskRepository.findStuckTasksForMonitoring(companyId, ACTIVE_TASK_STATUSES, stuckTaskThreshold);
+        List<Task> stuckTasks = taskRepository.findStuckTasksForMonitoring(companyId, lifecycleStatusClassifier.activeTaskStatuses(), stuckTaskThreshold);
         List<TransportOrder> overdueTransports = transportOrderRepository.findOverdueActiveTransportsForMonitoring(
                 companyId,
-                ACTIVE_TRANSPORT_STATUSES,
+                lifecycleStatusClassifier.activeTransportStatuses(),
                 now
         );
         List<Vehicle> staleReservedVehicles = vehicleRepository.findStaleReservedVehiclesWithoutActiveTransportForMonitoring(
                 companyId,
                 staleVehicleThreshold,
-                ACTIVE_TRANSPORT_STATUSES
+                lifecycleStatusClassifier.activeTransportStatuses()
         );
 
         return new LifecycleSnapshot(blockedTasks, stuckTasks, overdueTransports, staleReservedVehicles);
