@@ -57,7 +57,6 @@ import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinitio
 import rs.logistics.logistics_system.service.support.DomainScopeValidator;
 import rs.logistics.logistics_system.service.support.CsvImportLimits;
 import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
-import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 @Service
 @RequiredArgsConstructor
@@ -73,7 +72,6 @@ public class ShiftService implements ShiftServiceDefinition {
     private final TimeServiceDefinition timeService;
     private final DomainScopeValidator domainScopeValidator;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
-    private final WarehouseAccessGuard warehouseAccessGuard;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
 
@@ -428,10 +426,6 @@ public class ShiftService implements ShiftServiceDefinition {
     public PageResponse<ShiftResponse> getAll(Pageable pageable) {
         var shifts = authenticatedUserProvider.isOverlord()
                 ? _shiftRepository.findAll(pageable)
-                : isWarehouseManagerScoped()
-                ? managedWarehouseIds().isEmpty()
-                    ? org.springframework.data.domain.Page.<Shift>empty(pageable)
-                    : _shiftRepository.findAllInWarehouseScope(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), managedWarehouseIds(), pageable)
                 : _shiftRepository.findAllByEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), pageable);
 
         return PageResponse.from(shifts.map(shift -> ShiftMapper.toResponse(shift, timeService)));
@@ -462,8 +456,6 @@ public class ShiftService implements ShiftServiceDefinition {
 
         List<Shift> shifts = authenticatedUserProvider.isOverlord()
                 ? _shiftRepository.findShiftsForDay(start, end)
-                : isWarehouseManagerScoped()
-                ? managedWarehouseIds().isEmpty() ? List.of() : _shiftRepository.findShiftsForDayInWarehouseScope(start, end, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), managedWarehouseIds())
                 : _shiftRepository.findShiftsForDayAndCompany(
                 start,
                 end,
@@ -481,8 +473,6 @@ public class ShiftService implements ShiftServiceDefinition {
 
         List<Shift> shifts = authenticatedUserProvider.isOverlord()
                 ? _shiftRepository.findShiftByBetweenDates(start, end)
-                : isWarehouseManagerScoped()
-                ? managedWarehouseIds().isEmpty() ? List.of() : _shiftRepository.findShiftByBetweenDatesInWarehouseScope(start, end, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), managedWarehouseIds())
                 : _shiftRepository.findShiftByBetweenDatesAndCompany(
                 start,
                 end,
@@ -889,32 +879,11 @@ public class ShiftService implements ShiftServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
         }
 
-        if (isWarehouseManagerScoped()) {
-            List<Long> warehouseIds = managedWarehouseIds();
-            if (warehouseIds.isEmpty()) {
-                throw new ResourceNotFoundException("Shift not found");
-            }
-            return _shiftRepository.findByIdInWarehouseScope(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), warehouseIds)
-                    .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
-        }
-
         return _shiftRepository.findByIdAndEmployee_Company_Id(
                         id,
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
                 )
                 .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
-    }
-
-    private boolean isWarehouseManagerScoped() {
-        return authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                && !authenticatedUserProvider.isOverlord()
-                && !authenticatedUserProvider.isCompanyAdmin()
-                && !authenticatedUserProvider.hasRole("HR_MANAGER")
-                && !authenticatedUserProvider.hasRole("DISPATCHER");
-    }
-
-    private List<Long> managedWarehouseIds() {
-        return warehouseAccessGuard.managedWarehouseIdsForCurrentUser();
     }
 
     private Employee getAccessibleEmployee(Long employeeId) {

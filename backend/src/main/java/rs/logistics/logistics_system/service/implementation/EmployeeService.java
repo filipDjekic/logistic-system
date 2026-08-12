@@ -295,22 +295,6 @@ public class EmployeeService implements EmployeeServiceDefinition {
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
-        if (shouldRestrictEmployeesToWarehouseManagerScope()) {
-            Long managerEmployeeId = currentEmployeeIdOrThrow();
-            return PageResponse.from(_employeeRepository.searchEmployeesForManagedWarehouses(
-                    companyId,
-                    managerEmployeeId,
-                    normalizedSearch,
-                    QueryParameterNormalizer.parseLongOrNull(normalizedSearch),
-                    position,
-                    active,
-                    normalizedLinkedUser,
-                    availableFrom,
-                    availableTo,
-                    pageable
-            ).map(EmployeeMapper::toResponse));
-        }
-
         if (authenticatedUserProvider.hasRole(RoleCatalog.DISPATCHER)
                 && !authenticatedUserProvider.isOverlord()
                 && !authenticatedUserProvider.isCompanyAdmin()
@@ -765,50 +749,8 @@ public class EmployeeService implements EmployeeServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         }
 
-        Employee employee = _employeeRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
+        return _employeeRepository.findByIdAndCompany_Id(id, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
-
-        if (shouldRestrictEmployeesToWarehouseManagerScope()) {
-            ensureWarehouseManagerEmployeeScope(employee);
-        }
-
-        return employee;
-    }
-
-    private boolean shouldRestrictEmployeesToWarehouseManagerScope() {
-        return authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)
-                && !authenticatedUserProvider.isOverlord()
-                && !authenticatedUserProvider.isCompanyAdmin()
-                && !authenticatedUserProvider.hasRole(RoleCatalog.HR_MANAGER);
-    }
-
-    private Long currentEmployeeIdOrThrow() {
-        Employee employee = authenticatedUserProvider.getAuthenticatedUser().getEmployee();
-        if (employee == null || employee.getId() == null) {
-            throw new ForbiddenException("Authenticated user is not linked to an employee profile");
-        }
-        return employee.getId();
-    }
-
-    private void ensureWarehouseManagerEmployeeScope(Employee employee) {
-        if (employee.getUser() != null && authenticatedUserProvider.getAuthenticatedUserId().equals(employee.getUser().getId())) {
-            return;
-        }
-
-        Long employeeCompanyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
-        if (employeeCompanyId == null) {
-            throw new ForbiddenException("Employee is not assigned to a company");
-        }
-
-        boolean visible = _employeeRepository.isVisibleToWarehouseManager(
-                employee.getId(),
-                employeeCompanyId,
-                currentEmployeeIdOrThrow()
-        );
-
-        if (!visible) {
-            throw new ForbiddenException("You cannot access employees outside your managed warehouse scope");
-        }
     }
 
     private void validateAssignableRole(Role role) {

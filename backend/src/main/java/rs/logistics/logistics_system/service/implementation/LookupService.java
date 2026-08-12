@@ -79,9 +79,7 @@ public class LookupService implements LookupServiceDefinition {
         if ("select".equals(normalizedAccessMode) || "reference".equals(normalizedAccessMode)) {
             page = warehouseRepository.search(currentCompanyScope(), normalizedSearch, searchId, null, true, null, safePageable);
         } else if ("mutate".equals(normalizedAccessMode) || "mutation".equals(normalizedAccessMode)) {
-            List<Long> warehouseIds = isWarehouseManagerOnly()
-                    ? warehouseAccessGuard.managedWarehouseIdsForCurrentUser()
-                    : warehouseAccessGuard.mutationWarehouseIdsForScopedUser();
+            List<Long> warehouseIds = warehouseAccessGuard.mutationWarehouseIdsForScopedUser();
             page = warehouseIds == null
                     ? warehouseRepository.search(currentCompanyScope(), normalizedSearch, searchId, null, true, null, safePageable)
                     : warehouseIds.isEmpty()
@@ -194,16 +192,9 @@ public class LookupService implements LookupServiceDefinition {
         String normalizedSearch = normalize(search);
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
 
-        Page<Employee> page;
-        if (mode == EmployeeLookupMode.MANAGED_WAREHOUSE && isWarehouseManagerOnly()) {
-            page = employeeRepository.searchEmployeesForManagedWarehouses(
-                    currentCompanyScope(), currentEmployeeIdOrNotFound(), normalizedSearch, searchId,
-                    position, active, linkedUser, availableFrom, availableTo, safePageable);
-        } else {
-            page = employeeRepository.searchEmployees(
-                    currentCompanyScope(), normalizedSearch, searchId, position, active, linkedUser,
-                    availableFrom, availableTo, safePageable);
-        }
+        Page<Employee> page = employeeRepository.searchEmployees(
+                currentCompanyScope(), normalizedSearch, searchId, position, active, linkedUser,
+                availableFrom, availableTo, safePageable);
 
         return PageResponse.fromContent(page.getContent().stream()
                 .map(employee -> employeeOption(
@@ -270,9 +261,7 @@ public class LookupService implements LookupServiceDefinition {
                     safePageable
             );
         } else {
-            List<Long> warehouseIds = isWarehouseManagerOnly()
-                    ? warehouseAccessGuard.managedWarehouseIdsForCurrentUser()
-                    : warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
             if (warehouseIds != null) {
                 page = warehouseIds.isEmpty()
                         ? Page.empty(safePageable)
@@ -399,14 +388,6 @@ public class LookupService implements LookupServiceDefinition {
                 && !authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
                 && !authenticatedUserProvider.hasRole("DISPATCHER")
                 && (authenticatedUserProvider.hasRole("WORKER") || authenticatedUserProvider.hasRole("DRIVER"));
-    }
-
-    private boolean isWarehouseManagerOnly() {
-        return authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                && !authenticatedUserProvider.isOverlord()
-                && !authenticatedUserProvider.isCompanyAdmin()
-                && !authenticatedUserProvider.hasRole("HR_MANAGER")
-                && !authenticatedUserProvider.hasRole("DISPATCHER");
     }
 
     private String normalize(String search) {

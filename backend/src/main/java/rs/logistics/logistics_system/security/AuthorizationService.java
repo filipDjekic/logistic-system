@@ -65,7 +65,7 @@ public class AuthorizationService {
     public boolean canCreateStockMovement(Long warehouseId) {
         if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.isOverlord()) return true;
         return authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                && warehouseAccessGuard.managedWarehouseIdsForCurrentUser().contains(warehouseId);
+                && warehouseAccessGuard.canMutateWarehouse(warehouseId);
     }
 
     public boolean canCreateStockTransfer(Long sourceWarehouseId, Long destinationWarehouseId) {
@@ -79,7 +79,7 @@ public class AuthorizationService {
         if (movement == null) return false;
         if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
             return movement.getWarehouse() != null
-                    && warehouseAccessGuard.managedWarehouseIdsForCurrentUser().contains(movement.getWarehouse().getId());
+                    && warehouseAccessGuard.canMutateWarehouse(movement.getWarehouse());
         }
         if (authenticatedUserProvider.hasRole("DISPATCHER")) {
             return movement.getTransportOrder() != null

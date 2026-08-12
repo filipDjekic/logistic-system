@@ -6,6 +6,7 @@ import PageLoader from '../../shared/components/Loader/PageLoader';
 import { GuestRoute, ProtectedRoute } from './guards';
 import { ROLES } from '../../core/constants/roles';
 import { CAPABILITIES, rolesForCapability } from '../../core/permissions/capabilities';
+import RouteErrorPage from '../errors/RouteErrorPage';
 
 const AppLayout = lazy(() => import('../layout/AppLayout'));
 const StarterPage = lazy(() => import('./StarterPage'));
@@ -419,4 +420,9 @@ export const routes = [
   },
 ];
 
-export const router = createBrowserRouter(routes);
+const routesWithErrorBoundary = routes.map((route) => ({
+  ...route,
+  errorElement: <RouteErrorPage />,
+}));
+
+export const router = createBrowserRouter(routesWithErrorBoundary);

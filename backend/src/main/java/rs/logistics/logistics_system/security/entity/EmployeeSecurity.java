@@ -33,16 +33,13 @@ public class EmployeeSecurity {
                         return true;
                     }
 
-                    if (authenticatedUserProvider.hasAnyRole(RoleCatalog.COMPANY_ADMIN, RoleCatalog.HR_MANAGER, RoleCatalog.DISPATCHER)) {
+                    if (authenticatedUserProvider.hasAnyRole(
+                            RoleCatalog.COMPANY_ADMIN,
+                            RoleCatalog.HR_MANAGER,
+                            RoleCatalog.DISPATCHER,
+                            RoleCatalog.WAREHOUSE_MANAGER
+                    )) {
                         return true;
-                    }
-
-                    if (authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)) {
-                        Long managerEmployeeId = authenticatedUserProvider.getAuthenticatedUser().getEmployee() != null
-                                ? authenticatedUserProvider.getAuthenticatedUser().getEmployee().getId()
-                                : null;
-                        return managerEmployeeId != null
-                                && employeeRepository.isVisibleToWarehouseManager(employee.getId(), companyId, managerEmployeeId);
                     }
 
                     return false;

@@ -58,7 +58,9 @@ if not exist "node_modules" (
     )
 )
 
-start "Logistics System - Frontend" cmd /k npm run dev -- --force
+rem Keep Vite's dependency cache stable across restarts. Forcing a re-bundle can
+rem leave an already-open tab with old React modules and new lazy chunks.
+start "Logistics System - Frontend" cmd /k npm run dev
 
 echo.
 echo ========================================
