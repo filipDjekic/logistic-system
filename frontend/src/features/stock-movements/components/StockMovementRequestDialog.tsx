@@ -148,6 +148,7 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
             required
             activeOnly
             warehouseId={requiresExistingStock ? warehouse?.id : undefined}
+            lookupParams={{ mode: requiresExistingStock ? 'AVAILABLE_STOCK' : 'REFERENCE' }}
             disabled={requiresExistingStock && !warehouse}
             placeholder={requiresExistingStock && !warehouse ? 'Choose warehouse first' : 'Not selected'}
             onChange={setProduct}

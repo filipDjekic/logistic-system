@@ -154,6 +154,7 @@ export default function ShiftFormDialog({
           <EntityLookupField
             label="Employee"
             entityType="employees"
+            lookupParams={{ mode: 'MANAGED_WAREHOUSE' }}
             value={selectedEmployee}
             onChange={(option) => {
               setSelectedEmployee(option);

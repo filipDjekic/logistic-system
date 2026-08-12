@@ -7,6 +7,8 @@ import org.springframework.data.domain.Pageable;
 import rs.logistics.logistics_system.dto.response.LookupOptionResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.EmployeeLookupMode;
+import rs.logistics.logistics_system.enums.ProductLookupMode;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import java.util.Set;
@@ -15,7 +17,7 @@ public interface LookupServiceDefinition {
 
     PageResponse<LookupOptionResponse> warehouses(String search, String accessMode, Pageable pageable);
 
-    PageResponse<LookupOptionResponse> products(String search, Long warehouseId, Pageable pageable);
+    PageResponse<LookupOptionResponse> products(String search, Long warehouseId, ProductLookupMode mode, Pageable pageable);
 
     PageResponse<LookupOptionResponse> vehicles(
         String search,
@@ -31,6 +33,7 @@ public interface LookupServiceDefinition {
         EmployeePosition position,
         Boolean active,
         String linkedUser,
+        EmployeeLookupMode mode,
         LocalDateTime availableFrom,
         LocalDateTime availableTo,
         Pageable pageable

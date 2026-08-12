@@ -18,6 +18,8 @@ import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseZone;
 import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.EmployeeLookupMode;
+import rs.logistics.logistics_system.enums.ProductLookupMode;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
@@ -99,7 +101,7 @@ public class LookupService implements LookupServiceDefinition {
     }
 
     @Override
-    public PageResponse<LookupOptionResponse> products(String search, Long warehouseId, Pageable pageable) {
+    public PageResponse<LookupOptionResponse> products(String search, Long warehouseId, ProductLookupMode mode, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "name"));
         String normalizedSearch = normalize(search);
         if (warehouseId != null && !warehouseAccessGuard.canReadWarehouse(warehouseId)) {
@@ -107,19 +109,25 @@ public class LookupService implements LookupServiceDefinition {
         }
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
         Page<Product> page;
-        if (warehouseId != null) {
-            page = productRepository.searchProductsInWarehouse(
+        ProductLookupMode resolvedMode = mode == null ? ProductLookupMode.REFERENCE : mode;
+        if (resolvedMode == ProductLookupMode.AVAILABLE_STOCK) {
+            if (warehouseId == null) {
+                throw new BadRequestException("warehouseId is required for AVAILABLE_STOCK product lookup");
+            }
+            page = productRepository.searchProductsWithAvailableStockInWarehouse(
+                    currentCompanyScope(), warehouseId, normalizedSearch, searchId, true, safePageable);
+        } else if (warehouseId != null) {
+            page = productRepository.searchProductsConfiguredInWarehouse(
                     currentCompanyScope(), warehouseId, normalizedSearch, searchId, true, safePageable);
         } else if (isWorkplaceScopedUser()) {
             List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
-            page = productRepository.searchDriverAccessibleProducts(
-                    currentCompanyScope(),
-                    warehouseIds == null || warehouseIds.isEmpty() ? List.of(-1L) : warehouseIds,
-                    authenticatedUserProvider.getAuthenticatedUserId(),
-                    normalizedSearch,
-                    searchId,
-                    true,
-                    safePageable);
+            page = warehouseIds == null || warehouseIds.isEmpty()
+                    ? productRepository.searchProductsRelatedToUser(
+                            currentCompanyScope(), authenticatedUserProvider.getAuthenticatedUserId(),
+                            normalizedSearch, searchId, true, safePageable)
+                    : productRepository.searchDriverAccessibleProducts(
+                            currentCompanyScope(), warehouseIds, authenticatedUserProvider.getAuthenticatedUserId(),
+                            normalizedSearch, searchId, true, safePageable);
         } else {
             page = productRepository.searchProducts(
                     currentCompanyScope(), normalizedSearch, searchId, true, safePageable);
@@ -176,6 +184,7 @@ public class LookupService implements LookupServiceDefinition {
             EmployeePosition position,
             Boolean active,
             String linkedUser,
+            EmployeeLookupMode mode,
             LocalDateTime availableFrom,
             LocalDateTime availableTo,
             Pageable pageable
@@ -186,7 +195,7 @@ public class LookupService implements LookupServiceDefinition {
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
 
         Page<Employee> page;
-        if (isWarehouseManagerOnly()) {
+        if (mode == EmployeeLookupMode.MANAGED_WAREHOUSE && isWarehouseManagerOnly()) {
             page = employeeRepository.searchEmployeesForManagedWarehouses(
                     currentCompanyScope(), currentEmployeeIdOrNotFound(), normalizedSearch, searchId,
                     position, active, linkedUser, availableFrom, availableTo, safePageable);
@@ -221,7 +230,7 @@ public class LookupService implements LookupServiceDefinition {
                 driverUserId,
                 workerEmployeeId,
                 false,
-                List.of(-1L),
+                null,
                 null,
                 null,
                 excludeStatuses == null || excludeStatuses.isEmpty() ? null : excludeStatuses,

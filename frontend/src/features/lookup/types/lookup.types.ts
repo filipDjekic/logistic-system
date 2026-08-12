@@ -26,6 +26,7 @@ export type LookupParams = {
   warehouseId?: number | string | null;
   zoneId?: number | string | null;
   accessMode?: 'read' | 'mutate' | 'mutation' | 'select' | 'reference';
+  mode?: 'REFERENCE' | 'AVAILABLE_STOCK' | 'COMPANY' | 'MANAGED_WAREHOUSE';
   position?: string;
   status?: string;
   availableOnly?: boolean;

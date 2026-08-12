@@ -111,6 +111,12 @@ function referenceNumberFromStockMovement(stockMovement: LookupOption | null) {
   return stockMovement.label?.trim() || `STOCK_MOVEMENT_${stockMovement.id}`;
 }
 
+function returnRequiresAvailableStock(reference: LookupOption | null) {
+  if (!reference) return false;
+  const movementType = reference.label.split(/\s|#/)[0]?.toUpperCase();
+  return movementType === 'INBOUND' || movementType === 'TRANSFER_IN' || movementType === 'RETURN_IN';
+}
+
 const generatedReferenceNumber = (operation: StockOperationType) => {
   const now = new Date();
 
@@ -166,7 +172,8 @@ export default function StockOperationPage() {
     || operation === 'transfer'
     || operation === 'internal'
     || operation === 'write-off'
-    || (operation === 'adjustment' && values.adjustmentDirection === 'DECREASE');
+    || (operation === 'adjustment' && values.adjustmentDirection === 'DECREASE')
+    || (operation === 'return' && returnRequiresAvailableStock(values.stockMovementReference));
   const usesTransportOrder = operation === 'transfer';
   const allowsStockMovementReference = operation === 'outbound' || operation === 'write-off' || operation === 'return';
   const submitDisabled = mutation.isPending || internalMovementMutation.isPending;
@@ -509,6 +516,7 @@ export default function StockOperationPage() {
                 required
                 activeOnly
                 warehouseId={requiresExistingStock ? values.warehouse?.id : undefined}
+                lookupParams={{ mode: requiresExistingStock ? 'AVAILABLE_STOCK' : 'REFERENCE' }}
                 disabled={requiresExistingStock && !values.warehouse}
                 placeholder={requiresExistingStock && !values.warehouse ? 'Choose source warehouse first' : 'Not selected'}
                 searchPlaceholder="Search products by name or SKU..."
@@ -662,6 +670,7 @@ export default function StockOperationPage() {
                     setValues((prev) => ({
                       ...prev,
                       stockMovementReference,
+                      product: operation === 'return' ? null : prev.product,
                       transportOrder: null,
                       referenceNumber: prev.referenceNumber || referenceNumberFromStockMovement(stockMovementReference) || '',
                     }));

@@ -241,6 +241,7 @@ export default function TaskFormDialog({
                   <EntityLookupField
                     label="Assigned employee"
                     entityType="employees"
+                    lookupParams={{ mode: 'MANAGED_WAREHOUSE' }}
                     required
                     value={field.value ? {
                       id: Number(field.value),

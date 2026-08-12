@@ -51,7 +51,14 @@ export function EntityLookupField({
   const [open, setOpen] = useState(false);
   const resolvedValueQuery = useEntityLookup(
     entityType,
-    { search: value ? String(value.id) : undefined, page: 0, size: 10 },
+    {
+      search: value ? String(value.id) : undefined,
+      page: 0,
+      size: 10,
+      ...(warehouseId ? { warehouseId } : {}),
+      ...(accessMode ? { accessMode } : {}),
+      ...(lookupParams ?? {}),
+    },
     Boolean(value?.id),
   );
   const resolvedValue = value

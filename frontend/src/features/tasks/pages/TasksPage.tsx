@@ -357,6 +357,7 @@ export default function TasksPage() {
                 <EntityLookupField
                   label="Assigned employee"
                   entityType="employees"
+                  lookupParams={{ mode: 'MANAGED_WAREHOUSE' }}
                   value={assignedEmployeeFilter}
                   onChange={(option) => {
                     setAssignedEmployeeFilter(option);

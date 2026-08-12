@@ -101,18 +101,47 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     join wi.product p
     join wi.warehouse w
     left join p.company c
-    where (:companyId is null or c.id = :companyId)
+    where (:companyId is null or (c.id = :companyId and w.company.id = :companyId))
     and w.id = :warehouseId
-    and wi.quantity > 0
+    and w.company.id = c.id
     and (:active is null or p.active = :active)
     and (
         :search is null
         or lower(p.name) like lower(concat('%', :search, '%'))
         or lower(p.sku) like lower(concat('%', :search, '%'))
+        or lower(coalesce(p.description, '')) like lower(concat('%', :search, '%'))
         or (:searchId is not null and p.id = :searchId)
     )
 """)
-    Page<Product> searchProductsInWarehouse(
+    Page<Product> searchProductsConfiguredInWarehouse(
+            @Param("companyId") Long companyId,
+            @Param("warehouseId") Long warehouseId,
+            @Param("search") String search,
+            @Param("searchId") Long searchId,
+            @Param("active") Boolean active,
+            Pageable pageable
+    );
+
+    @Query("""
+    select distinct p
+    from WarehouseInventory wi
+    join wi.product p
+    join wi.warehouse w
+    left join p.company c
+    where (:companyId is null or (c.id = :companyId and w.company.id = :companyId))
+    and w.id = :warehouseId
+    and w.company.id = c.id
+    and (wi.quantity - wi.reservedQuantity) > 0
+    and (:active is null or p.active = :active)
+    and (
+        :search is null
+        or lower(p.name) like lower(concat('%', :search, '%'))
+        or lower(p.sku) like lower(concat('%', :search, '%'))
+        or lower(coalesce(p.description, '')) like lower(concat('%', :search, '%'))
+        or (:searchId is not null and p.id = :searchId)
+    )
+""")
+    Page<Product> searchProductsWithAvailableStockInWarehouse(
             @Param("companyId") Long companyId,
             @Param("warehouseId") Long warehouseId,
             @Param("search") String search,
@@ -144,6 +173,34 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> searchDriverAccessibleProducts(
             @Param("companyId") Long companyId,
             @Param("warehouseIds") Collection<Long> warehouseIds,
+            @Param("userId") Long userId,
+            @Param("search") String search,
+            @Param("searchId") Long searchId,
+            @Param("active") Boolean active,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"company", "company.timezone"})
+    @Query("""
+        select distinct p from Product p
+        where p.company.id = :companyId
+        and (
+          exists (select 1 from TransportOrderItem toi
+                  where toi.product = p and toi.transportOrder.assignedEmployee.user.id = :userId)
+          or exists (select 1 from StockMovement sm
+                     where sm.product = p and (
+                       sm.transportOrder.assignedEmployee.user.id = :userId
+                       or exists (select 1 from Task t where t.stockMovement = sm and t.assignedEmployee.user.id = :userId)
+                     ))
+        )
+        and (:active is null or p.active = :active)
+        and (:search is null or lower(p.name) like lower(concat('%', :search, '%'))
+             or lower(p.sku) like lower(concat('%', :search, '%'))
+             or lower(coalesce(p.description, '')) like lower(concat('%', :search, '%'))
+             or (:searchId is not null and p.id = :searchId))
+    """)
+    Page<Product> searchProductsRelatedToUser(
+            @Param("companyId") Long companyId,
             @Param("userId") Long userId,
             @Param("search") String search,
             @Param("searchId") Long searchId,

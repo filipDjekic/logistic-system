@@ -273,6 +273,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
                   Boolean(dateTimeError)
                 }
                 lookupParams={{
+                  mode: 'COMPANY',
                   position: 'DRIVER',
                   activeOnly: true,
                   availableFrom: departureTime || undefined,

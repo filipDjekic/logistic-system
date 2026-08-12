@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import rs.logistics.logistics_system.dto.response.LookupOptionResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.EmployeeLookupMode;
+import rs.logistics.logistics_system.enums.ProductLookupMode;
 import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.service.definition.LookupServiceDefinition;
 import rs.logistics.logistics_system.enums.VehicleStatus;
@@ -42,9 +44,10 @@ public class LookupController {
     public ResponseEntity<PageResponse<LookupOptionResponse>> products(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long warehouseId,
+            @RequestParam(defaultValue = "REFERENCE") ProductLookupMode mode,
             @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return ResponseEntity.ok(lookupService.products(search, warehouseId, pageable));
+        return ResponseEntity.ok(lookupService.products(search, warehouseId, mode, pageable));
     }
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
@@ -76,6 +79,7 @@ public class LookupController {
             @RequestParam(required = false) Boolean activeOnly,
             @RequestParam(required = false, name = "active") Boolean legacyActive,
             @RequestParam(required = false) String linkedUser,
+            @RequestParam(defaultValue = "COMPANY") EmployeeLookupMode mode,
             @RequestParam(required = false) LocalDateTime availableFrom,
             @RequestParam(required = false) LocalDateTime availableTo,
             @PageableDefault(size = 20, sort = "lastName", direction = Sort.Direction.ASC) Pageable pageable
@@ -85,6 +89,7 @@ public class LookupController {
                 position,
                 activeOnly != null ? activeOnly : legacyActive,
                 linkedUser,
+                mode,
                 availableFrom,
                 availableTo,
                 pageable
