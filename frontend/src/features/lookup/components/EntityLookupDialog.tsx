@@ -48,7 +48,7 @@ export type EntityLookupDialogProps = {
   sort?: string;
   activeOnly?: boolean;
   warehouseId?: number | string | null;
-  accessMode?: 'read' | 'mutate' | 'select';
+  accessMode?: 'read' | 'mutate' | 'mutation' | 'select' | 'reference';
   lookupParams?: Omit<LookupParams, 'search' | 'page' | 'size' | 'sort'>;
 };
 

@@ -68,12 +68,18 @@ public class LookupService implements LookupServiceDefinition {
     public PageResponse<LookupOptionResponse> warehouses(String search, String accessMode, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "name"));
         String normalizedSearch = normalize(search);
+        String normalizedAccessMode = accessMode == null ? "read" : accessMode.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!Set.of("read", "select", "reference", "mutate", "mutation").contains(normalizedAccessMode)) {
+            throw new BadRequestException("Unsupported warehouse lookup accessMode");
+        }
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
         Page<Warehouse> page;
-        if ("select".equalsIgnoreCase(accessMode) || "reference".equalsIgnoreCase(accessMode)) {
+        if ("select".equals(normalizedAccessMode) || "reference".equals(normalizedAccessMode)) {
             page = warehouseRepository.search(currentCompanyScope(), normalizedSearch, searchId, null, true, null, safePageable);
-        } else if ("mutate".equalsIgnoreCase(accessMode) || "mutation".equalsIgnoreCase(accessMode)) {
-            List<Long> warehouseIds = warehouseAccessGuard.mutationWarehouseIdsForScopedUser();
+        } else if ("mutate".equals(normalizedAccessMode) || "mutation".equals(normalizedAccessMode)) {
+            List<Long> warehouseIds = isWarehouseManagerOnly()
+                    ? warehouseAccessGuard.managedWarehouseIdsForCurrentUser()
+                    : warehouseAccessGuard.mutationWarehouseIdsForScopedUser();
             page = warehouseIds == null
                     ? warehouseRepository.search(currentCompanyScope(), normalizedSearch, searchId, null, true, null, safePageable)
                     : warehouseIds.isEmpty()
@@ -96,9 +102,28 @@ public class LookupService implements LookupServiceDefinition {
     public PageResponse<LookupOptionResponse> products(String search, Long warehouseId, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.ASC, "name"));
         String normalizedSearch = normalize(search);
-        Page<Product> page = warehouseId == null
-                ? productRepository.searchProducts(currentCompanyScope(), normalizedSearch, QueryParameterNormalizer.parseLongOrNull(normalizedSearch), true, safePageable)
-                : productRepository.searchProductsInWarehouse(currentCompanyScope(), warehouseId, normalizedSearch, QueryParameterNormalizer.parseLongOrNull(normalizedSearch), true, safePageable);
+        if (warehouseId != null && !warehouseAccessGuard.canReadWarehouse(warehouseId)) {
+            throw new ResourceNotFoundException("Warehouse not found");
+        }
+        Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
+        Page<Product> page;
+        if (warehouseId != null) {
+            page = productRepository.searchProductsInWarehouse(
+                    currentCompanyScope(), warehouseId, normalizedSearch, searchId, true, safePageable);
+        } else if (isWorkplaceScopedUser()) {
+            List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            page = productRepository.searchDriverAccessibleProducts(
+                    currentCompanyScope(),
+                    warehouseIds == null || warehouseIds.isEmpty() ? List.of(-1L) : warehouseIds,
+                    authenticatedUserProvider.getAuthenticatedUserId(),
+                    normalizedSearch,
+                    searchId,
+                    true,
+                    safePageable);
+        } else {
+            page = productRepository.searchProducts(
+                    currentCompanyScope(), normalizedSearch, searchId, true, safePageable);
+        }
         return PageResponse.fromContent(page.getContent().stream().map(this::productOption).toList(), page);
     }
 
@@ -160,17 +185,16 @@ public class LookupService implements LookupServiceDefinition {
         String normalizedSearch = normalize(search);
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
 
-        Page<Employee> page = employeeRepository.searchEmployees(
-                currentCompanyScope(),
-                normalizedSearch,
-                searchId,
-                position,
-                active,
-                linkedUser,
-                availableFrom,
-                availableTo,
-                safePageable
-        );
+        Page<Employee> page;
+        if (isWarehouseManagerOnly()) {
+            page = employeeRepository.searchEmployeesForManagedWarehouses(
+                    currentCompanyScope(), currentEmployeeIdOrNotFound(), normalizedSearch, searchId,
+                    position, active, linkedUser, availableFrom, availableTo, safePageable);
+        } else {
+            page = employeeRepository.searchEmployees(
+                    currentCompanyScope(), normalizedSearch, searchId, position, active, linkedUser,
+                    availableFrom, availableTo, safePageable);
+        }
 
         return PageResponse.fromContent(page.getContent().stream()
                 .map(employee -> employeeOption(
@@ -219,7 +243,7 @@ public class LookupService implements LookupServiceDefinition {
     public PageResponse<LookupOptionResponse> stockMovements(String search, Pageable pageable) {
         Pageable safePageable = PageableSortMapper.lookup(pageable, Sort.by(Sort.Direction.DESC, "id"));
         Page<StockMovement> page;
-        if (authenticatedUserProvider.hasRole("WORKER")) {
+        if (authenticatedUserProvider.hasRole("WORKER") || authenticatedUserProvider.hasRole("DRIVER")) {
             page = stockMovementRepository.searchMovementsAssignedToEmployee(
                     currentCompanyScope(),
                     currentEmployeeIdOrNotFound(),
@@ -237,7 +261,9 @@ public class LookupService implements LookupServiceDefinition {
                     safePageable
             );
         } else {
-            List<Long> warehouseIds = warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
+            List<Long> warehouseIds = isWarehouseManagerOnly()
+                    ? warehouseAccessGuard.managedWarehouseIdsForCurrentUser()
+                    : warehouseAccessGuard.assignedWarehouseIdsForScopedUser();
             if (warehouseIds != null) {
                 page = warehouseIds.isEmpty()
                         ? Page.empty(safePageable)
@@ -358,12 +384,31 @@ public class LookupService implements LookupServiceDefinition {
                 && !authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER");
     }
 
+    private boolean isWorkplaceScopedUser() {
+        return !authenticatedUserProvider.isOverlord()
+                && !authenticatedUserProvider.isCompanyAdmin()
+                && !authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                && !authenticatedUserProvider.hasRole("DISPATCHER")
+                && (authenticatedUserProvider.hasRole("WORKER") || authenticatedUserProvider.hasRole("DRIVER"));
+    }
+
+    private boolean isWarehouseManagerOnly() {
+        return authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                && !authenticatedUserProvider.isOverlord()
+                && !authenticatedUserProvider.isCompanyAdmin()
+                && !authenticatedUserProvider.hasRole("HR_MANAGER")
+                && !authenticatedUserProvider.hasRole("DISPATCHER");
+    }
+
     private String normalize(String search) {
         if (search == null || search.trim().isEmpty()) {
             return null;
         }
         String normalized = search.trim();
-        return normalized.length() > MAX_SEARCH_LENGTH ? normalized.substring(0, MAX_SEARCH_LENGTH) : normalized;
+        if (normalized.length() > MAX_SEARCH_LENGTH) {
+            throw new BadRequestException("Lookup search must be at most " + MAX_SEARCH_LENGTH + " characters");
+        }
+        return normalized;
     }
 
     private void validateAvailabilityWindow(LocalDateTime availableFrom, LocalDateTime availableTo) {
@@ -434,7 +479,8 @@ public class LookupService implements LookupServiceDefinition {
 
 
     private LookupOptionResponse stockMovementOption(StockMovement movement) {
-        String label = movement.getMovementType().name() + " #" + movement.getId();
+        String label = (movement.getMovementType() != null ? movement.getMovementType().name() : "Stock movement")
+                + " #" + movement.getId();
         String subtitle = joinNonBlank(
                 movement.getProduct() != null ? movement.getProduct().getName() : null,
                 movement.getWarehouse() != null ? movement.getWarehouse().getName() : null,

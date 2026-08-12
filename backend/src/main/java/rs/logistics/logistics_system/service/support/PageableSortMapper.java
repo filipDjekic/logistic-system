@@ -56,7 +56,12 @@ public final class PageableSortMapper {
     }
 
     public static Pageable lookup(Pageable pageable, Sort fallbackSort) {
-        return clamp(pageable, DEFAULT_PAGE_SIZE, MAX_LOOKUP_PAGE_SIZE, fallbackSort);
+        return lookup(pageable, fallbackSort, Set.of(fallbackSort.iterator().next().getProperty()));
+    }
+
+    public static Pageable lookup(Pageable pageable, Sort fallbackSort, Set<String> allowedProperties) {
+        Pageable mapped = map(pageable, Map.of(), allowedProperties, fallbackSort);
+        return PageRequest.of(mapped.getPageNumber(), Math.min(mapped.getPageSize(), MAX_LOOKUP_PAGE_SIZE), mapped.getSort());
     }
 
     private static int safePage(Pageable pageable) {

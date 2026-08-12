@@ -331,8 +331,12 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
         select t
         from TransportOrder t
         left join t.sourceWarehouse sourceWarehouse
+        left join sourceWarehouse.city sourceCity
         left join t.destinationWarehouse destinationWarehouse
+        left join destinationWarehouse.city destinationCity
         left join t.vehicle vehicle
+        left join vehicle.vehicleModel vehicleModel
+        left join vehicleModel.brand vehicleBrand
         left join t.assignedEmployee assignedEmployee
         left join assignedEmployee.user assignedUser
         where (:companyId is null or t.createdBy.company.id = :companyId)
@@ -357,12 +361,12 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             or lower(t.description) like lower(concat('%', :search, '%'))
             or lower(coalesce(t.notes, '')) like lower(concat('%', :search, '%'))
             or lower(sourceWarehouse.name) like lower(concat('%', :search, '%'))
-            or lower(sourceWarehouse.city.name) like lower(concat('%', :search, '%'))
+            or lower(sourceCity.name) like lower(concat('%', :search, '%'))
             or lower(destinationWarehouse.name) like lower(concat('%', :search, '%'))
-            or lower(destinationWarehouse.city.name) like lower(concat('%', :search, '%'))
+            or lower(destinationCity.name) like lower(concat('%', :search, '%'))
             or lower(vehicle.registrationNumber) like lower(concat('%', :search, '%'))
-            or lower(vehicle.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
-            or lower(vehicle.vehicleModel.name) like lower(concat('%', :search, '%'))
+            or lower(vehicleBrand.name) like lower(concat('%', :search, '%'))
+            or lower(vehicleModel.name) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.firstName) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.lastName) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.email) like lower(concat('%', :search, '%'))
@@ -420,8 +424,12 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
         select t.status, count(t)
         from TransportOrder t
         left join t.sourceWarehouse sourceWarehouse
+        left join sourceWarehouse.city sourceCity
         left join t.destinationWarehouse destinationWarehouse
+        left join destinationWarehouse.city destinationCity
         left join t.vehicle vehicle
+        left join vehicle.vehicleModel vehicleModel
+        left join vehicleModel.brand vehicleBrand
         left join t.assignedEmployee assignedEmployee
         left join assignedEmployee.user assignedUser
         where (:companyId is null or t.createdBy.company.id = :companyId)
@@ -444,12 +452,12 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
             or lower(t.description) like lower(concat('%', :search, '%'))
             or lower(coalesce(t.notes, '')) like lower(concat('%', :search, '%'))
             or lower(sourceWarehouse.name) like lower(concat('%', :search, '%'))
-            or lower(sourceWarehouse.city.name) like lower(concat('%', :search, '%'))
+            or lower(sourceCity.name) like lower(concat('%', :search, '%'))
             or lower(destinationWarehouse.name) like lower(concat('%', :search, '%'))
-            or lower(destinationWarehouse.city.name) like lower(concat('%', :search, '%'))
+            or lower(destinationCity.name) like lower(concat('%', :search, '%'))
             or lower(vehicle.registrationNumber) like lower(concat('%', :search, '%'))
-            or lower(vehicle.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
-            or lower(vehicle.vehicleModel.name) like lower(concat('%', :search, '%'))
+            or lower(vehicleBrand.name) like lower(concat('%', :search, '%'))
+            or lower(vehicleModel.name) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.firstName) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.lastName) like lower(concat('%', :search, '%'))
             or lower(assignedEmployee.email) like lower(concat('%', :search, '%'))

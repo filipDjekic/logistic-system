@@ -31,6 +31,7 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
     @Query("""
             select c
             from Company c
+            left join c.city city
             where (:companyId is null or c.id = :companyId)
             and (
                 :search is null
@@ -38,7 +39,7 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
                 or lower(coalesce(c.email, '')) like lower(concat('%', :search, '%'))
                 or lower(coalesce(c.taxNumber, '')) like lower(concat('%', :search, '%'))
                 or lower(coalesce(c.registrationNumber, '')) like lower(concat('%', :search, '%'))
-                or lower(coalesce(c.city.name, '')) like lower(concat('%', :search, '%'))
+                or lower(coalesce(city.name, '')) like lower(concat('%', :search, '%'))
                 or (:searchId is not null and c.id = :searchId)
             )
             """)

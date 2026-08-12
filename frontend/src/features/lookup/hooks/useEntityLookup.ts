@@ -4,8 +4,11 @@ import { lookupApi } from '../api/lookupApi';
 import type { LookupEntityType, LookupParams } from '../types/lookup.types';
 
 export function useEntityLookup(entityType: LookupEntityType, params: LookupParams = {}, enabled = true) {
+  const cleanedParams = Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+  ) as LookupParams;
   const normalizedParams: LookupParams = {
-    ...params,
+    ...cleanedParams,
     page: params.page ?? 0,
     size: Math.min(Math.max(params.size ?? 10, 1), 50),
     search: params.search?.trim() || undefined,

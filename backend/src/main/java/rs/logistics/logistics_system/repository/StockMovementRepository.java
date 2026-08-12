@@ -271,10 +271,13 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     @Query("""
         select sm from StockMovement sm
         where (:companyId is null or sm.warehouse.company.id = :companyId)
-        and exists (
-            select 1 from Task workerTask
-            where workerTask.stockMovement = sm
-            and workerTask.assignedEmployee.id = :employeeId
+        and (
+            sm.transportOrder.assignedEmployee.id = :employeeId
+            or exists (
+                select 1 from Task workerTask
+                where workerTask.stockMovement = sm
+                and workerTask.assignedEmployee.id = :employeeId
+            )
         )
         and (:movementType is null or sm.movementType = :movementType)
         and (:status is null or sm.status = :status)

@@ -74,7 +74,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
         ))
         and (:status is null or v.status = :status)
         and (:available is null or v.active = :available)
-        and (:type is null or lower(v.type) like lower(concat('%', :type, '%')))
+        and (:type is null or v.type = :type)
         and (:capacityFrom is null or v.capacity >= :capacityFrom)
         and (:capacityTo is null or v.capacity <= :capacityTo)
         and (
@@ -82,8 +82,6 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             or lower(v.registrationNumber) like lower(concat('%', :search, '%'))
             or lower(v.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
             or lower(v.vehicleModel.name) like lower(concat('%', :search, '%'))
-            or lower(v.type) like lower(concat('%', :search, '%'))
-            or lower(v.fuelType) like lower(concat('%', :search, '%'))
             or (:searchYear is not null and v.yearOfProduction = :searchYear)
             or (:searchId is not null and v.id = :searchId)
         )
@@ -95,7 +93,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             @Param("searchId") Long searchId,
             @Param("searchYear") Integer searchYear,
             @Param("status") VehicleStatus status,
-            @Param("type") String type,
+            @Param("type") rs.logistics.logistics_system.enums.VehicleType type,
             @Param("available") Boolean available,
             @Param("capacityFrom") BigDecimal capacityFrom,
             @Param("capacityTo") BigDecimal capacityTo,
@@ -126,7 +124,6 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
              or lower(v.registrationNumber) like lower(concat('%', :search, '%'))
              or lower(v.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
              or lower(v.vehicleModel.name) like lower(concat('%', :search, '%'))
-             or lower(v.type) like lower(concat('%', :search, '%'))
              or (:searchId is not null and v.id = :searchId)
              or (:searchYear is not null and v.yearOfProduction = :searchYear))
         """)
@@ -199,7 +196,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             )
         ))
         and (:available is null or v.active = :available)
-        and (:type is null or lower(v.type) like lower(concat('%', :type, '%')))
+        and (:type is null or v.type = :type)
         and (:capacityFrom is null or v.capacity >= :capacityFrom)
         and (:capacityTo is null or v.capacity <= :capacityTo)
         and (
@@ -207,8 +204,6 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             or lower(v.registrationNumber) like lower(concat('%', :search, '%'))
             or lower(v.vehicleModel.brand.name) like lower(concat('%', :search, '%'))
             or lower(v.vehicleModel.name) like lower(concat('%', :search, '%'))
-            or lower(v.type) like lower(concat('%', :search, '%'))
-            or lower(v.fuelType) like lower(concat('%', :search, '%'))
             or (:searchYear is not null and v.yearOfProduction = :searchYear)
             or (:searchId is not null and v.id = :searchId)
         )
@@ -220,7 +215,7 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
             @Param("search") String search,
             @Param("searchId") Long searchId,
             @Param("searchYear") Integer searchYear,
-            @Param("type") String type,
+            @Param("type") rs.logistics.logistics_system.enums.VehicleType type,
             @Param("available") Boolean available,
             @Param("capacityFrom") BigDecimal capacityFrom,
             @Param("capacityTo") BigDecimal capacityTo

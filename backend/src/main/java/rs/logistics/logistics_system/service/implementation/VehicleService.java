@@ -115,7 +115,7 @@ public class VehicleService implements VehicleServiceDefinition {
                 searchId,
                 searchYear,
                 status,
-                QueryParameterNormalizer.trimToNull(type),
+                parseVehicleType(type),
                 available,
                 capacityFrom,
                 capacityTo,
@@ -140,7 +140,7 @@ public class VehicleService implements VehicleServiceDefinition {
                         QueryParameterNormalizer.trimToNull(search),
                         QueryParameterNormalizer.parseLongOrNull(search),
                         QueryParameterNormalizer.parseIntegerOrNull(search),
-                        QueryParameterNormalizer.trimToNull(type),
+                        parseVehicleType(type),
                         available,
                         capacityFrom,
                         capacityTo
@@ -148,6 +148,16 @@ public class VehicleService implements VehicleServiceDefinition {
                 .stream()
                 .map(row -> new StatusCountResponse(String.valueOf(row[0]), ((Number) row[1]).longValue()))
                 .toList();
+    }
+
+    private rs.logistics.logistics_system.enums.VehicleType parseVehicleType(String value) {
+        String normalized = QueryParameterNormalizer.trimToNull(value);
+        if (normalized == null) return null;
+        try {
+            return rs.logistics.logistics_system.enums.VehicleType.valueOf(normalized.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Invalid vehicle type: " + value);
+        }
     }
 
     @Transactional

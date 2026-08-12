@@ -27,7 +27,7 @@ public class LookupController {
 
     private final LookupServiceDefinition lookupService;
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/warehouses/lookup")
     public ResponseEntity<PageResponse<LookupOptionResponse>> warehouses(
             @RequestParam(required = false) String search,
@@ -37,7 +37,7 @@ public class LookupController {
         return ResponseEntity.ok(lookupService.warehouses(search, accessMode, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/products/lookup")
     public ResponseEntity<PageResponse<LookupOptionResponse>> products(
             @RequestParam(required = false) String search,
@@ -111,7 +111,7 @@ public class LookupController {
 
 
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/stock-movements/lookup")
     public ResponseEntity<PageResponse<LookupOptionResponse>> stockMovements(
             @RequestParam(required = false) String search,

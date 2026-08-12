@@ -39,7 +39,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                 :search is null
                 or lower(p.name) like lower(concat('%', :search, '%'))
                 or lower(p.sku) like lower(concat('%', :search, '%'))
-                or lower(p.unit) like lower(concat('%', :search, '%'))
                 or lower(coalesce(p.description, '')) like lower(concat('%', :search, '%'))
                 or lower(coalesce(c.name, '')) like lower(concat('%', :search, '%'))
                 or (:searchId is not null and p.id = :searchId)

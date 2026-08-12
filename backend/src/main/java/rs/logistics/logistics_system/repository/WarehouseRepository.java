@@ -57,6 +57,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
         from Warehouse w
         left join w.manager m
         left join w.company c
+        left join w.city city
         where (:companyId is null or c.id = :companyId)
         and (:status is null or w.status = :status)
         and (:active is null or w.active = :active)
@@ -64,7 +65,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
         and (
             :search is null
             or lower(w.name) like lower(concat('%', :search, '%'))
-            or lower(w.city.name) like lower(concat('%', :search, '%'))
+            or lower(city.name) like lower(concat('%', :search, '%'))
             or lower(w.address) like lower(concat('%', :search, '%'))
             or lower(coalesce(m.firstName, '')) like lower(concat('%', :search, '%'))
             or lower(coalesce(m.lastName, '')) like lower(concat('%', :search, '%'))
@@ -87,6 +88,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
         select distinct w
         from Warehouse w
         join EmployeeWarehouseAssignment a on a.warehouse = w
+        left join w.city city
         where (:companyId is null or w.company.id = :companyId)
         and a.employee.id = :employeeId
         and a.active = true
@@ -96,7 +98,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
         and (
             :search is null
             or lower(w.name) like lower(concat('%', :search, '%'))
-            or lower(w.city.name) like lower(concat('%', :search, '%'))
+            or lower(city.name) like lower(concat('%', :search, '%'))
             or lower(w.address) like lower(concat('%', :search, '%'))
             or (:searchId is not null and w.id = :searchId)
         )
@@ -118,6 +120,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
     @Query("""
         select w
         from Warehouse w
+        left join w.city city
         where (:companyId is null or w.company.id = :companyId)
         and w.id in :warehouseIds
         and (:status is null or w.status = :status)
@@ -126,7 +129,7 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
         and (
             :search is null
             or lower(w.name) like lower(concat('%', :search, '%'))
-            or lower(w.city.name) like lower(concat('%', :search, '%'))
+            or lower(city.name) like lower(concat('%', :search, '%'))
             or lower(w.address) like lower(concat('%', :search, '%'))
             or (:searchId is not null and w.id = :searchId)
         )
