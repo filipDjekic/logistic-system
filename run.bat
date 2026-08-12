@@ -58,7 +58,7 @@ if not exist "node_modules" (
     )
 )
 
-start "Logistics System - Frontend" cmd /k npm run dev
+start "Logistics System - Frontend" cmd /k npm run dev -- --force
 
 echo.
 echo ========================================

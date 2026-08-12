@@ -4,7 +4,10 @@ import path from "node:path";
 
 export default defineConfig({
   plugins: [react()],
+
   server: {
+    port: 5173,
+    strictPort: true,
     proxy: {
       "/api": {
         target: process.env.VITE_PROXY_TARGET ?? "http://localhost:8080",
@@ -12,9 +15,16 @@ export default defineConfig({
       },
     },
   },
+
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
+    dedupe: [
+      "react",
+      "react-dom",
+      "@emotion/react",
+      "@emotion/styled",
+    ],
   },
 });
