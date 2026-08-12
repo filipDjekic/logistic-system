@@ -30,6 +30,9 @@ import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
+import rs.logistics.logistics_system.dto.update.EmployeePositionUpdate;
+import rs.logistics.logistics_system.dto.update.EmployeePrimaryWarehouseUpdate;
+import rs.logistics.logistics_system.dto.update.EmployeeUserLinkUpdate;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 
@@ -99,18 +102,6 @@ public class EmployeeController {
 
 
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
-    @PatchMapping("/{id}/archive")
-    public ResponseEntity<EmployeeResponse> archiveEmployee(@PathVariable Long id) {
-        return ResponseEntity.ok(employeeService.archiveEmployee(id));
-    }
-
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
-    @PatchMapping("/{id}/restore")
-    public ResponseEntity<EmployeeResponse> restoreEmployee(@PathVariable Long id) {
-        return ResponseEntity.ok(employeeService.restoreEmployee(id));
-    }
-
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         employeeService.delete(id);
@@ -122,5 +113,35 @@ public class EmployeeController {
     public ResponseEntity<Void> terminateEmployee(@PathVariable Long id) {
         employeeService.terminateEmployee(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PatchMapping("/{id}/reactivate")
+    public ResponseEntity<EmployeeResponse> reactivateEmployee(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeService.reactivateEmployee(id));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PatchMapping("/{id}/position")
+    public ResponseEntity<EmployeeResponse> changePosition(@PathVariable Long id, @Valid @RequestBody EmployeePositionUpdate dto) {
+        return ResponseEntity.ok(employeeService.changePosition(id, dto));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PatchMapping("/{id}/primary-warehouse")
+    public ResponseEntity<EmployeeResponse> changePrimaryWarehouse(@PathVariable Long id, @Valid @RequestBody EmployeePrimaryWarehouseUpdate dto) {
+        return ResponseEntity.ok(employeeService.changePrimaryWarehouse(id, dto));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @PatchMapping("/{id}/user-link")
+    public ResponseEntity<EmployeeResponse> linkUser(@PathVariable Long id, @Valid @RequestBody EmployeeUserLinkUpdate dto) {
+        return ResponseEntity.ok(employeeService.linkUser(id, dto));
+    }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER')")
+    @DeleteMapping("/{id}/user-link")
+    public ResponseEntity<EmployeeResponse> unlinkUser(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeService.unlinkUser(id));
     }
 }

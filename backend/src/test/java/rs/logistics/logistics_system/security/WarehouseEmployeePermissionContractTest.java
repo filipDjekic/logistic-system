@@ -37,8 +37,7 @@ class WarehouseEmployeePermissionContractTest {
         assertAllows(EmployeeController.class, "createUser", "HR_MANAGER");
         assertAllows(EmployeeController.class, "createWithUser", "HR_MANAGER");
         assertAllows(EmployeeController.class, "update", "HR_MANAGER");
-        assertAllows(EmployeeController.class, "archiveEmployee", "HR_MANAGER");
-        assertAllows(EmployeeController.class, "restoreEmployee", "HR_MANAGER");
+        assertAllows(EmployeeController.class, "reactivateEmployee", "HR_MANAGER");
         assertAllows(EmployeeController.class, "delete", "HR_MANAGER");
         assertAllows(EmployeeController.class, "terminateEmployee", "HR_MANAGER");
     }
@@ -49,8 +48,7 @@ class WarehouseEmployeePermissionContractTest {
         assertDenies(EmployeeController.class, "createWithUser", "WORKER");
         assertDenies(EmployeeController.class, "update", "WORKER");
         assertDenies(EmployeeController.class, "getAll", "WORKER");
-        assertDenies(EmployeeController.class, "archiveEmployee", "WORKER");
-        assertDenies(EmployeeController.class, "restoreEmployee", "WORKER");
+        assertDenies(EmployeeController.class, "reactivateEmployee", "WORKER");
         assertDenies(EmployeeController.class, "delete", "WORKER");
         assertDenies(EmployeeController.class, "terminateEmployee", "WORKER");
     }

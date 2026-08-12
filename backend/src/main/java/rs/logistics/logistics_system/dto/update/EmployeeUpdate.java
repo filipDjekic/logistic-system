@@ -11,7 +11,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import rs.logistics.logistics_system.enums.EmployeePosition;
 
 @Getter
 @Setter
@@ -56,22 +55,12 @@ public class EmployeeUpdate {
     @Positive(message = "Country is not valid")
     private Long countryId;
 
-    @Positive(message = "Primary warehouse is not valid")
-    private Long primaryWarehouseId;
-
-
-    @NotNull(message = "Position is required")
-    private EmployeePosition position;
-
     @NotNull(message = "Employment date is required")
     private LocalDate employmentDate;
 
     @NotNull(message = "Salary is required")
     @Positive(message = "Salary must be greater than 0")
     private BigDecimal salary;
-
-    @Positive(message = "Selected user is not valid")
-    private Long userId;
 
     private Boolean applyGeneratedEmailSuggestion;
 
@@ -80,7 +69,6 @@ public class EmployeeUpdate {
                           String jmbg,
                           String phoneNumber,
                           String email,
-                          EmployeePosition position,
                           LocalDate employmentDate,
                           BigDecimal salary) {
         this.firstName = firstName;
@@ -88,7 +76,6 @@ public class EmployeeUpdate {
         this.jmbg = jmbg;
         this.phoneNumber = phoneNumber;
         this.email = email;
-        this.position = position;
         this.employmentDate = employmentDate;
         this.salary = salary;
     }

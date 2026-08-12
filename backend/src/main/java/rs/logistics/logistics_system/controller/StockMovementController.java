@@ -34,37 +34,37 @@ public class StockMovementController {
 
     private final StockMovementServiceDefinition stockMovementService;
 
-    @PreAuthorize("@authorization.canCreateStockMovement()")
+    @PreAuthorize("@authorization.canCreateStockMovement(#dto.warehouseId)")
     @PostMapping("/inbound")
     public ResponseEntity<StockMovementResponse> inbound(@Valid @RequestBody StockInboundCreate dto) {
         return new ResponseEntity<>(stockMovementService.inbound(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("@authorization.canCreateStockMovement()")
+    @PreAuthorize("@authorization.canCreateStockMovement(#dto.warehouseId)")
     @PostMapping("/outbound")
     public ResponseEntity<StockMovementResponse> outbound(@Valid @RequestBody StockOutboundCreate dto) {
         return new ResponseEntity<>(stockMovementService.outbound(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("@authorization.canCreateStockMovement()")
+    @PreAuthorize("@authorization.canCreateStockTransfer(#dto.sourceWarehouseId, #dto.destinationWarehouseId)")
     @PostMapping("/transfer")
     public ResponseEntity<List<StockMovementResponse>> transfer(@Valid @RequestBody StockTransferCreate dto) {
         return new ResponseEntity<>(stockMovementService.transfer(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("@authorization.canCreateStockMovement()")
+    @PreAuthorize("@authorization.canCreateStockMovement(#dto.warehouseId)")
     @PostMapping("/adjustment")
     public ResponseEntity<StockMovementResponse> adjustment(@Valid @RequestBody StockAdjustmentCreate dto) {
         return new ResponseEntity<>(stockMovementService.adjustment(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("@authorization.canCreateStockMovement()")
+    @PreAuthorize("@authorization.canCreateStockMovement(#dto.warehouseId)")
     @PostMapping("/write-off")
     public ResponseEntity<StockMovementResponse> writeOff(@Valid @RequestBody StockWriteOffCreate dto) {
         return new ResponseEntity<>(stockMovementService.writeOff(dto), HttpStatus.CREATED);
     }
 
-    @PreAuthorize("@authorization.canCreateStockMovement()")
+    @PreAuthorize("@authorization.canCreateStockMovement(#dto.warehouseId)")
     @PostMapping("/return")
     public ResponseEntity<StockMovementResponse> returnStock(@Valid @RequestBody StockReturnCreate dto) {
         return new ResponseEntity<>(stockMovementService.returnStock(dto), HttpStatus.CREATED);

@@ -70,7 +70,8 @@ class StockMovementCompanyScopeTest extends ServiceTestSupport {
                 authenticatedUserProvider,
                 accessValidator,
                 shiftRepository,
-                warehouseAccessGuard
+                warehouseAccessGuard,
+                stockMovementRepository
         );
 
         assertTrue(authorization.canListStockMovements());

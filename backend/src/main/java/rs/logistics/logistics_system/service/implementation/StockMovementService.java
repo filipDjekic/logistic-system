@@ -61,6 +61,7 @@ import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 import rs.logistics.logistics_system.lifecycle.LifecycleTransitionContext;
+import rs.logistics.logistics_system.service.support.StockCostNormalizer;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -99,6 +100,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final LifecycleStatusClassifier lifecycleStatusClassifier;
     private final WarehouseAccessGuard warehouseAccessGuard;
     private final InventoryCountSessionRepository inventoryCountSessionRepository;
+    private final StockCostNormalizer stockCostNormalizer;
 
 
     @Override
@@ -733,6 +735,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
         Long sourceId = resolveSourceId(referenceType, referenceId, transportOrder, parentMovement);
         String lifecycleReferenceCode = resolveReferenceCode(referenceNumber, transportOrder, transferGroupId, parentMovement);
 
+        StockCostNormalizer.Cost cost = stockCostNormalizer.normalize(unitCost, totalCost, currency, normalizedActualQuantity);
         StockMovement stockMovement = new StockMovement(
                 movementType,
                 movementQuantity,
@@ -743,9 +746,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 discrepancyQuantity,
                 discrepancyReason,
                 discrepancyNote,
-                normalizeCost(unitCost),
-                normalizeTotalCost(totalCost, unitCost, normalizedActualQuantity),
-                normalizeCurrency(currency),
+                cost.unitCost(),
+                cost.totalCost(),
+                cost.currency(),
                 referenceType,
                 referenceId,
                 referenceNumber,

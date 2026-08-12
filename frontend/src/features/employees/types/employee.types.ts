@@ -92,11 +92,8 @@ export type EmployeeUpdateRequest = {
   timezoneDisplayName?: string | null;
   timezone?: string | null;
   countryId?: number | null;
-  primaryWarehouseId?: number | null;
-  position: EmployeePosition;
   employmentDate: string;
   salary: number;
-  userId?: number;
   applyGeneratedEmailSuggestion?: boolean;
 };
 

@@ -5,6 +5,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.entity.Shift;
 import rs.logistics.logistics_system.repository.ShiftRepository;
+import rs.logistics.logistics_system.repository.StockMovementRepository;
+import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
@@ -27,6 +29,7 @@ public class AuthorizationService {
     private final OperationalEntityAccessValidator entityAccessValidator;
     private final ShiftRepository shiftRepository;
     private final WarehouseAccessGuard warehouseAccessGuard;
+    private final StockMovementRepository stockMovementRepository;
 
     public boolean hasCapability(EntityCapability capability) {
         return switch (capability) {
@@ -52,13 +55,37 @@ public class AuthorizationService {
     }
 
     public boolean canExecuteStockMovement(Long id) {
-        return hasCapability(EntityCapability.STOCK_MOVEMENT_EXECUTE)
-                && entityAccessValidator.canAccess(OperationalEntityType.STOCK_MOVEMENT, id);
+        return canManageStockMovement(id);
     }
 
     public boolean canApproveStockMovement(Long id) {
-        return hasCapability(EntityCapability.STOCK_MOVEMENT_APPROVE)
-                && entityAccessValidator.canAccess(OperationalEntityType.STOCK_MOVEMENT, id);
+        return canManageStockMovement(id);
+    }
+
+    public boolean canCreateStockMovement(Long warehouseId) {
+        if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.isOverlord()) return true;
+        return authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                && warehouseAccessGuard.managedWarehouseIdsForCurrentUser().contains(warehouseId);
+    }
+
+    public boolean canCreateStockTransfer(Long sourceWarehouseId, Long destinationWarehouseId) {
+        return canCreateStockMovement(sourceWarehouseId);
+    }
+
+    private boolean canManageStockMovement(Long id) {
+        if (id == null || !entityAccessValidator.canAccess(OperationalEntityType.STOCK_MOVEMENT, id)) return false;
+        if (authenticatedUserProvider.isCompanyAdmin() || authenticatedUserProvider.isOverlord()) return true;
+        StockMovement movement = stockMovementRepository.findByIdWithDetails(id).orElse(null);
+        if (movement == null) return false;
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return movement.getWarehouse() != null
+                    && warehouseAccessGuard.managedWarehouseIdsForCurrentUser().contains(movement.getWarehouse().getId());
+        }
+        if (authenticatedUserProvider.hasRole("DISPATCHER")) {
+            return movement.getTransportOrder() != null
+                    || movement.getReferenceType() == rs.logistics.logistics_system.enums.StockMovementReferenceType.TRANSPORT_ORDER;
+        }
+        return false;
     }
 
     public boolean canCancelShiftDueToSickness(Long id) {

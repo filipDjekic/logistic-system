@@ -12,6 +12,9 @@ import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.ShiftResponse;
 import rs.logistics.logistics_system.dto.response.TaskResponse;
 import rs.logistics.logistics_system.dto.update.EmployeeUpdate;
+import rs.logistics.logistics_system.dto.update.EmployeePositionUpdate;
+import rs.logistics.logistics_system.dto.update.EmployeePrimaryWarehouseUpdate;
+import rs.logistics.logistics_system.dto.update.EmployeeUserLinkUpdate;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 
 public interface EmployeeServiceDefinition {
@@ -34,7 +37,9 @@ public interface EmployeeServiceDefinition {
 
     void terminateEmployee(Long id);
 
-    EmployeeResponse archiveEmployee(Long id);
-
-    EmployeeResponse restoreEmployee(Long id);
+    EmployeeResponse reactivateEmployee(Long id);
+    EmployeeResponse changePosition(Long id, EmployeePositionUpdate dto);
+    EmployeeResponse changePrimaryWarehouse(Long id, EmployeePrimaryWarehouseUpdate dto);
+    EmployeeResponse linkUser(Long id, EmployeeUserLinkUpdate dto);
+    EmployeeResponse unlinkUser(Long id);
 }

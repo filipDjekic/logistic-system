@@ -475,16 +475,16 @@ export default function EmployeeFormDialog({
           </Typography>
 
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}>
+            {mode === 'create' ? <Grid size={{ xs: 12, md: 6 }}>
               <FormSelect
                 name="position"
                 control={form.control}
                 label="Role"
                 options={positionOptions}
                 required
-                disabled={mode === 'edit' && !canEdit}
+                disabled={false}
               />
-            </Grid>
+            </Grid> : null}
 
             <Grid size={{ xs: 12, md: 6 }}>
               <FormDatePicker
@@ -493,7 +493,7 @@ export default function EmployeeFormDialog({
                 label="Employment date"
                 inputType="date"
                 required
-                disabled={mode === 'edit' && !canEdit}
+                disabled={false}
               />
             </Grid>
 
@@ -518,7 +518,7 @@ export default function EmployeeFormDialog({
               />
             </Grid>
 
-            <Grid size={{ xs: 12, md: 6 }}>
+            {mode === 'create' ? <Grid size={{ xs: 12, md: 6 }}>
               <EntityLookupField
                 label="Primary warehouse"
                 entityType="warehouses"
@@ -531,7 +531,7 @@ export default function EmployeeFormDialog({
                   });
                 }}
                 required={selectedPosition === 'WORKER'}
-                disabled={mode === 'edit' && !canEdit}
+                disabled={false}
                 error={Boolean(form.formState.errors.primaryWarehouseId)}
                 helperText={form.formState.errors.primaryWarehouseId?.message ?? (selectedPosition === 'WORKER' ? 'Required for WORKER operational scope' : 'Optional base/operational warehouse')}
                 placeholder="Choose primary warehouse"
@@ -539,7 +539,7 @@ export default function EmployeeFormDialog({
                 sort="name,asc"
                 activeOnly
               />
-            </Grid>
+            </Grid> : null}
 
           </Grid>
 

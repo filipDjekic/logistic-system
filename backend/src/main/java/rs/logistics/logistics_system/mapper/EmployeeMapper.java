@@ -32,10 +32,8 @@ public class EmployeeMapper {
         entity.setAddress(dto.getAddress());
         entity.setPostalCode(dto.getPostalCode());
         entity.setTimezone(timezone);
-        entity.setPosition(dto.getPosition());
         entity.setEmploymentDate(dto.getEmploymentDate());
         entity.setSalary(dto.getSalary());
-        entity.setUser(user);
     }
 
     public static EmployeeResponse toResponse(Employee employee) {

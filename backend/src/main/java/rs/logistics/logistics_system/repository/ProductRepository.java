@@ -74,6 +74,26 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             """)
     boolean existsTransportOrderItemByProductId(@Param("productId") Long productId);
 
+    @Query("""
+            select case when count(bi) > 0 then true else false end
+            from BinInventory bi where bi.product.id = :productId
+            """)
+    boolean existsBinInventoryByProductId(@Param("productId") Long productId);
+
+    @Query("""
+            select case when count(icl) > 0 then true else false end
+            from InventoryCountLine icl where icl.product.id = :productId
+            """)
+    boolean existsInventoryCountLineByProductId(@Param("productId") Long productId);
+
+    @Query("""
+            select case when count(toi) > 0 then true else false end
+            from TransportOrderItem toi
+            where toi.product.id = :productId and toi.transportOrder.status in :statuses
+            """)
+    boolean existsTransportOrderItemByProductIdAndStatuses(@Param("productId") Long productId,
+            @Param("statuses") Collection<rs.logistics.logistics_system.enums.TransportOrderStatus> statuses);
+
     long countByCompany_Id(Long companyId);
 
     @Query("""

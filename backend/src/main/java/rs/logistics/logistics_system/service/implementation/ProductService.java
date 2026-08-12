@@ -2,6 +2,7 @@ package rs.logistics.logistics_system.service.implementation;
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -25,6 +26,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.ProductServiceDefinition;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +37,7 @@ public class ProductService implements ProductServiceDefinition {
     private final AuditFacadeDefinition auditFacade;
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final WarehouseAccessGuard warehouseAccessGuard;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     @Override
     @Transactional
@@ -65,6 +68,14 @@ public class ProductService implements ProductServiceDefinition {
         Product product = getProductOrThrow(id);
 
         validateSkuForUpdate(dto.getSku(), id, product.getCompany() != null ? product.getCompany().getId() : null);
+        if (dto.getUnit() != product.getUnit() && hasOperationalHistory(product.getId())) {
+            throw new BadRequestException("Product unit cannot be changed after inventory or operational history exists.");
+        }
+        if (!Objects.equals(dto.getWeight(), product.getWeight())
+                && _productRepository.existsTransportOrderItemByProductIdAndStatuses(
+                        product.getId(), lifecycleStatusClassifier.activeTransportStatuses())) {
+            throw new BadRequestException("Product weight cannot be changed while active transport orders use this product.");
+        }
 
         String oldName = product.getName();
         String oldDescription = product.getDescription();
@@ -285,5 +296,13 @@ public class ProductService implements ProductServiceDefinition {
         if (_productRepository.existsTransportOrderItemByProductId(product.getId())) {
             throw new BadRequestException("Product cannot be deleted because it is linked to transport history. Deactivate product instead.");
         }
+    }
+
+    private boolean hasOperationalHistory(Long productId) {
+        return _productRepository.existsInventoryByProductId(productId)
+                || _productRepository.existsBinInventoryByProductId(productId)
+                || _productRepository.existsStockMovementByProductId(productId)
+                || _productRepository.existsTransportOrderItemByProductId(productId)
+                || _productRepository.existsInventoryCountLineByProductId(productId);
     }
 }

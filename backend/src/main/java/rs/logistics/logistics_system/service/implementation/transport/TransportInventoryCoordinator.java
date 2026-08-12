@@ -10,6 +10,8 @@ import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.TransportOrderItem;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.repository.TransportOrderItemRepository;
+import rs.logistics.logistics_system.repository.StockMovementRepository;
+import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
@@ -22,6 +24,7 @@ public class TransportInventoryCoordinator {
     private final StockMovementServiceDefinition stockMovementService;
     private final WarehouseInventoryServiceDefinition warehouseInventoryService;
     private final AuditFacadeDefinition auditFacade;
+    private final StockMovementRepository stockMovementRepository;
 
     public void validateReservedInventory(TransportOrder order) {
         requireItems(order, "Transport order must contain at least one reserved item before assignment");
@@ -117,6 +120,21 @@ public class TransportInventoryCoordinator {
         transfer.setSourceWarehouseId(order.getSourceWarehouse().getId());
         transfer.setDestinationWarehouseId(order.getDestinationWarehouse().getId());
         transfer.setProductId(item.getProduct().getId());
+        var dispatchMovement = stockMovementRepository
+                .findTopByTransportOrder_IdAndProduct_IdAndReasonCodeOrderByCreatedAtDesc(
+                        order.getId(), item.getProduct().getId(), StockMovementReasonCode.TRANSPORT_DISPATCH)
+                .orElse(null);
+        if (dispatchMovement != null && dispatchMovement.getUnitCost() != null && dispatchMovement.getCurrency() != null) {
+            transfer.setUnitCost(dispatchMovement.getUnitCost());
+            transfer.setCurrency(dispatchMovement.getCurrency());
+        } else {
+            var sourceInventory = warehouseInventoryService.findByWarehouseAndProduct(
+                    order.getSourceWarehouse().getId(), item.getProduct().getId());
+            if (sourceInventory.getAverageUnitCost() != null && sourceInventory.getCurrency() != null) {
+                transfer.setUnitCost(sourceInventory.getAverageUnitCost());
+                transfer.setCurrency(sourceInventory.getCurrency());
+            }
+        }
         return transfer;
     }
 

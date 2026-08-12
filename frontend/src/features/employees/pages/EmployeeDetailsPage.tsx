@@ -77,9 +77,9 @@ export default function EmployeeDetailsPage() {
   );
 
   const archiveMutation = useMutation({
-    mutationFn: (id: number) => employeesApi.archive(id),
+    mutationFn: (id: number) => employeesApi.terminate(id),
     onSuccess: async () => {
-      showSnackbar({ message: 'Employee archived successfully.', severity: 'success' });
+      showSnackbar({ message: 'Employee terminated successfully.', severity: 'success' });
       await invalidateEmployeeState(queryClient, employeeId);
     },
     onError: (error) => {
@@ -88,9 +88,9 @@ export default function EmployeeDetailsPage() {
   });
 
   const restoreMutation = useMutation({
-    mutationFn: (id: number) => employeesApi.restore(id),
+    mutationFn: (id: number) => employeesApi.reactivate(id),
     onSuccess: async () => {
-      showSnackbar({ message: 'Employee restored successfully.', severity: 'success' });
+      showSnackbar({ message: 'Employee reactivated successfully.', severity: 'success' });
       await invalidateEmployeeState(queryClient, employeeId);
     },
     onError: (error) => {
@@ -200,8 +200,8 @@ export default function EmployeeDetailsPage() {
       }}
       actionItems={[
         { key: 'back', label: 'Back to list', to: '/employees' },
-        ...(canArchiveEmployee && employee.active ? [{ key: 'archive', label: 'Archive employee', color: 'warning' as const, variant: 'contained' as const, disabled: archiveMutation.isPending, onClick: () => archiveMutation.mutate(employee.id) }] : []),
-        ...(canArchiveEmployee && !employee.active ? [{ key: 'restore', label: 'Restore employee', color: 'success' as const, variant: 'contained' as const, disabled: restoreMutation.isPending, onClick: () => restoreMutation.mutate(employee.id) }] : []),
+        ...(canArchiveEmployee && employee.active ? [{ key: 'terminate', label: 'Terminate employee', color: 'warning' as const, variant: 'contained' as const, disabled: archiveMutation.isPending, onClick: () => archiveMutation.mutate(employee.id) }] : []),
+        ...(canArchiveEmployee && !employee.active ? [{ key: 'reactivate', label: 'Reactivate employee', color: 'success' as const, variant: 'contained' as const, disabled: restoreMutation.isPending, onClick: () => restoreMutation.mutate(employee.id) }] : []),
       ]}
       tabs={tabs}
       activeTab={activeTab}

@@ -271,36 +271,6 @@ export default function EmployeesPage() {
       return;
     }
 
-    if (selectedEmployee.userId && selectedLinkedUser && matchedRole && canManageLinkedUserSecurity) {
-      updateUserMutation.mutate(
-        {
-          id: selectedEmployee.userId,
-          data: {
-            firstName: values.firstName.trim(),
-            lastName: values.lastName.trim(),
-            email: values.email.trim(),
-            roleId: matchedRole.id,
-            enabled: values.enabled,
-            status: values.status,
-            employee: {
-              jmbg: values.jmbg.trim(),
-              phoneNumber: values.phoneNumber.trim(),
-              position: values.position,
-              employmentDate: values.employmentDate,
-              salary: Number(values.salary),
-              active: selectedLinkedUser.employeeActive,
-            },
-          },
-        },
-        {
-          onSuccess: () => {
-            setDialogOpen(false);
-          },
-        },
-      );
-      return;
-    }
-
     updateEmployeeMutation.mutate(
       {
         id: selectedEmployee.id,
@@ -314,10 +284,8 @@ export default function EmployeesPage() {
           postalCode: values.postalCode?.trim() || null,
           countryId: values.countryId ? Number(values.countryId) : null,
           timezoneId: values.timezoneId ? Number(values.timezoneId) : null,
-          primaryWarehouseId: values.primaryWarehouseId ? Number(values.primaryWarehouseId) : null,
           phoneNumber: values.phoneNumber.trim(),
           email: values.email.trim(),
-          position: values.position,
           employmentDate: values.employmentDate,
           salary: Number(values.salary),
           applyGeneratedEmailSuggestion: values.applyGeneratedEmailSuggestion,
@@ -506,7 +474,7 @@ export default function EmployeesPage() {
         loading={isSaving}
         serverError={createEmployeeMutation.error ?? updateEmployeeMutation.error ?? updateUserMutation.error}
         canEdit={canEditEmployees}
-        canManageLinkedUserSecurity={canManageLinkedUserSecurity}
+        canManageLinkedUserSecurity={dialogMode === 'create' && canManageLinkedUserSecurity}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}
       />

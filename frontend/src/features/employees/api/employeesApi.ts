@@ -101,12 +101,24 @@ export const employeesApi = {
     return apiClient.patch<void>(`/api/employees/terminate/${id}`).then((response) => response.data);
   },
 
-  archive(id: number) {
-    return apiClient.patch<EmployeeResponse>(`/api/employees/${id}/archive`).then((response) => response.data);
+  reactivate(id: number) {
+    return apiClient.patch<EmployeeResponse>(`/api/employees/${id}/reactivate`).then((response) => response.data);
   },
 
-  restore(id: number) {
-    return apiClient.patch<EmployeeResponse>(`/api/employees/${id}/restore`).then((response) => response.data);
+  changePosition(id: number, position: EmployeeResponse['position']) {
+    return apiClient.patch<EmployeeResponse>(`/api/employees/${id}/position`, { position }).then((response) => response.data);
+  },
+
+  changePrimaryWarehouse(id: number, warehouseId: number | null) {
+    return apiClient.patch<EmployeeResponse>(`/api/employees/${id}/primary-warehouse`, { warehouseId }).then((response) => response.data);
+  },
+
+  linkUser(id: number, userId: number) {
+    return apiClient.patch<EmployeeResponse>(`/api/employees/${id}/user-link`, { userId }).then((response) => response.data);
+  },
+
+  unlinkUser(id: number) {
+    return apiClient.delete<EmployeeResponse>(`/api/employees/${id}/user-link`).then((response) => response.data);
   },
 
   getTasksByEmployeeId(id: number) {

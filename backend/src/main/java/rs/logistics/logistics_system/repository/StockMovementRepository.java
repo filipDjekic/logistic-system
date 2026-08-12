@@ -23,6 +23,9 @@ import java.util.Optional;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long> {
 
+    Optional<StockMovement> findTopByTransportOrder_IdAndProduct_IdAndReasonCodeOrderByCreatedAtDesc(
+            Long transportOrderId, Long productId, StockMovementReasonCode reasonCode);
+
     @Query("select sm.warehouse.id from StockMovement sm where sm.id = :id")
     Optional<Long> findWarehouseIdById(@Param("id") Long id);
 
