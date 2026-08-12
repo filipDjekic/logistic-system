@@ -47,6 +47,7 @@ public class ShiftMapper {
         Timezone timezone = shift.getTimezone();
         ShiftResponse shiftResponse = new ShiftResponse();
         shiftResponse.setId(shift.getId());
+        shiftResponse.setVersion(shift.getVersion());
         shiftResponse.setStartTime(shift.getStartTime());
         shiftResponse.setEndTime(shift.getEndTime());
         shiftResponse.setStatus(shift.getStatus());

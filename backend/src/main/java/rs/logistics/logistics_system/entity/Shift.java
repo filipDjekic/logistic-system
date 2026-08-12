@@ -31,6 +31,10 @@ public class Shift {
     @Setter(AccessLevel.NONE)
     private Long id;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
 

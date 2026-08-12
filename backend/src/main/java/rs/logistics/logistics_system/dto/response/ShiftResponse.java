@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class ShiftResponse {
 
     private Long id;
+    private Long version;
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;

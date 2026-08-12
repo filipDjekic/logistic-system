@@ -31,6 +31,7 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
+import rs.logistics.logistics_system.exception.ForbiddenException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
@@ -38,7 +39,6 @@ import rs.logistics.logistics_system.mapper.WarehouseMapper;
 import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.CountryRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
-import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.WarehouseZoneRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
@@ -57,7 +57,6 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
     private final WarehouseRepository _warehouseRepository;
     private final WarehouseInventoryRepository _warehouseInventoryRepository;
-    private final StockMovementRepository stockMovementRepository;
     private final TransportOrderRepository _transportOrderRepository;
     private final EmployeeRepository _employeeRepository;
     private final CompanyRepository companyRepository;
@@ -76,6 +75,9 @@ public class WarehouseService implements WarehouseServiceDefinition {
     @Override
     @Transactional
     public WarehouseResponse create(WarehouseCreate dto) {
+        if (!authenticatedUserProvider.isOverlord() && !authenticatedUserProvider.isCompanyAdmin()) {
+            throw new ForbiddenException("Only OVERLORD or COMPANY_ADMIN can create warehouses");
+        }
         Employee employee = getAccessibleEmployee(dto.getEmployeeId());
         validateWarehouseManager(employee);
 
@@ -205,13 +207,6 @@ public class WarehouseService implements WarehouseServiceDefinition {
 
         return PageResponse.from(_warehouseRepository.search(companyId, normalizedSearch, searchId, status, active, managerId, pageable)
                 .map(WarehouseMapper::toResponse));
-    }
-
-    @Override
-    @Transactional
-    public void delete(Long id) {
-        getWarehouseOrThrow(id);
-        throw new ConflictException("Warehouse hard delete is not supported. Archive warehouse to preserve operational history.");
     }
 
     @Override
@@ -426,24 +421,6 @@ public class WarehouseService implements WarehouseServiceDefinition {
                 : _warehouseRepository.existsByCompany_IdAndNameIgnoreCaseAndIdNot(companyId, normalizedName, currentWarehouseId);
         if (duplicate) {
             throw new ConflictException("Warehouse name already exists in this company.");
-        }
-    }
-
-    private void validateForDeleting(Warehouse warehouse) {
-        if (_warehouseInventoryRepository.existsByWarehouse_Id(warehouse.getId())) {
-            throw new ConflictException("Warehouse cannot be hard-deleted because it contains inventory records. Archive warehouse instead.");
-        }
-
-        if (stockMovementRepository.existsByWarehouse_Id(warehouse.getId())) {
-            throw new ConflictException("Warehouse cannot be hard-deleted because it has stock movement history. Archive warehouse instead.");
-        }
-
-        if (warehouse.getManager() != null) {
-            throw new ConflictException("Warehouse cannot be hard-deleted while manager is assigned. Remove the assignment or archive warehouse instead.");
-        }
-
-        if (_transportOrderRepository.existsBySourceWarehouseIdOrDestinationWarehouseId(warehouse.getId(), warehouse.getId())) {
-            throw new ConflictException("Warehouse cannot be hard-deleted because it is linked to transport history. Archive warehouse instead.");
         }
     }
 

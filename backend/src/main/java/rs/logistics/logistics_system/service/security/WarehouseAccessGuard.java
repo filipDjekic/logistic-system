@@ -16,6 +16,7 @@ import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashSet;
 
 @Component
 @RequiredArgsConstructor
@@ -137,6 +138,27 @@ public class WarehouseAccessGuard {
         return java.util.stream.Stream.concat(java.util.stream.Stream.of(primaryWarehouseId), assignedWarehouseIds.stream())
                 .distinct()
                 .toList();
+    }
+
+    public List<Long> managedWarehouseIdsForCurrentUser() {
+        Optional<Employee> employee = employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId());
+        if (employee.isEmpty()) {
+            return List.of();
+        }
+
+        Long companyId = authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
+        LinkedHashSet<Long> warehouseIds = warehouseRepository
+                .findByManagerIdAndCompany_Id(employee.get().getId(), companyId)
+                .stream()
+                .map(Warehouse::getId)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        employeeWarehouseAssignmentRepository.findActiveWarehouseIdsByAccessTypes(
+                employee.get().getId(),
+                companyId,
+                List.of(EmployeeWarehouseAccessType.MANAGER),
+                LocalDate.now()
+        ).forEach(warehouseIds::add);
+        return List.copyOf(warehouseIds);
     }
 
     public List<Long> mutationWarehouseIdsForScopedUser() {

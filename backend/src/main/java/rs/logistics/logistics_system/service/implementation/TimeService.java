@@ -140,6 +140,11 @@ public class TimeService implements TimeServiceDefinition {
     }
 
     @Override
+    public LocalDateTime nowForTask(Task task) {
+        return LocalDateTime.now(zoneIdForTask(task));
+    }
+
+    @Override
     public LocalDate todayForCompany(Company company) {
         return LocalDate.now(zoneIdForCompany(company));
     }
@@ -200,4 +205,3 @@ public class TimeService implements TimeServiceDefinition {
         return systemZoneId();
     }
 }
-

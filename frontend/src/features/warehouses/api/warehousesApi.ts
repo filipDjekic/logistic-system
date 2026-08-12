@@ -51,10 +51,6 @@ export const warehousesApi = {
     return apiClient.patch<WarehouseResponse>(`/api/warehouses/${id}/restore`).then((response) => response.data);
   },
 
-  delete(id: number) {
-    return apiClient.delete<void>(`/api/warehouses/${id}`).then((response) => response.data);
-  },
-
   changeStatus(id: number, status: WarehouseStatus) {
     return apiClient
       .patch<WarehouseResponse>('/api/warehouses/warehouse/change-status', null, {

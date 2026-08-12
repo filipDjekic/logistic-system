@@ -24,8 +24,6 @@ public interface WarehouseServiceDefinition {
 
     PageResponse<WarehouseResponse> getAll(String search, WarehouseStatus status, Boolean active, Long managerId, Pageable pageable);
 
-    void delete(Long id);
-
     WarehouseResponse changeStatus(Long warehouseId, WarehouseStatus status);
 
     List<WarehouseInventoryResponse> getInventoryByWarehouse(Long warehouseId);

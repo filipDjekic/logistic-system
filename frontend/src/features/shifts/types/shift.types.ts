@@ -4,6 +4,7 @@ export type ShiftStatus = 'PLANNED' | 'ACTIVE' | 'FINISHED' | 'CANCELLED';
 
 export type ShiftResponse = {
   id: number;
+  version: number;
   startTime: string;
   endTime: string;
   startTimeView?: TemporalView | null;
@@ -35,6 +36,7 @@ export type ShiftCreateRequest = {
 };
 
 export type ShiftUpdateRequest = {
+  expectedVersion: number;
   startTime: string;
   endTime: string;
   startTimeView?: TemporalView | null;

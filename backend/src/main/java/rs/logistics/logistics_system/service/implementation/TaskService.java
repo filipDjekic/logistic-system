@@ -309,7 +309,7 @@ public class TaskService implements TaskServiceDefinition {
     }
 
     private void applyTaskStatusTransitionTimestamps(Task task, TaskStatus nextStatus) {
-        LocalDateTime now = timeService.zoneIdForTask(task) != null ? timeService.nowSystem() : LocalDateTime.now();
+        LocalDateTime now = timeService.nowForTask(task);
         task.setStatus(nextStatus);
         if (nextStatus == TaskStatus.IN_PROGRESS && task.getStartedAt() == null) {
             task.setStartedAt(now);

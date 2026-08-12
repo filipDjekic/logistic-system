@@ -101,26 +101,3 @@ export function useAssignWarehouseManager() {
     },
   });
 }
-
-export function useDeleteWarehouse() {
-  const queryClient = useQueryClient();
-  const { showSnackbar } = useAppSnackbar();
-
-  return useMutation({
-    mutationFn: (id: number) => warehousesApi.delete(id),
-    onSuccess: async () => {
-      showSnackbar({
-        message: 'Warehouse deleted successfully.',
-        severity: 'success',
-      });
-
-      await invalidateWarehouseState(queryClient);
-    },
-    onError: (error) => {
-      showSnackbar({
-        message: getErrorMessage(error),
-        severity: 'error',
-      });
-    },
-  });
-}

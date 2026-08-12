@@ -40,6 +40,8 @@ public interface TimeServiceDefinition {
 
     LocalDateTime nowForShift(Shift shift);
 
+    LocalDateTime nowForTask(Task task);
+
     LocalDate todayForCompany(Company company);
 
     LocalDate todayForEmployee(Employee employee);
@@ -56,4 +58,3 @@ public interface TimeServiceDefinition {
 
     ZoneId zoneIdForTask(Task task);
 }
-

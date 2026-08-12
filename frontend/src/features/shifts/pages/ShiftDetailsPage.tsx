@@ -168,7 +168,7 @@ export default function ShiftDetailsPage() {
           loading={saveShiftMutation.isPending}
           serverError={saveShiftMutation.error}
           onClose={() => setEditOpen(false)}
-          onSubmit={(values) => saveShiftMutation.mutate({ mode: 'edit', id: shift.id, data: { startTime: values.startTime, endTime: values.endTime, notes: values.notes.trim(), timezoneId: Number(values.timezoneId), warehouseId: values.warehouseId ? Number(values.warehouseId) : null } }, { onSuccess: () => setEditOpen(false) })}
+          onSubmit={(values) => saveShiftMutation.mutate({ mode: 'edit', id: shift.id, data: { expectedVersion: shift.version, startTime: values.startTime, endTime: values.endTime, notes: values.notes.trim(), timezoneId: Number(values.timezoneId), warehouseId: values.warehouseId ? Number(values.warehouseId) : null } }, { onSuccess: () => setEditOpen(false) })}
         />
       ) : null}
       <ShiftSicknessCancellationDialog

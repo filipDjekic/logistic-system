@@ -18,7 +18,6 @@ class WarehouseEmployeePermissionContractTest {
         assertAllows(WarehouseController.class, "update", "COMPANY_ADMIN");
         assertAllows(WarehouseController.class, "archiveWarehouse", "COMPANY_ADMIN");
         assertAllows(WarehouseController.class, "restoreWarehouse", "COMPANY_ADMIN");
-        assertAllows(WarehouseController.class, "deleteById", "COMPANY_ADMIN");
         assertAllows(WarehouseController.class, "assignEmployee", "COMPANY_ADMIN");
         assertAllows(WarehouseController.class, "changeWarehouseStatus", "COMPANY_ADMIN");
     }
@@ -29,7 +28,6 @@ class WarehouseEmployeePermissionContractTest {
         assertDenies(WarehouseController.class, "update", "WORKER");
         assertDenies(WarehouseController.class, "archiveWarehouse", "WORKER");
         assertDenies(WarehouseController.class, "restoreWarehouse", "WORKER");
-        assertDenies(WarehouseController.class, "deleteById", "WORKER");
         assertDenies(WarehouseController.class, "assignEmployee", "WORKER");
         assertDenies(WarehouseController.class, "changeWarehouseStatus", "WORKER");
     }

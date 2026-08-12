@@ -29,6 +29,22 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     Page<Shift> findAllByEmployee_Company_Id(Long companyId, Pageable pageable);
 
     @Query("""
+            SELECT s FROM Shift s
+            WHERE s.employee.company.id = :companyId
+            AND (s.warehouse.id IN :warehouseIds
+                 OR (s.warehouse IS NULL AND s.employee.primaryWarehouse.id IN :warehouseIds))
+            """)
+    Page<Shift> findAllInWarehouseScope(@Param("companyId") Long companyId, @Param("warehouseIds") List<Long> warehouseIds, Pageable pageable);
+
+    @Query("""
+            SELECT s FROM Shift s
+            WHERE s.id = :id AND s.employee.company.id = :companyId
+            AND (s.warehouse.id IN :warehouseIds
+                 OR (s.warehouse IS NULL AND s.employee.primaryWarehouse.id IN :warehouseIds))
+            """)
+    Optional<Shift> findByIdInWarehouseScope(@Param("id") Long id, @Param("companyId") Long companyId, @Param("warehouseIds") List<Long> warehouseIds);
+
+    @Query("""
             SELECT s
             FROM Shift s
             WHERE s.employee.id = :employeeId
@@ -77,6 +93,16 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     List<Shift> findShiftsForDayAndCompany(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay, @Param("companyId") Long companyId);
 
     @Query("""
+            SELECT s FROM Shift s
+            WHERE s.startTime < :endOfDay AND s.endTime > :startOfDay
+            AND s.employee.company.id = :companyId
+            AND (s.warehouse.id IN :warehouseIds
+                 OR (s.warehouse IS NULL AND s.employee.primaryWarehouse.id IN :warehouseIds))
+            ORDER BY s.startTime ASC
+            """)
+    List<Shift> findShiftsForDayInWarehouseScope(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay, @Param("companyId") Long companyId, @Param("warehouseIds") List<Long> warehouseIds);
+
+    @Query("""
             SELECT s
             FROM Shift s
             WHERE s.startTime >= :startTime
@@ -84,6 +110,15 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
             AND s.employee.company.id = :companyId
             """)
     List<Shift> findShiftByBetweenDatesAndCompany(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("companyId") Long companyId);
+
+    @Query("""
+            SELECT s FROM Shift s
+            WHERE s.startTime >= :startTime AND s.endTime <= :endTime
+            AND s.employee.company.id = :companyId
+            AND (s.warehouse.id IN :warehouseIds
+                 OR (s.warehouse IS NULL AND s.employee.primaryWarehouse.id IN :warehouseIds))
+            """)
+    List<Shift> findShiftByBetweenDatesInWarehouseScope(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("companyId") Long companyId, @Param("warehouseIds") List<Long> warehouseIds);
 
     @Query("""
             select case when count(s) > 0 then true else false end

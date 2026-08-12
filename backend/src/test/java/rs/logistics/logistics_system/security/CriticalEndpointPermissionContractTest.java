@@ -55,7 +55,6 @@ class CriticalEndpointPermissionContractTest {
     void warehouseWriteEndpointsStayAdministrativeOrManagedWarehouseOnly() throws NoSuchMethodException {
         assertRoles(WarehouseController.class, "createWarehouse", "OVERLORD", "COMPANY_ADMIN");
         assertRoles(WarehouseController.class, "update", "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
-        assertRoles(WarehouseController.class, "deleteById", "OVERLORD", "COMPANY_ADMIN", "WAREHOUSE_MANAGER");
     }
 
     @Test

@@ -248,6 +248,7 @@ export default function ShiftsPage() {
             mode: 'edit',
             id: selectedShift.id,
             data: {
+              expectedVersion: selectedShift.version,
               startTime: values.startTime,
               endTime: values.endTime,
               notes: values.notes.trim(),

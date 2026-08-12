@@ -74,6 +74,7 @@ import rs.logistics.logistics_system.service.definition.report.EmployeeTaskRepor
 import rs.logistics.logistics_system.service.definition.report.InventoryReportServiceDefinition;
 import rs.logistics.logistics_system.service.definition.report.TransportReportServiceDefinition;
 import rs.logistics.logistics_system.service.implementation.VehicleCatalogService;
+import rs.logistics.logistics_system.service.support.CsvImportLimits;
 
 @RestController
 @RequestMapping("/api/data")
@@ -81,9 +82,6 @@ import rs.logistics.logistics_system.service.implementation.VehicleCatalogServic
 public class DataExchangeController {
 
     private static final String TRANSACTION_MODE = "ALL_OR_NOTHING";
-    private static final long MAX_IMPORT_FILE_SIZE_BYTES = 5L * 1024L * 1024L;
-    private static final int MAX_IMPORT_ROWS = 5000;
-    private static final int MAX_CSV_COLUMNS = 80;
     private static final String CSV_CONTENT_TYPE = "text/csv";
 
     private final ProductServiceDefinition productService;
@@ -220,7 +218,7 @@ public class DataExchangeController {
         }
 
         if (authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)) {
-            return List.of("products", "warehouses", "warehouse-inventory");
+            return List.of("products", "warehouse-inventory");
         }
 
         return List.of();
@@ -259,10 +257,10 @@ public class DataExchangeController {
         }
 
         if (authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)) {
-            if (Set.of("products", "warehouses", "warehouse-inventory").contains(type)) {
+            if (Set.of("products", "warehouse-inventory").contains(type)) {
                 return;
             }
-            throw new ForbiddenException("WAREHOUSE_MANAGER can import only products, warehouses and warehouse inventory CSV data");
+            throw new ForbiddenException("WAREHOUSE_MANAGER can import only products and warehouse inventory CSV data");
         }
 
         throw new ForbiddenException("Current role is not allowed to import CSV data");
@@ -284,8 +282,8 @@ public class DataExchangeController {
                     .map(DataExchangeController::normalizeHeader)
                     .toList();
 
-            if (headers.size() > MAX_CSV_COLUMNS) {
-                errors.add(new ImportRowErrorResponse(1, "header", null, "CSV has too many columns. Maximum allowed is " + MAX_CSV_COLUMNS));
+            if (headers.size() > CsvImportLimits.MAX_COLUMNS) {
+                errors.add(new ImportRowErrorResponse(1, "header", null, "CSV has too many columns. Maximum allowed is " + CsvImportLimits.MAX_COLUMNS));
             }
 
             validateHeaders(type, headers, errors);
@@ -295,8 +293,8 @@ public class DataExchangeController {
             int lineNumber = 1;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
-                if (lineNumber - 1 > MAX_IMPORT_ROWS) {
-                    errors.add(new ImportRowErrorResponse(lineNumber, "row", null, "CSV import is limited to " + MAX_IMPORT_ROWS + " data rows per file"));
+                if (lineNumber - 1 > CsvImportLimits.MAX_DATA_ROWS) {
+                    errors.add(new ImportRowErrorResponse(lineNumber, "row", null, "CSV import is limited to " + CsvImportLimits.MAX_DATA_ROWS + " data rows per file"));
                     break;
                 }
 
@@ -690,7 +688,7 @@ public class DataExchangeController {
             throw new BadRequestException("CSV file is required");
         }
 
-        if (file.getSize() > MAX_IMPORT_FILE_SIZE_BYTES) {
+        if (file.getSize() > CsvImportLimits.MAX_FILE_SIZE_BYTES) {
             throw new BadRequestException("CSV file size must be 5 MB or less");
         }
 
