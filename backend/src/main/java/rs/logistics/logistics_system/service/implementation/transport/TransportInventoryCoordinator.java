@@ -120,6 +120,12 @@ public class TransportInventoryCoordinator {
         transfer.setSourceWarehouseId(order.getSourceWarehouse().getId());
         transfer.setDestinationWarehouseId(order.getDestinationWarehouse().getId());
         transfer.setProductId(item.getProduct().getId());
+        if (item.getMovementUnitCost() != null && item.getMovementCurrency() != null) {
+            transfer.setUnitCost(item.getMovementUnitCost());
+            transfer.setTotalCost(item.getMovementTotalCost());
+            transfer.setCurrency(item.getMovementCurrency());
+            return transfer;
+        }
         var dispatchMovement = stockMovementRepository
                 .findTopByTransportOrder_IdAndProduct_IdAndReasonCodeOrderByCreatedAtDesc(
                         order.getId(), item.getProduct().getId(), StockMovementReasonCode.TRANSPORT_DISPATCH)

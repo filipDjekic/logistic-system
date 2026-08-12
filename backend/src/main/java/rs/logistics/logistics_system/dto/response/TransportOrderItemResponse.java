@@ -22,6 +22,9 @@ public class TransportOrderItemResponse {
 
     private Long transportOrderId;
     private Long productId;
+    private BigDecimal movementUnitCost;
+    private BigDecimal movementTotalCost;
+    private String movementCurrency;
 
     public TransportOrderItemResponse(Long id,
                                       BigDecimal quantity,
@@ -31,7 +34,10 @@ public class TransportOrderItemResponse {
                                       BigDecimal weight,
                                       String note,
                                       Long transportOrderId,
-                                      Long productId) {
+                                      Long productId,
+                                      BigDecimal movementUnitCost,
+                                      BigDecimal movementTotalCost,
+                                      String movementCurrency) {
         this.id = id;
         this.quantity = quantity;
         this.reservedQuantity = reservedQuantity;
@@ -41,5 +47,8 @@ public class TransportOrderItemResponse {
         this.note = note;
         this.transportOrderId = transportOrderId;
         this.productId = productId;
+        this.movementUnitCost = movementUnitCost;
+        this.movementTotalCost = movementTotalCost;
+        this.movementCurrency = movementCurrency;
     }
 }

@@ -29,6 +29,7 @@ import rs.logistics.logistics_system.service.definition.WarehouseInventoryServic
 import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,6 +52,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     public TransportOrderItemResponse create(TransportOrderItemCreate dto) {
 
         validateRequestedQuantity(dto.getQuantity());
+        validateMovementCost(dto.getQuantity(), dto.getMovementUnitCost(), dto.getMovementTotalCost());
 
         TransportOrder transportOrder = getTransportOrderForUpdateOrThrow(dto.getTransportOrderId());
 
@@ -91,6 +93,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     public TransportOrderItemResponse update(Long id, TransportOrderItemUpdate dto) {
 
         validateRequestedQuantity(dto.getQuantity());
+        validateMovementCost(dto.getQuantity(), dto.getMovementUnitCost(), dto.getMovementTotalCost());
 
         TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
         Long previousTransportOrderId = transportOrderItem.getTransportOrder().getId();
@@ -494,6 +497,16 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     private void validateProductWeight(Product product) {
         if (product.getWeight() == null || product.getWeight().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Product weight must be defined and greater than zero");
+        }
+    }
+
+    private void validateMovementCost(BigDecimal quantity, BigDecimal unitCost, BigDecimal totalCost) {
+        if (unitCost == null || totalCost == null || unitCost.signum() < 0 || totalCost.signum() < 0) {
+            throw new BadRequestException("Transport item movement cost is required and cannot be negative");
+        }
+        BigDecimal expected = unitCost.multiply(quantity).setScale(4, RoundingMode.HALF_UP);
+        if (expected.compareTo(totalCost.setScale(4, RoundingMode.HALF_UP)) != 0) {
+            throw new BadRequestException("Transport item movement total cost must equal unit cost multiplied by quantity");
         }
     }
 }

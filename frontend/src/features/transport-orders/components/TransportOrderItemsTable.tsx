@@ -39,6 +39,12 @@ export default function TransportOrderItemsTable({
 }: TransportOrderItemsTableProps) {
   const columns: DataTableColumn<TransportOrderItemResponse>[] = [
     {
+      id: 'cost',
+      header: 'Movement cost',
+      minWidth: 160,
+      render: (row) => <Typography variant="body2">{row.movementTotalCost == null ? 'Legacy / unavailable' : `${row.movementTotalCost.toFixed(4)} ${row.movementCurrency ?? ''}`}</Typography>,
+    },
+    {
       id: 'product',
       header: 'Product',
       minWidth: 280,

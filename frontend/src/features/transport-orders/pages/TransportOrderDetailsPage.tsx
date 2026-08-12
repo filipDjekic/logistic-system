@@ -34,6 +34,7 @@ import { getErrorMessage } from "../../../core/utils/getErrorMessage";
 import { invalidateTransportOrderState } from "../../../core/utils/invalidateAppState";
 import { transportOrdersApi } from "../api/transportOrdersApi";
 import { stockMovementsApi } from "../../stock-movements/api/stockMovementsApi";
+import { calculateStockMovementCost } from "../../stock-movements/utils/stockMovementCost";
 import StockMovementsTable from "../../stock-movements/components/StockMovementsTable";
 import TasksTable from "../../tasks/components/TasksTable";
 import { useTasks } from "../../tasks/hooks/useTasks";
@@ -77,6 +78,8 @@ type TransportOrderDetailsTab =
 const itemDefaultValues: TransportOrderItemSchemaValues = {
   productId: 0,
   quantity: 0,
+  movementUnitCost: 0,
+  movementCurrency: "RSD",
   note: "",
 };
 
@@ -342,6 +345,8 @@ export default function TransportOrderDetailsPage() {
     itemForm.reset({
       productId: selectedItem.productId,
       quantity: selectedItem.quantity,
+      movementUnitCost: selectedItem.movementUnitCost ?? 0,
+      movementCurrency: selectedItem.movementCurrency ?? "RSD",
       note: selectedItem.note ?? "",
     });
   }, [itemForm, selectedItem]);
@@ -649,6 +654,26 @@ export default function TransportOrderDetailsPage() {
 
                   <Grid size={{ xs: 12, md: 4 }}>
                     <FormTextField
+                      name="movementUnitCost"
+                      control={itemForm.control}
+                      label="Movement unit cost"
+                      type="number"
+                      required
+                      slotProps={{ htmlInput: { min: 0, step: 0.0001 } }}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <FormTextField
+                      name="movementCurrency"
+                      control={itemForm.control}
+                      label="Currency"
+                      required
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <FormTextField
                       name="note"
                       control={itemForm.control}
                       label="Note"
@@ -680,11 +705,16 @@ export default function TransportOrderDetailsPage() {
                           itemForm.reset(itemDefaultValues);
                         }}
                         onSubmit={itemForm.handleSubmit((values) => {
+                          const calculatedCost = calculateStockMovementCost(values.quantity, values.movementUnitCost);
+                          if (!calculatedCost) return;
                           const payload = {
                             productId: values.productId,
                             quantity: values.quantity,
                             note: (values.note ?? "").trim() || undefined,
                             transportOrderId,
+                            movementUnitCost: calculatedCost.unitCost,
+                            movementTotalCost: calculatedCost.totalCost,
+                            movementCurrency: values.movementCurrency.trim().toUpperCase(),
                           };
 
                           if (selectedItem) {

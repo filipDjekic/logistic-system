@@ -5,6 +5,9 @@ import java.math.BigDecimal;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -28,5 +31,14 @@ public class TransportOrderItemUpdate {
     @NotNull
     @Positive
     private Long productId;
+
+    @NotNull @PositiveOrZero @Digits(integer = 15, fraction = 4)
+    private BigDecimal movementUnitCost;
+
+    @NotNull @PositiveOrZero @Digits(integer = 15, fraction = 4)
+    private BigDecimal movementTotalCost;
+
+    @NotNull @Pattern(regexp = "^[A-Z]{3}$")
+    private String movementCurrency;
 
 }

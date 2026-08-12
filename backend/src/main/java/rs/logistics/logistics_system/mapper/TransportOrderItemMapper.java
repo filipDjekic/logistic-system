@@ -12,13 +12,17 @@ import java.math.BigDecimal;
 public class TransportOrderItemMapper {
 
     public static TransportOrderItem toEntity(TransportOrderItemCreate dto, TransportOrder transportOrder, Product product) {
-        return new TransportOrderItem(
+        TransportOrderItem item = new TransportOrderItem(
                 dto.getQuantity(),
                 calculateWeight(product, dto.getQuantity()),
                 dto.getNote(),
                 transportOrder,
                 product
         );
+        item.setMovementUnitCost(dto.getMovementUnitCost());
+        item.setMovementTotalCost(dto.getMovementTotalCost());
+        item.setMovementCurrency(dto.getMovementCurrency());
+        return item;
     }
 
     public static void updateEntity(TransportOrderItemUpdate dto, TransportOrderItem transportOrderItem, TransportOrder transportOrder, Product product) {
@@ -27,6 +31,9 @@ public class TransportOrderItemMapper {
         transportOrderItem.setNote(dto.getNote());
         transportOrderItem.setTransportOrder(transportOrder);
         transportOrderItem.setProduct(product);
+        transportOrderItem.setMovementUnitCost(dto.getMovementUnitCost());
+        transportOrderItem.setMovementTotalCost(dto.getMovementTotalCost());
+        transportOrderItem.setMovementCurrency(dto.getMovementCurrency());
     }
 
     public static TransportOrderItemResponse toResponse(TransportOrderItem transportOrderItem){
@@ -39,7 +46,10 @@ public class TransportOrderItemMapper {
                 transportOrderItem.getWeight(),
                 transportOrderItem.getNote(),
                 transportOrderItem.getTransportOrder().getId(),
-                transportOrderItem.getProduct().getId()
+                transportOrderItem.getProduct().getId(),
+                transportOrderItem.getMovementUnitCost(),
+                transportOrderItem.getMovementTotalCost(),
+                transportOrderItem.getMovementCurrency()
         );
     }
 

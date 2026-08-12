@@ -106,6 +106,9 @@ export type TransportOrderItemResponse = {
   note: string | null;
   transportOrderId: number;
   productId: number;
+  movementUnitCost?: number | null;
+  movementTotalCost?: number | null;
+  movementCurrency?: string | null;
 };
 
 export type TransportOrderItemCreateRequest = {
@@ -113,6 +116,9 @@ export type TransportOrderItemCreateRequest = {
   note?: string;
   transportOrderId: number;
   productId: number;
+  movementUnitCost: number;
+  movementTotalCost: number;
+  movementCurrency: string;
 };
 
 export type TransportOrderItemUpdateRequest = {
@@ -205,5 +211,7 @@ export type TransportOrderFormValues = {
 export type TransportOrderItemFormValues = {
   productId: number | '';
   quantity: number | '';
+  movementUnitCost: number | '';
+  movementCurrency: string;
   note: string;
 };

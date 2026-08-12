@@ -64,6 +64,8 @@ export const transportOrderItemSchema = z.object({
   quantity: z
     .number({ error: 'Quantity is required' })
     .positive('Quantity must be greater than 0'),
+  movementUnitCost: z.number({ error: 'Unit cost is required' }).nonnegative('Unit cost cannot be negative'),
+  movementCurrency: z.string().regex(/^[A-Z]{3}$/, 'Currency must be a 3-letter ISO code'),
   note: z
     .string()
     .max(255, 'Note must be at most 255 characters')

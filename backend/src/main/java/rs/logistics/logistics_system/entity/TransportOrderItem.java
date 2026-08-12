@@ -47,6 +47,15 @@ public class TransportOrderItem {
     @Column(name = "note", length = 255)
     private String note;
 
+    @Column(name = "movement_unit_cost", precision = 19, scale = 4)
+    private BigDecimal movementUnitCost;
+
+    @Column(name = "movement_total_cost", precision = 19, scale = 4)
+    private BigDecimal movementTotalCost;
+
+    @Column(name = "movement_currency", length = 3)
+    private String movementCurrency;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "transport_order_id", nullable = false)
     private TransportOrder transportOrder;

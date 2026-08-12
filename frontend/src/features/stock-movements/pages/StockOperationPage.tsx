@@ -14,9 +14,12 @@ import { useCreateStockOperation } from '../hooks/useStockMovements';
 import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { calculateStockMovementCost } from '../utils/stockMovementCost';
 
 type StockOperationFormValues = {
   quantity: number | '';
+  unitCost: number | '';
+  currency: string;
   warehouse: LookupOption | null;
   destinationWarehouse: LookupOption | null;
   product: LookupOption | null;
@@ -81,6 +84,8 @@ const stockOperationSteps = ['Operation', 'Entities', 'Quantity', 'Reference', '
 
 const initialValues: StockOperationFormValues = {
   quantity: '',
+  unitCost: '',
+  currency: 'RSD',
   warehouse: null,
   destinationWarehouse: null,
   product: null,
@@ -179,6 +184,7 @@ export default function StockOperationPage() {
   const submitDisabled = mutation.isPending || internalMovementMutation.isPending;
   const supportsBinSelection = operation !== null;
   const quantityValue = Number(values.quantity);
+  const calculatedCost = calculateStockMovementCost(quantityValue, Number(values.unitCost));
 
   const businessWarnings: BusinessRuleWarning[] = [];
 
@@ -217,6 +223,14 @@ export default function StockOperationPage() {
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
       nextErrors.quantity = 'Quantity must be greater than 0';
+    }
+
+    if (!calculatedCost) {
+      nextErrors.unitCost = 'Unit cost must be a non-negative finite number';
+    }
+
+    if (!/^[A-Z]{3}$/.test(values.currency.trim().toUpperCase())) {
+      nextErrors.currency = 'Currency must be a 3-letter ISO code';
     }
 
     if (!values.warehouse) {
@@ -287,12 +301,15 @@ export default function StockOperationPage() {
   }
 
   function handleSubmit() {
-    if (!operation || !validate() || !values.warehouse || !values.product) {
+    if (!operation || !validate() || !values.warehouse || !values.product || !calculatedCost) {
       return;
     }
 
     const common = {
       quantity: Number(values.quantity),
+      unitCost: calculatedCost.unitCost,
+      totalCost: calculatedCost.totalCost,
+      currency: values.currency.trim().toUpperCase(),
       reasonDescription: optionalText(values.reasonDescription),
       referenceNumber: resolvedReferenceNumber(operation, values.referenceNumber, values.transportOrder, values.stockMovementReference),
       referenceNote: optionalText(values.referenceNote),
@@ -488,6 +505,52 @@ export default function StockOperationPage() {
               />
               {errors.warehouse ? <Typography variant="caption" color="error">{errors.warehouse}</Typography> : null}
             </Grid>
+
+            {!isInternal ? (
+              <>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Unit cost"
+                    type="number"
+                    fullWidth
+                    value={values.unitCost}
+                    disabled={submitDisabled}
+                    error={Boolean(errors.unitCost)}
+                    helperText={errors.unitCost ?? 'Snapshot cost per moved unit.'}
+                    inputProps={{ min: 0, step: 0.0001 }}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setValues((prev) => ({ ...prev, unitCost: nextValue === '' ? '' : Number(nextValue) }));
+                      setErrors((prev) => ({ ...prev, unitCost: undefined }));
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Currency"
+                    fullWidth
+                    value={values.currency}
+                    disabled={submitDisabled}
+                    error={Boolean(errors.currency)}
+                    helperText={errors.currency ?? 'ISO currency code.'}
+                    inputProps={{ maxLength: 3 }}
+                    onChange={(event) => {
+                      setValues((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }));
+                      setErrors((prev) => ({ ...prev, currency: undefined }));
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Calculated movement cost"
+                    fullWidth
+                    value={calculatedCost ? `${calculatedCost.totalCost.toFixed(4)} ${values.currency.trim().toUpperCase()}` : ''}
+                    helperText="Quantity × unit cost; rounded HALF_UP to 4 decimals."
+                    slotProps={{ input: { readOnly: true } }}
+                  />
+                </Grid>
+              </>
+            ) : null}
 
             {isTransfer ? (
               <Grid size={{ xs: 12, md: 6 }}>
