@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.util.DisconnectedClientHelper;
 import jakarta.persistence.LockTimeoutException;
 import jakarta.persistence.OptimisticLockException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -38,6 +40,15 @@ import rs.logistics.logistics_system.observability.RequestCorrelation;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final DisconnectedClientHelper disconnectedClientHelper =
+            new DisconnectedClientHelper(GlobalExceptionHandler.class.getName() + ".DisconnectedClient");
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsableException(AsyncRequestNotUsableException ex) {
+        disconnectedClientHelper.checkAndLogClientDisconnectedException(ex);
+        // The response is already unusable. Returning no value marks the exception
+        // handled without asking an HttpMessageConverter to write a JSON body.
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
@@ -263,6 +274,9 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request
     ) {
+        if (disconnectedClientHelper.checkAndLogClientDisconnectedException(ex)) {
+            return null;
+        }
         log.error("Unhandled exception for {} {} [traceId={}]", request.getMethod(), request.getRequestURI(), traceId(request), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Unexpected internal server error", request);
     }

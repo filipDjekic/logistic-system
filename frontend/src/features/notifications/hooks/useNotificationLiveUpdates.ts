@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
-import { getAccessToken } from '../../../core/auth/token';
+import { useAuthStore } from '../../../core/auth/authStore';
 import { appEnv } from '../../../core/config/env';
 import { queryKeys } from '../../../core/constants/queryKeys';
 import {
@@ -18,6 +18,7 @@ export function buildNotificationStreamUrl(): string {
 }
 
 export function useNotificationLiveUpdates() {
+  const auth = useAuthStore();
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
   const lastToastedNotificationIdRef = useRef<number | null>(null);
@@ -28,9 +29,9 @@ export function useNotificationLiveUpdates() {
   const streamAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const token = getAccessToken();
+    const token = auth.accessToken;
 
-    if (!token || typeof window === 'undefined' || typeof window.fetch === 'undefined') {
+    if (auth.status !== 'authenticated' || !token || typeof window === 'undefined' || typeof window.fetch === 'undefined') {
       return undefined;
     }
 
@@ -154,6 +155,9 @@ export function useNotificationLiveUpdates() {
           cache: 'no-store',
           signal: controller.signal,
         });
+        if (response.status === 401 || response.status === 403) {
+          return;
+        }
         if (!response.ok || !response.body) {
           throw new Error(`Notification stream failed with status ${response.status}`);
         }
@@ -191,6 +195,10 @@ export function useNotificationLiveUpdates() {
         if (!isStopped && !(error instanceof DOMException && error.name === 'AbortError')) {
           scheduleReconnect();
         }
+      } finally {
+        if (streamAbortRef.current === controller) {
+          streamAbortRef.current = null;
+        }
       }
     };
 
@@ -217,5 +225,5 @@ export function useNotificationLiveUpdates() {
       streamAbortRef.current?.abort();
       streamAbortRef.current = null;
     };
-  }, [queryClient, showSnackbar]);
+  }, [auth.accessToken, auth.status, queryClient, showSnackbar]);
 }

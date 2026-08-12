@@ -50,9 +50,9 @@ public class NotificationSseService {
         emittersByUserId.computeIfAbsent(userId, ignored -> new CopyOnWriteArraySet<>()).add(connection);
         enforceConnectionLimit(userId);
 
-        emitter.onCompletion(() -> removeEmitter(userId, connection));
-        emitter.onTimeout(() -> removeEmitter(userId, connection));
-        emitter.onError(error -> removeEmitter(userId, connection));
+        emitter.onCompletion(() -> unregisterEmitter(userId, connection));
+        emitter.onTimeout(() -> completeEmitter(userId, connection));
+        emitter.onError(error -> unregisterEmitter(userId, connection));
 
         send(userId, connection, "connected", NotificationStreamEventResponse.connected(unreadCount));
 
@@ -92,7 +92,7 @@ public class NotificationSseService {
         Instant threshold = Instant.now().minus(Duration.ofMillis(STALE_CONNECTION_MS));
         emittersByUserId.forEach((userId, connections) -> connections.forEach(connection -> {
             if (connection.lastTouchedAt().isBefore(threshold)) {
-                removeEmitter(userId, connection);
+                completeEmitter(userId, connection);
             }
         }));
     }
@@ -126,28 +126,35 @@ public class NotificationSseService {
                 connection.touch();
             }
         } catch (IOException | IllegalStateException ex) {
-            removeEmitter(userId, connection);
+            // A failed write means that the async response is no longer usable.
+            // Only forget the connection; completing it would attempt another
+            // operation against the already failed servlet response.
+            unregisterEmitter(userId, connection);
         }
     }
 
-    private void removeEmitter(Long userId, NotificationEmitterConnection connection) {
+    private boolean unregisterEmitter(Long userId, NotificationEmitterConnection connection) {
         if (!connection.close()) {
-            return;
+            return false;
         }
         Set<NotificationEmitterConnection> connections = emittersByUserId.get(userId);
         if (connections != null) {
             connections.remove(connection);
         }
+        if (connections != null && connections.isEmpty()) {
+            emittersByUserId.remove(userId, connections);
+        }
+        return true;
+    }
 
+    private void completeEmitter(Long userId, NotificationEmitterConnection connection) {
+        if (!unregisterEmitter(userId, connection)) {
+            return;
+        }
         try {
             connection.emitter().complete();
         } catch (IllegalStateException ignored) {
-            // The servlet container may already have completed a timed-out or
-            // client-aborted async response.
-        }
-
-        if (connections != null && connections.isEmpty()) {
-            emittersByUserId.remove(userId, connections);
+            // A timeout/container completion can win the race after unregister.
         }
     }
 
@@ -161,7 +168,7 @@ public class NotificationSseService {
                 .sorted(Comparator.comparing(NotificationEmitterConnection::createdAt))
                 .limit(connections.size() - MAX_CONNECTIONS_PER_USER)
                 .toList()
-                .forEach(connection -> removeEmitter(userId, connection));
+                .forEach(connection -> completeEmitter(userId, connection));
     }
 
     private boolean isValidTarget(Long userId, NotificationResponse notification) {

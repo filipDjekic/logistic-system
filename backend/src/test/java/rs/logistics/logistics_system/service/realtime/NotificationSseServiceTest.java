@@ -57,7 +57,7 @@ class NotificationSseServiceTest {
     }
 
     @Test
-    void sendFailureRemovesAndClosesEmitterAndPreventsFurtherSends() throws Exception {
+    void sendFailureRemovesEmitterWithoutCompletingBrokenResponse() throws Exception {
         NotificationRepository repository = org.mockito.Mockito.mock(NotificationRepository.class);
         SseEmitter emitter = org.mockito.Mockito.mock(SseEmitter.class);
         NotificationSseService service = spy(new NotificationSseService(repository));
@@ -70,7 +70,7 @@ class NotificationSseServiceTest {
         service.sendHeartbeats();
 
         verify(emitter, times(1)).send(any(SseEmitter.SseEventBuilder.class));
-        verify(emitter, times(1)).complete();
+        verify(emitter, never()).complete();
     }
 
     @Test
@@ -114,7 +114,7 @@ class NotificationSseServiceTest {
         service.sendHeartbeats();
 
         verify(emitter, times(1)).send(any(SseEmitter.SseEventBuilder.class));
-        verify(emitter, times(1)).complete();
+        verify(emitter, never()).complete();
     }
 
     @Test
@@ -135,7 +135,7 @@ class NotificationSseServiceTest {
         service.sendHeartbeats();
 
         verify(emitter, times(1)).send(any(SseEmitter.SseEventBuilder.class));
-        verify(emitter, times(1)).complete();
+        verify(emitter, never()).complete();
     }
 
     @Test
@@ -156,7 +156,7 @@ class NotificationSseServiceTest {
         service.sendHeartbeats();
 
         verify(broken, times(2)).send(any(SseEmitter.SseEventBuilder.class));
-        verify(broken, times(1)).complete();
+        verify(broken, never()).complete();
         verify(healthy, times(3)).send(any(SseEmitter.SseEventBuilder.class));
     }
 }
