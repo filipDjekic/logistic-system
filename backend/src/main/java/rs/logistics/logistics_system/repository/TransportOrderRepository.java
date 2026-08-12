@@ -23,6 +23,9 @@ import rs.logistics.logistics_system.enums.TransportOrderStatus;
 
 public interface TransportOrderRepository extends JpaRepository<TransportOrder, Long> {
 
+    @Query("select t.id from TransportOrder t where t.status = rs.logistics.logistics_system.enums.TransportOrderStatus.DRAFT and t.reservationExpiresAt <= :now and exists (select i.id from TransportOrderItem i where i.transportOrder = t and i.reservedQuantity > 0) order by t.id")
+    Page<Long> findExpiredDraftReservationIds(@Param("now") LocalDateTime now, Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("select t from TransportOrder t where t.id = :id")

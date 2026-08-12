@@ -79,7 +79,7 @@ const operationConfig: Record<StockOperationType, OperationConfig> = {
   },
 };
 
-const operationOrder: StockOperationType[] = ['inbound', 'outbound', 'transfer', 'internal', 'adjustment', 'write-off', 'return'];
+const operationOrder: StockOperationType[] = ['inbound', 'outbound', 'internal', 'adjustment', 'write-off', 'return'];
 const stockOperationSteps = ['Operation', 'Entities', 'Quantity', 'Reference', 'Submit'];
 
 const initialValues: StockOperationFormValues = {

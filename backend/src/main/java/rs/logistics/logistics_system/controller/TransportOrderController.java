@@ -126,4 +126,10 @@ public class TransportOrderController {
         TransportOrderResponse response = transportOrderService.changeStatus(id, dto.getStatus(), dto.getReason(), dto.getExpectedVersion());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER')")
+    @PostMapping("/{id}/reserve")
+    public ResponseEntity<TransportOrderResponse> reserve(@PathVariable Long id) {
+        return ResponseEntity.ok(transportOrderService.reserve(id));
+    }
 }

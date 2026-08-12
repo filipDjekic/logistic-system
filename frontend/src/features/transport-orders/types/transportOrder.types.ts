@@ -53,6 +53,8 @@ export type TransportOrderResponse = {
   vehicleId: number;
   assignedEmployeeId: number;
   createdById: number;
+  reservationExpiresAt?: string | null;
+  reservationExpired?: boolean;
 };
 
 export type TransportOrderCreateRequest = {
@@ -102,6 +104,7 @@ export type TransportOrderItemResponse = {
   reservedQuantity: number;
   dispatchedQuantity: number;
   deliveredQuantity: number;
+  inTransitQuantity?: number;
   weight: number;
   note: string | null;
   transportOrderId: number;

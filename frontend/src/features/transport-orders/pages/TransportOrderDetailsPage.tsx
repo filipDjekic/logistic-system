@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Grid, Stack } from "@mui/material";
+import { Alert, Button, Grid, Stack } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
@@ -361,6 +361,14 @@ export default function TransportOrderDetailsPage() {
   }, [createItemMutation.error, itemForm, updateItemMutation.error]);
 
   const transportOrder = transportOrderQuery.data;
+  const reserveMutation = useMutation({
+    mutationFn: () => transportOrdersApi.reserve(transportOrderId),
+    onSuccess: async () => {
+      showSnackbar({ message: "Transport inventory reserved again.", severity: "success" });
+      await invalidateTransportOrderState(queryClient, transportOrderId);
+    },
+    onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: "error" }),
+  });
 
   useEffect(() => {
     if (
@@ -577,6 +585,21 @@ export default function TransportOrderDetailsPage() {
               onEdit={(item) => setSelectedItem(item)}
               onDelete={(item) => deleteItemMutation.mutate(item.id)}
             />
+
+            {transportOrder.reservationExpiresAt ? (
+              <Alert
+                severity={transportOrder.reservationExpired ? "error" : "info"}
+                action={transportOrder.reservationExpired ? (
+                  <Button color="inherit" size="small" disabled={reserveMutation.isPending} onClick={() => reserveMutation.mutate()}>
+                    Re-reserve
+                  </Button>
+                ) : undefined}
+              >
+                {transportOrder.reservationExpired
+                  ? "Reservation expired. Re-reserve all items before assignment."
+                  : `Reservation valid until ${new Date(transportOrder.reservationExpiresAt).toLocaleString()}.`}
+              </Alert>
+            ) : null}
 
             {isEditableItems ? (
               <SectionCard

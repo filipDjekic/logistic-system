@@ -42,6 +42,8 @@ public class TransportOrderResponse {
     private Long vehicleId;
     private Long assignedEmployeeId;
     private Long createdById;
+    private LocalDateTime reservationExpiresAt;
+    private boolean reservationExpired;
 
     public TransportOrderResponse(Long id,String orderNumber,
                                 String description,

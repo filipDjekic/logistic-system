@@ -27,6 +27,8 @@ import rs.logistics.logistics_system.service.definition.TransportOrderItemServic
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
 import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
+import rs.logistics.logistics_system.config.AppProperties;
+import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -46,6 +48,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final AuditFacadeDefinition auditFacade;
     private final OperationalEntityAccessValidator operationalEntityAccessValidator;
+    private final AppProperties appProperties;
+    private final TimeServiceDefinition timeService;
 
     @Override
     @Transactional
@@ -83,6 +87,7 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         auditTransportItemQuantity("TRANSPORT_ITEM_RESERVED", saved, "reservedQuantity", BigDecimal.ZERO, saved.getSafeReservedQuantity());
 
         transportOrder.getTransportOrderItems().add(saved);
+        transportOrder.setReservationExpiresAt(timeService.nowSystem().plus(appProperties.getTransport().getDraftReservationTtl()));
         recalculateAndPersistOrderTotalWeight(transportOrder);
 
         return TransportOrderItemMapper.toResponse(saved);
@@ -151,6 +156,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         }
 
         recalculateAndPersistOrderTotalWeight(transportOrderItemTargetOrder);
+        transportOrderItemTargetOrder.setReservationExpiresAt(timeService.nowSystem().plus(appProperties.getTransport().getDraftReservationTtl()));
+        _transportOrderRepository.save(transportOrderItemTargetOrder);
 
         return TransportOrderItemMapper.toResponse(updated);
     }
@@ -407,6 +414,9 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     private void validateTransportOrderEditable(TransportOrder transportOrder) {
         if (transportOrder.getStatus() != TransportOrderStatus.DRAFT) {
             throw new BadRequestException("Items can only be modified while transport order is in DRAFT status");
+        }
+        if (transportOrder.isReservationExpired(timeService.nowSystem())) {
+            throw new BadRequestException("Transport reservation expired. Re-reserve items before editing");
         }
     }
 

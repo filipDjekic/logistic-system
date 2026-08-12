@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,7 @@ public class AppProperties {
     private final Shift shift = new Shift();
     private final Warehouse warehouse = new Warehouse();
     private final StockMovement stockMovement = new StockMovement();
+    private final Transport transport = new Transport();
     private final StatusTransitions statusTransitions = new StatusTransitions();
 
     public Pagination getPagination() {
@@ -40,6 +42,20 @@ public class AppProperties {
 
     public StockMovement getStockMovement() {
         return stockMovement;
+    }
+
+    public Transport getTransport() { return transport; }
+
+    public static class Transport {
+        private Duration draftReservationTtl = Duration.ofHours(24);
+        private Duration reservationCleanupDelay = Duration.ofMinutes(5);
+        public Duration getDraftReservationTtl() { return draftReservationTtl; }
+        public void setDraftReservationTtl(Duration value) {
+            if (value == null || value.isNegative() || value.isZero()) throw new IllegalArgumentException("draft reservation TTL must be positive");
+            this.draftReservationTtl = value;
+        }
+        public Duration getReservationCleanupDelay() { return reservationCleanupDelay; }
+        public void setReservationCleanupDelay(Duration value) { this.reservationCleanupDelay = value; }
     }
 
     public StatusTransitions getStatusTransitions() {

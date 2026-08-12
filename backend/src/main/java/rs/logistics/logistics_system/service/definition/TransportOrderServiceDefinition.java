@@ -43,4 +43,5 @@ public interface TransportOrderServiceDefinition {
 
 
     AllowedStatusTransitionsResponse allowedStatusTransitions(Long id);
+    TransportOrderResponse reserve(Long id);
 }

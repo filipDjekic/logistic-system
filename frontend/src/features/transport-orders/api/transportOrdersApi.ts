@@ -140,6 +140,10 @@ export const transportOrdersApi = {
       .then((response) => response.data);
   },
 
+  reserve(id: number) {
+    return apiClient.post<TransportOrderResponse>(`/api/transport-orders/${id}/reserve`).then((response) => response.data);
+  },
+
   getItemsByTransportOrderId(transportOrderId: number) {
     return apiClient
       .get<PageResponse<TransportOrderItemResponse>>('/api/transport-order-items', {

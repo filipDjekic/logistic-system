@@ -17,6 +17,7 @@ public class TransportOrderItemResponse {
     private BigDecimal reservedQuantity;
     private BigDecimal dispatchedQuantity;
     private BigDecimal deliveredQuantity;
+    private BigDecimal inTransitQuantity;
     private BigDecimal weight;
     private String note;
 
@@ -43,6 +44,7 @@ public class TransportOrderItemResponse {
         this.reservedQuantity = reservedQuantity;
         this.dispatchedQuantity = dispatchedQuantity;
         this.deliveredQuantity = deliveredQuantity;
+        this.inTransitQuantity = dispatchedQuantity.subtract(deliveredQuantity).max(BigDecimal.ZERO);
         this.weight = weight;
         this.note = note;
         this.transportOrderId = transportOrderId;

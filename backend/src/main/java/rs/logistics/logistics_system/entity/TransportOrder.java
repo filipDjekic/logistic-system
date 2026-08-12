@@ -89,6 +89,13 @@ public class TransportOrder {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "reservation_expires_at")
+    private LocalDateTime reservationExpiresAt;
+
+    public boolean isReservationExpired(LocalDateTime now) {
+        return status == TransportOrderStatus.DRAFT && reservationExpiresAt != null && !reservationExpiresAt.isAfter(now);
+    }
+
     // relations
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "source_warehouse_id", nullable = false)

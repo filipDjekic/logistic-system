@@ -4,12 +4,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import rs.logistics.logistics_system.entity.TransportOrderItem;
 
 import java.util.List;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 public interface TransportOrderItemRepository extends JpaRepository<TransportOrderItem, Long> {
+
+    @Query("select coalesce(sum(i.quantity), 0) from TransportOrderItem i where i.transportOrder.destinationWarehouse.id = :warehouseId and i.transportOrder.id <> :excludedOrderId and i.transportOrder.status in :statuses")
+    BigDecimal sumIncomingQuantity(@Param("warehouseId") Long warehouseId, @Param("excludedOrderId") Long excludedOrderId, @Param("statuses") java.util.Collection<rs.logistics.logistics_system.enums.TransportOrderStatus> statuses);
 
     @EntityGraph(attributePaths = {"product", "product.company", "transportOrder", "transportOrder.sourceWarehouse", "transportOrder.destinationWarehouse"})
     List<TransportOrderItem> findByTransportOrderId(Long transportOrderId);

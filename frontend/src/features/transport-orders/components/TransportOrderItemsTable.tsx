@@ -39,6 +39,12 @@ export default function TransportOrderItemsTable({
 }: TransportOrderItemsTableProps) {
   const columns: DataTableColumn<TransportOrderItemResponse>[] = [
     {
+      id: 'inTransitQuantity',
+      header: 'In transit',
+      minWidth: 120,
+      render: (row) => <Typography variant="body2">{row.inTransitQuantity ?? Math.max(0, row.dispatchedQuantity - row.deliveredQuantity)}</Typography>,
+    },
+    {
       id: 'cost',
       header: 'Movement cost',
       minWidth: 160,

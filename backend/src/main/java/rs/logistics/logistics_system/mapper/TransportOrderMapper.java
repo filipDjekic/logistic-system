@@ -80,6 +80,8 @@ public class TransportOrderMapper {
         );
 
         response.setVersion(transportOrder.getVersion());
+        response.setReservationExpiresAt(transportOrder.getReservationExpiresAt());
+        response.setReservationExpired(transportOrder.isReservationExpired(timeService.nowSystem()));
         response.setAllowedNextStatuses(List.of());
 
         if (timeService != null) {

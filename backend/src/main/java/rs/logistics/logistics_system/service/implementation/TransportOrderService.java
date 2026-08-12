@@ -48,6 +48,8 @@ import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
+import rs.logistics.logistics_system.repository.TransportOrderItemRepository;
+import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.VehicleMaintenanceRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
@@ -65,12 +67,16 @@ import rs.logistics.logistics_system.service.definition.NotificationServiceDefin
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TransportOrderServiceDefinition;
+import rs.logistics.logistics_system.service.definition.WarehouseInventoryServiceDefinition;
+import rs.logistics.logistics_system.config.AppProperties;
 
 @Service
 @RequiredArgsConstructor
 public class TransportOrderService implements TransportOrderServiceDefinition {
 
     private final TransportOrderRepository _transportOrderRepository;
+    private final TransportOrderItemRepository _transportOrderItemRepository;
+    private final WarehouseInventoryRepository _warehouseInventoryRepository;
     private final DomainEventRepository domainEventRepository;
     private final TaskRepository taskRepository;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
@@ -94,6 +100,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     private final AuditFacadeDefinition auditFacade;
     private final LifecycleNotificationService lifecycleNotificationService;
     private final DomainEventServiceDefinition domainEventService;
+    private final WarehouseInventoryServiceDefinition warehouseInventoryService;
+    private final AppProperties appProperties;
 
     @Override
     @Transactional
@@ -150,6 +158,25 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         createOperationalTaskForNewTransportOrder(saved);
 
         return toResponseWithLifecycle(saved);
+    }
+
+    @Override
+    @Transactional
+    public TransportOrderResponse reserve(Long id) {
+        TransportOrder order = getTransportOrderForUpdateOrThrow(id);
+        if (order.getStatus() != TransportOrderStatus.DRAFT) throw new BadRequestException("Only DRAFT transport can be re-reserved");
+        if (order.getTransportOrderItems() == null || order.getTransportOrderItems().isEmpty()) throw new BadRequestException("Transport order must contain at least one item");
+        if (order.getTransportOrderItems().stream().anyMatch(i -> i.getSafeReservedQuantity().signum() > 0)) {
+            throw new BadRequestException("Transport reservation is already active");
+        }
+        order.getTransportOrderItems().stream().sorted(java.util.Comparator.comparing(i -> i.getProduct().getId())).forEach(item -> {
+            warehouseInventoryService.reserveStock(order.getSourceWarehouse().getId(), item.getProduct().getId(), item.getSafeQuantity());
+            item.markReserved(item.getSafeQuantity());
+            _transportOrderItemRepository.save(item);
+        });
+        order.setReservationExpiresAt(timeService.nowSystem().plus(appProperties.getTransport().getDraftReservationTtl()));
+        auditFacade.log("TRANSPORT_RESERVATION_RENEWED", "TRANSPORT_ORDER", order.getId(), "All transport item reservations renewed atomically");
+        return toResponseWithLifecycle(_transportOrderRepository.save(order));
     }
 
     @Transactional
@@ -463,6 +490,9 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         );
 
         if (status == TransportOrderStatus.ASSIGNED) {
+            if (transportOrder.isReservationExpired(timeService.nowSystem())) {
+                throw new BadRequestException("Transport reservation expired. Re-reserve items before assignment");
+            }
             validateOperationalWarehousesForExecution(transportOrder);
 
             transportOrder.recalculateTotalWeight();
@@ -498,6 +528,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             );
 
             transportInventoryCoordinator.validateReservedInventory(transportOrder);
+            validateDestinationCapacityReservation(transportOrder);
             markVehicleAsReserved(transportOrder.getVehicle());
 
             if (transportOrder.getAssignedEmployee() != null && transportOrder.getAssignedEmployee().getUser() != null) {
@@ -529,6 +560,12 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
             validateTransportOrderWeightAgainstVehicleCapacity(transportOrder);
 
             validateVehicleReservedForExecution(transportOrder);
+
+            checkVehicleMaintenanceAvailability(transportOrder.getVehicle().getId(), transportOrder.getPlannedArrivalTime());
+            checkVehicleAvailabilityForUpdate(transportOrder.getVehicle().getId(), transportOrder.getDepartureTime(), transportOrder.getPlannedArrivalTime(), transportOrder.getId());
+            checkDriverAvailabilityForUpdate(transportOrder.getAssignedEmployee().getId(), transportOrder.getDepartureTime(), transportOrder.getPlannedArrivalTime(), transportOrder.getId());
+            validateDriverShiftCoverage(transportOrder.getAssignedEmployee(), transportOrder.getDepartureTime(), transportOrder.getPlannedArrivalTime());
+            validateDestinationCapacityReservation(transportOrder);
 
             if (transportOrder.getTransportOrderItems() == null || transportOrder.getTransportOrderItems().isEmpty()) {
                 throw new BadRequestException("Transport order must contain at least one item before transport starts");
@@ -1507,5 +1544,20 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
         }
 
         warehouseAccessGuard.ensureCanMutateWarehouse(transportOrder.getSourceWarehouse());
+    }
+
+    private void validateDestinationCapacityReservation(TransportOrder order) {
+        Warehouse destination = authenticatedUserProvider.isOverlord()
+                ? _warehouseRepository.findByIdForUpdate(order.getDestinationWarehouse().getId()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"))
+                : _warehouseRepository.findByIdAndCompanyIdForUpdate(order.getDestinationWarehouse().getId(), authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).orElseThrow(() -> new ResourceNotFoundException("Destination warehouse not found"));
+        BigDecimal physicallyUsed = _warehouseInventoryRepository.sumQuantityByWarehouseId(destination.getId());
+        BigDecimal otherIncoming = _transportOrderItemRepository.sumIncomingQuantity(destination.getId(), order.getId(), List.of(
+                TransportOrderStatus.ASSIGNED, TransportOrderStatus.PICKING, TransportOrderStatus.PACKING,
+                TransportOrderStatus.READY_FOR_LOADING, TransportOrderStatus.LOADING, TransportOrderStatus.IN_TRANSIT,
+                TransportOrderStatus.RETURNING));
+        BigDecimal requested = order.getTransportOrderItems().stream().map(TransportOrderItem::getSafeQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (physicallyUsed.add(otherIncoming).add(requested).compareTo(destination.getCapacity()) > 0) {
+            throw new BadRequestException("Destination capacity unavailable");
+        }
     }
 }

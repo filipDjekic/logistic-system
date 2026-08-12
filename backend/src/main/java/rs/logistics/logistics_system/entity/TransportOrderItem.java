@@ -140,6 +140,11 @@ public class TransportOrderItem {
         return getSafeDispatchedQuantity().subtract(getSafeDeliveredQuantity());
     }
 
+    public BigDecimal getInTransitQuantity() {
+        BigDecimal value = getSafeDispatchedQuantity().subtract(getSafeDeliveredQuantity());
+        return value.signum() < 0 ? BigDecimal.ZERO : value;
+    }
+
     public boolean isFullyReservedForRequestedQuantity() {
         return getSafeReservedQuantity().compareTo(getSafeQuantity()) == 0;
     }
