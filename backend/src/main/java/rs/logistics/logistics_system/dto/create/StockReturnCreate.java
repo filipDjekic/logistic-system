@@ -2,8 +2,6 @@ package rs.logistics.logistics_system.dto.create;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,16 +32,6 @@ public class StockReturnCreate {
     private LocalDate batchExpirationDate;
 
     private List<@Size(max = 100) String> serialNumbers;
-    @PositiveOrZero
-    private BigDecimal unitCost;
-
-    @PositiveOrZero
-    private BigDecimal totalCost;
-
-    @Size(min = 3, max = 3)
-    @Pattern(regexp = "^[A-Z]{3}$", message = "Currency must be a three-letter ISO code")
-    private String currency;
-
     @Size(max = 255)
     private String reasonDescription;
     @Size(max = 100)

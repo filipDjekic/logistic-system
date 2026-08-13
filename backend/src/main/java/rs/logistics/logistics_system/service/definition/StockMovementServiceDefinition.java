@@ -14,12 +14,14 @@ import rs.logistics.logistics_system.dto.create.StockWriteOffCreate;
 import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
+import rs.logistics.logistics_system.dto.response.StockMovementContextResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementTraceResponse;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementStatus;
 import rs.logistics.logistics_system.enums.StockMovementType;
 
 public interface StockMovementServiceDefinition {
+    StockMovementContextResponse getMovementContext(Long warehouseId, Long productId, Long binLocationId);
 
     StockMovementResponse inbound(StockInboundCreate dto);
 

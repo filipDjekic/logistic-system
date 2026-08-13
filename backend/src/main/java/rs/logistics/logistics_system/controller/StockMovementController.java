@@ -18,6 +18,7 @@ import rs.logistics.logistics_system.dto.create.StockWriteOffCreate;
 import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
+import rs.logistics.logistics_system.dto.response.StockMovementContextResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementTraceResponse;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementStatus;
@@ -33,6 +34,16 @@ import java.util.List;
 public class StockMovementController {
 
     private final StockMovementServiceDefinition stockMovementService;
+
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','WORKER')")
+    @GetMapping("/context")
+    public ResponseEntity<StockMovementContextResponse> context(
+            @RequestParam Long warehouseId,
+            @RequestParam Long productId,
+            @RequestParam(required = false) Long binLocationId
+    ) {
+        return ResponseEntity.ok(stockMovementService.getMovementContext(warehouseId, productId, binLocationId));
+    }
 
     @PreAuthorize("@authorization.canCreateStockMovement(#dto.warehouseId)")
     @PostMapping("/inbound")

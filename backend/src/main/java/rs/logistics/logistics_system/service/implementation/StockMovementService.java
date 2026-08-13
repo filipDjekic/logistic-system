@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsRespon
 import rs.logistics.logistics_system.dto.response.PageResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementResponse;
 import rs.logistics.logistics_system.dto.response.StockMovementTraceResponse;
+import rs.logistics.logistics_system.dto.response.StockMovementContextResponse;
 import rs.logistics.logistics_system.entity.BinInventory;
 import rs.logistics.logistics_system.entity.BinLocation;
 import rs.logistics.logistics_system.entity.Employee;
@@ -102,6 +103,40 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final InventoryCountSessionRepository inventoryCountSessionRepository;
     private final StockCostNormalizer stockCostNormalizer;
 
+    @Override
+    @Transactional(readOnly = true)
+    public StockMovementContextResponse getMovementContext(Long warehouseId, Long productId, Long binLocationId) {
+        Warehouse warehouse = getAccessibleWarehouse(warehouseId);
+        Product product = getAccessibleProduct(productId);
+        validateSameCompany(warehouse, product);
+        validateOperationalEntities(warehouse, product);
+
+        WarehouseInventory inventory = warehouseInventoryRepository
+                .findByWarehouse_IdAndProduct_Id(warehouseId, productId)
+                .orElseThrow(() -> new BadRequestException("Product is not available in the selected warehouse."));
+        StockCostNormalizer.Cost cost = inventoryCostSnapshot(inventory, BigDecimal.ONE);
+        BigDecimal availableQuantity = inventory.getAvailableQuantity();
+
+        if (binLocationId != null) {
+            BinLocation bin = getAccessibleBinLocation(binLocationId);
+            binIntegrityValidator.ensureBinBelongsToWarehouse(bin, warehouse, "Selected bin location does not belong to the selected warehouse.");
+            binIntegrityValidator.ensureActiveBin(bin, "Selected bin location is not active.");
+            BigDecimal binQuantity = binInventoryRepository.findByBinLocation_IdAndProduct_Id(binLocationId, productId)
+                    .map(BinInventory::getSafeQuantity)
+                    .orElse(BigDecimal.ZERO);
+            availableQuantity = availableQuantity.min(binQuantity);
+        }
+
+        return new StockMovementContextResponse(
+                warehouseId,
+                productId,
+                binLocationId,
+                availableQuantity,
+                cost.unitCost(),
+                cost.currency()
+        );
+    }
+
 
     @Override
     @Transactional
@@ -127,9 +162,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                dto.getUnitCost(),
-                dto.getTotalCost(),
-                dto.getCurrency(),
+                null,
+                null,
+                null,
                 dto.getTransportOrderId() != null
                         ? StockMovementReferenceType.TRANSPORT_ORDER
                         : resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
@@ -170,9 +205,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                dto.getUnitCost(),
-                dto.getTotalCost(),
-                dto.getCurrency(),
+                null,
+                null,
+                null,
                 dto.getTransportOrderId() != null
                         ? StockMovementReferenceType.TRANSPORT_ORDER
                         : resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
@@ -246,9 +281,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                dto.getUnitCost(),
-                dto.getTotalCost(),
-                dto.getCurrency(),
+                null,
+                null,
+                null,
                 referenceType,
                 referenceId,
                 referenceNumber,
@@ -274,9 +309,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                dto.getUnitCost(),
-                dto.getTotalCost(),
-                dto.getCurrency(),
+                out.getUnitCost(),
+                out.getTotalCost(),
+                out.getCurrency(),
                 referenceType,
                 referenceId,
                 referenceNumber,
@@ -327,9 +362,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                dto.getUnitCost(),
-                dto.getTotalCost(),
-                dto.getCurrency(),
+                null,
+                null,
+                null,
                 StockMovementReferenceType.TRANSPORT_ORDER,
                 transportOrder.getId(),
                 referenceNumber,
@@ -466,9 +501,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                dto.getUnitCost(),
-                dto.getTotalCost(),
-                dto.getCurrency(),
+                null,
+                null,
+                null,
                 dto.getReferenceType() != null ? dto.getReferenceType() : StockMovementReferenceType.MANUAL,
                 dto.getReferenceId(),
                 dto.getReferenceNumber(),
@@ -502,9 +537,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                dto.getUnitCost(),
-                dto.getTotalCost(),
-                dto.getCurrency(),
+                null,
+                null,
+                null,
                 resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
                 dto.getReferenceId(),
                 dto.getReferenceNumber(),
@@ -543,9 +578,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                dto.getUnitCost(),
-                dto.getTotalCost(),
-                dto.getCurrency(),
+                null,
+                null,
+                null,
                 resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
                 dto.getReferenceId(),
                 dto.getReferenceNumber(),
@@ -702,6 +737,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
             boolean decreaseForAdjustmentOrReservedTransfer
     ) {
         validateSameCompany(warehouse, product);
+        validateOperationalEntities(warehouse, product);
 
         WarehouseInventory inventory = warehouseInventoryRepository
                 .findByWarehouseIdAndProductIdForUpdate(warehouse.getId(), product.getId())
@@ -735,7 +771,24 @@ public class StockMovementService implements StockMovementServiceDefinition {
         Long sourceId = resolveSourceId(referenceType, referenceId, transportOrder, parentMovement);
         String lifecycleReferenceCode = resolveReferenceCode(referenceNumber, transportOrder, transferGroupId, parentMovement);
 
-        StockCostNormalizer.Cost cost = stockCostNormalizer.normalize(unitCost, totalCost, currency, normalizedActualQuantity);
+        boolean decreasesStock = shouldDecreaseBin(movementType, adjustmentDirection, decreaseForAdjustmentOrReservedTransfer);
+        if (decreasesStock && availableBefore.compareTo(movementQuantity) < 0) {
+            throw new BadRequestException("Requested quantity exceeds available stock.");
+        }
+
+        BinLocation movementBin = resolveMovementBinForDraft(warehouse, binLocationId);
+        if (decreasesStock && movementBin != null) {
+            BigDecimal binQuantity = binInventoryRepository.findByBinLocation_IdAndProduct_Id(movementBin.getId(), product.getId())
+                    .map(BinInventory::getSafeQuantity)
+                    .orElse(BigDecimal.ZERO);
+            if (binQuantity.min(availableBefore).compareTo(movementQuantity) < 0) {
+                throw new BadRequestException("Requested quantity exceeds available stock in the selected bin.");
+            }
+        }
+
+        StockCostNormalizer.Cost cost = unitCost == null && totalCost == null && currency == null
+                ? inventoryCostSnapshot(inventory, movementQuantity)
+                : stockCostNormalizer.normalize(unitCost, totalCost, currency, movementQuantity);
         StockMovement stockMovement = new StockMovement(
                 movementType,
                 movementQuantity,
@@ -777,7 +830,6 @@ public class StockMovementService implements StockMovementServiceDefinition {
         stockMovement.setSerialNumbers(serializeSerialNumbers(serialNumbers));
         validateBatchSerialTracking(stockMovement);
 
-        BinLocation movementBin = resolveMovementBinForDraft(warehouse, binLocationId);
         if (movementBin != null) {
             if (shouldDecreaseBin(movementType, adjustmentDirection, decreaseForAdjustmentOrReservedTransfer)) {
                 stockMovement.setSourceBin(movementBin);
@@ -791,6 +843,24 @@ public class StockMovementService implements StockMovementServiceDefinition {
         recordStockMovementAudit(saved, warehouse, product, transportOrder);
         lifecycleNotificationService.notifyStockMovementCreated(saved);
         return saved;
+    }
+
+    private StockCostNormalizer.Cost inventoryCostSnapshot(WarehouseInventory inventory, BigDecimal quantity) {
+        BigDecimal unitCost = inventory.getAverageUnitCost();
+        String currency = inventory.getCurrency();
+        if (unitCost == null || unitCost.signum() < 0 || currency == null || currency.isBlank()) {
+            throw new BadRequestException("No valid cost is available for the selected product inventory.");
+        }
+        return stockCostNormalizer.normalize(unitCost, null, currency, quantity);
+    }
+
+    private void validateOperationalEntities(Warehouse warehouse, Product product) {
+        if (!warehouse.isOperational()) {
+            throw new BadRequestException("Selected warehouse is not active.");
+        }
+        if (!product.isOperational()) {
+            throw new BadRequestException("Selected product is not active.");
+        }
     }
 
     private void ensureStockMovementAllowedDuringInventoryCount(

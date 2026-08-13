@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, CardActionArea, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import BusinessRuleWarnings, { type BusinessRuleWarning } from '../../../shared/components/BusinessRuleWarnings';
@@ -15,11 +15,10 @@ import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLo
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { calculateStockMovementCost } from '../utils/stockMovementCost';
+import { stockMovementsApi } from '../api/stockMovementsApi';
 
 type StockOperationFormValues = {
   quantity: number | '';
-  unitCost: number | '';
-  currency: string;
   warehouse: LookupOption | null;
   destinationWarehouse: LookupOption | null;
   product: LookupOption | null;
@@ -84,8 +83,6 @@ const stockOperationSteps = ['Operation', 'Entities', 'Quantity', 'Reference', '
 
 const initialValues: StockOperationFormValues = {
   quantity: '',
-  unitCost: '',
-  currency: 'RSD',
   warehouse: null,
   destinationWarehouse: null,
   product: null,
@@ -184,7 +181,15 @@ export default function StockOperationPage() {
   const submitDisabled = mutation.isPending || internalMovementMutation.isPending;
   const supportsBinSelection = operation !== null;
   const quantityValue = Number(values.quantity);
-  const calculatedCost = calculateStockMovementCost(quantityValue, Number(values.unitCost));
+  const contextQuery = useQuery({
+    queryKey: ['stock-movement-context', values.warehouse?.id, values.product?.id, values.binLocation?.id],
+    queryFn: () => stockMovementsApi.context(values.warehouse!.id, values.product!.id, values.binLocation?.id),
+    enabled: !isInternal && Boolean(values.warehouse && values.product),
+  });
+  const movementContext = contextQuery.data;
+  const calculatedCost = movementContext
+    ? calculateStockMovementCost(quantityValue, Number(movementContext.unitCost))
+    : null;
 
   const businessWarnings: BusinessRuleWarning[] = [];
 
@@ -225,12 +230,12 @@ export default function StockOperationPage() {
       nextErrors.quantity = 'Quantity must be greater than 0';
     }
 
-    if (!calculatedCost) {
-      nextErrors.unitCost = 'Unit cost must be a non-negative finite number';
+    if (!isInternal && !movementContext) {
+      nextErrors.product = contextQuery.isError ? getErrorMessage(contextQuery.error) : 'Wait for inventory availability and cost data';
     }
 
-    if (!/^[A-Z]{3}$/.test(values.currency.trim().toUpperCase())) {
-      nextErrors.currency = 'Currency must be a 3-letter ISO code';
+    if (requiresExistingStock && movementContext && quantity > Number(movementContext.availableQuantity)) {
+      nextErrors.quantity = `Quantity cannot exceed available quantity (${movementContext.availableQuantity})`;
     }
 
     if (!values.warehouse) {
@@ -301,15 +306,12 @@ export default function StockOperationPage() {
   }
 
   function handleSubmit() {
-    if (!operation || !validate() || !values.warehouse || !values.product || !calculatedCost) {
+    if (!operation || !validate() || !values.warehouse || !values.product || (!isInternal && !calculatedCost)) {
       return;
     }
 
     const common = {
       quantity: Number(values.quantity),
-      unitCost: calculatedCost.unitCost,
-      totalCost: calculatedCost.totalCost,
-      currency: values.currency.trim().toUpperCase(),
       reasonDescription: optionalText(values.reasonDescription),
       referenceNumber: resolvedReferenceNumber(operation, values.referenceNumber, values.transportOrder, values.stockMovementReference),
       referenceNote: optionalText(values.referenceNote),
@@ -495,62 +497,16 @@ export default function StockOperationPage() {
                   setValues((prev) => ({
                     ...prev,
                     warehouse,
-                    product: requiresExistingStock ? null : prev.product,
+                    product: null,
                     binLocation: null,
                     destinationBinLocation: isInternal ? null : prev.destinationBinLocation,
                     transportOrder: isTransfer ? null : prev.transportOrder,
                   }));
-                  setErrors((prev) => ({ ...prev, warehouse: undefined, binLocation: undefined }));
+                  setErrors((prev) => ({ ...prev, warehouse: undefined, product: undefined, binLocation: undefined, quantity: undefined }));
                 }}
               />
               {errors.warehouse ? <Typography variant="caption" color="error">{errors.warehouse}</Typography> : null}
             </Grid>
-
-            {!isInternal ? (
-              <>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    label="Unit cost"
-                    type="number"
-                    fullWidth
-                    value={values.unitCost}
-                    disabled={submitDisabled}
-                    error={Boolean(errors.unitCost)}
-                    helperText={errors.unitCost ?? 'Snapshot cost per moved unit.'}
-                    inputProps={{ min: 0, step: 0.0001 }}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      setValues((prev) => ({ ...prev, unitCost: nextValue === '' ? '' : Number(nextValue) }));
-                      setErrors((prev) => ({ ...prev, unitCost: undefined }));
-                    }}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    label="Currency"
-                    fullWidth
-                    value={values.currency}
-                    disabled={submitDisabled}
-                    error={Boolean(errors.currency)}
-                    helperText={errors.currency ?? 'ISO currency code.'}
-                    inputProps={{ maxLength: 3 }}
-                    onChange={(event) => {
-                      setValues((prev) => ({ ...prev, currency: event.target.value.toUpperCase() }));
-                      setErrors((prev) => ({ ...prev, currency: undefined }));
-                    }}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <TextField
-                    label="Calculated movement cost"
-                    fullWidth
-                    value={calculatedCost ? `${calculatedCost.totalCost.toFixed(4)} ${values.currency.trim().toUpperCase()}` : ''}
-                    helperText="Quantity × unit cost; rounded HALF_UP to 4 decimals."
-                    slotProps={{ input: { readOnly: true } }}
-                  />
-                </Grid>
-              </>
-            ) : null}
 
             {isTransfer ? (
               <Grid size={{ xs: 12, md: 6 }}>
@@ -578,14 +534,14 @@ export default function StockOperationPage() {
                 value={values.product}
                 required
                 activeOnly
-                warehouseId={requiresExistingStock ? values.warehouse?.id : undefined}
+                warehouseId={values.warehouse?.id}
                 lookupParams={{ mode: requiresExistingStock ? 'AVAILABLE_STOCK' : 'REFERENCE' }}
-                disabled={requiresExistingStock && !values.warehouse}
-                placeholder={requiresExistingStock && !values.warehouse ? 'Choose source warehouse first' : 'Not selected'}
+                disabled={!values.warehouse}
+                placeholder={!values.warehouse ? 'Choose warehouse first' : 'Not selected'}
                 searchPlaceholder="Search products by name or SKU..."
                 onChange={(product) => {
-                  setValues((prev) => ({ ...prev, product }));
-                  setErrors((prev) => ({ ...prev, product: undefined }));
+                  setValues((prev) => ({ ...prev, product, binLocation: null }));
+                  setErrors((prev) => ({ ...prev, product: undefined, binLocation: undefined, quantity: undefined }));
                 }}
               />
               {errors.product ? <Typography variant="caption" color="error">{errors.product}</Typography> : null}
@@ -612,7 +568,7 @@ export default function StockOperationPage() {
                   sort="code,asc"
                   onChange={(binLocation) => {
                     setValues((prev) => ({ ...prev, binLocation }));
-                    setErrors((prev) => ({ ...prev, binLocation: undefined }));
+                    setErrors((prev) => ({ ...prev, binLocation: undefined, quantity: undefined }));
                   }}
                 />
               </Grid>
@@ -669,6 +625,51 @@ export default function StockOperationPage() {
                 }}
               />
             </Grid>
+
+            {!isInternal ? (
+              <>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField
+                    label="Available quantity"
+                    fullWidth
+                    value={movementContext?.availableQuantity ?? ''}
+                    placeholder={values.warehouse && values.product ? 'Loading inventory data...' : 'Select warehouse and product first'}
+                    helperText={values.binLocation ? 'Available in the selected bin after warehouse reservations.' : 'Warehouse on-hand quantity minus reserved quantity.'}
+                    slotProps={{ input: { readOnly: true } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Unit cost"
+                    fullWidth
+                    value={movementContext ? Number(movementContext.unitCost).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : ''}
+                    placeholder="Select warehouse and product first"
+                    helperText="Current warehouse inventory cost snapshot."
+                    slotProps={{ input: { readOnly: true } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Currency"
+                    fullWidth
+                    value={movementContext?.currency ?? ''}
+                    placeholder="Select warehouse and product first"
+                    helperText="Determined by the inventory valuation."
+                    slotProps={{ input: { readOnly: true } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Calculated movement cost"
+                    fullWidth
+                    value={calculatedCost && movementContext ? `${calculatedCost.totalCost.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ${movementContext.currency}` : ''}
+                    placeholder={movementContext ? 'Enter quantity' : 'Select warehouse and product first'}
+                    helperText="Preview: quantity × unit cost; backend stores the authoritative snapshot."
+                    slotProps={{ input: { readOnly: true } }}
+                  />
+                </Grid>
+              </>
+            ) : null}
 
             {isAdjustment ? (
               <Grid size={{ xs: 12, md: 6 }}>

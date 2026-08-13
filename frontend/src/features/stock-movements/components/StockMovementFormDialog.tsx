@@ -45,9 +45,6 @@ const defaultValues: StockMovementSchemaValues = {
   actualQuantity: null,
   discrepancyReason: null,
   discrepancyNote: '',
-  unitCost: null,
-  totalCost: null,
-  currency: '',
   reasonCode: 'MANUAL_INBOUND',
   reasonDescription: '',
   referenceType: 'MANUAL',
@@ -189,61 +186,6 @@ export default function StockMovementFormDialog({
                     onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message ?? 'Optional. Empty value uses quantity.'}
-                  />
-                )}
-              />
-            </Grid>
-
-
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Controller
-                name="unitCost"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    label="Unit cost"
-                    type="number"
-                    fullWidth
-                    value={field.value ?? ''}
-                    onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
-                    error={Boolean(fieldState.error)}
-                    helperText={fieldState.error?.message ?? 'Optional movement valuation.'}
-                  />
-                )}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Controller
-                name="totalCost"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    label="Total cost"
-                    type="number"
-                    fullWidth
-                    value={field.value ?? ''}
-                    onChange={(event) => field.onChange(event.target.value === '' ? null : Number(event.target.value))}
-                    error={Boolean(fieldState.error)}
-                    helperText={fieldState.error?.message ?? 'Optional. Backend can use it for valuation.'}
-                  />
-                )}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Controller
-                name="currency"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    label="Currency"
-                    fullWidth
-                    value={field.value ?? ''}
-                    onChange={(event) => field.onChange(event.target.value.toUpperCase())}
-                    error={Boolean(fieldState.error)}
-                    helperText={fieldState.error?.message ?? 'ISO code, e.g. RSD, EUR, USD.'}
-                    inputProps={{ maxLength: 3 }}
                   />
                 )}
               />
@@ -500,7 +442,6 @@ export default function StockMovementFormDialog({
             referenceNumber: values.referenceNumber?.trim() || undefined,
             referenceNote: values.referenceNote?.trim() || undefined,
             discrepancyNote: values.discrepancyNote?.trim() || undefined,
-            currency: values.currency?.trim().toUpperCase() || undefined,
           }))}
         />
       </DialogContent>

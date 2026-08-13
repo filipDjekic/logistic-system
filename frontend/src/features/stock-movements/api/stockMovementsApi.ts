@@ -8,6 +8,7 @@ import type {
   StockMovementFiltersState,
   StockMovementProductOption,
   StockMovementResponse,
+  StockMovementContextResponse,
   StockMovementRequestPayload,
   StockMovementRequestResponse,
   StockMovementTraceResponse,
@@ -42,6 +43,13 @@ function buildStockMovementParams(filters?: Partial<StockMovementFiltersState> &
 }
 
 export const stockMovementsApi = {
+  context(warehouseId: number, productId: number, binLocationId?: number) {
+    return apiClient
+      .get<StockMovementContextResponse>('/api/stock-movements/context', {
+        params: compactParams({ warehouseId, productId, binLocationId }),
+      })
+      .then((response) => response.data);
+  },
   getAll(filters?: Partial<StockMovementFiltersState> & PageParams) {
     return apiClient
       .get<PageResponse<StockMovementResponse>>('/api/stock-movements', {

@@ -60,9 +60,6 @@ export const stockMovementSchema = z
     actualQuantity: z.number().positive('Actual quantity must be greater than 0').nullable().optional(),
     discrepancyReason: z.enum(stockMovementDiscrepancyReasonOptions).nullable().optional(),
     discrepancyNote: z.string().max(255, 'Discrepancy note must be at most 255 characters').optional().or(z.literal('')),
-    unitCost: z.number().nonnegative('Unit cost cannot be negative').nullable().optional(),
-    totalCost: z.number().nonnegative('Total cost cannot be negative').nullable().optional(),
-    currency: z.string().length(3, 'Currency must be a 3-letter ISO code').nullable().optional().or(z.literal('')),
     batchLotNumber: z.string().max(100, 'Batch/lot number must be at most 100 characters').optional().or(z.literal('')),
     batchExpirationDate: z.string().optional().or(z.literal('')),
     serialNumbersText: z.string().max(2000, 'Serial numbers must be at most 2000 characters').optional().or(z.literal('')),
@@ -129,31 +126,6 @@ export const stockMovementSchema = z
       });
     }
 
-
-    const hasUnitCost = values.unitCost !== null && values.unitCost !== undefined;
-    const hasTotalCost = values.totalCost !== null && values.totalCost !== undefined;
-    const hasCurrency = Boolean(values.currency && values.currency.trim().length > 0);
-
-    if ((hasUnitCost || hasTotalCost) && !hasCurrency) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['currency'],
-        message: 'Currency is required when cost is entered',
-      });
-    }
-
-    if (values.unitCost !== null && values.unitCost !== undefined && values.totalCost !== null && values.totalCost !== undefined) {
-      const calculated = values.unitCost * values.quantity;
-      const delta = Math.abs(calculated - values.totalCost);
-
-      if (delta > 0.01) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['totalCost'],
-          message: 'Total cost should match unit cost multiplied by quantity',
-        });
-      }
-    }
 
     if (values.movementType === 'ADJUSTMENT') {
       if (!values.referenceNote || values.referenceNote.trim().length < 5) {

@@ -97,6 +97,15 @@ export type StockMovementResponse = {
   createdAt: string;
 };
 
+export type StockMovementContextResponse = {
+  warehouseId: number;
+  productId: number;
+  binLocationId?: number | null;
+  availableQuantity: number;
+  unitCost: number;
+  currency: string;
+};
+
 export type StockMovementTraceResponse = {
   movementId: number;
   rootMovementId?: number | null;
@@ -167,9 +176,6 @@ export type StockInboundRequest = {
   actualQuantity?: number;
   discrepancyReason?: StockMovementDiscrepancyReason;
   discrepancyNote?: string;
-  unitCost?: number;
-  totalCost?: number;
-  currency?: string;
   batchLotNumber?: string;
   batchExpirationDate?: string;
   serialNumbers?: string[];
@@ -191,9 +197,6 @@ export type StockTransferRequest = {
   actualQuantity?: number;
   discrepancyReason?: StockMovementDiscrepancyReason;
   discrepancyNote?: string;
-  unitCost?: number;
-  totalCost?: number;
-  currency?: string;
   batchLotNumber?: string;
   batchExpirationDate?: string;
   serialNumbers?: string[];
@@ -214,9 +217,6 @@ export type StockAdjustmentRequest = {
   actualQuantity?: number;
   discrepancyReason?: StockMovementDiscrepancyReason;
   discrepancyNote?: string;
-  unitCost?: number;
-  totalCost?: number;
-  currency?: string;
   batchLotNumber?: string;
   batchExpirationDate?: string;
   serialNumbers?: string[];
@@ -236,9 +236,6 @@ export type StockWriteOffRequest = {
   actualQuantity?: number;
   discrepancyReason?: StockMovementDiscrepancyReason;
   discrepancyNote?: string;
-  unitCost?: number;
-  totalCost?: number;
-  currency?: string;
   batchLotNumber?: string;
   batchExpirationDate?: string;
   serialNumbers?: string[];
