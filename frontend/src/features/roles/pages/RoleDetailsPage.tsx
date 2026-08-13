@@ -6,6 +6,7 @@ import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import { useRole } from '../hooks/useRole';
+import { parsePositiveIntegerId } from '../../../core/utils/routeParams';
 
 type RoleDetailsTab = 'overview' | 'permissions' | 'changeHistory';
 
@@ -16,12 +17,12 @@ function normalizeRoleName(name: string) {
 export default function RoleDetailsPage() {
   const navigate = useNavigate();
   const params = useParams();
-  const roleId = Number(params.id);
+  const validRoleId = parsePositiveIntegerId(params.id);
   const [activeTab, setActiveTab] = useState<RoleDetailsTab>('overview');
 
-  const roleQuery = useRole(Number.isFinite(roleId) ? roleId : null);
+  const roleQuery = useRole(validRoleId);
 
-  if (!Number.isFinite(roleId)) {
+  if (validRoleId == null) {
     return <ErrorState title="Invalid role" description="The role ID in the route is not valid." />;
   }
 

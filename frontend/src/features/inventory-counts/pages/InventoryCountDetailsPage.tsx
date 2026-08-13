@@ -31,6 +31,7 @@ import {
   resolveBackendAllowedStatuses,
 } from '../../../core/permissions/operationGuards';
 import { queryKeys } from '../../../core/constants/queryKeys';
+import { parsePositiveIntegerId } from '../../../core/utils/routeParams';
 import { lookupApi } from '../../lookup/api/lookupApi';
 import { EntityLookupField, type LookupOption } from '../../lookup';
 import { inventoryCountsApi } from '../api/inventoryCountsApi';
@@ -72,7 +73,8 @@ function locationLabel(line: InventoryCountLineResponse) {
 
 export default function InventoryCountDetailsPage() {
   const params = useParams();
-  const id = Number(params.id);
+  const validId = parsePositiveIntegerId(params.id);
+  const id = validId ?? Number.NaN;
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
   const auth = useAuthStore();
@@ -94,7 +96,7 @@ export default function InventoryCountDetailsPage() {
   const query = useQuery({
     queryKey: queryKeys.inventoryCounts.detail(id),
     queryFn: () => inventoryCountsApi.getById(id),
-    enabled: Number.isFinite(id),
+    enabled: validId != null,
   });
 
   const session = query.data;
@@ -116,14 +118,14 @@ export default function InventoryCountDetailsPage() {
       binLocationId: binFilter?.id,
       status: lineStatusFilter || undefined,
     }),
-    enabled: Number.isFinite(id) && Boolean(session),
+    enabled: validId != null && Boolean(session),
     placeholderData: (previousData) => previousData,
   });
 
   const allowedTransitionsQuery = useQuery({
     queryKey: [...queryKeys.inventoryCounts.detail(id), 'allowed-transitions'],
     queryFn: () => inventoryCountsApi.allowedStatusTransitions(id),
-    enabled: Number.isFinite(id) && Boolean(session) && canManageInventoryCount,
+    enabled: validId != null && Boolean(session) && canManageInventoryCount,
   });
 
   const mutableWarehousesQuery = useQuery({
@@ -217,8 +219,8 @@ export default function InventoryCountDetailsPage() {
       description={session ? `${session.warehouseName} • ${session.lineCount} bin/product lines • ${session.discrepancyLineCount} discrepancies` : 'Location-aware warehouse inventory count session.'}
       loading={query.isLoading}
       loadingText="Loading inventory count..."
-      error={!Number.isFinite(id) ? 'Invalid inventory count ID.' : query.isError ? query.error : undefined}
-      errorTitle={!Number.isFinite(id) ? 'Invalid inventory count' : 'Inventory count could not be loaded'}
+      error={validId == null ? 'Invalid inventory count ID.' : query.isError ? query.error : undefined}
+      errorTitle={validId == null ? 'Invalid inventory count' : 'Inventory count could not be loaded'}
       onRetry={() => { void query.refetch(); }}
       tabs={session ? tabs : undefined}
       activeTab={session ? activeTab : undefined}

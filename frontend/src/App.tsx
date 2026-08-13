@@ -5,11 +5,11 @@ import AppErrorBoundary from './app/errors/AppErrorBoundary';
 
 function App() {
   return (
-    <AppProviders>
-      <AppErrorBoundary>
+    <AppErrorBoundary>
+      <AppProviders>
         <RouterProvider router={router} />
-      </AppErrorBoundary>
-    </AppProviders>
+      </AppProviders>
+    </AppErrorBoundary>
   );
 }
 

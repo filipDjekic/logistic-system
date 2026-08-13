@@ -13,6 +13,7 @@ import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { formatSalary } from '../../../core/utils/formatSalary';
 import { invalidateUserState } from '../../../core/utils/invalidateAppState';
+import { parsePositiveIntegerId } from '../../../core/utils/routeParams';
 import { useRoles } from '../../roles/hooks/useRoles';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import UserFormDialog from '../components/UserFormDialog';
@@ -47,9 +48,10 @@ export default function UserDetailsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'linkedEmployee' | 'changeHistory'>('overview');
 
-  const userId = Number(params.id);
+  const validUserId = parsePositiveIntegerId(params.id);
+  const userId = validUserId ?? Number.NaN;
 
-  const userQuery = useUser(Number.isFinite(userId) ? userId : null);
+  const userQuery = useUser(validUserId);
   const canEdit = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
 
@@ -85,7 +87,7 @@ export default function UserDetailsPage() {
     },
   });
 
-  if (!Number.isFinite(userId)) {
+  if (validUserId == null) {
     return (
       <ErrorState
         title="Invalid user"

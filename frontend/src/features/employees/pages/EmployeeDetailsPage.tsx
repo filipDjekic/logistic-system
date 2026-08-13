@@ -15,6 +15,7 @@ import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { invalidateEmployeeState } from '../../../core/utils/invalidateAppState';
 import { formatSalary } from '../../../core/utils/formatSalary';
+import { parsePositiveIntegerId } from '../../../core/utils/routeParams';
 import { useTransportOrders } from '../../transport-orders/hooks/useTransportOrders';
 import { employeesApi } from '../api/employeesApi';
 import { useEmployee } from '../hooks/useEmployee';
@@ -41,8 +42,8 @@ export default function EmployeeDetailsPage() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
-  const employeeId = Number(params.id);
-  const validEmployeeId = Number.isFinite(employeeId) ? employeeId : null;
+  const validEmployeeId = parsePositiveIntegerId(params.id);
+  const employeeId = validEmployeeId ?? Number.NaN;
   const [activeTab, setActiveTab] = useState<EmployeeDetailsTab>('overview');
 
   const employeeQuery = useEmployee(validEmployeeId);
@@ -50,7 +51,7 @@ export default function EmployeeDetailsPage() {
   const tasksQuery = useQuery({
     queryKey: ['employees', 'details', employeeId, 'tasks'],
     queryFn: () => employeesApi.getTasksByEmployeeId(employeeId),
-    enabled: Number.isFinite(employeeId) && activeTab === 'tasks',
+    enabled: validEmployeeId != null && activeTab === 'tasks',
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -58,7 +59,7 @@ export default function EmployeeDetailsPage() {
   const shiftsQuery = useQuery({
     queryKey: ['employees', 'details', employeeId, 'shifts'],
     queryFn: () => employeesApi.getShiftsByEmployeeId(employeeId),
-    enabled: Number.isFinite(employeeId) && activeTab === 'shifts',
+    enabled: validEmployeeId != null && activeTab === 'shifts',
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -139,7 +140,7 @@ export default function EmployeeDetailsPage() {
     { id: 'notes', header: 'Notes', minWidth: 280, render: (row) => row.notes || '—' },
   ];
 
-  if (!Number.isFinite(employeeId)) {
+  if (validEmployeeId == null) {
     return <ErrorState title="Invalid employee" description="The employee ID in the route is not valid." />;
   }
 

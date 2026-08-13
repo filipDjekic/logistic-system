@@ -53,6 +53,7 @@ import type {
 import { ROLES } from '../../../core/constants/roles';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { invalidateWarehouseState } from '../../../core/utils/invalidateAppState';
+import { parsePositiveIntegerId } from '../../../core/utils/routeParams';
 import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
 import { useBinLocations, useInternalWarehouseMovements, useWarehouseZones } from '../../warehouse-locations/hooks/useWarehouseLocations';
 import { warehousesApi } from '../api/warehousesApi';
@@ -668,8 +669,7 @@ export default function WarehouseDetailsPage() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
-  const warehouseId = Number(params.id);
-  const validWarehouseId = Number.isFinite(warehouseId) ? warehouseId : null;
+  const validWarehouseId = parsePositiveIntegerId(params.id);
   const scopedWarehouseId = validWarehouseId ?? -1;
 
   const [activeTab, setActiveTab] = useState<WarehouseDetailsTab>('overview');
@@ -783,7 +783,7 @@ export default function WarehouseDetailsPage() {
   });
 
 
-  if (!Number.isFinite(warehouseId)) {
+  if (validWarehouseId == null) {
     return (
       <ErrorState
         title="Invalid warehouse"

@@ -7,11 +7,13 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/test/setup.ts',
     css: true,
-    testTimeout: 10_000,
+    // MUI dialog interactions can exceed 10s when the full jsdom suite runs in parallel.
+    // Keep the limit finite while avoiding load-dependent false failures.
+    testTimeout: 20_000,
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
 });

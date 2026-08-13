@@ -13,6 +13,7 @@ import { useProduct } from '../hooks/useProduct';
 import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { invalidateProductState } from '../../../core/utils/invalidateAppState';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
+import { parsePositiveIntegerId } from '../../../core/utils/routeParams';
 import { productsApi } from '../api/productsApi';
 import type { WarehouseInventoryResponse } from '../../inventory/types/inventory.types';
 import type { BinInventoryResponse } from '../../warehouse-locations/types/warehouseLocation.types';
@@ -186,12 +187,13 @@ function ProductTransportUsage({ productId }: { productId: number }) {
 }
 
 export default function ProductDetailsPage() {  const params = useParams();
-  const productId = Number(params.id);
+  const validProductId = parsePositiveIntegerId(params.id);
+  const productId = validProductId ?? Number.NaN;
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
   const [activeTab, setActiveTab] = useState<ProductDetailsTab>('overview');
 
-  const productQuery = useProduct(Number.isFinite(productId) ? productId : null);
+  const productQuery = useProduct(validProductId);
 
   const archiveMutation = useMutation({
     mutationFn: (id: number) => productsApi.archive(id),
@@ -211,7 +213,7 @@ export default function ProductDetailsPage() {  const params = useParams();
     onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
   });
 
-  if (!Number.isFinite(productId)) {
+  if (validProductId == null) {
     return <ErrorState title="Invalid product" description="The product ID in the route is not valid." />;
   }
 

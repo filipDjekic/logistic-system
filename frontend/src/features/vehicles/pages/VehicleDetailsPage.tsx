@@ -29,6 +29,7 @@ import {
 } from "../../../core/permissions/operationGuards";
 import { getErrorMessage } from "../../../core/utils/getErrorMessage";
 import { invalidateVehicleState } from "../../../core/utils/invalidateAppState";
+import { parsePositiveIntegerId } from "../../../core/utils/routeParams";
 import { useTransportOrders } from "../../transport-orders/hooks/useTransportOrders";
 import VehicleMaintenanceSection from "../../vehicle-maintenance/components/VehicleMaintenanceSection";
 import { vehiclesApi } from "../api/vehiclesApi";
@@ -68,8 +69,8 @@ export default function VehicleDetailsPage() {
   const queryClient = useQueryClient();
   const { showSnackbar } = useAppSnackbar();
 
-  const vehicleId = Number(params.id);
-  const validVehicleId = Number.isFinite(vehicleId) ? vehicleId : null;
+  const validVehicleId = parsePositiveIntegerId(params.id);
+  const vehicleId = validVehicleId ?? Number.NaN;
   const [activeTab, setActiveTab] = useState<VehicleDetailsTab>("overview");
   const [transportPage, setTransportPage] = useState(0);
   const [transportSize, setTransportSize] = useState(10);
@@ -165,7 +166,7 @@ export default function VehicleDetailsPage() {
     return () => window.clearInterval(intervalId);
   }, [vehicle, vehicleQuery, allowedTransitionsQuery]);
 
-  if (!Number.isFinite(vehicleId)) {
+  if (validVehicleId == null) {
     return (
       <ErrorState
         title="Invalid vehicle"
