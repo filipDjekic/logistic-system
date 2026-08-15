@@ -90,14 +90,14 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
     { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
     { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
-    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
+    { key: 'audit', label: 'Audit', itemKeys: ['activity-logs'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.HR_MANAGER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles', 'tasks'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['employee-task-report'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
@@ -113,7 +113,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   [ROLES.DISPATCHER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
     { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
-    { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
+    { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements'] },
     { key: 'workforce-reference', label: 'Workforce Reference', itemKeys: ['employees', 'shifts'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report'] },
     { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
@@ -122,11 +122,10 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   [ROLES.DRIVER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
     { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'transport-orders', 'tasks', 'vehicles', 'my-shifts'] },
-    { key: 'workplace', label: 'My Workplace', itemKeys: ['warehouses', 'products', 'inventory', 'inventory-counts'] },
   ],
   [ROLES.WORKER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'vehicles', 'inventory', 'inventory-counts', 'my-shifts'] },
+    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'stock-movements', 'vehicles', 'inventory', 'inventory-counts', 'my-shifts'] },
     { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses', 'products'] },
   ],
 };
@@ -163,8 +162,10 @@ function getNavigationItemForRole(itemKey: string, role?: Role | null): Navigati
   }
 
   if (role === ROLES.WORKER && itemKey === 'inventory-counts') {
-    return { ...item, label: 'My Inventory Counts' };
+    return { ...item, label: 'Assigned Warehouse Counts' };
   }
+
+  if (role === ROLES.DISPATCHER && itemKey === 'employees') return { ...item, label: 'Drivers & Availability' };
 
   if (role === ROLES.WORKER && itemKey === 'warehouses') {
     return { ...item, label: 'Assigned Warehouses' };

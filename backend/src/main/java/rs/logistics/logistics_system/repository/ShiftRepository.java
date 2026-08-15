@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import rs.logistics.logistics_system.entity.Shift;
 import rs.logistics.logistics_system.enums.ShiftStatus;
+import rs.logistics.logistics_system.enums.EmployeePosition;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +28,10 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     List<Shift> findAllByEmployee_Company_Id(Long companyId);
 
     Page<Shift> findAllByEmployee_Company_Id(Long companyId, Pageable pageable);
+
+    Page<Shift> findAllByEmployee_Company_IdAndEmployee_Position(Long companyId, EmployeePosition position, Pageable pageable);
+
+    Optional<Shift> findByIdAndEmployee_Company_IdAndEmployee_Position(Long id, Long companyId, EmployeePosition position);
 
     @Query("""
             SELECT s FROM Shift s

@@ -85,7 +85,8 @@ export function canListManagedTasks(role: Role | null | undefined) {
     role === ROLES.OVERLORD ||
     role === ROLES.COMPANY_ADMIN ||
     role === ROLES.HR_MANAGER ||
-    role === ROLES.DISPATCHER
+    role === ROLES.DISPATCHER ||
+    role === ROLES.WAREHOUSE_MANAGER
   );
 }
 
@@ -107,8 +108,7 @@ export function canMutateManagedTask(role: Role | null | undefined, task: TaskRe
   if (role === ROLES.COMPANY_ADMIN || role === ROLES.HR_MANAGER) {
     return true;
   }
-
-  return role === ROLES.WAREHOUSE_MANAGER && isWarehouseSideTask(task);
+  return false;
 }
 
 export function getAllowedTaskStatusTransitions(

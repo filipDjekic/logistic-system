@@ -180,16 +180,6 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-        ],
-      },
-    ],
-  },
-  {
     element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER]} />,
     children: [
       {
@@ -226,7 +216,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.TASK_CREATE)} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -237,7 +227,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
+    element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.TASK_CREATE)} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -260,7 +250,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -274,7 +264,7 @@ export const routes = [
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
     children: [
       {
         element: lazyPage(<AppLayout />),
@@ -350,7 +340,20 @@ export const routes = [
         element: lazyPage(<AppLayout />),
         children: [
           { path: '/stock-movements', element: lazyPage(<StockMovementsPage />) },
-          { path: '/stock-movements/:id', element: lazyPage(<StockMovementDetailsPage />) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
+    children: [{ element: lazyPage(<AppLayout />), children: [{ path: '/stock-movements/:id', element: lazyPage(<StockMovementDetailsPage />) }] }],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER]} />,
+    children: [
+      {
+        element: lazyPage(<AppLayout />),
+        children: [
           { path: '/inventory-counts', element: lazyPage(<InventoryCountsPage />) },
           { path: '/inventory-counts/:id', element: lazyPage(<InventoryCountDetailsPage />) },
         ],
@@ -390,16 +393,6 @@ export const routes = [
       {
         element: lazyPage(<AppLayout />),
         children: [{ path: '/reports/employee-tasks', element: lazyPage(<EmployeeTaskReportPage />) }],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-        ],
       },
     ],
   },

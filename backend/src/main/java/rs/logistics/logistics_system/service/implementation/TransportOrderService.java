@@ -346,14 +346,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 ? currentEmployeeIdOrNotFound()
                 : null;
 
-        boolean warehouseScopeEnabled = authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                && !authenticatedUserProvider.hasRole("DISPATCHER")
-                && !authenticatedUserProvider.isCompanyAdmin()
-                && !authenticatedUserProvider.isOverlord();
-
-        List<Long> warehouseManagerWarehouseIds = warehouseScopeEnabled
-                ? warehouseAccessGuard.assignedWarehouseIdsForScopedUser()
-                : List.of(-1L);    
+        boolean warehouseScopeEnabled = false;
+        List<Long> warehouseManagerWarehouseIds = List.of(-1L);
 
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
 
@@ -401,14 +395,8 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 ? currentEmployeeIdOrNotFound()
                 : null;
 
-        boolean warehouseScopeEnabled = authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
-                && !authenticatedUserProvider.hasRole("DISPATCHER")
-                && !authenticatedUserProvider.isCompanyAdmin()
-                && !authenticatedUserProvider.isOverlord();
-
-        List<Long> warehouseManagerWarehouseIds = warehouseScopeEnabled
-                ? warehouseAccessGuard.assignedWarehouseIdsForScopedUser()
-                : List.of(-1L);
+        boolean warehouseScopeEnabled = false;
+        List<Long> warehouseManagerWarehouseIds = List.of(-1L);
 
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
 

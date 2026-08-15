@@ -16,6 +16,23 @@ export const CAPABILITIES = {
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES];
 
+export type PermissionScope = 'GLOBAL' | 'COMPANY' | 'MANAGED_WAREHOUSES' | 'ASSIGNED_WAREHOUSES' | 'TRANSPORT_RELATED' | 'ASSIGNED_TO_ME' | 'DRIVERS_ONLY' | 'CONTEXTUAL_ONLY';
+
+export const ROLE_SCOPES: Record<Role, Readonly<Record<string, PermissionScope>>> = {
+  [ROLES.OVERLORD]: { default: 'GLOBAL' },
+  [ROLES.COMPANY_ADMIN]: { default: 'COMPANY' },
+  [ROLES.HR_MANAGER]: { employees: 'COMPANY', shifts: 'COMPANY', tasks: 'COMPANY' },
+  [ROLES.WAREHOUSE_MANAGER]: { transportOrders: 'COMPANY', tasks: 'MANAGED_WAREHOUSES', employees: 'MANAGED_WAREHOUSES', shifts: 'MANAGED_WAREHOUSES', stockMovements: 'MANAGED_WAREHOUSES', inventory: 'MANAGED_WAREHOUSES' },
+  [ROLES.DISPATCHER]: { transportOrders: 'COMPANY', employees: 'DRIVERS_ONLY', shifts: 'DRIVERS_ONLY', stockMovements: 'TRANSPORT_RELATED' },
+  [ROLES.DRIVER]: { transportOrders: 'ASSIGNED_TO_ME', tasks: 'ASSIGNED_TO_ME', vehicles: 'TRANSPORT_RELATED', referenceData: 'CONTEXTUAL_ONLY' },
+  [ROLES.WORKER]: { transportOrders: 'ASSIGNED_TO_ME', tasks: 'ASSIGNED_TO_ME', stockMovements: 'ASSIGNED_WAREHOUSES', inventory: 'ASSIGNED_WAREHOUSES' },
+};
+
+export function getRoleScope(role: Role | null | undefined, domain: string): PermissionScope | null {
+  if (!role) return null;
+  return ROLE_SCOPES[role][domain] ?? ROLE_SCOPES[role].default ?? null;
+}
+
 const CAPABILITY_ROLES: Record<Capability, readonly Role[]> = {
   [CAPABILITIES.STOCK_MOVEMENT_READ]: [
     ROLES.OVERLORD,

@@ -319,7 +319,7 @@ public class OperationalEntityAccessValidator {
                     }
 
                     if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
-                        return canAccessTransportWarehouseScope(order);
+                        return true;
                     }
 
                     if (authenticatedUserProvider.hasRole("DRIVER")) {

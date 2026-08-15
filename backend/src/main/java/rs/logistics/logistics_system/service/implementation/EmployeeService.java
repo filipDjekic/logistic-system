@@ -303,6 +303,20 @@ public class EmployeeService implements EmployeeServiceDefinition {
             active = true;
         }
 
+        if (authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)
+                && !authenticatedUserProvider.isOverlord()
+                && !authenticatedUserProvider.isCompanyAdmin()) {
+            User currentUser = authenticatedUserProvider.getAuthenticatedUser();
+            if (currentUser.getEmployee() == null) {
+                throw new ForbiddenException("Warehouse manager is not linked to an employee");
+            }
+            return PageResponse.from(_employeeRepository.searchEmployeesForManagedWarehouses(
+                    companyId, currentUser.getEmployee().getId(), normalizedSearch,
+                    QueryParameterNormalizer.parseLongOrNull(normalizedSearch), position, active,
+                    normalizedLinkedUser, availableFrom, availableTo, pageable
+            ).map(EmployeeMapper::toResponse));
+        }
+
         return PageResponse.from(_employeeRepository.searchEmployees(
                 companyId,
                 normalizedSearch,

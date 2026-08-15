@@ -36,10 +36,15 @@ public class EmployeeSecurity {
                     if (authenticatedUserProvider.hasAnyRole(
                             RoleCatalog.COMPANY_ADMIN,
                             RoleCatalog.HR_MANAGER,
-                            RoleCatalog.DISPATCHER,
-                            RoleCatalog.WAREHOUSE_MANAGER
+                            RoleCatalog.DISPATCHER
                     )) {
                         return true;
+                    }
+
+                    if (authenticatedUserProvider.hasRole(RoleCatalog.WAREHOUSE_MANAGER)) {
+                        var user = authenticatedUserProvider.getAuthenticatedUser();
+                        return user.getEmployee() != null && employeeRepository.isVisibleToWarehouseManager(
+                                employeeId, companyId, user.getEmployee().getId());
                     }
 
                     return false;

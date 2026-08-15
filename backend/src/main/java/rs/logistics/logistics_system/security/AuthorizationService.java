@@ -47,7 +47,8 @@ public class AuthorizationService {
     }
 
     public boolean canListStockMovements() {
-        return hasCapability(EntityCapability.STOCK_MOVEMENT_READ);
+        return hasCapability(EntityCapability.STOCK_MOVEMENT_READ)
+                && !authenticatedUserProvider.hasRole("DRIVER");
     }
 
     public boolean canCreateStockMovement() {

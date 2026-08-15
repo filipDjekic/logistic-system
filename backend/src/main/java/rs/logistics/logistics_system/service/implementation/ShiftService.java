@@ -36,6 +36,7 @@ import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.ShiftStatus;
+import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
@@ -57,6 +58,7 @@ import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinitio
 import rs.logistics.logistics_system.service.support.DomainScopeValidator;
 import rs.logistics.logistics_system.service.support.CsvImportLimits;
 import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
+import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 @Service
 @RequiredArgsConstructor
@@ -71,6 +73,7 @@ public class ShiftService implements ShiftServiceDefinition {
     private final TimezoneServiceDefinition timezoneService;
     private final TimeServiceDefinition timeService;
     private final DomainScopeValidator domainScopeValidator;
+    private final WarehouseAccessGuard warehouseAccessGuard;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
 
     private final AuthenticatedUserProvider authenticatedUserProvider;
@@ -426,7 +429,14 @@ public class ShiftService implements ShiftServiceDefinition {
     public PageResponse<ShiftResponse> getAll(Pageable pageable) {
         var shifts = authenticatedUserProvider.isOverlord()
                 ? _shiftRepository.findAll(pageable)
-                : _shiftRepository.findAllByEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), pageable);
+                : authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")
+                    ? _shiftRepository.findAllInWarehouseScope(
+                            authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                            warehouseAccessGuard.assignedWarehouseIdsForScopedUser(), pageable)
+                    : authenticatedUserProvider.hasRole("DISPATCHER")
+                        ? _shiftRepository.findAllByEmployee_Company_IdAndEmployee_Position(
+                                authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), EmployeePosition.DRIVER, pageable)
+                        : _shiftRepository.findAllByEmployee_Company_Id(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), pageable);
 
         return PageResponse.from(shifts.map(shift -> ShiftMapper.toResponse(shift, timeService)));
     }
@@ -879,6 +889,17 @@ public class ShiftService implements ShiftServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
         }
 
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return _shiftRepository.findByIdInWarehouseScope(id,
+                            authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(),
+                            warehouseAccessGuard.assignedWarehouseIdsForScopedUser())
+                    .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        }
+        if (authenticatedUserProvider.hasRole("DISPATCHER")) {
+            return _shiftRepository.findByIdAndEmployee_Company_IdAndEmployee_Position(id,
+                            authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow(), EmployeePosition.DRIVER)
+                    .orElseThrow(() -> new ResourceNotFoundException("Shift not found"));
+        }
         return _shiftRepository.findByIdAndEmployee_Company_Id(
                         id,
                         authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()

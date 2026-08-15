@@ -33,7 +33,6 @@ export default function TasksPage() {
   const currentRole = auth.user?.role;
   const canListManaged = canListManagedTasks(currentRole);
   const canCreateOrAssign = canCreateTasks(currentRole);
-  const isWarehouseManager = currentRole === ROLES.WAREHOUSE_MANAGER;
   const isHrManager = currentRole === ROLES.HR_MANAGER;
   const canExecuteTaskStatus =
     currentRole === ROLES.COMPANY_ADMIN ||
@@ -133,7 +132,7 @@ export default function TasksPage() {
   const transportOrdersQuery = useQuery({
     queryKey: queryKeys.tasks.transportOrders(),
     queryFn: () => transportOrdersApi.getAll({ size: 25, sort: 'createdAt,desc' }),
-    enabled: canCreateOrAssign && !isWarehouseManager && !isHrManager,
+    enabled: canCreateOrAssign && currentRole !== ROLES.WAREHOUSE_MANAGER && !isHrManager,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -150,17 +149,13 @@ export default function TasksPage() {
   const managedRows = useMemo(
     () =>
       (tasksQuery.data?.content ?? []).filter((task) => {
-        if (isWarehouseManager && task.transportOrderId != null) {
-          return false;
-        }
-
         if (auth.user?.role === ROLES.DRIVER && task.transportOrderId == null) {
           return false;
         }
 
         return true;
       }),
-    [auth.user?.role, isWarehouseManager, tasksQuery.data],
+    [auth.user?.role, tasksQuery.data],
   );
 
   const rows = managedRows;
@@ -170,7 +165,7 @@ export default function TasksPage() {
     {
       title: 'Create transport orders before transport-linked tasks',
       description: 'Transport task context is available only after transport orders exist.',
-      done: !canCreateOrAssign || isWarehouseManager || taskSetupLoading || (transportOrdersQuery.data?.content ?? []).length > 0,
+      done: !canCreateOrAssign || taskSetupLoading || (transportOrdersQuery.data?.content ?? []).length > 0,
       action: { label: 'Open transport orders', to: '/transport-orders' },
     },
     {
