@@ -77,6 +77,15 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
           paddingTop: 9,
           paddingBottom: 9,
         },
+        notchedOutline: ({ theme }) => ({ borderColor: alpha(theme.palette.text.primary, 0.16) }),
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          '&.Mui-disabled': { opacity: 0.72 },
+          '&.Mui-focused': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.18)}`, outlineOffset: 1 },
+        }),
       },
     },
     MuiInputLabel: {
@@ -134,6 +143,7 @@ export function createComponents(mode: PaletteMode): ThemeOptions['components'] 
               ? alpha(theme.palette.common.white, 0.035)
               : alpha(theme.palette.common.black, 0.018),
           },
+          '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: -2 },
         }),
       },
     },

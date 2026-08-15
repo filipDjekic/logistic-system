@@ -16,6 +16,7 @@ import type {
 import { canEditTransportOrder, getAllowedTransportOrderStatusTransitions } from '../../../core/permissions/operationGuards';
 import type { Role } from '../../../core/constants/roles';
 import { formatTemporalView, formatTemporalZone } from '../../../core/utils/timezoneFormat';
+import { getStatusConfig } from '../../../core/constants/statuses';
 
 type TransportOrdersTableProps = {
   rows: TransportOrderResponse[];
@@ -75,9 +76,7 @@ export default function TransportOrdersTable({
           <Typography variant="body2" fontWeight={700}>
             {row.orderNumber}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
-            #{row.id}
-          </Typography>
+          <Typography variant="caption" color="text.secondary">Transport order</Typography>
         </Stack>
       ),
     },
@@ -185,9 +184,9 @@ export default function TransportOrdersTable({
             onChange={(event) => onStatusChange(row, event.target.value as TransportOrderStatus)}
             sx={{ minWidth: 150 }}
           >
-            <MenuItem value={row.status}>{row.status}</MenuItem>
+            <MenuItem value={row.status}>{getStatusConfig(row.status).label}</MenuItem>
             {allowedStatuses.map((status) => (
-              <MenuItem key={status} value={status}>{status}</MenuItem>
+              <MenuItem key={status} value={status}>{getStatusConfig(status).label}</MenuItem>
             ))}
           </Select>
         );

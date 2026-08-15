@@ -13,6 +13,7 @@ import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import FormActions from '../../../shared/components/Form/FormActions';
 import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
+import { AssignmentSummary, MetadataField, RouteSummary } from '../../../shared/components/OperationalSummary';
 import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import InlineLoader from '../../../shared/components/Loader/InlineLoader';
 import { useAuthStore } from '../../../core/auth/authStore';
@@ -173,8 +174,8 @@ export default function TransportOrderFormPage({ mode }: Props) {
 
   const title = isEdit ? 'Edit transport order' : 'Create transport order';
   const descriptionText = isEdit
-    ? 'Update route, schedule, vehicle and driver from one full page.'
-    : 'Order number is generated automatically. Select route, vehicle and driver from searchable tables.';
+    ? 'Update the operational plan while the order is still editable.'
+    : 'Plan the route, schedule and resources for this transport.';
 
   return (
     <Stack spacing={3}>
@@ -189,22 +190,16 @@ export default function TransportOrderFormPage({ mode }: Props) {
         }
       />
 
-      <SectionCard title="Basic info" description="Static values stay as select fields. Dynamic records are selected below from search tables.">
+      <SectionCard title="Order details" description="Identify the transport and set its operational priority.">
         <Stack spacing={2.5}>
-          {!isEdit ? (
-            <Alert severity="info">
-              Order number format: TO-YYYYMMDD-HHMMSSmmm.
-            </Alert>
-          ) : null}
-
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <TextField label="Order number" value={orderNumber} fullWidth required disabled />
+              <MetadataField label="System order number" value={orderNumber} hint="Assigned automatically when the order is created." />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField select label="Priority" value={priority} fullWidth required onChange={(event) => setPriority(event.target.value as TransportOrderPriority)} disabled={isSubmitting}>
                 {transportOrderPriorityOptions.map((option) => (
-                  <MenuItem key={option} value={option}>{option}</MenuItem>
+                  <MenuItem key={option} value={option}>{option.charAt(0) + option.slice(1).toLowerCase()}</MenuItem>
                 ))}
               </TextField>
             </Grid>
@@ -226,7 +221,17 @@ export default function TransportOrderFormPage({ mode }: Props) {
         </Stack>
       </SectionCard>
 
-      <SectionCard title="Schedule" description="Planned arrival must be after departure time.">
+      <SectionCard title="Route & schedule" description="Choose two different warehouses and define the planned transport window.">
+        <Stack spacing={2.5}>
+          {submitted && sameWarehouseError ? <Alert severity="error">Source and destination warehouses must be different.</Alert> : null}
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, lg: 6 }}>
+              <EntityLookupField label="Source warehouse" entityType="warehouses" value={sourceWarehouse} onChange={setSourceWarehouse} required disabled={isSubmitting} error={submitted && !sourceWarehouse} helperText={submitted && !sourceWarehouse ? 'Source warehouse is required.' : undefined} disabledOptionIds={destinationWarehouse ? [destinationWarehouse.id] : []} searchPlaceholder="Search warehouses..." />
+            </Grid>
+            <Grid size={{ xs: 12, lg: 6 }}>
+              <EntityLookupField label="Destination warehouse" entityType="warehouses" value={destinationWarehouse} onChange={setDestinationWarehouse} required disabled={isSubmitting} error={submitted && !destinationWarehouse} helperText={submitted && !destinationWarehouse ? 'Destination warehouse is required.' : undefined} disabledOptionIds={sourceWarehouse ? [sourceWarehouse.id] : []} searchPlaceholder="Search warehouses..." accessMode="select" />
+            </Grid>
+          </Grid>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField label="Order date" type="datetime-local" value={orderDate} onChange={(event) => setOrderDate(event.target.value)} error={submitted && !orderDate} helperText={submitted && !orderDate ? 'Order date is required.' : undefined} fullWidth required disabled={isSubmitting} InputLabelProps={{ shrink: true }} />
@@ -238,20 +243,15 @@ export default function TransportOrderFormPage({ mode }: Props) {
               <TextField label="Planned arrival time" type="datetime-local" value={plannedArrivalTime} onChange={(event) => { setPlannedArrivalTime(event.target.value); setVehicle(null); setAssignedEmployee(null); }} error={submitted && (!plannedArrivalTime || Boolean(dateTimeError))} helperText={submitted && !plannedArrivalTime ? 'Planned arrival time is required.' : submitted ? dateTimeError ?? undefined : undefined} fullWidth required disabled={isSubmitting} InputLabelProps={{ shrink: true }} />
           </Grid>
         </Grid>
+          <RouteSummary source={sourceWarehouse?.label} destination={destinationWarehouse?.label} schedule={departureTime && plannedArrivalTime ? `${departureTime.replace('T', ' ')} → ${plannedArrivalTime.replace('T', ' ')}` : 'Select departure and arrival times'} />
+        </Stack>
       </SectionCard>
 
-      <SectionCard title="Route and assignment" description="Warehouses, vehicle and driver are not static values, so they use search result tables with explicit Select buttons.">
+      <SectionCard title="Assignment" description="Assign resources available for the complete transport window.">
         <Stack spacing={2.5}>
-          {submitted && sameWarehouseError ? <Alert severity="error">Source and destination warehouses must be different.</Alert> : null}
           {submitted && (!sourceWarehouse || !destinationWarehouse || !vehicle || !assignedEmployee) ? <Alert severity="error">Select source warehouse, destination warehouse, vehicle and driver.</Alert> : null}
 
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, lg: 6 }}>
-              <EntityLookupField label="Source warehouse" entityType="warehouses" value={sourceWarehouse} onChange={setSourceWarehouse} required disabled={isSubmitting} error={submitted && !sourceWarehouse} helperText={submitted && !sourceWarehouse ? 'Source warehouse is required.' : undefined} disabledOptionIds={destinationWarehouse ? [destinationWarehouse.id] : []} searchPlaceholder="Search warehouses..." />
-            </Grid>
-            <Grid size={{ xs: 12, lg: 6 }}>
-              <EntityLookupField label="Destination warehouse" entityType="warehouses" value={destinationWarehouse} onChange={setDestinationWarehouse} required disabled={isSubmitting} error={submitted && !destinationWarehouse} helperText={submitted && !destinationWarehouse ? 'Destination warehouse is required.' : undefined} disabledOptionIds={sourceWarehouse ? [sourceWarehouse.id] : []} searchPlaceholder="Search warehouses..." accessMode="select" />
-            </Grid>
             <Grid size={{ xs: 12, lg: 6 }}>
               <EntityLookupField label="Vehicle" entityType="vehicles" value={vehicle} onChange={setVehicle} required disabled={isSubmitting} error={submitted && !vehicle} helperText={submitted && !vehicle ? 'Vehicle is required.' : undefined} searchPlaceholder="Search vehicles..." lookupParams={{
                 status: 'AVAILABLE',
@@ -289,6 +289,10 @@ export default function TransportOrderFormPage({ mode }: Props) {
                 }
               />
             </Grid>
+          </Grid>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}><AssignmentSummary label="Selected vehicle" option={vehicle} /></Grid>
+            <Grid size={{ xs: 12, md: 6 }}><AssignmentSummary label="Selected driver" option={assignedEmployee} /></Grid>
           </Grid>
         </Stack>
       </SectionCard>

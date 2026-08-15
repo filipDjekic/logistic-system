@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { alpha, Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 
 type PageHeaderProps = {
   title: string;
@@ -13,10 +13,8 @@ export default function PageHeader({ title, description, overline, actions }: Pa
     <Box
       sx={(theme) => ({
         mb: { xs: 1.5, md: 2.5 },
-        p: { xs: 1.5, sm: 2 },
-        borderRadius: 3,
-        border: `1px solid ${theme.palette.divider}`,
-        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.07)}, ${alpha(theme.palette.background.paper, 0.96)})`,
+        py: { xs: 0.5, sm: 1 },
+        borderBottom: `1px solid ${theme.palette.divider}`,
       })}
     >
     <Stack

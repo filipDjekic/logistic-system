@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { queryKeys } from '../../../core/constants/queryKeys';
+import { getStatusConfig } from '../../../core/constants/statuses';
 import { canChangeTransportOrderStatus, canEditTransportOrder, canManageTransportOrders } from '../../../core/permissions/operationGuards';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
@@ -196,11 +197,11 @@ export default function TransportOrdersPage() {
 
             <FilterPanel>
               <TextField select size="small" label="Status" value={filters.status} onChange={(event) => { setPage(0); setFilters((current) => ({ ...current, status: event.target.value as TransportOrderFiltersState['status'] })); }} sx={{ minWidth: { xs: '100%', md: 180 } }}>
-                {statusOptions.map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
+                {statusOptions.map((status) => <MenuItem key={status} value={status}>{status === 'ALL' ? 'All statuses' : getStatusConfig(status).label}</MenuItem>)}
               </TextField>
               <TextField select size="small" label="Priority" value={filters.priority} onChange={(event) => { setPage(0); setFilters((current) => ({ ...current, priority: event.target.value as TransportOrderFiltersState['priority'] })); }} sx={{ minWidth: { xs: '100%', md: 180 } }}>
-                <MenuItem value="ALL">ALL</MenuItem>
-                {transportOrderPriorityOptions.map((priority) => <MenuItem key={priority} value={priority}>{priority}</MenuItem>)}
+                <MenuItem value="ALL">All priorities</MenuItem>
+                {transportOrderPriorityOptions.map((priority) => <MenuItem key={priority} value={priority}>{getStatusConfig(priority).label}</MenuItem>)}
               </TextField>
               {canResolveWarehouses ? (
                 <EntityLookupField label="Source warehouse" entityType="warehouses" value={sourceWarehouseFilter} onChange={(option) => { setPage(0); setSourceWarehouseFilter(option); }} placeholder="All" searchPlaceholder="Search warehouses..." />
