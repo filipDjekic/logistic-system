@@ -178,6 +178,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     @Query("""
         select sm from StockMovement sm
         where (:companyId is null or sm.warehouse.company.id = :companyId)
+        and (:transportRelatedOnly = false or sm.transportOrder is not null or sm.referenceType = rs.logistics.logistics_system.enums.StockMovementReferenceType.TRANSPORT_ORDER)
         and (:movementType is null or sm.movementType = :movementType)
         and (:status is null or sm.status = :status)
         and (:reasonCode is null or sm.reasonCode = :reasonCode)
@@ -205,6 +206,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     })
     Page<StockMovement> searchMovements(
             @Param("companyId") Long companyId,
+            @Param("transportRelatedOnly") boolean transportRelatedOnly,
             @Param("search") String search,
             @Param("searchId") Long searchId,
             @Param("movementType") StockMovementType movementType,

@@ -284,6 +284,7 @@ public class LookupService implements LookupServiceDefinition {
             } else {
                 page = stockMovementRepository.searchMovements(
                         currentCompanyScope(),
+                        false,
                         normalize(search),
                         parseSearchId(search),
                         null,

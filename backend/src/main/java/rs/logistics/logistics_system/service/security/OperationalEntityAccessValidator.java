@@ -319,7 +319,7 @@ public class OperationalEntityAccessValidator {
                     }
 
                     if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
-                        return true;
+                        return canAccessTransportWarehouseScope(order);
                     }
 
                     if (authenticatedUserProvider.hasRole("DRIVER")) {
@@ -365,9 +365,13 @@ public class OperationalEntityAccessValidator {
         return stockMovementRepository.findByIdAndWarehouse_Company_Id(stockMovementId, companyId)
                 .map(movement -> {
                     if (authenticatedUserProvider.isCompanyAdmin()
-                            || authenticatedUserProvider.hasRole("DISPATCHER")
                             || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
                         return true;
+                    }
+
+                    if (authenticatedUserProvider.hasRole("DISPATCHER")) {
+                        return movement.getTransportOrder() != null
+                                || movement.getReferenceType() == rs.logistics.logistics_system.enums.StockMovementReferenceType.TRANSPORT_ORDER;
                     }
 
                     if (authenticatedUserProvider.hasRole("DRIVER")) {

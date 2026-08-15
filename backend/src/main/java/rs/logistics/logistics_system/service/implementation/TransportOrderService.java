@@ -346,17 +346,14 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 ? currentEmployeeIdOrNotFound()
                 : null;
 
-        boolean warehouseScopeEnabled = false;
-        List<Long> warehouseManagerWarehouseIds = List.of(-1L);
-
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
 
         return PageResponse.from(_transportOrderRepository.searchTransportOrders(
                 companyId,
                 driverUserId,
                 workerEmployeeId,
-                warehouseScopeEnabled,
-                warehouseManagerWarehouseIds,
+                false,
+                List.of(),
                 status,
                 priority,
                 null,
@@ -395,17 +392,14 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 ? currentEmployeeIdOrNotFound()
                 : null;
 
-        boolean warehouseScopeEnabled = false;
-        List<Long> warehouseManagerWarehouseIds = List.of(-1L);
-
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
 
         return _transportOrderRepository.countGroupedByStatusFiltered(
                         companyId,
                         driverUserId,
                         workerEmployeeId,
-                        warehouseScopeEnabled,
-                        warehouseManagerWarehouseIds,
+                        false,
+                        List.of(),
                         priority,
                         sourceWarehouseId,
                         destinationWarehouseId,

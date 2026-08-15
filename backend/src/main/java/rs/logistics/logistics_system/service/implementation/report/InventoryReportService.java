@@ -78,6 +78,7 @@ public class InventoryReportService implements InventoryReportServiceDefinition 
 
         List<StockMovement> movementRows = stockMovementRepository.searchMovements(
                 companyId,
+                false,
                 null,
                 null,
                 movementType,

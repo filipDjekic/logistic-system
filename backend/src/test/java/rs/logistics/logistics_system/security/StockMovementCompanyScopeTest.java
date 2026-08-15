@@ -7,6 +7,7 @@ import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
+import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
 import rs.logistics.logistics_system.repository.EmployeeWarehouseAssignmentRepository;
@@ -103,12 +104,33 @@ class StockMovementCompanyScopeTest extends ServiceTestSupport {
         assertFalse(accessValidator.canAccess(OperationalEntityType.STOCK_MOVEMENT, 2297L));
     }
 
+    @Test
+    void dispatcherCanReadOnlyTransportRelatedMovementDetails() {
+        dispatcherInCompany(1L);
+        StockMovement manual = movement(100L, 10L, 1L);
+        StockMovement transportRelated = movement(101L, 10L, 1L);
+        transportRelated.setReferenceType(StockMovementReferenceType.TRANSPORT_ORDER);
+        when(stockMovementRepository.findByIdAndWarehouse_Company_Id(100L, 1L)).thenReturn(Optional.of(manual));
+        when(stockMovementRepository.findByIdAndWarehouse_Company_Id(101L, 1L)).thenReturn(Optional.of(transportRelated));
+
+        assertFalse(accessValidator.canAccess(OperationalEntityType.STOCK_MOVEMENT, 100L));
+        assertTrue(accessValidator.canAccess(OperationalEntityType.STOCK_MOVEMENT, 101L));
+    }
+
     private void warehouseManagerInCompany(Long companyId) {
         when(authenticatedUserProvider.isOverlord()).thenReturn(false);
         when(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).thenReturn(companyId);
         when(authenticatedUserProvider.getAuthenticatedUserId()).thenReturn(700L);
         when(authenticatedUserProvider.hasRole(anyString()))
                 .thenAnswer(invocation -> "WAREHOUSE_MANAGER".equals(invocation.getArgument(0)));
+    }
+
+    private void dispatcherInCompany(Long companyId) {
+        when(authenticatedUserProvider.isOverlord()).thenReturn(false);
+        when(authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()).thenReturn(companyId);
+        when(authenticatedUserProvider.getAuthenticatedUserId()).thenReturn(701L);
+        when(authenticatedUserProvider.hasRole(anyString()))
+                .thenAnswer(invocation -> "DISPATCHER".equals(invocation.getArgument(0)));
     }
 
     private StockMovement movement(Long id, Long warehouseId, Long companyId) {

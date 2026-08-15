@@ -57,20 +57,20 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
   roles: { key: 'roles', label: 'Roles', to: '/roles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AdminPanelSettingsRoundedIcon },
 
   'transport-orders': { key: 'transport-orders', label: 'Transport Orders', to: '/transport-orders', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: LocalShippingRoundedIcon },
-  tasks: { key: 'tasks', label: 'Tasks', to: '/tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: AssignmentRoundedIcon },
+  tasks: { key: 'tasks', label: 'Tasks', to: '/tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER], icon: AssignmentRoundedIcon },
   vehicles: { key: 'vehicles', label: 'Vehicles', to: '/vehicles', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: DirectionsCarFilledRoundedIcon },
 
   warehouses: { key: 'warehouses', label: 'Warehouses', to: '/warehouses', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: WarehouseRoundedIcon },
   products: { key: 'products', label: 'Products', to: '/products', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: CategoryRoundedIcon },
   inventory: { key: 'inventory', label: 'Inventory', to: '/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: Inventory2RoundedIcon },
   'stock-movements': { key: 'stock-movements', label: 'Stock Movements', to: '/stock-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: SyncAltRoundedIcon },
-  'inventory-counts': { key: 'inventory-counts', label: 'Inventory Counts', to: '/inventory-counts', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: PlaylistAddCheckRoundedIcon },
+  'inventory-counts': { key: 'inventory-counts', label: 'Inventory Counts', to: '/inventory-counts', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER], icon: PlaylistAddCheckRoundedIcon },
 
   'transport-report': { key: 'transport-report', label: 'Transport Report', to: '/reports/transport', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
   'inventory-report': { key: 'inventory-report', label: 'Inventory Report', to: '/reports/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
   'employee-task-report': { key: 'employee-task-report', label: 'Employee / Task Report', to: '/reports/employee-tasks', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER], icon: AssessmentRoundedIcon },
 
-  'activity-logs': { key: 'activity-logs', label: 'Activity Logs', to: '/activity-logs', roles: [ROLES.OVERLORD], icon: HistoryRoundedIcon },
+  'activity-logs': { key: 'activity-logs', label: 'Activity Logs', to: '/activity-logs', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN], icon: HistoryRoundedIcon },
   'activity-timeline': { key: 'activity-timeline', label: 'Activity Timeline', to: '/activity-timeline', roles: [ROLES.OVERLORD], icon: HistoryRoundedIcon },
 };
 
@@ -107,7 +107,6 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
     { key: 'transport', label: 'Transport', itemKeys: ['tasks', 'transport-orders'] },
     { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'shifts'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['inventory-report', 'transport-report'] },
-    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.DISPATCHER]: [
@@ -116,7 +115,6 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
     { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements'] },
     { key: 'workforce-reference', label: 'Workforce Reference', itemKeys: ['employees', 'shifts'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report'] },
-    { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],
   [ROLES.DRIVER]: [

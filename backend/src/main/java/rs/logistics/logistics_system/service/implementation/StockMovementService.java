@@ -1760,8 +1760,11 @@ public class StockMovementService implements StockMovementServiceDefinition {
                     ? List.of()
                     : stockMovementRepository.findBatchHistoryForWarehouses(lotNumber, companyId, warehouseIds);
         }
-        return stockMovementRepository.findByBatchLotNumberAndWarehouse_Company_IdOrderByCreatedAtDesc(
+        List<StockMovement> movements = stockMovementRepository.findByBatchLotNumberAndWarehouse_Company_IdOrderByCreatedAtDesc(
                 lotNumber, companyId);
+        return authenticatedUserProvider.hasRole("DISPATCHER")
+                ? movements.stream().filter(this::isTransportRelated).toList()
+                : movements;
     }
 
     private List<StockMovement> scopedSerialHistory(String serialNumber) {
@@ -1779,7 +1782,15 @@ public class StockMovementService implements StockMovementServiceDefinition {
                     ? List.of()
                     : stockMovementRepository.findSerialHistoryForWarehouses(serialNumber, companyId, warehouseIds);
         }
-        return stockMovementRepository.findSerialHistory(serialNumber, companyId);
+        List<StockMovement> movements = stockMovementRepository.findSerialHistory(serialNumber, companyId);
+        return authenticatedUserProvider.hasRole("DISPATCHER")
+                ? movements.stream().filter(this::isTransportRelated).toList()
+                : movements;
+    }
+
+    private boolean isTransportRelated(StockMovement movement) {
+        return movement.getTransportOrder() != null
+                || movement.getReferenceType() == StockMovementReferenceType.TRANSPORT_ORDER;
     }
 
 
@@ -1792,6 +1803,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         return PageResponse.from(stockMovementRepository.searchMovements(
                 companyId,
+                authenticatedUserProvider.hasRole("DISPATCHER"),
                 null,
                 null,
                 null,
@@ -1903,6 +1915,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
             } else {
                 page = stockMovementRepository.searchMovements(
                         companyId,
+                        authenticatedUserProvider.hasRole("DISPATCHER"),
                         normalizedSearch,
                         searchId,
                         movementType,
