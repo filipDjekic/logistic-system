@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import rs.logistics.logistics_system.controller.EmployeeController;
 import rs.logistics.logistics_system.controller.InventoryCountController;
+import rs.logistics.logistics_system.controller.LookupController;
 import rs.logistics.logistics_system.controller.OperationalAttachmentController;
 import rs.logistics.logistics_system.controller.OperationalCommentController;
 import rs.logistics.logistics_system.controller.StockMovementController;
@@ -98,6 +99,20 @@ class CriticalEndpointPermissionContractTest {
         assertTrue(getById.contains("@employeeSecurity.canRead(#id)"));
         assertTrue(tasks.contains("@employeeSecurity.canRead(#id)"));
         assertTrue(shifts.contains("@employeeSecurity.canRead(#id)"));
+    }
+
+    @Test
+    void warehouseManagerGetsVehicleReadWithoutVehicleManagement() throws NoSuchMethodException {
+        assertRoles(VehicleController.class, "getVehicle", "WAREHOUSE_MANAGER");
+        assertRoles(VehicleController.class, "getAllVehicles", "WAREHOUSE_MANAGER");
+        assertRoles(LookupController.class, "vehicles", "WAREHOUSE_MANAGER");
+
+        assertNoRoles(VehicleController.class, "createVehicle", "WAREHOUSE_MANAGER");
+        assertNoRoles(VehicleController.class, "updateVehicle", "WAREHOUSE_MANAGER");
+        assertNoRoles(VehicleController.class, "archiveVehicle", "WAREHOUSE_MANAGER");
+        assertNoRoles(VehicleController.class, "restoreVehicle", "WAREHOUSE_MANAGER");
+        assertNoRoles(VehicleController.class, "deleteVehicle", "WAREHOUSE_MANAGER");
+        assertNoRoles(VehicleController.class, "changeStatus", "WAREHOUSE_MANAGER");
     }
 
     @Test

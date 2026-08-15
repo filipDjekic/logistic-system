@@ -51,7 +51,7 @@ public class VehicleController {
         return new ResponseEntity<>(vehicleService.update(id, dto), HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping("/{id}")
     public ResponseEntity<VehicleResponse> getVehicle(@PathVariable Long id) {
         return new ResponseEntity<>(vehicleService.getById(id), HttpStatus.OK);
@@ -70,7 +70,7 @@ public class VehicleController {
         return ResponseEntity.ok(vehicleService.countByStatus(search, type, available, capacityFrom, capacityTo));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','DISPATCHER','DRIVER','WORKER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','WAREHOUSE_MANAGER','DISPATCHER','DRIVER','WORKER')")
     @GetMapping
     public ResponseEntity<PageResponse<VehicleResponse>> getAllVehicles(
             @RequestParam(required = false) String search,

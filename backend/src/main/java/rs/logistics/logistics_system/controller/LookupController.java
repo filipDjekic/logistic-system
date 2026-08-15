@@ -50,7 +50,7 @@ public class LookupController {
         return ResponseEntity.ok(lookupService.products(search, warehouseId, mode, pageable));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','WAREHOUSE_MANAGER','DISPATCHER')")
     @GetMapping("/vehicles/lookup")
     public ResponseEntity<PageResponse<LookupOptionResponse>> vehicles(
             @RequestParam(required = false) String search,
