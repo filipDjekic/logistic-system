@@ -1,515 +1,442 @@
-# Logistics system
+# Logistics Management System
 
-# Sadržaj
+Logistics Management System is a full-stack web application for coordinating company, workforce, warehouse, inventory, fleet, and transport operations. It combines operational workflows with scoped access control, lifecycle validation, audit records, notifications, reporting, and data exchange in a single multi-company system.
 
-1. [Kratko o projektu](#kratko-o-projektu)
-2. [Kako sistem funkcioniše](#kako-sistem-funkcioniše)
-3. [Šta aplikacija nudi](#šta-aplikacija-nudi)
-4. [Role i model pristupa](#role-i-model-pristupa)
-5. [Tech Stack](#tech-stack)
-6. [Pokretanje lokalno](#pokretanje-lokalno)
-7. [Podešavanje okruženja](#podešavanje-okruženja)
-8. [Mapa projekta](#mapa-projekta)
-9. [API pregled](#api-pregled)
-10. [Kako je zaštićen sistem](#kako-je-zaštićen-sistem)
-11. [Testovi](#testovi)
+## Overview
 
+The system models logistics work around companies and their resources. A company owns users, employees, products, warehouses, and vehicles. Warehouses are divided into zones and bin locations; aggregate and bin-level inventory records track product quantities, reservations, valuation, and stock thresholds. Stock movements and inventory counts provide controlled ways to change that inventory.
 
-# Kratko o projektu
+Transport orders connect source and destination warehouses with products, a vehicle, and a driver. Their lifecycle coordinates inventory reservation, dispatch, receipt, vehicle availability, and operational assignments. Shifts and tasks organize employee work, while notifications, comments, attachments, activity logs, change history, dashboards, and reports provide operational context and traceability.
 
-Logistics System je višekorisnička web aplikacija namenjena upravljanju logističkim procesima unutar kompanije. Sistem objedinjuje upravljanje skladištima, zalihama, transportnim operacijama, voznim parkom, zaposlenima i operativnim zadacima kroz jedinstven informacioni sistem sa kontrolom pristupa zasnovanom na korisničkim ulogama.
+## Key Features
 
-Aplikacija omogućava digitalizaciju svakodnevnih logističkih aktivnosti, od prijema i izdavanja robe, preko planiranja i realizacije transporta, do organizacije rada zaposlenih i praćenja poslovnih događaja. Sve funkcionalnosti dostupne su kroz moderan web interfejs, dok backend obezbeđuje REST API, poslovnu logiku i kontrolu pristupa svim resursima.
+### Authentication and authorization
 
-Sistem podržava više korisničkih uloga sa različitim nivoima ovlašćenja, uključujući administraciju kompanije, upravljanje ljudskim resursima, organizaciju transporta, upravljanje skladištima, kao i operativni rad vozača i skladišnih radnika. Pristup podacima i dozvoljene operacije određene su u skladu sa odgovornostima svake uloge.
+- Stateless email/password login with signed JWT access tokens.
+- BCrypt password hashing and Spring Security request filtering.
+- Backend-enforced role, capability, company, warehouse, assignment, and ownership checks.
+- Public company-registration flow with tracking-token status lookup; all other business APIs require authentication except country, city, and timezone reference reads.
+- Frontend protected routes and permission-aware actions backed by the same role model.
 
-Pored osnovnih CRUD operacija nad poslovnim entitetima, sistem podržava praćenje životnog ciklusa ključnih procesa, istoriju aktivnosti, notifikacije, statističke prikaze, naprednu pretragu i filtriranje podataka, kao i uvoz i izvoz podataka radi jednostavnije administracije i analize poslovanja.
+### Company, user, and employee management
 
-Projekat je razvijen kao full-stack aplikacija korišćenjem Spring Boot i React tehnologija, uz primenu savremenih principa razvoja softvera, autentifikacije i autorizacije, validacije podataka i modularne organizacije koda. Funkcionalnosti implementirane u sistemu prate tipične procese poslovanja logističkih kompanija i predstavljaju osnovu za dalje proširenje i prilagođavanje različitim organizacionim potrebama.
+- Company onboarding requests with review, approval, rejection, cancellation, and company/admin creation.
+- Company, user, role, employee, and employee-profile change-request administration.
+- Employee termination/reactivation, position changes, optional user linkage, primary warehouse, and additional warehouse assignments.
+- Assignment access types for primary, worker, manager, dispatch, and view-only warehouse access.
 
-# Kako sistem funkcioniše
+### Warehouses and inventory
 
-```
-Administrator kompanije registruje kompaniju i podešava osnovne podatke
-        │
-        ▼
-Korisnici se prijavljuju u sistem i dobijaju pristup u skladu sa svojom ulogom
-        │
-        ▼
-Administratori i odgovorni korisnici kreiraju skladišta, vozila, zaposlene i ostale poslovne resurse
-        │
-        ▼
-Formiraju se zalihe robe, organizuju transportne operacije i dodeljuju operativni zadaci
-        │
-        ▼
-Sistem prati promene statusa, evidentira aktivnosti i primenjuje kontrolu pristupa nad svim operacijama
-        │
-        ▼
-Korisnici izvršavaju svoje zadatke u skladu sa dodeljenim ovlašćenjima
-        │
-        ▼
-Dashboard, statistika i istorija aktivnosti pružaju pregled trenutnog stanja i poslovnih procesa
-```
+- Warehouse creation, status management, manager assignment, and capacity controls.
+- Hierarchical warehouse zones and bin locations with location-specific inventory.
+- Product catalog, warehouse inventory, minimum-stock levels, reserved and available quantities, average unit cost, and currency.
+- Inventory-count sessions with generated count lines, counting/review stages, discrepancy handling, approval, adjustment creation, and closure.
 
-Osnovni poslovni model sistema zasniva se na međusobno povezanim logističkim entitetima:
+### Stock movements
 
-```text
-Kompanija
- ├── Korisnici i zaposleni
- │     ├── Uloge i dozvole
- │     └── Radne smene
- │
- ├── Skladišta
- │     ├── Zone
- │     ├── Bin lokacije
- │     ├── Artikli
- │     ├── Zalihe
- │     ├── Kretanje robe
- │     └── Inventure
- │
- ├── Vozni park
- │     ├── Vozila
- │     └── Održavanje
- │
- ├── Transportne operacije
- │     ├── Ruta
- │     ├── Vozač
- │     ├── Vozilo
- │     └── Status transporta
- │
- ├── Operativni zadaci
- │     └── Dodela zaposlenima
- │
- └── Aktivnosti, notifikacije i statistika
-```
+- Inbound, outbound, transfer, adjustment, write-off, and return operations.
+- Warehouse-first product and bin selection using scoped lookup endpoints.
+- Backend-derived cost snapshots from inventory state; users do not provide unit cost, currency, or total movement cost.
+- Quantity, reservation, bin, warehouse-capacity, and lifecycle validation.
+- Approval for qualifying adjustments, execution/cancellation/rejection, reversal records, and lot/serial trace history.
 
-Svaka poslovna operacija prolazi kroz validaciju korisničkih ovlašćenja i poslovnih pravila pre izvršavanja. Sistem vodi evidenciju promena nad važnim entitetima, omogućava praćenje njihovog životnog ciklusa i obezbeđuje da korisnici mogu pristupati isključivo podacima i funkcionalnostima koje su im dozvoljene njihovom ulogom.
+### Transport and fleet management
 
-# Šta aplikacija nudi
+- Transport orders between warehouses with one or more product items.
+- Source-stock reservation, expiry and atomic re-reservation of draft items.
+- Driver, shift, workload, vehicle capacity, schedule, status, and maintenance-conflict checks.
+- Coordinated dispatch and destination receipt inventory effects with historical item cost snapshots.
+- Vehicle catalog, availability lifecycle, assignment history, and maintenance records.
 
-## Za korisnike
+### Workforce operations
 
-| Funkcionalnost                  | Opis                                                                                       |
-| ------------------------------- | ------------------------------------------------------------------------------------------ |
-| Autentifikacija i autorizacija  | Prijava korisnika i kontrola pristupa funkcionalnostima na osnovu dodeljene uloge.         |
-| Upravljanje kompanijom          | Kreiranje i administracija kompanije, organizacija poslovnih resursa i korisnika.          |
-| Upravljanje zaposlenima         | Evidencija zaposlenih, njihovih radnih mesta, smena i pripadajućih informacija.            |
-| Upravljanje skladištima         | Kreiranje i administracija skladišta, zona i skladišnih lokacija.                          |
-| Upravljanje artiklima           | Evidencija artikala, kategorija i osnovnih podataka o robi.                                |
-| Upravljanje zalihama            | Pregled trenutnog stanja zaliha po skladištima, zonama i bin lokacijama.                   |
-| Kretanje robe                   | Evidencija prijema, izdavanja, transfera, korekcija i ostalih skladišnih operacija.        |
-| Inventar                        | Kreiranje, sprovođenje i pregled inventura sa evidentiranjem rezultata brojanja.           |
-| Upravljanje voznim parkom       | Evidencija vozila, njihovih karakteristika, statusa i održavanja.                          |
-| Transportne operacije           | Planiranje, realizacija i praćenje transporta između skladišta.                            |
-| Operativni zadaci               | Kreiranje, dodela i praćenje izvršavanja zadataka zaposlenih.                              |
-| Promene statusa                 | Praćenje životnog ciklusa poslovnih entiteta kroz definisane statuse i dozvoljene prelaze. |
-| Dashboard                       | Centralni pregled najvažnijih poslovnih informacija i ključnih pokazatelja sistema.        |
-| Statistika                      | Grafički prikaz poslovnih podataka kroz različite izveštaje i grafikone.                   |
-| Istorija aktivnosti             | Evidencija izvršenih akcija i promena nad poslovnim entitetima.                            |
-| Notifikacije                    | Obaveštenja o važnim događajima i promenama u sistemu.                                     |
-| Pretraga i filtriranje          | Brzo pronalaženje podataka pomoću pretrage, filtera i sortiranja.                          |
-| Uvoz i izvoz podataka           | Import i eksport podataka radi jednostavnije administracije i razmene informacija.         |
-| Responsive korisnički interfejs | Interfejs prilagođen radu na desktop i mobilnim uređajima.                                 |
+- Planned shifts with activation, completion, cancellation, and sickness-related cancellation handling.
+- Typed, prioritized tasks that can be linked to warehouses, transports, vehicles, stock movements, or other operational context.
+- Role- and assignment-scoped task lists, reassignment, and controlled status transitions.
 
-## Za sistem
+### Operational visibility and collaboration
 
-* Kontrola pristupa zasnovana na korisničkim ulogama i dozvolama.
-* Validacija poslovnih pravila pre izvršavanja svake operacije.
-* Evidentiranje istorije aktivnosti nad ključnim poslovnim entitetima.
-* Praćenje životnog ciklusa poslovnih procesa kroz promene statusa.
-* Centralizovano upravljanje logističkim resursima u okviru kompanije.
-* Podrška za rad više korisnika sa jasno definisanim nivoima pristupa.
-* REST API koji omogućava komunikaciju između frontend i backend aplikacije.
+- Role-specific dashboards with summary cards, alerts, trends, and actionable links.
+- In-app notifications with unread counts, acknowledge/resolve actions, and live Server-Sent Events (SSE) updates.
+- Operational comments and uploaded attachments associated with supported business entities.
+- Activity timeline, activity log, field-level change history, and recorded domain events.
+- Filtered transport, inventory, and employee-task reports with CSV export; audit logs support CSV and XLSX export.
+- Permission-aware CSV imports for products, vehicles, warehouses, warehouse inventory, and employees.
 
-# Role i model pristupa
+## Roles and Access Control
 
-Sistem koristi **Role-Based Access Control (RBAC)** model kojim se određuje kojim funkcionalnostima i poslovnim podacima korisnik može pristupiti nakon prijave. Svakom korisniku dodeljuje se odgovarajuća uloga, a dozvole se primenjuju na nivou backend servisa i REST API endpointa.
+The code defines seven roles. A user's role establishes the broad capability set; backend services and repositories then narrow access to the appropriate business scope.
 
-| Uloga                     | Opis                                                                                                          |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Company Administrator** | Upravlja kompanijom, korisnicima, poslovnim resursima i administrativnim podešavanjima sistema.               |
-| **HR Manager**            | Upravlja zaposlenima, radnim mestima i organizacijom radne snage.                                             |
-| **Warehouse Manager**     | Odgovoran je za skladišta, zalihe, inventure i skladišne operacije.                                           |
-| **Dispatcher**            | Planira i koordinira transportne operacije, raspoređuje vozila, vozače i zadatke.                             |
-| **Driver**                | Pristupa transportnim zadacima koji su mu dodeljeni i evidentira aktivnosti vezane za izvršavanje transporta. |
-| **Worker**                | Izvršava skladišne zadatke, učestvuje u radu sa zalihama i inventurama u okviru svojih ovlašćenja.            |
+| Role | Scope | Main responsibilities |
+| ---- | ----- | --------------------- |
+| `OVERLORD` | Global | Reviews company registrations and administers system-wide companies and reference-level resources. Global access is still subject to protected write rules. |
+| `COMPANY_ADMIN` | Company | Administers the company's users, employees, warehouses, products, inventory, vehicles, transports, tasks, and reports. |
+| `HR_MANAGER` | Company workforce | Manages eligible employees, users, shifts, profile-change requests, HR tasks, and workforce reporting. |
+| `WAREHOUSE_MANAGER` | Company reads and managed-warehouse operations | Manages assigned warehouses, inventory, counts, stock operations, warehouse tasks, and warehouse workforce. Transport-order reads are company-wide where required for operations; mutations remain scoped. |
+| `DISPATCHER` | Company transport operations | Plans and updates transports, works with eligible drivers and vehicles, and accesses transport-related stock and task context. |
+| `DRIVER` | Assigned work | Reads assigned transports and tasks, uses transport-related vehicle/reference data, and performs permitted lifecycle actions. |
+| `WORKER` | Assigned warehouses and work | Reads assigned transports/tasks and performs permitted inventory, count, and stock operations in assigned warehouses. |
 
-Kontrola pristupa zasniva se na nekoliko nivoa:
+Access control is layered:
 
-* autentifikaciji korisnika pomoću JWT tokena;
-* autorizaciji na osnovu korisničke uloge;
-* proveri dozvola za svaku poslovnu operaciju;
-* ograničavanju pristupa podacima u skladu sa kompanijom, skladištem ili drugim poslovnim opsegom gde je to primenjivo.
+1. Spring Security authenticates the JWT and attaches role authorities.
+2. Controller method rules restrict endpoint-level operations.
+3. Authorization and access-guard services enforce company, managed-warehouse, assigned-warehouse, transport, and self-assignment scope.
+4. Lifecycle policies determine whether the current role may perform a particular status transition.
+5. Repository queries and service validation constrain returned and mutated records to the authenticated context.
 
-Pored kontrole pristupa, sistem primenjuje poslovna pravila koja određuju koje promene statusa i koje operacije su dozvoljene nad pojedinim entitetima. Na taj način sprečava se izvršavanje nedozvoljenih ili nelogičnih poslovnih akcija i obezbeđuje konzistentnost podataka tokom rada sistema.
+Frontend route guards and hidden or disabled actions improve navigation, but they are not the security boundary. The backend remains authoritative for every protected read and write.
 
-# Tech Stack
+## Core Business Workflows
 
-## Backend
+### Warehouse and inventory flow
 
 ```text
-Java 21                         — programski jezik
-Spring Boot                     — razvoj REST API aplikacije
-Spring Security                 — autentifikacija i autorizacija
-JWT (JSON Web Token)            — bezbedna autentifikacija korisnika
-Spring Data JPA (Hibernate)     — ORM i pristup bazi podataka
-Microsoft SQL Server            — relaciona baza podataka
-Maven                           — upravljanje zavisnostima i build sistem
-Bean Validation                 — validacija ulaznih podataka
-Lombok                          — smanjenje boilerplate koda
-Server-Sent Events (SSE)       — jednosmerne notifikacije u realnom vremenu
+Company
+  └─ Warehouse
+       ├─ Warehouse Inventory (product totals, reservations, valuation)
+       └─ Zone
+            └─ Bin Location
+                 └─ Bin Inventory (physical quantity by product)
 ```
 
-## Frontend
+A warehouse contains typed zones, and each zone contains bin locations. `WarehouseInventory` holds the aggregate product position for a warehouse; `BinInventory` distributes physical stock across bins. Services validate that quantities and reservations remain non-negative, available stock is `quantity - reservedQuantity`, bin changes match the warehouse context, and capacity is not exceeded. Inventory counts compare expected and counted quantities and can create controlled adjustment movements for approved discrepancies.
 
-```text
-React                           — razvoj korisničkog interfejsa
-TypeScript                      — tipizacija JavaScript koda
-Vite                            — razvojno i build okruženje
-Material UI (MUI)               — biblioteka UI komponenti
-React Router                    — rutiranje unutar aplikacije
-Axios                           — komunikacija sa REST API servisom
-React Hook Form                 — upravljanje formama i validacija
-Recharts                        — grafički prikaz statističkih podataka
+### Stock movement flow
+
+1. The user selects an operation type, warehouse context, product, applicable source/destination bins, quantity, and operational reason/reference data.
+2. The backend locks and validates the relevant inventory, available quantity, reservations, bin stock, company/warehouse scope, and capacity.
+3. Cost is read from the current inventory valuation and normalized into immutable `unitCost`, `currency`, and `movementCost` snapshots on the movement.
+4. The movement follows `DRAFT`, `PENDING_APPROVAL` when required, `APPROVED`, and `EXECUTED`, or one of the rejection/cancellation paths.
+5. Execution updates aggregate and bin inventory in one transaction and records before/after quantity and reservation values.
+6. An executed movement may be reversed through a linked compensating movement rather than by erasing history.
+
+Supported business movement types include inbound/outbound stock, transfer pairs, positive or negative adjustments, write-offs, returns, and system reservation/release movements.
+
+### Transport order flow
+
+```mermaid
+flowchart LR
+    A[DRAFT<br/>items reserved] --> B[ASSIGNED]
+    B --> C[PICKING]
+    C --> D[PACKING]
+    D --> E[READY_FOR_LOADING]
+    E --> F[LOADING]
+    F --> G[IN_TRANSIT<br/>source stock dispatched]
+    G --> H[DELIVERED<br/>destination stock received]
+    A -. expiry .-> X[Reservation released]
+    X -. re-reserve .-> A
+    A --> Z[CANCELLED]
+    G --> R[RETURNING]
+    G --> Y[FAILED]
 ```
 
-## Testiranje
+- A transport order identifies different active source and destination warehouses, schedule, priority, driver, vehicle, and item quantities.
+- Item creation reserves available source stock. Draft reservations expire after the configured TTL and can be renewed atomically before assignment.
+- Before operational progress, the service checks reservation integrity, destination capacity, driver role and shift coverage, workload overlap, vehicle availability/capacity, schedule conflicts, and maintenance.
+- Assignment reserves the vehicle. Moving to `IN_TRANSIT` consumes reserved source stock and records dispatched quantities; delivery receives the items into destination inventory and records delivered quantities.
+- Cancellation releases pre-dispatch reservations. Failure and return paths distinguish whether dispatch occurred so stock and vehicle state remain consistent.
+- Item-level unit cost, currency, and movement cost are retained as historical transport snapshots.
+
+The configured lifecycle also supports rescheduling and the statuses `DRAFT`, `ASSIGNED`, `PICKING`, `PACKING`, `READY_FOR_LOADING`, `LOADING`, `IN_TRANSIT`, `DELIVERED`, `FAILED`, `RETURNING`, `RESCHEDULED`, and `CANCELLED`.
+
+### Employee, shift, and task flow
+
+Employees belong to a company, may be linked to a login user, and may have a primary warehouse plus additional warehouse assignments. Managers schedule shifts for eligible employees; the lifecycle progresses through `PLANNED`, `ACTIVE`, `FINISHED`, or `CANCELLED`, with validation for time ranges and overlapping work. Tasks are created in operational context, assigned only to eligible employees, and progress through `NEW`, `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`, or `CANCELLED`. Driver and worker reads and transitions are restricted to their assigned work.
+
+### Vehicle flow
+
+Vehicles belong to a company and use `AVAILABLE`, `RESERVED`, `IN_USE`, `MAINTENANCE`, or `OUT_OF_SERVICE` status. Transport assignment requires an active, available vehicle without overlapping transport or maintenance commitments and with sufficient configured capacity. Transport lifecycle transitions reserve, activate, and release the vehicle. Maintenance records separately track planned/in-progress/completed/cancelled work and prevent conflicting assignments.
+
+## Technology Stack
+
+| Layer | Technology |
+| ----- | ---------- |
+| Backend | Java 21, Spring Boot 4.0.3, Spring Web MVC |
+| Persistence | Spring Data JPA, Hibernate, Bean Validation |
+| Database | Microsoft SQL Server 2022 CU25 Developer |
+| Migrations | Flyway with SQL Server support |
+| Security | Spring Security, JJWT 0.12.5, BCrypt |
+| API documentation | springdoc OpenAPI/Swagger UI 3.0.2 in non-production profiles |
+| Frontend | React 19.2.8, TypeScript 5.9, Vite 8.2.1 |
+| UI and forms | Material UI 7.3.11, Emotion, React Hook Form, Zod |
+| Data and routing | TanStack Query 5.101.4, Axios, React Router 7.18.2 |
+| Charts | Recharts 3.8 |
+| Testing | Spring test modules, JUnit, H2, Testcontainers 1.19.8, Vitest, Testing Library |
+| Containerization | Docker Compose, Eclipse Temurin 21, Node.js 22.13 |
+| Build tools | Maven Wrapper, npm 11.19 in the frontend image |
+
+## Architecture
 
 ```text
-JUnit 5                         — unit i integracioni testovi backend aplikacije
-Mockito                         — mockovanje zavisnosti u testovima
-Spring Boot Test                — testiranje Spring Boot komponenti
-Vitest                          — testiranje frontend aplikacije
-React Testing Library           — testiranje React komponenti
-Postman                         — funkcionalno testiranje REST API endpointa
-```
-
-## Arhitektura sistema
-
-```text
-Frontend (React + TypeScript)
-            │
-            │ HTTP / REST API
-            ▼
-Backend (Spring Boot)
-            │
-            │ Spring Data JPA
-            ▼
+Browser
+   |
+   | HTTP / REST + JWT
+   | SSE notifications
+   v
+React + TypeScript frontend (Vite development server and /api proxy)
+   |
+   v
+Spring Boot REST controllers
+   |
+   v
+Service, authorization, lifecycle, audit, and mapping layers
+   |
+   v
+Spring Data JPA repositories
+   |
+   v
 Microsoft SQL Server
+
+Backend file storage <--- operational attachment service
+Scheduled jobs       ---> lifecycle monitoring, reservation cleanup, notifications
 ```
 
-Aplikacija je razvijena kao višeslojni informacioni sistem u kojem je frontend zadužen za korisnički interfejs i komunikaciju sa korisnikom, backend implementira poslovnu logiku, validaciju i kontrolu pristupa, dok se svi poslovni podaci trajno čuvaju u relacionoj bazi podataka.
+The frontend is organized by feature and uses shared API, authentication, lookup, table, form, lifecycle, and presentation infrastructure. The backend follows controller-service-repository layering, with DTOs separating API contracts from JPA entities. Cross-cutting packages provide security, lifecycle policies, observability, error handling, scheduling, and operational access validation.
 
-# Pokretanje lokalno
+## Repository Structure
 
-## Preduslovi
+```text
+logistic-system/
+├── backend/
+│   ├── src/main/java/rs/logistics/logistics_system/
+│   │   ├── controller/       # REST endpoints
+│   │   ├── service/          # business workflows and scope enforcement
+│   │   ├── repository/       # JPA data access
+│   │   ├── entity/ and dto/  # persistence and API models
+│   │   ├── security/         # JWT and request protections
+│   │   ├── lifecycle/        # status transition policies
+│   │   └── scheduler/        # periodic lifecycle work
+│   ├── src/main/resources/db/migration/  # Flyway SQL migrations
+│   ├── pom.xml
+│   └── Dockerfile
+├── frontend/
+│   ├── src/app/              # providers, layouts, routing, guards
+│   ├── src/core/             # API, auth, permissions, shared state
+│   ├── src/features/         # domain-oriented UI modules
+│   ├── src/shared/           # reusable components and utilities
+│   ├── package.json
+│   └── Dockerfile
+├── docker/sql/init-database.sql
+├── docker-compose.yml
+└── README.md
+```
 
-Pre pokretanja projekta potrebno je imati instalirano:
+## Database and Migrations
 
-* Java 21
-* Apache Maven
-* Node.js 20 ili noviji
-* Microsoft SQL Server
-* Git
+Microsoft SQL Server is the runtime database. The `db-init` Compose service creates the configured database if necessary, after which the backend runs versioned Flyway migrations from `backend/src/main/resources/db/migration`. Hibernate schema generation is disabled (`ddl-auto=none`), so Flyway is the only mechanism that creates and evolves the schema; Flyway validation is enabled at startup.
 
----
+The migration history creates the schema, reference catalogs, roles, an initial system user, demo companies, operational scenarios, and later forward-only corrections and workflow extensions. Current demo datasets include warehouses, products, inventory, employees, vehicles, shifts, tasks, stock movements, transport orders, notifications, and audit-oriented records. Seed credentials are intentionally not reproduced here; inspect the public seed migrations if a development login is required.
 
-## 1. Kloniranje repozitorijuma
+Compose persists SQL Server data in `sqlserver-data` and uploaded operational attachments in `attachment-data`. The `frontend-node-modules` volume keeps container dependencies separate from the bind-mounted frontend source.
+
+## Demo Data
+
+Demo data is installed automatically by Flyway during the first startup of a new database volume. The seed migrations create the system roles and initial system account, followed by multiple company scenarios with users and employees in each operational role, warehouses and locations, products and inventory, fleet records, shifts, tasks, stock movements, transport orders, notifications, and audit data. Later migrations correct and extend those datasets while preserving the forward-only migration history.
+
+Because the demo passwords are stored as public development seed hashes rather than runtime configuration, this README does not duplicate credentials. The seed migration files are the authoritative source for intentionally seeded development identities.
+
+## Security
+
+- Login is handled by `POST /api/auth/login`; `GET /api/auth/me` restores the authenticated user context.
+- The frontend stores the access token in browser local storage and sends it as `Authorization: Bearer <token>` through the shared Axios client.
+- The backend is stateless, validates JWT signatures and expiry, and uses BCrypt for stored passwords.
+- Controller annotations and service-level authorization enforce roles and data scope; lifecycle transitions apply additional role-specific rules.
+- CORS origins are configurable. CSRF is disabled because the API uses bearer-token authentication rather than server sessions.
+- Standard JSON error responses include stable error codes, validation details, and request correlation identifiers where available.
+- Write protections include idempotency support, request-rate safeguards, and special protection for system-level writes.
+
+Never commit real database passwords or JWT secrets. The existing local `.env` files are ignored by Git.
+
+## Getting Started
+
+### Prerequisites
+
+For the recommended setup, install only:
+
+- Git
+- Docker Engine with Docker Compose v2 (Docker Desktop is suitable on Windows and macOS)
+
+Java, Maven, Node.js, npm, and SQL Server run inside containers.
+
+### Clone the repository
 
 ```bash
 git clone https://github.com/filipDjekic/logistic-system.git
-cd logistics-system
+cd logistic-system
 ```
 
----
+### Environment configuration
 
-## 2. Pokretanje backend aplikacije
+The Compose setup reads the existing `.env` file in the repository root. It must define `DB_PASSWORD` and `JWT_SECRET`; the remaining values have Compose defaults or are optional overrides:
+
+```dotenv
+DB_PASSWORD=<strong SQL Server password>
+JWT_SECRET=<long random signing secret of at least 32 bytes>
+
+# Optional overrides
+DB_NAME=Logistics
+DB_USERNAME=sa
+DB_PORT=1433
+BACKEND_PORT=8080
+FRONTEND_PORT=5173
+JWT_EXPIRATION_MS=86400000
+VITE_APP_NAME=Logistics management system
+CHOKIDAR_USEPOLLING=true
+```
+
+`DB_PASSWORD` must satisfy SQL Server password complexity requirements. Do not replace the current secret values with these placeholders, expose them in documentation, or commit the `.env` file.
+
+### Start the application
+
+```bash
+docker compose up --build -d
+```
+
+The startup order is health-aware: SQL Server starts first, `db-init` creates the database, the backend applies Flyway migrations and becomes healthy, and then the frontend starts.
+
+### Check status and logs
+
+```bash
+docker compose ps
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f db
+```
+
+### Stop the application
+
+```bash
+docker compose down
+```
+
+This stops and removes containers while retaining database, attachment, and frontend dependency volumes.
+
+### Full local reset
+
+```bash
+docker compose down -v
+docker compose up --build -d
+```
+
+Warning: `docker compose down -v` permanently deletes the local SQL Server database volume, uploaded attachment volume, and container-managed frontend dependencies. On the next start, the database is recreated and all Flyway migrations and seed migrations run again.
+
+### Application URLs
+
+Default ports are shown; environment overrides change them.
+
+| Service | URL |
+| ------- | --- |
+| Frontend | `http://localhost:5173` |
+| Backend API | `http://localhost:8080/api` |
+| OpenAPI JSON (development profile) | `http://localhost:8080/v3/api-docs` |
+| Swagger UI (development profile) | `http://localhost:8080/swagger-ui/index.html` |
+| SQL Server | `localhost:1433` |
+
+The frontend proxies `/api` requests to the backend inside the Compose network. API documentation endpoints are disabled by the production profile.
+
+### Optional local development
+
+To run outside Compose, provide a reachable SQL Server database and the environment variables used by `application.properties` (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, and optional overrides). Then run:
 
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
 
-Ili na Windows operativnom sistemu:
-
-```bash
-mvnw.cmd spring-boot:run
-```
-
-Backend će biti dostupan nakon uspešne konekcije sa bazom podataka.
-
----
-
-## 3. Pokretanje frontend aplikacije
-
-U novom terminalu:
+On Windows, use `mvnw.cmd spring-boot:run`. In another terminal:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Frontend aplikacija će biti dostupna na razvojnom serveru koji prikazuje Vite nakon uspešnog pokretanja.
+The local Vite server proxies `/api` to `http://localhost:8080` by default.
 
----
+## API Overview
 
-## 4. Pokretanje testova
+The API is grouped by domain rather than exposed as one generic CRUD endpoint set. Principal route groups include:
 
-### Backend
+```text
+/api/auth
+/api/company-registration-requests
+/api/companies
+/api/users
+/api/roles
+/api/employees
+/api/employee-warehouse-assignments
+/api/shifts
+/api/tasks
+/api/warehouses
+/api/warehouse-locations
+/api/warehouse-inventory
+/api/products
+/api/inventory-counts
+/api/stock-movements
+/api/stock-movement-requests
+/api/transport-orders
+/api/transport-order-items
+/api/vehicles
+/api/vehicle-maintenance
+/api/notifications
+/api/operational-comments
+/api/operational-attachments
+/api/dashboard
+/api/reports
+/api/data
+/api/activity-logs
+/api/activity-timeline
+/api/history
+```
+
+Dedicated lookup routes under `/api` provide scoped warehouse, product, vehicle, employee, transport, stock-movement, zone, bin, and company options for forms. Most endpoints require a valid JWT and the role/scope appropriate to the requested resource.
+
+## Frontend
+
+The React application uses feature modules that co-locate pages, API adapters, hooks, types, validation, and domain components. Shared infrastructure provides authenticated Axios requests, TanStack Query caching, route guards, capability checks, paginated and filterable data tables, reusable entity lookups, lifecycle controls, operational summaries, metadata displays, dialogs, and error handling.
+
+The UI includes public registration and status pages, authenticated role-specific navigation, responsive list/detail/form pages, server-backed search and filters, dashboards built with Recharts, notification streaming, report downloads, and permission-aware imports. React Hook Form and Zod handle client-side form validation; backend validation remains authoritative.
+
+## Validation, Error Handling, and Data Integrity
+
+- Jakarta Bean Validation checks API DTO structure and field constraints.
+- Services enforce cross-entity business rules, scope, active status, lifecycle transitions, capacity, availability, schedule overlap, and assignment eligibility.
+- Transactional stock, reservation, transport, inventory-count, and reversal operations update related records atomically.
+- Pessimistic repository locks protect contested inventory, vehicle, driver, and transport operations; version columns provide optimistic concurrency checks on key records.
+- Flyway migrations define foreign keys, unique constraints, check constraints, indexes, and schema corrections. Flyway validates the applied migration history at startup.
+- Central exception handling returns consistent API errors without exposing stack traces through normal responses.
+- Audit, change-history, and domain-event records preserve important operational changes instead of relying only on mutable entity state.
+
+## Import and Export
+
+CSV import is available through the relevant product, vehicle, warehouse, inventory, and employee screens according to the authenticated role. Imports accept files up to 5 MB, validate headers and individual rows, apply the same service validation and company/warehouse scope as manual entry, and return structured row errors. The operation is transactional: invalid input does not silently create an unscoped partial dataset.
+
+Transport, inventory, and employee-task reports can be filtered in the frontend and downloaded as UTF-8 CSV. Activity and audit logs support CSV or XLSX export. Available import and export actions are returned by `/api/data/capabilities` for the current user.
+
+## Testing
+
+Backend tests include unit, service, security, controller, repository, lifecycle, and integration coverage. H2 supports fast test profiles, while the `flyway-it` Maven profile uses Testcontainers with SQL Server to validate real migration behavior when Docker is available.
 
 ```bash
 cd backend
-mvn test
+./mvnw test
+./mvnw verify -Pflyway-it
 ```
 
-### Frontend
+Frontend validation uses TypeScript, ESLint, Vitest, Testing Library, and the production build:
 
 ```bash
 cd frontend
+npm ci
+npm run typecheck
 npm test
+npm run lint
+npm run build
 ```
 
----
+On Windows, use `mvnw.cmd` for Maven Wrapper commands.
 
-## Redosled pokretanja
+## Project Scope
 
-1. Pokrenuti Microsoft SQL Server.
-2. Podesiti konfiguraciju baze podataka.
-3. Pokrenuti backend aplikaciju.
-4. Pokrenuti frontend aplikaciju.
-5. Pristupiti aplikaciji putem web pregledača.
-
-# Podešavanje okruženja
-
-Backend aplikacija koristi konfiguraciju definisanu u `application.properties` za povezivanje sa bazom podataka i podešavanje rada sistema.
-
-Primer osnovne konfiguracije:
-
-```properties
-spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=logistics_system;encrypt=true;trustServerCertificate=true
-spring.datasource.username=VASE_KORISNICKO_IME
-spring.datasource.password=VASA_SIFRA
-
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=false
-
-jwt.secret=VAS_KLJUC
-jwt.expiration=86400000
-```
-
-## Opis najvažnijih podešavanja
-
-| Parametar                       | Opis                                                |
-| ------------------------------- | --------------------------------------------------- |
-| `spring.datasource.url`         | Adresa Microsoft SQL Server baze podataka.          |
-| `spring.datasource.username`    | Korisničko ime za pristup bazi.                     |
-| `spring.datasource.password`    | Lozinka za pristup bazi.                            |
-| `spring.jpa.hibernate.ddl-auto` | Način upravljanja šemom baze podataka.              |
-| `spring.jpa.show-sql`           | Prikaz SQL upita tokom razvoja.                     |
-| `jwt.secret`                    | Tajni ključ za generisanje i validaciju JWT tokena. |
-| `jwt.expiration`                | Vreme važenja JWT tokena u milisekundama.           |
-
-Frontend aplikacija koristi konfiguraciju definisanu u `.env` fajlu za adresu backend REST API-ja.
-
-Primer:
-
-```env
-VITE_API_URL=http://localhost:8080/api
-```
-
-Pre pokretanja sistema potrebno je:
-
-1. Kreirati ili ažurirati bazu podataka.
-2. Podesiti parametre za povezivanje sa bazom.
-3. Konfigurisati JWT parametre.
-4. Podesiti URL backend aplikacije u frontend konfiguraciji.
-5. Pokrenuti backend, a zatim frontend aplikaciju.
-
-# Mapa projekta
-
-```text
-logistics-system/
-│
-├── backend/
-│   ├── src/
-│   │   └── main/
-│   │       └── java/
-│   │           └── rs/logistics/logistics_system/
-│   │               ├── config/             # konfiguracija aplikacije i Spring okruženja
-│   │               ├── controller/         # REST API endpointi
-│   │               ├── dto/                # DTO objekti
-│   │               ├── entity/             # JPA entiteti
-│   │               ├── enums/              # enumeracije i statusi sistema
-│   │               ├── exception/          # obrada i mapiranje grešaka
-│   │               ├── lifecycle/          # životni ciklusi poslovnih entiteta
-│   │               ├── mapper/             # mapiranje entiteta i DTO objekata
-│   │               ├── observability/      # audit, događaji i praćenje sistema
-│   │               ├── repository/         # pristup bazi podataka
-│   │               ├── scheduler/          # zakazani poslovi
-│   │               ├── security/           # JWT autentifikacija i autorizacija
-│   │               └── service/            # poslovna logika aplikacije
-│   │
-│   ├── pom.xml                            # Maven konfiguracija
-│   └── mvnw / mvnw.cmd                    # Maven Wrapper
-│
-├── frontend/
-│   ├── src/
-│   │   ├── app/                           # layout, rutiranje i provider-i
-│   │   ├── assets/                        # slike i statički resursi
-│   │   ├── core/                          # API klijent, autentifikacija i zajednička logika
-│   │   ├── features/                      # funkcionalni moduli sistema
-│   │   ├── shared/                        # zajedničke komponente, hook-ovi i util klase
-│   │   ├── test/                          # pomoćni test resursi
-│   │   └── types/                         # TypeScript tipovi
-│   │
-│   ├── package.json                       # frontend zavisnosti i skripte
-│   └── vite.config.*                      # Vite konfiguracija
-│
-├── docs/                                  # projektna dokumentacija (ukoliko postoji)
-├── README.md                              # dokumentacija projekta
-└── .gitignore
-```
-
-Projekat je organizovan kao odvojene backend i frontend aplikacije koje međusobno komuniciraju putem REST API-ja. Backend je implementiran slojevitom arhitekturom (Controller → Service → Repository), pri čemu su poslovna logika, sigurnost, mapiranje podataka i pristup bazi jasno razdvojeni. Frontend je organizovan po funkcionalnim modulima, uz izdvojene zajedničke komponente i infrastrukturu za rutiranje, komunikaciju sa backend servisima i upravljanje stanjem aplikacije.
-
-# API pregled
-
-Sistem koristi REST arhitekturu za komunikaciju između frontend i backend aplikacije. Svi zaštićeni endpointi zahtevaju validan JWT token koji se prosleđuje kroz `Authorization: Bearer <token>` zaglavlje.
-
-## Glavni API moduli
-
-| Modul                     | Opis                                                                   |
-| ------------------------- | ---------------------------------------------------------------------- |
-| **Authentication API**    | Registracija korisnika, prijava, osvežavanje sesije i autentifikacija. |
-| **Company API**           | Upravljanje kompanijama i njihovim osnovnim podacima.                  |
-| **Employee API**          | Evidencija zaposlenih, njihovih podataka i organizacione strukture.    |
-| **Role & Permission API** | Upravljanje korisničkim ulogama i dozvolama.                           |
-| **Warehouse API**         | Kreiranje, izmena i pregled skladišta.                                 |
-| **Warehouse Zone API**    | Upravljanje zonama unutar skladišta.                                   |
-| **Bin API**               | Upravljanje skladišnim lokacijama (bin-ovima).                         |
-| **Item API**              | Evidencija artikala i njihovih karakteristika.                         |
-| **Inventory API**         | Pregled trenutnog stanja zaliha.                                       |
-| **Stock Movement API**    | Prijem, izdavanje, transfer i ostale promene stanja zaliha.            |
-| **Inventory Count API**   | Kreiranje i sprovođenje inventura.                                     |
-| **Vehicle API**           | Upravljanje voznim parkom.                                             |
-| **Maintenance API**       | Evidencija održavanja vozila.                                          |
-| **Transport API**         | Planiranje i realizacija transportnih operacija.                       |
-| **Task API**              | Kreiranje, dodela i praćenje operativnih zadataka.                     |
-| **Shift API**             | Organizacija i upravljanje radnim smenama.                             |
-| **Notification API**      | Slanje i pregled korisničkih obaveštenja.                              |
-| **Activity API**          | Evidencija aktivnosti korisnika i poslovnih događaja.                  |
-| **Dashboard API**         | Prikaz ključnih poslovnih pokazatelja.                                 |
-| **Statistics API**        | Statistički izveštaji i grafički prikaz podataka.                      |
-| **Import / Export API**   | Uvoz i izvoz poslovnih podataka.                                       |
-
-## Karakteristike API-ja
-
-* REST arhitektura sa JSON formatom razmene podataka.
-* Standardizovani HTTP status kodovi za uspešne i neuspešne zahteve.
-* Validacija ulaznih podataka pre izvršavanja poslovne logike.
-* Kontrola pristupa na osnovu korisničkih uloga i dozvola.
-* Podrška za pretragu, filtriranje, sortiranje i paginaciju gde je primenljivo.
-* Jedinstvena obrada grešaka i standardizovani odgovori backend servisa.
-
-# Kako je zaštićen sistem
-
-Bezbednost sistema zasniva se na autentifikaciji korisnika, kontroli pristupa na osnovu korisničkih uloga i validaciji poslovnih pravila pre izvršavanja svake operacije. Na taj način obezbeđuje se da korisnici mogu pristupati isključivo funkcionalnostima i podacima za koje imaju odgovarajuća ovlašćenja.
-
-## Autentifikacija
-
-Prijava korisnika realizovana je korišćenjem **JWT (JSON Web Token)** mehanizma. Nakon uspešne autentifikacije korisniku se izdaje token koji se prosleđuje uz svaki naredni zahtev prema backend aplikaciji.
-
-Backend validira token pre izvršavanja zaštićenih operacija i na osnovu identiteta korisnika određuje dozvoljeni nivo pristupa.
-
-## Autorizacija
-
-Kontrola pristupa implementirana je korišćenjem **Role-Based Access Control (RBAC)** modela.
-
-Svaki korisnik poseduje jednu ili više uloga koje određuju kojim poslovnim funkcionalnostima može pristupiti. Pored provere korisničke uloge, sistem primenjuje i dodatna poslovna ograničenja kako bi se sprečio pristup podacima van dozvoljenog opsega.
-
-## Validacija podataka
-
-Pre izvršavanja svake poslovne operacije vrši se validacija ulaznih podataka i poslovnih pravila. Na taj način sprečava se unos neispravnih ili nekonzistentnih podataka u sistem.
-
-## Životni ciklus poslovnih entiteta
-
-Ključni poslovni entiteti koriste definisane životne cikluse sa kontrolisanim promenama statusa. Sistem dozvoljava samo validne prelaze između statusa, čime se sprečavaju nelogične ili nedozvoljene poslovne operacije.
-
-## Evidencija aktivnosti
-
-Sistem evidentira značajne poslovne događaje i aktivnosti korisnika. Evidencija omogućava praćenje promena nad poslovnim podacima i olakšava analizu izvršenih operacija.
-
-## Dodatni mehanizmi zaštite
-
-* JWT autentifikacija za sve zaštićene REST API endpoint-e.
-* Kontrola pristupa na osnovu korisničkih uloga i dozvola.
-* Validacija ulaznih podataka na backend strani.
-* Centralizovana obrada izuzetaka i standardizovani odgovori sistema.
-* Zaštita poslovnih operacija kroz proveru dozvoljenih promena statusa.
-* Evidentiranje aktivnosti i promena nad ključnim poslovnim entitetima.
-* Ograničavanje pristupa resursima u skladu sa poslovnim pravilima sistema.
-
-# Testovi
-
-Tokom razvoja projekta testirane su ključne funkcionalnosti backend i frontend aplikacije kako bi se proverila ispravnost poslovne logike, bezbednosti sistema i korisničkog interfejsa.
-
-## Backend testiranje
-
-Backend aplikacija testirana je korišćenjem **JUnit 5**, **Mockito** i **Spring Boot Test** biblioteka.
-
-Testovi obuhvataju:
-
-* autentifikaciju i autorizaciju korisnika;
-* validaciju poslovnih pravila;
-* rad servisnog sloja;
-* REST API endpoint-e;
-* obradu grešaka i izuzetaka;
-* kontrolu pristupa na osnovu korisničkih uloga i dozvola.
-
-## Frontend testiranje
-
-Frontend aplikacija testirana je korišćenjem **Vitest** i **React Testing Library** biblioteka.
-
-Testovi obuhvataju:
-
-* prikaz React komponenti;
-* korisničke forme i validaciju unosa;
-* navigaciju između stranica;
-* komunikaciju sa backend servisima;
-* prikaz podataka i reakciju korisničkog interfejsa.
-
-## Testiranje REST API-ja
-
-Za proveru REST API-ja korišćen je **Postman**.
-
-Testirani su:
-
-* autentifikacija korisnika;
-* CRUD operacije nad poslovnim entitetima;
-* validacija ulaznih podataka;
-* HTTP status kodovi;
-* odgovor sistema u slučaju grešaka;
-* autorizacija i zabrana pristupa nedozvoljenim resursima.
-
-## Ručno testiranje
-
-Pored automatskih testova izvršeno je i ručno testiranje kompletnih korisničkih tokova kroz aplikaciju.
-
-Obuhvaćene su sledeće funkcionalnosti:
-
-* registracija kompanije i korisnika;
-* prijava i odjava korisnika;
-* upravljanje zaposlenima;
-* upravljanje skladištima;
-* upravljanje artiklima i zalihama;
-* upravljanje transportnim operacijama;
-* upravljanje voznim parkom;
-* kreiranje i izvršavanje operativnih zadataka;
-* sprovođenje inventure;
-* pregled dashboard-a i statistike;
-* pretraga, filtriranje i paginacija podataka;
-* istorija aktivnosti i notifikacije;
-* responzivnost korisničkog interfejsa na različitim veličinama ekrana.
-
-Kombinacijom automatskih i ručnih testova proverena je ispravnost najvažnijih funkcionalnosti sistema, bezbednosnih mehanizama i poslovnih procesa implementiranih u aplikaciji.
+This repository is a university software-engineering project demonstrating the design and implementation of a full-stack logistics information system. Its scope includes realistic cross-domain workflows, authorization boundaries, data integrity controls, operational traceability, containerized development, and automated testing without claiming deployment-specific production readiness.
