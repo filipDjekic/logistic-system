@@ -33,18 +33,22 @@ public class TransportReservationExpiryWorker {
                 .forEach(item -> release(order.getSourceWarehouse().getId(), item));
         order.setReservationExpiresAt(null);
         orderRepository.save(order);
-        auditFacade.log("TRANSPORT_RESERVATION_EXPIRED", "TRANSPORT_ORDER", order.getId(),
-                "Expired DRAFT transport reservation released");
+        auditFacade.logSystem("TRANSPORT_RESERVATION_EXPIRED", "TRANSPORT_ORDER", order.getId(),
+                order.getOrderNumber(), "Expired DRAFT transport reservation released");
         return true;
     }
 
     private void release(Long warehouseId, TransportOrderItem item) {
         BigDecimal amount = item.getSafeReservedQuantity();
         if (amount.signum() == 0) return;
-        var inventory = inventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, item.getProduct().getId())
-                .orElseThrow(() -> new IllegalStateException("Reserved transport inventory no longer exists"));
-        inventory.release(amount);
-        inventoryRepository.save(inventory);
+        inventoryRepository.findByWarehouseIdAndProductIdForUpdate(warehouseId, item.getProduct().getId())
+                .ifPresent(inventory -> {
+                    BigDecimal releasable = amount.min(inventory.getSafeReservedQuantity());
+                    if (releasable.signum() > 0) {
+                        inventory.release(releasable);
+                        inventoryRepository.save(inventory);
+                    }
+                });
         item.releaseReservation();
         itemRepository.save(item);
     }

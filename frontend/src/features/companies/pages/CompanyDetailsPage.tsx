@@ -98,7 +98,6 @@ export default function CompanyDetailsPage() {
         ],
       }}
       actionItems={[
-        { key: 'history', label: 'Full history', onClick: () => navigate(`/change-history?entityName=COMPANY&entityId=${company.id}`) },
         { key: 'back', label: 'Back to list', onClick: () => navigate('/companies') },
       ]}
       tabs={tabs}
