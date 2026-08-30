@@ -82,4 +82,5 @@ export type CompanyRegistrationValidationResponse = {
   registrationNumberAvailable: boolean;
   taxNumberAvailable: boolean;
   adminEmailAvailable: boolean;
+  valid: boolean;
 };

@@ -82,7 +82,9 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    command: ["npm", "run", "dev"]
+    # The named node_modules volume survives image rebuilds. Synchronize it with
+    # package-lock.json on every container start before Vite rebuilds its cache.
+    command: ["sh", "-c", "npm ci --no-audit --no-fund && npm run dev"]
 
 volumes:
   sqlserver-data:

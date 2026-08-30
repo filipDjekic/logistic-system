@@ -14,6 +14,26 @@ export const apiClient = axios.create({
   },
 });
 
+function isPublicApiRequest(requestUrl: string, requestMethod?: string) {
+  const method = requestMethod?.toLowerCase();
+  const path = requestUrl.split('?')[0];
+
+  if (method === 'post') {
+    return path === '/api/auth/login' || path === '/api/company-registration-requests';
+  }
+
+  return method === 'get' && (
+    path === '/api/company-registration-requests/validate'
+    || path.startsWith('/api/company-registration-requests/status/')
+    || path === '/api/countries'
+    || path.startsWith('/api/countries/')
+    || path === '/api/cities'
+    || path.startsWith('/api/cities/')
+    || path === '/api/timezones'
+    || path.startsWith('/api/timezones/')
+  );
+}
+
 apiClient.interceptors.request.use((config) => {
   applyIdempotencyKey(config);
   const token = getAccessToken();
@@ -37,10 +57,7 @@ apiClient.interceptors.response.use(
       authStore.setUnauthenticated();
 
       const requestUrl = error.config?.url ?? '';
-      const isLoginRequest =
-        typeof requestUrl === 'string' && requestUrl.includes('/api/auth/login');
-
-      if (!isLoginRequest) {
+      if (!isPublicApiRequest(requestUrl, error.config?.method)) {
         emitSessionExpired();
       }
     }
