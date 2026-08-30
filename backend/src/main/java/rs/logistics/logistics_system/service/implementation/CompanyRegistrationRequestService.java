@@ -32,7 +32,6 @@ import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinitio
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.support.EmployeeEmailGenerator;
 
-import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
@@ -45,7 +44,6 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     private static final String ROLE_COMPANY_ADMIN = "COMPANY_ADMIN";
     private static final String ROLE_OVERLORD = "OVERLORD";
     private static final EmployeePosition BOOTSTRAP_ADMIN_POSITION = EmployeePosition.COMPANY_ADMIN;
-    private static final BigDecimal BOOTSTRAP_ADMIN_SALARY = BigDecimal.ONE;
     private static final Set<CompanyRegistrationRequestStatus> ACTIVE_REQUEST_STATUSES = Set.of(
             CompanyRegistrationRequestStatus.PENDING,
             CompanyRegistrationRequestStatus.UNDER_REVIEW
@@ -78,6 +76,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         Company requestedCompanyPreview = new Company(dto.getCompanyName());
         requestedCompanyPreview.setCountry(country);
         dto.setAdminEmail(employeeEmailGenerator.generateUnique(dto.getAdminFirstName(), dto.getAdminLastName(), requestedCompanyPreview, BOOTSTRAP_ADMIN_POSITION, country));
+        dto.setAdminPassword(passwordEncoder.encode(dto.getAdminPassword()));
 
         validateSubmitUniqueness(dto);
 
@@ -119,6 +118,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         return new CompanyRegistrationPublicStatusResponse(
                 request.getPublicTrackingToken(),
                 request.getCompanyName(),
+                request.getAdminEmail(),
                 request.getStatus(),
                 CompanyRegistrationRequestMapper.statusLabel(request.getStatus()),
                 CompanyRegistrationRequestMapper.statusDescription(request.getStatus()),
@@ -157,7 +157,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     @Override
     @Transactional
     public CompanyRegistrationRequestResponse markUnderReview(Long id) {
-        CompanyRegistrationRequest request = getRequired(id);
+        CompanyRegistrationRequest request = getRequiredForUpdate(id);
         ensureSubmitted(request);
 
         request.setStatus(CompanyRegistrationRequestStatus.UNDER_REVIEW);
@@ -175,7 +175,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     @Override
     @Transactional
     public CompanyRegistrationRequestResponse approve(Long id) {
-        CompanyRegistrationRequest request = getRequired(id);
+        CompanyRegistrationRequest request = getRequiredForUpdate(id);
         ensureReviewable(request);
         CompanyRegistrationRequestStatus previousStatus = request.getStatus();
         validateApprovalUniqueness(request);
@@ -196,16 +196,10 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
 
         Role companyAdminRole = roleRepository.findByName(ROLE_COMPANY_ADMIN)
                 .orElseThrow(() -> new ResourceNotFoundException("COMPANY_ADMIN role not found"));
-        String finalAdminEmail = employeeEmailGenerator.generateUnique(
-                request.getAdminFirstName(),
-                request.getAdminLastName(),
-                savedCompany,
-                BOOTSTRAP_ADMIN_POSITION,
-                request.getCountry()
-        );
+        String finalAdminEmail = request.getAdminEmail();
 
         User adminUser = new User(
-                passwordEncoder.encode(request.getAdminPassword()),
+                resolvePasswordHash(request.getAdminPassword()),
                 request.getAdminFirstName(),
                 request.getAdminLastName(),
                 finalAdminEmail,
@@ -224,7 +218,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
                 finalAdminEmail,
                 BOOTSTRAP_ADMIN_POSITION,
                 request.getAdminEmploymentDate(),
-                BOOTSTRAP_ADMIN_SALARY,
+                null,
                 savedAdminUser
         );
         adminEmployee.setCompany(savedCompany);
@@ -243,6 +237,7 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         request.setReviewedAt(timeService.nowSystem());
         request.setReviewedBy(resolveCurrentUser());
         request.setCreatedCompany(savedCompany);
+        request.setAdminPassword(null);
         CompanyRegistrationRequest savedRequest = requestRepository.save(request);
 
         auditFacade.recordCreate("COMPANY", savedCompany.getId(), savedCompany.getName());
@@ -261,13 +256,14 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     @Override
     @Transactional
     public CompanyRegistrationRequestResponse reject(Long id, CompanyRegistrationReject dto) {
-        CompanyRegistrationRequest request = getRequired(id);
+        CompanyRegistrationRequest request = getRequiredForUpdate(id);
         ensureReviewable(request);
         CompanyRegistrationRequestStatus previousStatus = request.getStatus();
         request.setStatus(CompanyRegistrationRequestStatus.REJECTED);
         request.setReviewedAt(timeService.nowSystem());
         request.setReviewedBy(resolveCurrentUser());
         request.setRejectionReason(dto.getRejectionReason());
+        request.setAdminPassword(null);
         CompanyRegistrationRequest saved = requestRepository.save(request);
 
         auditFacade.recordStatusChange("COMPANY_REGISTRATION_REQUEST", saved.getId(), saved.getCompanyName(),
@@ -281,11 +277,12 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
     @Override
     @Transactional
     public CompanyRegistrationRequestResponse cancel(Long id) {
-        CompanyRegistrationRequest request = getRequired(id);
+        CompanyRegistrationRequest request = getRequiredForUpdate(id);
         ensureReviewable(request);
         CompanyRegistrationRequestStatus previousStatus = request.getStatus();
         request.setStatus(CompanyRegistrationRequestStatus.CANCELLED);
         request.setReviewedAt(timeService.nowSystem());
+        request.setAdminPassword(null);
         CompanyRegistrationRequest saved = requestRepository.save(request);
         auditFacade.recordStatusChange("COMPANY_REGISTRATION_REQUEST", saved.getId(), saved.getCompanyName(),
                 "status", previousStatus, CompanyRegistrationRequestStatus.CANCELLED);
@@ -294,6 +291,11 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
 
     private CompanyRegistrationRequest getRequired(Long id) {
         return requestRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Company registration request not found"));
+    }
+
+    private CompanyRegistrationRequest getRequiredForUpdate(Long id) {
+        return requestRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Company registration request not found"));
     }
 
@@ -377,6 +379,19 @@ public class CompanyRegistrationRequestService implements CompanyRegistrationReq
         if (hasText(request.getTaxNumber()) && companyRepository.existsByTaxNumberIgnoreCase(request.getTaxNumber())) {
             throw new ConflictException("Company with this tax number already exists");
         }
+        if (userRepository.existsByEmailIgnoreCase(request.getAdminEmail())
+                || employeeRepository.existsByEmailIgnoreCase(request.getAdminEmail())) {
+            throw new ConflictException("The reserved administrator login email is no longer available");
+        }
+    }
+
+    private String resolvePasswordHash(String storedPassword) {
+        if (!hasText(storedPassword)) {
+            throw new BadRequestException("Registration request no longer contains administrator credentials");
+        }
+        return storedPassword.matches("^\\$2[aby]\\$\\d{2}\\$.{53}$")
+                ? storedPassword
+                : passwordEncoder.encode(storedPassword);
     }
 
     private String generateCompanyContactEmail(String companyName, String countryCode) {

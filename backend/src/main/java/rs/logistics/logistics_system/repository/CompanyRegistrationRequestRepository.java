@@ -1,6 +1,10 @@
 package rs.logistics.logistics_system.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 import rs.logistics.logistics_system.entity.CompanyRegistrationRequest;
 import rs.logistics.logistics_system.enums.CompanyRegistrationRequestStatus;
 
@@ -9,6 +13,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CompanyRegistrationRequestRepository extends JpaRepository<CompanyRegistrationRequest, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select request from CompanyRegistrationRequest request where request.id = :id")
+    Optional<CompanyRegistrationRequest> findByIdForUpdate(@Param("id") Long id);
+
     Optional<CompanyRegistrationRequest> findByPublicTrackingToken(String publicTrackingToken);
     List<CompanyRegistrationRequest> findAllByOrderBySubmittedAtDesc();
     List<CompanyRegistrationRequest> findByStatusOrderBySubmittedAtDesc(CompanyRegistrationRequestStatus status);

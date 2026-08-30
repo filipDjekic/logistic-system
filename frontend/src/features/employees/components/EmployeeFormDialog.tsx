@@ -286,7 +286,7 @@ export default function EmployeeFormDialog({
         email: initialData.email,
         position: initialData.position,
         employmentDate: initialData.employmentDate,
-        salary: String(initialData.salary),
+        salary: initialData.salary == null ? '' : String(initialData.salary),
         address: initialData.address ?? '',
         countryId: initialData.countryId ?? null,
         cityId: initialData.cityId ?? null,

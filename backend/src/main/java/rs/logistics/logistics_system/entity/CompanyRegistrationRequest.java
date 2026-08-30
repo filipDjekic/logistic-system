@@ -88,7 +88,7 @@ public class CompanyRegistrationRequest {
     @Column(name = "admin_jmbg", length = 13, nullable = false)
     private String adminJmbg;
 
-    @Column(name = "admin_password", length = 255, nullable = false)
+    @Column(name = "admin_password", length = 255)
     private String adminPassword;
 
     @Column(name = "admin_employment_date", nullable = false)
@@ -130,8 +130,8 @@ public class CompanyRegistrationRequest {
             publicTrackingToken = UUID.randomUUID().toString();
         }
         companyName = trim(companyName);
-        registrationNumber = trim(registrationNumber);
-        taxNumber = trim(taxNumber);
+        registrationNumber = trimToNull(registrationNumber);
+        taxNumber = trimToNull(taxNumber);
         companyEmail = lower(companyEmail);
         companyPhoneNumber = trim(companyPhoneNumber);
         address = trim(address);
@@ -148,6 +148,11 @@ public class CompanyRegistrationRequest {
 
     private String trim(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private String trimToNull(String value) {
+        String normalized = trim(value);
+        return normalized == null || normalized.isEmpty() ? null : normalized;
     }
 
     private String lower(String value) {

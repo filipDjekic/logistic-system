@@ -106,7 +106,7 @@ public class Employee {
     @Column(name = "employment_date", nullable = false)
     private LocalDate employmentDate;
 
-    @Column(name = "salary", nullable = false, precision = 12, scale = 2)
+    @Column(name = "salary", precision = 12, scale = 2)
     private BigDecimal salary;
 
     @Column(name = "active", nullable = false)

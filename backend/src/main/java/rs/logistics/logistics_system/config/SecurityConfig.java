@@ -69,8 +69,10 @@ public class SecurityConfig {
                         // produce a meaningful 401/403 response.
                         .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/login",
-                                "/api/company-registration-requests",
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/login",
+                                "/api/company-registration-requests").permitAll()
+                        .requestMatchers(HttpMethod.GET,
                                 "/api/company-registration-requests/validate",
                                 "/api/company-registration-requests/status/**").permitAll()
                         .requestMatchers(HttpMethod.GET,

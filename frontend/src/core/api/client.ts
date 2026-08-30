@@ -53,11 +53,12 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorResponse>) => {
     if (error.response?.status === 401) {
-      clearQueryCache();
-      authStore.setUnauthenticated();
-
       const requestUrl = error.config?.url ?? '';
-      if (!isPublicApiRequest(requestUrl, error.config?.method)) {
+      const publicRequest = isPublicApiRequest(requestUrl, error.config?.method);
+
+      if (!publicRequest) {
+        clearQueryCache();
+        authStore.setUnauthenticated();
         emitSessionExpired();
       }
     }

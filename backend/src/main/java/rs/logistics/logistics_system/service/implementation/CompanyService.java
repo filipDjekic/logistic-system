@@ -1,6 +1,5 @@
 package rs.logistics.logistics_system.service.implementation;
 
-import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
@@ -44,7 +43,6 @@ import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinitio
 public class CompanyService implements CompanyServiceDefinition {
 
     private static final EmployeePosition BOOTSTRAP_ADMIN_POSITION = EmployeePosition.COMPANY_ADMIN;
-    private static final BigDecimal BOOTSTRAP_ADMIN_SALARY = BigDecimal.ONE;
     private static final UserStatus BOOTSTRAP_ADMIN_STATUS = UserStatus.ACTIVE;
     private static final String ROLE_COMPANY_ADMIN = "COMPANY_ADMIN";
 
@@ -246,7 +244,7 @@ public class CompanyService implements CompanyServiceDefinition {
                 generatedEmail,
                 BOOTSTRAP_ADMIN_POSITION,
                 admin.getEmploymentDate(),
-                BOOTSTRAP_ADMIN_SALARY,
+                null,
                 user
         );
         employee.setCompany(company);
@@ -374,6 +372,8 @@ public class CompanyService implements CompanyServiceDefinition {
     private String normalizeForUsername(String value, boolean allowHyphen) {
         String normalized = Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
+                .replace("đ", "dj")
+                .replace("Đ", "dj")
                 .toLowerCase(Locale.ROOT);
 
         normalized = allowHyphen

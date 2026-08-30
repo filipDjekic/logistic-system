@@ -155,10 +155,14 @@ export default function CompanyRegistrationPage() {
   const countryEmailCode = country?.iso2Code ?? 'rs';
   const city = citiesQuery.data?.find((item) => item.id === Number(values.cityId));
   useEffect(() => {
-    form.setValue('postalCode', city?.postalCode ?? '', {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
+    const currentPostalCode = form.getValues('postalCode');
+    const newPostalCode = city?.postalCode ?? '';
+    if (currentPostalCode !== newPostalCode) {
+      form.setValue('postalCode', newPostalCode, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
   }, [form, city?.postalCode]);
   const timezone = timezonesQuery.data?.find((item) => item.id === Number(values.timezoneId));
   const score = passwordScore(values.adminPassword ?? '');
@@ -176,14 +180,29 @@ export default function CompanyRegistrationPage() {
   });
 
   useEffect(() => {
-    form.setValue('companyEmail', buildCompanyEmail(values.companyName, countryEmailCode), { shouldValidate: true, shouldDirty: true });
+    const newEmail = buildCompanyEmail(values.companyName, countryEmailCode);
+    if (form.getValues('companyEmail') !== newEmail) {
+      form.setValue('companyEmail', newEmail, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
   }, [form, values.companyName, countryEmailCode]);
 
   useEffect(() => {
-    form.setValue('adminEmail', buildAdminEmail(values.adminFirstName, values.adminLastName, values.companyName, 'COMPANY_ADMIN', countryEmailCode), {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
+    const newAdminEmail = buildAdminEmail(
+      values.adminFirstName,
+      values.adminLastName,
+      values.companyName,
+      'COMPANY_ADMIN',
+      countryEmailCode
+    );
+    if (form.getValues('adminEmail') !== newAdminEmail) {
+      form.setValue('adminEmail', newAdminEmail, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
   }, [form, values.adminFirstName, values.adminLastName, values.companyName, countryEmailCode]);
 
   const countryOptions = useMemo(
@@ -319,7 +338,7 @@ export default function CompanyRegistrationPage() {
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Controller name="companyPhoneNumber" control={form.control} render={({ field, fieldState }) => (
-                    <TextField {...field} label="Company phone" placeholder="641234567" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message || 'Enter only the remaining digits, without the country calling code.'} InputProps={{ startAdornment: country?.phoneCode ? <InputAdornment position="start">+{country.phoneCode}</InputAdornment> : undefined }} />
+                    <TextField {...field} label="Company phone" placeholder="641234567" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message || 'Enter only the remaining digits, without the country calling code.'} InputProps={{ startAdornment: country?.phoneCode ? <InputAdornment position="start">{country.phoneCode}</InputAdornment> : undefined }} />
                   )} />
                 </Grid>
               </Grid>
@@ -373,8 +392,8 @@ export default function CompanyRegistrationPage() {
               <Stack direction="row" spacing={1.75} alignItems="center"><FactCheckOutlinedIcon color="primary" fontSize="large" /><Box><Typography variant="h5" fontWeight={850}>Review and submit</Typography><Typography variant="body2" color="text.secondary">Confirm the request before sending it for approval.</Typography></Box></Stack>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 4 }}><Card variant="outlined"><CardContent><Stack spacing={1}><Typography fontWeight={850}>Company</Typography><SummaryRow label="Name" value={values.companyName} /><SummaryRow label="Registration" value={values.registrationNumber} /><SummaryRow label="Tax" value={values.taxNumber} /><SummaryRow label="Email" value={values.companyEmail} /><Button size="small" onClick={() => setActiveStep(0)}>Edit</Button></Stack></CardContent></Card></Grid>
-                <Grid size={{ xs: 12, md: 4 }}><Card variant="outlined"><CardContent><Stack spacing={1}><Typography fontWeight={850}>Location</Typography><SummaryRow label="Country" value={country?.name} /><SummaryRow label="City" value={city?.name} /><SummaryRow label="Timezone" value={timezone?.displayName ?? timezone?.name} /><SummaryRow label="Phone code" value={country?.phoneCode ? `+${country.phoneCode}` : null} /><Button size="small" onClick={() => setActiveStep(1)}>Edit</Button></Stack></CardContent></Card></Grid>
-                <Grid size={{ xs: 12, md: 4 }}><Card variant="outlined"><CardContent><Stack spacing={1}><Typography fontWeight={850}>Administrator</Typography><SummaryRow label="Name" value={`${values.adminFirstName ?? ''} ${values.adminLastName ?? ''}`.trim()} /><SummaryRow label="Admin address" value={values.adminAddress} /><SummaryRow label="Email" value={values.adminEmail} /><SummaryRow label="Phone" value={country?.phoneCode ? `+${country.phoneCode} ${values.adminPhoneNumber ?? ''}` : values.adminPhoneNumber} /><Button size="small" onClick={() => setActiveStep(2)}>Edit</Button></Stack></CardContent></Card></Grid>
+                <Grid size={{ xs: 12, md: 4 }}><Card variant="outlined"><CardContent><Stack spacing={1}><Typography fontWeight={850}>Location</Typography><SummaryRow label="Country" value={country?.name} /><SummaryRow label="City" value={city?.name} /><SummaryRow label="Timezone" value={timezone?.displayName ?? timezone?.name} /><SummaryRow label="Phone code" value={country?.phoneCode} /><Button size="small" onClick={() => setActiveStep(1)}>Edit</Button></Stack></CardContent></Card></Grid>
+                <Grid size={{ xs: 12, md: 4 }}><Card variant="outlined"><CardContent><Stack spacing={1}><Typography fontWeight={850}>Administrator</Typography><SummaryRow label="Name" value={`${values.adminFirstName ?? ''} ${values.adminLastName ?? ''}`.trim()} /><SummaryRow label="Admin address" value={values.adminAddress} /><SummaryRow label="Email" value={values.adminEmail} /><SummaryRow label="Phone" value={country?.phoneCode ? `${country.phoneCode} ${values.adminPhoneNumber ?? ''}` : values.adminPhoneNumber} /><Button size="small" onClick={() => setActiveStep(2)}>Edit</Button></Stack></CardContent></Card></Grid>
               </Grid>
               <Controller name="notes" control={form.control} render={({ field, fieldState }) => <TextField {...field} label="Additional notes" multiline minRows={3} fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} />} />
               <Stack direction="row" spacing={1} alignItems="center"><Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /><Typography variant="body2">I confirm that submitted information is accurate.</Typography></Stack>

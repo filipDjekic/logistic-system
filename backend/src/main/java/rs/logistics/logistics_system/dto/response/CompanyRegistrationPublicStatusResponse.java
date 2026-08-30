@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public record CompanyRegistrationPublicStatusResponse(
         String trackingToken,
         String companyName,
+        String adminEmail,
         CompanyRegistrationRequestStatus status,
         String statusLabel,
         String statusDescription,

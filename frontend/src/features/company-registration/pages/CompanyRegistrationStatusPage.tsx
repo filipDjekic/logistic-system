@@ -22,7 +22,7 @@ export default function CompanyRegistrationStatusPage() {
     queryKey: queryKeys.companyRegistrationRequests.publicStatus(trackingToken),
     queryFn: () => companyRegistrationApi.getPublicStatus(trackingToken),
     enabled: trackingToken.trim().length > 0,
-    refetchInterval: 30000,
+    refetchInterval: (statusQuery) => statusQuery.state.data?.terminal ? false : 30000,
   });
 
   const statusColor = useMemo(() => {
@@ -73,7 +73,11 @@ export default function CompanyRegistrationStatusPage() {
               </Stack>
 
               {query.data.status === 'REJECTED' ? <Alert severity="error">Rejected reason: {query.data.rejectionReason ?? 'No reason provided.'}</Alert> : null}
-              {query.data.status === 'APPROVED' ? <Alert severity="success">Approved. The company workspace is active and the administrator can sign in.</Alert> : null}
+              {query.data.status === 'APPROVED' ? (
+                <Alert severity="success">
+                  Approved. The company workspace is active. Sign in as <strong>{query.data.adminEmail}</strong> using the password supplied with this request.
+                </Alert>
+              ) : null}
               {query.data.status === 'PENDING' ? <Alert severity="info">Your request is waiting for Overlord approval.</Alert> : null}
               {query.data.status === 'UNDER_REVIEW' ? <Alert severity="warning">Your request is under review. The final decision will appear on this page.</Alert> : null}
 

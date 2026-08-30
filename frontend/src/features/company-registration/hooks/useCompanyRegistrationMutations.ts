@@ -9,7 +9,7 @@ export function useSubmitCompanyRegistration() {
   const { showSnackbar } = useAppSnackbar();
   return useMutation({
     mutationFn: (payload: CompanyRegistrationCreateRequest) => companyRegistrationApi.submit(payload),
-    onSuccess: () => showSnackbar({ message: 'Registration request submitted.', severity: 'success' }),
+    onSuccess: (response) => showSnackbar({ message: `Registration request submitted. Reserved administrator login: ${response.adminEmail}`, severity: 'success' }),
     onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
   });
 }
@@ -32,8 +32,8 @@ export function useApproveCompanyRegistration() {
   const { showSnackbar } = useAppSnackbar();
   return useMutation({
     mutationFn: (id: number) => companyRegistrationApi.approve(id),
-    onSuccess: async () => {
-      showSnackbar({ message: 'Registration request approved.', severity: 'success' });
+    onSuccess: async (response) => {
+      showSnackbar({ message: `Company and administrator ${response.adminEmail} created successfully.`, severity: 'success' });
       await queryClient.invalidateQueries({ queryKey: queryKeys.companyRegistrationRequests.root() });
       await queryClient.invalidateQueries({ queryKey: queryKeys.companies.root() });
     },

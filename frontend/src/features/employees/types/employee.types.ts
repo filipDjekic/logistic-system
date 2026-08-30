@@ -41,7 +41,7 @@ export type EmployeeResponse = EmployeeLocationFields & {
   generatedEmailOutdated?: boolean;
   position: EmployeePosition;
   employmentDate: string;
-  salary: number;
+  salary: number | null;
   salaryCurrencyCode: string | null;
   salaryCurrencyName: string | null;
   active: boolean;

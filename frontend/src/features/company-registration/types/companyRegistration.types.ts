@@ -68,6 +68,7 @@ export type CompanyRegistrationResponse = {
 export type CompanyRegistrationPublicStatus = {
   trackingToken: string;
   companyName: string;
+  adminEmail: string;
   status: CompanyRegistrationStatus;
   statusLabel?: string | null;
   statusDescription?: string | null;

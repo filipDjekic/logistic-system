@@ -60,6 +60,8 @@ if not exist "node_modules" (
 
 rem Keep Vite's dependency cache stable across restarts. Forcing a re-bundle can
 rem leave an already-open tab with old React modules and new lazy chunks.
+set "VITE_API_BASE_URL=/"
+set "VITE_PROXY_TARGET=http://localhost:8080"
 start "Logistics System - Frontend" cmd /k npm run dev
 
 echo.

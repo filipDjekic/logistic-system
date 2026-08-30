@@ -117,10 +117,15 @@ public class Company {
             email = email.trim().toLowerCase();
         }
         if (taxNumber != null) {
-            taxNumber = taxNumber.trim();
+            taxNumber = trimToNull(taxNumber);
         }
         if (registrationNumber != null) {
-            registrationNumber = registrationNumber.trim();
+            registrationNumber = trimToNull(registrationNumber);
         }
+    }
+
+    private String trimToNull(String value) {
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }
