@@ -46,9 +46,19 @@ public class AuthorizationService {
                 && entityAccessValidator.canAccess(OperationalEntityType.STOCK_MOVEMENT, id);
     }
 
+    public boolean canListStockMovements(Long transportOrderId) {
+        if (!hasCapability(EntityCapability.STOCK_MOVEMENT_READ)) {
+            return false;
+        }
+        if (!authenticatedUserProvider.hasRole("DRIVER")) {
+            return true;
+        }
+        return transportOrderId != null
+                && entityAccessValidator.canAccess(OperationalEntityType.TRANSPORT_ORDER, transportOrderId);
+    }
+
     public boolean canListStockMovements() {
-        return hasCapability(EntityCapability.STOCK_MOVEMENT_READ)
-                && !authenticatedUserProvider.hasRole("DRIVER");
+        return canListStockMovements(null);
     }
 
     public boolean canCreateStockMovement() {

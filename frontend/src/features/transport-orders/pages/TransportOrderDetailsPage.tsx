@@ -102,7 +102,8 @@ export default function TransportOrderDetailsPage() {
     auth.user?.role === ROLES.OVERLORD ||
     auth.user?.role === ROLES.COMPANY_ADMIN ||
     auth.user?.role === ROLES.DISPATCHER ||
-    auth.user?.role === ROLES.WAREHOUSE_MANAGER;
+    auth.user?.role === ROLES.WAREHOUSE_MANAGER ||
+    auth.user?.role === ROLES.DRIVER;
 
   const canViewHistory = auth.user?.role !== ROLES.DRIVER;
 

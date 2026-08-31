@@ -24,6 +24,7 @@ export type WarehouseInventoryCreateRequest = {
   productId: number;
   quantity: number;
   minStockLevel: number;
+  initialBinLocationId?: number | null;
 };
 
 export type WarehouseInventoryUpdateRequest = {

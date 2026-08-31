@@ -30,6 +30,9 @@ public class WarehouseInventoryCreate {
     @PositiveOrZero
     private BigDecimal minStockLevel;
 
+    @Positive
+    private Long initialBinLocationId;
+
 
     public WarehouseInventoryCreate(BigDecimal quantity, BigDecimal reservedQuantity, BigDecimal minStockLevel, Long warehouseId, Long productId) {
         this.warehouseId = warehouseId;

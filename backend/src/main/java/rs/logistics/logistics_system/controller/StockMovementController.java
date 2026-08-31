@@ -130,19 +130,19 @@ public class StockMovementController {
         return ResponseEntity.ok(stockMovementService.trace(id));
     }
 
-    @PreAuthorize("@authorization.canListStockMovements()")
+    @PreAuthorize("@authorization.canListStockMovements(null)")
     @GetMapping("/batches/{lotNumber}/history")
     public ResponseEntity<List<StockMovementResponse>> batchHistory(@PathVariable String lotNumber) {
         return ResponseEntity.ok(stockMovementService.batchHistory(lotNumber));
     }
 
-    @PreAuthorize("@authorization.canListStockMovements()")
+    @PreAuthorize("@authorization.canListStockMovements(null)")
     @GetMapping("/serials/{serialNumber}/history")
     public ResponseEntity<List<StockMovementResponse>> serialHistory(@PathVariable String serialNumber) {
         return ResponseEntity.ok(stockMovementService.serialHistory(serialNumber));
     }
 
-    @PreAuthorize("@authorization.canListStockMovements()")
+    @PreAuthorize("@authorization.canListStockMovements(#transportOrderId)")
     @GetMapping
     public ResponseEntity<PageResponse<StockMovementResponse>> search(
             @RequestParam(required = false) String search,

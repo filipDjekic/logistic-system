@@ -84,7 +84,7 @@ public class TaskController {
         return ResponseEntity.ok(taskService.countByStatus(search, priority, assignedEmployeeId, transportOrderId, stockMovementId, linkedProcessType));
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER')")
+    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN','HR_MANAGER','DISPATCHER','WAREHOUSE_MANAGER') or @taskSecurity.canReadTransportOrderTasks(#transportOrderId)")
     @GetMapping
     public ResponseEntity<PageResponse<TaskResponse>> getAll(
             @RequestParam(required = false) String search,

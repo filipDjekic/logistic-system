@@ -47,6 +47,8 @@ import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
+import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
+import rs.logistics.logistics_system.enums.OperationalEntityType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -72,6 +74,7 @@ public class TaskService implements TaskServiceDefinition {
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final TimeServiceDefinition timeService;
     private final DomainScopeValidator domainScopeValidator;
+    private final OperationalEntityAccessValidator operationalEntityAccessValidator;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
     private final LifecycleNotificationService lifecycleNotificationService;
 
@@ -444,6 +447,12 @@ public class TaskService implements TaskServiceDefinition {
             String linkedProcessType,
             Pageable pageable
     ) {
+        if (authenticatedUserProvider.hasRole("DRIVER")) {
+            if (transportOrderId == null) {
+                throw new ForbiddenException("DRIVER can list related tasks only for an assigned transport order");
+            }
+            operationalEntityAccessValidator.ensureCanAccess(OperationalEntityType.TRANSPORT_ORDER, transportOrderId);
+        }
         Long companyId = authenticatedUserProvider.isOverlord()
                 ? null
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();

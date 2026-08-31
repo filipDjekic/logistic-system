@@ -21,6 +21,8 @@ import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.WarehouseInventory;
+import rs.logistics.logistics_system.entity.BinInventory;
+import rs.logistics.logistics_system.entity.BinLocation;
 import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.StockMovementReasonCode;
 import rs.logistics.logistics_system.enums.StockMovementReferenceType;
@@ -35,6 +37,7 @@ import rs.logistics.logistics_system.repository.InventoryCountSessionRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
 import rs.logistics.logistics_system.repository.WarehouseInventoryRepository;
 import rs.logistics.logistics_system.repository.WarehouseRepository;
+import rs.logistics.logistics_system.repository.BinLocationRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
@@ -42,6 +45,7 @@ import rs.logistics.logistics_system.service.definition.WarehouseInventoryServic
 import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
+import rs.logistics.logistics_system.service.support.BinIntegrityValidator;
 
 @Service
 @RequiredArgsConstructor
@@ -51,6 +55,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final WarehouseRepository warehouseRepository;
     private final ProductRepository productRepository;
     private final BinInventoryRepository binInventoryRepository;
+    private final BinLocationRepository binLocationRepository;
     private final StockMovementRepository stockMovementRepository;
     private final InventoryCountSessionRepository inventoryCountSessionRepository;
     private final AuditFacadeDefinition auditFacade;
@@ -58,6 +63,7 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final AppProperties appProperties;
     private final WarehouseAccessGuard warehouseAccessGuard;
+    private final BinIntegrityValidator binIntegrityValidator;
 
     @Override
     @Transactional
@@ -66,19 +72,43 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         Product product = getAccessibleProduct(dto.getProductId());
 
         validateSameCompany(warehouse, product);
+        if (!warehouse.isOperational()) {
+            throw new BadRequestException("Inventory cannot be created for a non-operational warehouse");
+        }
+        if (!product.isOperational()) {
+            throw new BadRequestException("Inventory cannot be created for an inactive product");
+        }
 
         if (warehouseInventoryRepository.existsByWarehouse_IdAndProduct_Id(warehouse.getId(), product.getId())) {
             throw new BadRequestException("Warehouse inventory already exists for selected warehouse and product");
         }
 
         WarehouseInventory warehouseInventory = createInventory(dto, warehouse, product);
-        if (Boolean.TRUE.equals(warehouse.getBinTrackingEnabled())
-                && warehouseInventory.getSafeQuantity().compareTo(BigDecimal.ZERO) > 0) {
-            throw new BadRequestException("Initial quantity must be zero for a bin-tracked warehouse; add stock through a bin-scoped stock movement");
-        }
+        BinLocation initialBin = validateInitialBinSelection(dto, warehouse, warehouseInventory.getSafeQuantity());
         validateWarehouseCapacity(warehouse, BigDecimal.ZERO, warehouseInventory.getSafeQuantity());
 
         WarehouseInventory saved = warehouseInventoryRepository.saveAndFlush(warehouseInventory);
+
+        if (initialBin != null) {
+            BinInventory binInventory = new BinInventory(initialBin, product, saved.getSafeQuantity());
+            binIntegrityValidator.ensureBinInventoryDoesNotExceedWarehouseInventory(
+                    initialBin, product, saved.getSafeQuantity(), saved);
+            BinInventory savedBinInventory = binInventoryRepository.saveAndFlush(binInventory);
+            auditFacade.recordFieldChange(
+                    "BIN_INVENTORY",
+                    initialBin.getId(),
+                    "binLocationId=" + initialBin.getId() + ",productId=" + product.getId(),
+                    "quantity",
+                    null,
+                    savedBinInventory.getSafeQuantity()
+            );
+            auditFacade.log(
+                    "SET_BIN_INVENTORY",
+                    "BIN_INVENTORY",
+                    initialBin.getId(),
+                    "Initial inventory assigned to bin=" + initialBin.getCode() + ", product=" + product.getSku()
+            );
+        }
 
         if (QueryParameterNormalizer.zeroIfNull(saved.getQuantity()).compareTo(BigDecimal.ZERO) > 0) {
             recordInventoryMovement(
@@ -105,6 +135,46 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         );
 
         return WarehouseInventoryMapper.toResponse(saved);
+    }
+
+    private BinLocation validateInitialBinSelection(
+            WarehouseInventoryCreate dto,
+            Warehouse warehouse,
+            BigDecimal initialQuantity
+    ) {
+        boolean binTrackingEnabled = Boolean.TRUE.equals(warehouse.getBinTrackingEnabled());
+        boolean positiveQuantity = initialQuantity.compareTo(BigDecimal.ZERO) > 0;
+
+        if (!binTrackingEnabled) {
+            if (dto.getInitialBinLocationId() != null) {
+                throw new BadRequestException("Initial bin location cannot be used because bin tracking is disabled for this warehouse");
+            }
+            return null;
+        }
+
+        if (!positiveQuantity) {
+            return null;
+        }
+
+        if (dto.getInitialBinLocationId() == null) {
+            throw new BadRequestException("Initial bin location is required for positive stock in a bin-tracked warehouse");
+        }
+
+        BinLocation bin = authenticatedUserProvider.isOverlord()
+                ? binLocationRepository.findById(dto.getInitialBinLocationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Bin location not found"))
+                : binLocationRepository.findByIdAndWarehouse_Company_Id(
+                        dto.getInitialBinLocationId(),
+                        authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow()
+                ).orElseThrow(() -> new ResourceNotFoundException("Bin location not found"));
+
+        binIntegrityValidator.ensureBinBelongsToWarehouse(
+                bin, warehouse, "Initial bin location must belong to selected warehouse");
+        binIntegrityValidator.ensureActiveBin(bin, "Initial bin location is not active");
+        if (bin.getZone() == null || !Boolean.TRUE.equals(bin.getZone().getActive())) {
+            throw new BadRequestException("Initial bin location must belong to an active zone");
+        }
+        return bin;
     }
 
     @Override

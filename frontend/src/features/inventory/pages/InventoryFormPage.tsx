@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import {
@@ -24,6 +25,7 @@ import {
   useCreateInventoryRecord,
   useUpdateInventoryRecord,
 } from '../hooks/useInventoryMutations';
+import { inventoryApi } from '../api/inventoryApi';
 
 type Props = {
   mode: 'create' | 'edit';
@@ -63,9 +65,19 @@ export default function InventoryFormPage({ mode }: Props) {
 
   const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<LookupOption | null>(null);
+  const [selectedZone, setSelectedZone] = useState<LookupOption | null>(null);
+  const [selectedBin, setSelectedBin] = useState<LookupOption | null>(null);
   const [quantity, setQuantity] = useState('');
   const [minStockLevel, setMinStockLevel] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  const selectedWarehouseQuery = useQuery({
+    queryKey: ['inventory', 'warehouse', selectedWarehouse?.id ?? null],
+    queryFn: () => inventoryApi.getWarehouseById(Number(selectedWarehouse?.id)),
+    enabled: mode === 'create' && selectedWarehouse != null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
 
   useEffect(() => {
     if (!isEdit || !inventoryRecordQuery.data) return;
@@ -131,6 +143,8 @@ export default function InventoryFormPage({ mode }: Props) {
 
   const normalizedQuantity = normalizeNumber(quantity);
   const normalizedMinStockLevel = normalizeNumber(minStockLevel);
+  const usesBinTracking = Boolean(selectedWarehouseQuery.data?.binTrackingEnabled);
+  const requiresInitialBin = !isEdit && usesBinTracking && normalizedQuantity !== null && normalizedQuantity > 0;
   const hasWarehouse = selectedWarehouse !== null || isEdit;
   const hasProduct = selectedProduct !== null || isEdit;
   const hasInvalidQuantity = !isEdit && submitted && (normalizedQuantity === null || normalizedQuantity < 0);
@@ -143,7 +157,10 @@ export default function InventoryFormPage({ mode }: Props) {
     !hasProduct ||
     (!isEdit && (normalizedQuantity === null || normalizedQuantity < 0)) ||
     normalizedMinStockLevel === null ||
-    normalizedMinStockLevel < 0;
+    normalizedMinStockLevel < 0 ||
+    selectedWarehouseQuery.isLoading ||
+    selectedWarehouseQuery.isError ||
+    (requiresInitialBin && selectedBin === null);
 
   const handleSubmit = () => {
     setSubmitted(true);
@@ -161,6 +178,7 @@ export default function InventoryFormPage({ mode }: Props) {
           productId: selectedProduct.id,
           quantity: normalizedQuantity,
           minStockLevel: normalizedMinStockLevel,
+          initialBinLocationId: requiresInitialBin ? selectedBin?.id : null,
         },
         {
           onSuccess: (record) => {
@@ -228,7 +246,11 @@ export default function InventoryFormPage({ mode }: Props) {
                   accessMode="mutate"
                   required
                   value={selectedWarehouse}
-                  onChange={setSelectedWarehouse}
+                  onChange={(warehouse) => {
+                    setSelectedWarehouse(warehouse);
+                    setSelectedZone(null);
+                    setSelectedBin(null);
+                  }}
                   error={submitted && !selectedWarehouse}
                   helperText={submitted && !selectedWarehouse ? 'Warehouse is required.' : undefined}
                   searchPlaceholder="Search warehouses..."
@@ -246,6 +268,11 @@ export default function InventoryFormPage({ mode }: Props) {
                   searchPlaceholder="Search products..."
                 />
               </Grid>
+              {selectedWarehouseQuery.isError ? (
+                <Grid size={{ xs: 12 }}>
+                  <Alert severity="error">Warehouse configuration could not be loaded. Select the warehouse again or retry later.</Alert>
+                </Grid>
+              ) : null}
             </Grid>
           ) : (
             <Grid container spacing={2}>
@@ -269,6 +296,55 @@ export default function InventoryFormPage({ mode }: Props) {
           )}
         </Stack>
       </SectionCard>
+
+      {mode === 'create' && usesBinTracking ? (
+        <SectionCard
+          title="Initial storage location"
+          description="This warehouse uses bin tracking. Initial stock must be assigned to a bin."
+        >
+          <Stack spacing={2.5}>
+            {normalizedQuantity === 0 ? (
+              <Alert severity="info">A bin is not required while the initial quantity is zero.</Alert>
+            ) : null}
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <EntityLookupField
+                  label="Zone"
+                  entityType="warehouse-zones"
+                  value={selectedZone}
+                  onChange={(zone) => {
+                    setSelectedZone(zone);
+                    setSelectedBin(null);
+                  }}
+                  warehouseId={selectedWarehouse?.id}
+                  activeOnly
+                  required={requiresInitialBin}
+                  disabled={!selectedWarehouse || !requiresInitialBin}
+                  error={submitted && requiresInitialBin && !selectedZone}
+                  helperText={submitted && requiresInitialBin && !selectedZone ? 'Zone is required.' : undefined}
+                  searchPlaceholder="Search active zones..."
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <EntityLookupField
+                  label="Bin location"
+                  entityType="bin-locations"
+                  value={selectedBin}
+                  onChange={setSelectedBin}
+                  warehouseId={selectedWarehouse?.id}
+                  activeOnly
+                  lookupParams={{ zoneId: selectedZone?.id }}
+                  required={requiresInitialBin}
+                  disabled={!selectedZone || !requiresInitialBin}
+                  error={submitted && requiresInitialBin && !selectedBin}
+                  helperText={submitted && requiresInitialBin && !selectedBin ? 'Bin location is required.' : undefined}
+                  searchPlaceholder="Search active bins..."
+                />
+              </Grid>
+            </Grid>
+          </Stack>
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Stock levels">
         <Stack spacing={2.5}>
