@@ -78,7 +78,7 @@ const operationConfig: Record<StockOperationType, OperationConfig> = {
   },
 };
 
-const operationOrder: StockOperationType[] = ['inbound', 'outbound', 'internal', 'adjustment', 'write-off', 'return'];
+const operationOrder: StockOperationType[] = ['inbound', 'outbound', 'adjustment', 'write-off', 'return'];
 const stockOperationSteps = ['Operation', 'Entities', 'Quantity', 'Reference', 'Submit'];
 
 const initialValues: StockOperationFormValues = {
@@ -179,7 +179,7 @@ export default function StockOperationPage() {
   const usesTransportOrder = operation === 'transfer';
   const allowsStockMovementReference = operation === 'outbound' || operation === 'write-off' || operation === 'return';
   const submitDisabled = mutation.isPending || internalMovementMutation.isPending;
-  const supportsBinSelection = operation !== null;
+  const supportsBinSelection = false;
   const quantityValue = Number(values.quantity);
   const contextQuery = useQuery({
     queryKey: ['stock-movement-context', values.warehouse?.id, values.product?.id, values.binLocation?.id],

@@ -7,7 +7,6 @@ import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import Form from '../../../shared/components/Form/Form';
 import FormSelect from '../../../shared/components/Form/FormSelect';
-import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormActions from '../../../shared/components/Form/FormActions';
 import { applyServerFieldErrors } from '../../../shared/components/Form/applyServerFieldErrors';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
@@ -82,7 +81,7 @@ export default function WarehouseFormPage({ mode }: Props) {
       companyId: warehouseQuery.data.companyId != null ? String(warehouseQuery.data.companyId) : '',
       countryId: warehouseQuery.data.countryId ?? null,
       timezoneId: warehouseQuery.data.timezoneId ?? '',
-      binTrackingEnabled: Boolean(warehouseQuery.data.binTrackingEnabled),
+      binTrackingEnabled: false,
     });
   }, [mode, reset, warehouseQuery.data]);
 
@@ -199,10 +198,6 @@ export default function WarehouseFormPage({ mode }: Props) {
               <FormSelect name="timezoneId" control={control} label="Timezone" options={timezoneOptions} required disabled={!countryId || timezoneOptions.length === 0} />
             </Grid>
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <FormCheckbox name="binTrackingEnabled" control={control} label="Enable bin tracking" helperText="When enabled, stock movements must select bins and internal movements become available." />
-            </Grid>
-
             {mode === 'create' && isOverlord ? (
               <Grid size={{ xs: 12, md: 6 }}>
                 <FormSelect
@@ -252,7 +247,7 @@ export default function WarehouseFormPage({ mode }: Props) {
                 capacity: Number(values.capacity),
                 countryId: values.countryId ? Number(values.countryId) : null,
                 timezoneId: Number(values.timezoneId),
-                binTrackingEnabled: Boolean(values.binTrackingEnabled),
+                binTrackingEnabled: false,
               };
 
               if (mode === 'create') {

@@ -6,7 +6,6 @@ import {
   Button,
   Chip,
   Grid,
-  LinearProgress,
   Stack,
   Typography,
 } from '@mui/material';
@@ -58,20 +57,6 @@ function toNumber(value: number | string | null | undefined) {
 
 function usePagedState<T = unknown>(defaultSize = 10) {
   return useDetailsPagination<T>(defaultSize);
-}
-
-function QuantityShare({ value, total }: { value: number | string | null | undefined; total: number }) {
-  const numeric = toNumber(value);
-  const percent = total > 0 ? Math.min(100, Math.max(0, (numeric / total) * 100)) : 0;
-
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="body2" fontWeight={800} align="right">
-        {numeric}
-      </Typography>
-      <LinearProgress variant="determinate" value={percent} />
-    </Stack>
-  );
 }
 
 function binDetailsPath(warehouseId: number, zoneId: number | null | undefined, binId: number | null | undefined) {
@@ -207,21 +192,11 @@ export default function InventoryDetailsPage() {
       };
     }
 
-    if (warehouse?.binTrackingEnabled && activeTab === 'binDistribution' && totalBinQuantity !== toNumber(record.quantity)) {
-      return {
-        title: 'Check bin distribution mismatch.',
-        description: 'Warehouse quantity and bin-distributed quantity are not fully aligned. Review bin distribution before internal movement or picking.',
-        severity: 'warning' as const,
-        actions: [{ label: 'Open bin distribution', onClick: () => setActiveTab('binDistribution') }],
-      };
-    }
-
     return {
       title: 'Inventory is ready for operational review.',
-      description: 'Use bin distribution to see where the product is stored and stock movements to verify how the current quantity was reached.',
+      description: 'Use stock movements to verify how the current warehouse quantity was reached.',
       severity: 'info' as const,
       actions: [
-        { label: 'Open bin distribution', onClick: () => setActiveTab('binDistribution'), variant: 'outlined' as const },
         { label: 'Open stock movements', onClick: () => setActiveTab('stockMovements'), variant: 'outlined' as const },
       ],
     };
@@ -233,10 +208,9 @@ export default function InventoryDetailsPage() {
       title={`${record.warehouseName} · ${record.productName}`}
       description={isWorker
         ? 'Inventory details and permitted operations inside your assigned warehouse scope.'
-        : 'Warehouse/product inventory record, physical bin distribution and stock movement history.'}
+        : 'Warehouse/product inventory record and stock movement history.'}
       tabs={[
         { value: 'overview', label: 'Overview' },
-        { value: 'binDistribution', label: `Bin distribution${binInventoryQuery.data ? ` (${binInventoryQuery.data.totalElements})` : ''}` },
         { value: 'stockMovements', label: `Stock movements${stockMovementsQuery.data ? ` (${stockMovementsQuery.data.totalElements})` : ''}` },
         ...(isOverlord ? [{ value: 'activity' as const, label: 'Activity' }] : []),
       ]}
@@ -302,7 +276,6 @@ export default function InventoryDetailsPage() {
                   { key: 'name', label: 'Name', value: warehouse?.name ?? record.warehouseName },
                   { key: 'city', label: 'City', value: warehouse?.city ?? record.warehouseCity },
                   { key: 'status', label: 'Status', value: warehouse?.status ?? record.warehouseStatus },
-                  { key: 'binTracking', label: 'Bin tracking', value: warehouse?.binTrackingEnabled ? 'Enabled' : 'Disabled' },
                   { key: 'address', label: 'Address', value: warehouse?.address ?? null, size: { xs: 12 } },
                 ]}
               />
@@ -315,7 +288,7 @@ export default function InventoryDetailsPage() {
                 columns={{ xs: 12, sm: 6 }}
                 fields={[
                   { key: 'name', label: 'Name', value: product?.name ?? record.productName },
-                  { key: 'sku', label: 'SKU', value: product?.sku ?? record.productSku },
+                  { key: 'sku', label: 'SKU', value: record.productSku ?? product?.sku },
                   { key: 'unit', label: 'Unit', value: product?.unit ?? record.productUnit },
                   { key: 'weight', label: 'Weight', value: product?.weight ?? null },
                   { key: 'fragile', label: 'Fragile', value: product == null ? null : product.fragile ? 'Yes' : 'No' },
@@ -364,7 +337,7 @@ export default function InventoryDetailsPage() {
               columns={[
                 { id: 'zone', header: 'Zone', accessor: 'zoneCode' },
                 { id: 'bin', header: 'Bin', render: (row) => `${row.binLocationCode} · ${row.binLocationName}` },
-                { id: 'quantity', header: 'Quantity share', align: 'right', minWidth: 180, render: (row) => <QuantityShare value={row.quantity} total={totalBinQuantity} /> },
+                { id: 'quantity', header: 'Quantity', align: 'right', accessor: 'quantity' },
                 { id: 'updated', header: 'Updated', render: (row) => formatDate(row.lastUpdated) },
                 { id: 'actions', header: 'Action', align: 'right', render: (row) => <Button size="small" component={RouterLink} to={binDetailsPath(row.warehouseId, row.zoneId, row.binLocationId)}>Open bin</Button> },
               ]}
@@ -414,6 +387,7 @@ export default function InventoryDetailsPage() {
             </Stack>
           </RelatedDataSection>
 
+          <Box sx={{ display: 'none' }}>
           <RelatedDataSection
             title="Movement trace"
             description="Bin-to-bin movements for this product inside the selected warehouse."
@@ -443,6 +417,7 @@ export default function InventoryDetailsPage() {
               {internalMovementPage.pagination(internalMovementsQuery.data, internalMovementsQuery.isFetching)}
             </Stack>
           </RelatedDataSection>
+          </Box>
         </Stack>
       ) : null}
 

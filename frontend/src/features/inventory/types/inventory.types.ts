@@ -8,6 +8,7 @@ export type WarehouseInventoryResponse = {
 
   productId: number;
   productName: string;
+  productSku: string | null;
   productCompanyId: number | null;
 
   quantity: number;

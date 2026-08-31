@@ -51,7 +51,7 @@ export function useInventoryRecord(
           warehouseCity: warehouse?.city ?? null,
           warehouseStatus: warehouse?.status ?? null,
           productName: product?.name ?? record.productName,
-          productSku: product?.sku ?? null,
+          productSku: record.productSku ?? product?.sku ?? null,
           productUnit: product?.unit ?? null,
           availableQuantity,
           derivedStatus,

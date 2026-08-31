@@ -52,7 +52,7 @@ export default function StockMovementsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const activeTab = tabParam === 'internal' ? 'internal' : tabParam === 'approvals' ? 'approvals' : 'stock';
+  const activeTab: 'stock' | 'approvals' | 'internal' = tabParam === 'approvals' ? 'approvals' : 'stock';
   const isWorkerView = auth.user?.role === ROLES.WORKER;
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
@@ -92,19 +92,16 @@ export default function StockMovementsPage() {
     const warehouseId = searchParams.get('warehouseId');
     const productId = searchParams.get('productId');
     const transportId = searchParams.get('transportId') ?? searchParams.get('transportOrderId');
-    const binLocationId = searchParams.get('binLocationId');
 
     setFilters((current) => {
       const nextWarehouseId = warehouseId && Number.isFinite(Number(warehouseId)) ? Number(warehouseId) : current.warehouseId;
       const nextProductId = productId && Number.isFinite(Number(productId)) ? Number(productId) : current.productId;
       const nextTransportOrderId = transportId && Number.isFinite(Number(transportId)) ? Number(transportId) : current.transportOrderId;
-      const nextBinLocationId = binLocationId && Number.isFinite(Number(binLocationId)) ? Number(binLocationId) : current.binLocationId;
 
       if (
         nextWarehouseId === current.warehouseId &&
         nextProductId === current.productId &&
-        nextTransportOrderId === current.transportOrderId &&
-        nextBinLocationId === current.binLocationId
+        nextTransportOrderId === current.transportOrderId
       ) {
         return current;
       }
@@ -115,7 +112,6 @@ export default function StockMovementsPage() {
         warehouseId: nextWarehouseId,
         productId: nextProductId,
         transportOrderId: nextTransportOrderId,
-        binLocationId: nextBinLocationId,
       };
     });
   }, [searchParams]);
@@ -178,7 +174,6 @@ export default function StockMovementsPage() {
     filters.warehouseId !== 'ALL' ||
     filters.productId !== 'ALL' ||
     filters.transportOrderId !== 'ALL' ||
-    filters.binLocationId !== 'ALL' ||
     filters.fromDate.length > 0 ||
     filters.toDate.length > 0;
 
@@ -221,7 +216,6 @@ export default function StockMovementsPage() {
       >
         <Tab value="stock" label={isWorkerView ? "Assigned stock movements" : "Stock movements"} />
         <Tab value="approvals" label="Pending approvals" />
-        <Tab value="internal" label="Internal movements" />
       </Tabs>
 
 
@@ -230,7 +224,6 @@ export default function StockMovementsPage() {
           {filters.warehouseId !== 'ALL' ? <Chip size="small" label={`Warehouse #${filters.warehouseId}`} onDelete={() => updateFilters({ warehouseId: 'ALL' })} /> : null}
           {filters.productId !== 'ALL' ? <Chip size="small" label={`Product #${filters.productId}`} onDelete={() => updateFilters({ productId: 'ALL' })} /> : null}
           {filters.transportOrderId !== 'ALL' ? <Chip size="small" label={`Transport #${filters.transportOrderId}`} onDelete={() => updateFilters({ transportOrderId: 'ALL' })} /> : null}
-          {filters.binLocationId !== 'ALL' ? <Chip size="small" label={`Bin #${filters.binLocationId}`} onDelete={() => updateFilters({ binLocationId: 'ALL' })} /> : null}
           {activeTab !== 'approvals' && filters.status !== 'ALL' ? <Chip size="small" label={`Status: ${filters.status}`} onDelete={() => updateFilters({ status: 'ALL' })} /> : null}
           {activeTab === 'approvals' ? <Chip size="small" label="Pending approvals" /> : null}
         </Stack>

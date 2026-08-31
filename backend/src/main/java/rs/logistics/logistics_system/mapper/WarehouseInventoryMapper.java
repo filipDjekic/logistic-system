@@ -36,6 +36,7 @@ public class WarehouseInventoryMapper {
                 warehouseInventory.getWarehouse().getCompany() != null ? warehouseInventory.getWarehouse().getCompany().getId() : null,
                 warehouseInventory.getProduct().getId(),
                 warehouseInventory.getProduct().getName(),
+                warehouseInventory.getProduct().getSku(),
                 warehouseInventory.getProduct().getCompany() != null ? warehouseInventory.getProduct().getCompany().getId() : null,
                 quantity,
                 reserved,

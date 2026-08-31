@@ -44,8 +44,6 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
   const [warehouse, setWarehouse] = useState<LookupOption | null>(null);
   const [destinationWarehouse, setDestinationWarehouse] = useState<LookupOption | null>(null);
   const [product, setProduct] = useState<LookupOption | null>(null);
-  const [binLocation, setBinLocation] = useState<LookupOption | null>(null);
-  const [destinationBinLocation, setDestinationBinLocation] = useState<LookupOption | null>(null);
 
   const mutation = useMutation({
     mutationFn: stockMovementsApi.createRequest,
@@ -83,8 +81,8 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
       warehouseId: warehouse.id,
       destinationWarehouseId: movementType === 'TRANSFER_OUT' ? destinationWarehouse?.id : undefined,
       productId: product.id,
-      binLocationId: binLocation?.id,
-      destinationBinLocationId: movementType === 'TRANSFER_OUT' ? destinationBinLocation?.id : undefined,
+      binLocationId: undefined,
+      destinationBinLocationId: undefined,
     });
   };
 
@@ -107,8 +105,6 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
             setMovementType(event.target.value as RequestMovementType);
             setProduct(null);
             setDestinationWarehouse(null);
-            setBinLocation(null);
-            setDestinationBinLocation(null);
           }} fullWidth>
             {movementTypes.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
           </TextField>
@@ -122,7 +118,6 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
             onChange={(value) => {
               setWarehouse(value);
               setProduct(null);
-              setBinLocation(null);
             }}
             searchPlaceholder="Search assigned warehouses..."
           />
@@ -136,7 +131,6 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
               disabledOptionIds={warehouse ? [warehouse.id] : []}
               onChange={(value) => {
                 setDestinationWarehouse(value);
-                setDestinationBinLocation(null);
               }}
               searchPlaceholder="Search destination warehouses..."
             />
@@ -163,28 +157,6 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
               <MenuItem value="INCREASE">Increase</MenuItem>
               <MenuItem value="DECREASE">Decrease</MenuItem>
             </TextField>
-          ) : null}
-          <EntityLookupField
-            label={transfer ? 'Source bin location' : 'Bin location'}
-            entityType="bin-locations"
-            value={binLocation}
-            disabled={!warehouse}
-            warehouseId={warehouse?.id}
-            activeOnly
-            onChange={setBinLocation}
-            searchPlaceholder="Search bins..."
-          />
-          {transfer ? (
-            <EntityLookupField
-              label="Destination bin location"
-              entityType="bin-locations"
-              value={destinationBinLocation}
-              disabled={!destinationWarehouse}
-              warehouseId={destinationWarehouse?.id}
-              activeOnly
-              onChange={setDestinationBinLocation}
-              searchPlaceholder="Search destination bins..."
-            />
           ) : null}
           <TextField label="Reason" value={reasonDescription} onChange={(event) => setReasonDescription(event.target.value)} fullWidth multiline minRows={2} />
         </Stack>

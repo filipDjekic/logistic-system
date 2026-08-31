@@ -116,28 +116,25 @@ export default function InventoryPage() {
   );
 
   const inventoryMetrics = useMemo(() => {
-    const totalQuantity = rows.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0);
-    const reservedQuantity = rows.reduce((sum, row) => sum + Number(row.reservedQuantity ?? 0), 0);
-    const availableQuantity = rows.reduce((sum, row) => sum + Number(row.availableQuantity ?? 0), 0);
+    const availableRows = rows.filter((row) => Number(row.availableQuantity ?? 0) > 0).length;
     const reservedRows = rows.filter((row) => Number(row.reservedQuantity ?? 0) > 0).length;
     const lowStockRows = rows.filter((row) => row.derivedStatus === 'LOW_STOCK').length;
     const outOfStockRows = rows.filter((row) => row.derivedStatus === 'OUT_OF_STOCK').length;
-    const reservationRate = totalQuantity > 0 ? Math.round((reservedQuantity / totalQuantity) * 100) : 0;
 
     return [
       {
-        label: 'Available stock',
-        value: availableQuantity.toLocaleString(),
-        helper: `${reservedQuantity.toLocaleString()} reserved from ${totalQuantity.toLocaleString()} total`,
-        tone: availableQuantity > 0 ? 'success' as const : 'error' as const,
-        status: availableQuantity > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
+        label: 'Available inventory rows',
+        value: availableRows,
+        helper: 'Products with available quantity on the current page',
+        tone: availableRows > 0 ? 'success' as const : 'error' as const,
+        status: availableRows > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
       },
       {
-        label: 'Reservation rate',
-        value: `${reservationRate}%`,
+        label: 'Rows with reservations',
+        value: reservedRows,
         helper: `${reservedRows} rows currently have reserved stock`,
-        tone: reservedQuantity > 0 ? 'info' as const : 'neutral' as const,
-        status: reservedQuantity > 0 ? 'RESERVED' : null,
+        tone: reservedRows > 0 ? 'info' as const : 'neutral' as const,
+        status: reservedRows > 0 ? 'RESERVED' : null,
       },
       {
         label: 'Low stock rows',

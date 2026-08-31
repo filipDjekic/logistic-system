@@ -71,14 +71,6 @@ function formatDateTime(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? value.replace('T', ' ') : date.toLocaleString();
 }
 
-function binDetailsPath(warehouseId: number, zoneId: number | null | undefined, binId: number | null | undefined) {
-  if (!zoneId || !binId) {
-    return `/warehouses/${warehouseId}/zones`;
-  }
-
-  return `/warehouses/${warehouseId}/zones/${zoneId}/bins/${binId}`;
-}
-
 function formatOptionalNumber(value: number | null | undefined) {
   return value === null || value === undefined ? '—' : value;
 }
@@ -428,8 +420,6 @@ export default function StockMovementDetailsPage() {
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Product" value={<Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button>} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Inventory record" value={<Button size="small" component={RouterLink} to={`/inventory/${movement.warehouseId}/${movement.productId}`}>Open inventory</Button>} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Transport order" value={movement.transportOrderId ? <Button size="small" component={RouterLink} to={`/transport-orders/${movement.transportOrderId}`}>#{movement.transportOrderId}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Source bin" value={movement.sourceBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>{movement.sourceBinCode ?? `#${movement.sourceBinId}`}</Button> : '—'} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Destination bin" value={movement.destinationBinId ? <Button size="small" component={RouterLink} to={binDetailsPath(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>{movement.destinationBinCode ?? `#${movement.destinationBinId}`}</Button> : '—'} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Parent movement" value={movement.parentMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.parentMovementId}`}>#{movement.parentMovementId}</Button> : '—'} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Root movement" value={movement.rootMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.rootMovementId}`}>#{movement.rootMovementId}</Button> : '—'} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Reversal of" value={movement.reversalOfMovementId ? <Button size="small" component={RouterLink} to={`/stock-movements/${movement.reversalOfMovementId}`}>#{movement.reversalOfMovementId}</Button> : '—'} /></Grid>

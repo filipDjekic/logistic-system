@@ -77,7 +77,7 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
 const defaultNavigationTemplate: NavigationSectionTemplate[] = [
   { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
   { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
-  { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
+  { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements'] },
   { key: 'workforce', label: 'Workforce', itemKeys: ['companies', 'company-registration-requests', 'employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles'] },
   { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
   { key: 'audit', label: 'Audit', itemKeys: ['activity-timeline', 'activity-logs'] },
@@ -89,7 +89,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   [ROLES.COMPANY_ADMIN]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
     { key: 'transport', label: 'Transport', itemKeys: ['transport-orders', 'tasks', 'vehicles'] },
-    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements', 'inventory-counts'] },
+    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'products', 'inventory', 'stock-movements'] },
     { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['transport-report', 'inventory-report', 'employee-task-report'] },
     { key: 'audit', label: 'Audit', itemKeys: ['activity-logs'] },
@@ -103,7 +103,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   ],
   [ROLES.WAREHOUSE_MANAGER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'inventory', 'products', 'stock-movements', 'inventory-counts'] },
+    { key: 'warehouse', label: 'Warehouse', itemKeys: ['warehouses', 'inventory', 'products', 'stock-movements'] },
     { key: 'transport', label: 'Transport', itemKeys: ['tasks', 'transport-orders'] },
     { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'shifts'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['inventory-report', 'transport-report'] },
@@ -123,7 +123,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   ],
   [ROLES.WORKER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'stock-movements', 'vehicles', 'inventory', 'inventory-counts', 'my-shifts'] },
+    { key: 'my-work', label: 'My Work', itemKeys: ['profile', 'tasks', 'transport-orders', 'stock-movements', 'vehicles', 'inventory', 'my-shifts'] },
     { key: 'warehouse-reference', label: 'Warehouse Reference', itemKeys: ['warehouses', 'products'] },
   ],
 };

@@ -56,7 +56,7 @@ export function useInventory(filters: InventoryFiltersState & PageParams, lookup
           warehouseCity: warehouse?.city ?? null,
           warehouseStatus: warehouse?.status ?? null,
           productName: item.productName ?? product?.name ?? `Product #${item.productId}`,
-          productSku: product?.sku ?? null,
+          productSku: item.productSku ?? product?.sku ?? null,
           productUnit: product?.unit ?? null,
           availableQuantity,
           derivedStatus: getDerivedInventoryStatus(availableQuantity, item.minStockLevel ?? null, item.reservedQuantity ?? 0),

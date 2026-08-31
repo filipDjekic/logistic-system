@@ -12,7 +12,6 @@ import {
   DialogTitle,
   Divider,
   Grid,
-  LinearProgress,
   MenuItem,
   Paper,
   Stack,
@@ -213,17 +212,6 @@ function CreateWarehouseLocationDialog({
   );
 }
 
-function QuantityBar({ value, total }: { value: number | string | null | undefined; total: number }) {
-  const numeric = toNumber(value);
-  const percent = total > 0 ? Math.min(100, Math.max(0, (numeric / total) * 100)) : 0;
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="body2" fontWeight={800} align="right">{numeric}</Typography>
-      <LinearProgress variant="determinate" value={percent} />
-    </Stack>
-  );
-}
-
 
 function usePagedState<T = unknown>(defaultSize = 10) {
   return useDetailsPagination<T>(defaultSize);
@@ -292,8 +280,6 @@ function WarehouseBinsTable({ rows, onOpenBin }: { rows: BinLocationResponse[]; 
 }
 
 function WarehouseInventoryTable({ rows, onOpenInventory }: { rows: InventoryListRow[]; onOpenInventory: (row: InventoryListRow) => void }) {
-  const totalQuantity = rows.reduce((sum, row) => sum + toNumber(row.quantity), 0);
-
   return (
     <DataTable<InventoryListRow>
       columns={[
@@ -308,7 +294,7 @@ function WarehouseInventoryTable({ rows, onOpenInventory }: { rows: InventoryLis
           ),
         },
         { id: 'sku', header: 'SKU', render: (row) => row.productSku ?? '—' },
-        { id: 'quantity', header: 'Quantity', align: 'right', minWidth: 180, render: (row) => <QuantityBar value={row.quantity} total={totalQuantity} /> },
+        { id: 'quantity', header: 'Quantity', align: 'right', accessor: 'quantity' },
         { id: 'reserved', header: 'Reserved', align: 'right', accessor: 'reservedQuantity' },
         { id: 'available', header: 'Available', align: 'right', accessor: 'availableQuantity' },
         { id: 'status', header: 'Status', render: (row) => <StatusChip value={row.derivedStatus} /> },
@@ -325,6 +311,7 @@ function WarehouseInventoryTable({ rows, onOpenInventory }: { rows: InventoryLis
 }
 
 function StockMovementsTable({ rows, onOpenMovement }: { rows: StockMovementResponse[]; onOpenMovement: (row: StockMovementResponse) => void }) {
+  const hiddenColumns = new Set(['bins']);
   return (
     <DataTable<StockMovementResponse>
       columns={[
@@ -369,7 +356,7 @@ function StockMovementsTable({ rows, onOpenMovement }: { rows: StockMovementResp
         { id: 'quantity', header: 'Quantity', align: 'right', accessor: 'quantity' },
         { id: 'reason', header: 'Reason', render: (row) => row.reasonCode ?? '—' },
         { id: 'created', header: 'Created', render: (row) => formatDate(row.createdAt) },
-      ]}
+      ].filter((column) => !hiddenColumns.has(column.id))}
       rows={rows}
       getRowId={(row) => row.id}
       size="small"
@@ -824,10 +811,7 @@ export default function WarehouseDetailsPage() {
 
   const tabItems: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },
-    { value: 'locations', label: `Zones${zoneQuery.data ? ` (${zoneQuery.data.totalElements})` : ''}` },
-    { value: 'bins', label: `Bins${binQuery.data ? ` (${binQuery.data.totalElements})` : ''}` },
     ...(canViewInventoryTab ? [{ value: 'inventory' as WarehouseDetailsTab, label: `Inventory${inventoryQuery.data ? ` (${inventoryQuery.data.totalElements})` : ''}` }] : []),
-    { value: 'internalMovements', label: `Internal movements${internalMovementQuery.data ? ` (${internalMovementQuery.data.totalElements})` : ''}` },
     { value: 'stockMovements', label: `Stock movements${stockMovementQuery.data ? ` (${stockMovementQuery.data.totalElements})` : ''}` },
     ...(canManageAccess ? [{ value: 'access' as WarehouseDetailsTab, label: 'Access' }] : []),
     ...buildOperationalTabs({ entityType: 'WAREHOUSE', entityName: 'WAREHOUSE', entityId: warehouse.id, allowCreateAttachments: canManageStorage, allowCreateComments: canManageStorage }),
@@ -843,14 +827,13 @@ export default function WarehouseDetailsPage() {
         overline: 'Warehouse',
         title: warehouse.name,
         subtitle: `${warehouse.address}, ${warehouse.city}`,
-        description: `Central workspace for zones, bins, inventory, movements and warehouse access.`,
+        description: 'Central workspace for inventory, movements and warehouse access.',
         status: warehouse.status,
         lifecycleStatus: warehouse.active ? 'ACTIVE' : 'INACTIVE',
         primaryInfo: [
           { label: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity },
           { label: 'Company', value: warehouse.companyName ?? '—' },
           { label: 'Manager', value: warehouse.managerName ?? '—' },
-          { label: 'Bin tracking', value: warehouse.binTrackingEnabled ? 'Enabled' : 'Warehouse only' },
         ],
       }}
       tabs={tabItems}
@@ -885,8 +868,6 @@ export default function WarehouseDetailsPage() {
             statistics={[
               { key: 'capacity', title: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity, subtitle: 'Configured storage capacity' },
               { key: 'status', title: 'Status', value: warehouse.status, subtitle: warehouse.active ? 'Warehouse is active' : 'Warehouse is archived' },
-              { key: 'zones', title: 'Zones', value: zoneQuery.data?.totalElements ?? '—', subtitle: 'Open Zones tab for live count' },
-              { key: 'bins', title: 'Bins', value: binQuery.data?.totalElements ?? '—', subtitle: 'Open Bins tab for live count' },
             ]}
           />
 
@@ -903,7 +884,6 @@ export default function WarehouseDetailsPage() {
               { key: 'capacity', label: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity },
               { key: 'status', label: 'Status', value: <StatusChip value={warehouse.status} /> },
               { key: 'active', label: 'Active', value: <StatusChip value={warehouse.active ? 'ACTIVE' : 'INACTIVE'} /> },
-              { key: 'binTracking', label: 'Bin tracking', value: <Chip size="small" color={warehouse.binTrackingEnabled ? 'success' : 'default'} label={warehouse.binTrackingEnabled ? 'ENABLED' : 'WAREHOUSE ONLY'} /> },
               { key: 'coordinates', label: 'Coordinates', value: warehouse.latitude != null && warehouse.longitude != null ? `${warehouse.latitude}, ${warehouse.longitude}` : '—' },
             ]}
           />
@@ -1013,7 +993,7 @@ export default function WarehouseDetailsPage() {
       {activeTab === 'inventory' ? (
         <RelatedDataSection
           title="Warehouse inventory"
-          description="Warehouse-level product stock. Physical bin distribution is opened from zone and bin details."
+          description="Warehouse-level product stock, reservations and availability."
           loading={inventoryQuery.isLoading}
           error={inventoryQuery.isError}
           onRetry={() => void inventoryQuery.refetch()}

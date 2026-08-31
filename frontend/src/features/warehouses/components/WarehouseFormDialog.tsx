@@ -10,7 +10,6 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Form from '../../../shared/components/Form/Form';
 import FormSelect from '../../../shared/components/Form/FormSelect';
-import FormCheckbox from '../../../shared/components/Form/FormCheckbox';
 import FormActions from '../../../shared/components/Form/FormActions';
 import FormSection from '../../../shared/components/Form/FormSection';
 import type { CompanyResponse } from '../../companies/types/company.types';
@@ -88,7 +87,7 @@ export default function WarehouseFormDialog({
         capacity: initialData.capacity,
         employeeId: initialData.employeeId ?? '',
         companyId: initialData.companyId != null ? String(initialData.companyId) : '',
-        binTrackingEnabled: Boolean(initialData.binTrackingEnabled),
+        binTrackingEnabled: false,
       });
       return;
     }
@@ -195,10 +194,9 @@ export default function WarehouseFormDialog({
         </Grid>
         </FormSection>
 
-        <FormSection title="Operational setup" description="Status is fixed after creation through lifecycle actions. Bin tracking should match real warehouse process.">
+        <FormSection title="Operational setup" description="Status is fixed after creation through lifecycle actions.">
         <Grid container spacing={2}>
           {mode === 'create' && isOverlord ? <Grid size={{ xs: 12, md: 6 }}><FormSelect name="companyId" control={control} label="Company" options={companyOptions} required /></Grid> : null}
-          <Grid size={{ xs: 12, md: 6 }}><FormCheckbox name="binTrackingEnabled" control={control} label="Enable bin tracking" helperText="When enabled, stock operations require bin selection." /></Grid>
           <Grid size={{ xs: 12 }}><FormSelect name="employeeId" control={control} label="Manager" options={visibleManagers.map((manager) => ({ value: manager.id, label: `${manager.firstName} ${manager.lastName}` }))} required disabled={mode === 'edit' || (mode === 'create' && isOverlord && !selectedCompanyId)} helperText={mode === 'create' && isOverlord && !selectedCompanyId ? 'Select company first' : undefined} /></Grid>
         </Grid>
         </FormSection>
@@ -211,7 +209,7 @@ export default function WarehouseFormDialog({
           loading={loading}
           onCancel={onClose}
           submitDisabled={!formState.isValid || (mode === 'create' && isOverlord && !selectedCompanyId)}
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit((values) => onSubmit({ ...values, binTrackingEnabled: false }))}
         />
         </Stack>
       </DialogContent>

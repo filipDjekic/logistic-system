@@ -39,9 +39,9 @@ const featureCards = [
   },
   {
     title: 'Warehouses and inventory',
-    description: 'Control warehouses, zones, products, stock levels, warehouse capacity, and every stock movement.',
+    description: 'Control warehouses, products, stock levels, warehouse capacity, and every stock movement.',
     icon: WarehouseRoundedIcon,
-    details: ['Warehouses', 'Zones', 'Products', 'Stock movements'],
+    details: ['Warehouses', 'Products', 'Stock movements'],
   },
   {
     title: 'Tasks and operations',

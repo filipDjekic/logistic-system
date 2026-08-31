@@ -20,7 +20,7 @@ import type { BinInventoryResponse } from '../../warehouse-locations/types/wareh
 import type { TransportOrderItemResponse } from '../../transport-orders/types/transportOrder.types';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 
-type ProductDetailsTab = 'overview' | 'inventoryByWarehouse' | 'binDistribution' | 'stockMovements' | 'transportUsage' | 'attachments' | 'comments' | 'audit' | 'history';
+type ProductDetailsTab = 'overview' | 'inventoryByWarehouse' | 'stockMovements' | 'transportUsage' | 'attachments' | 'comments' | 'audit' | 'history';
 
 function ProductInventoryByWarehouse({ productId }: { productId: number }) {
   const query = useQuery({
@@ -63,7 +63,7 @@ function ProductInventoryByWarehouse({ productId }: { productId: number }) {
   );
 }
 
-function ProductBinDistribution({ productId }: { productId: number }) {
+export function ProductBinDistribution({ productId }: { productId: number }) {
   const query = useQuery({
     queryKey: ['products', productId, 'bin-distribution'],
     queryFn: () => productsApi.getBinDistribution(productId),
@@ -245,7 +245,6 @@ export default function ProductDetailsPage() {  const params = useParams();
   const tabs = [
     { value: 'overview', label: 'Overview' },
     { value: 'inventoryByWarehouse', label: 'Inventory by warehouse' },
-    { value: 'binDistribution', label: 'Bin distribution' },
     { value: 'stockMovements', label: 'Stock movements' },
     { value: 'transportUsage', label: 'Transport usage' },
     ...buildOperationalTabs({
@@ -301,7 +300,6 @@ export default function ProductDetailsPage() {  const params = useParams();
       ) : null}
 
       {activeTab === 'inventoryByWarehouse' ? <ProductInventoryByWarehouse productId={product.id} /> : null}
-      {activeTab === 'binDistribution' ? <ProductBinDistribution productId={product.id} /> : null}
       {activeTab === 'stockMovements' ? <ProductStockMovements productId={product.id} /> : null}
       {activeTab === 'transportUsage' ? <ProductTransportUsage productId={product.id} /> : null}
 

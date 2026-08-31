@@ -24,8 +24,6 @@ export const routeMeta = {
   vehicleDetails: { path: '/vehicles/:id', title: 'Vehicle Details', breadcrumb: 'Vehicle Details', parent: 'vehicles' },
   warehouses: { path: '/warehouses', title: 'Warehouses', breadcrumb: 'Warehouses' },
   warehouseDetails: { path: '/warehouses/:id', title: 'Warehouse Details', breadcrumb: 'Warehouse Details', parent: 'warehouses' },
-  warehouseZoneDetails: { path: '/warehouses/:warehouseId/zones/:zoneId', title: 'Zone Details', breadcrumb: 'Zone', parent: 'warehouseDetails' },
-  warehouseBinDetails: { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', title: 'Bin Details', breadcrumb: 'Bin', parent: 'warehouseZoneDetails' },
   products: { path: '/products', title: 'Products', breadcrumb: 'Products' },
   productDetails: { path: '/products/:id', title: 'Product Details', breadcrumb: 'Product Details', parent: 'products' },
   inventory: { path: '/inventory', title: 'Inventory', breadcrumb: 'Inventory' },
@@ -84,8 +82,6 @@ export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
     [/^\/vehicles\/\d+$/, 'vehicleDetails'],
     [/^\/inventory\/\d+\/\d+$/, 'inventoryDetails'],
     [/^\/warehouses\/\d+$/, 'warehouseDetails'],
-    [/^\/warehouses\/\d+\/zones\/\d+$/, 'warehouseZoneDetails'],
-    [/^\/warehouses\/\d+\/zones\/\d+\/bins\/\d+$/, 'warehouseBinDetails'],
     [/^\/products\/\d+$/, 'productDetails'],
     [/^\/tasks\/\d+$/, 'taskDetails'],
     [/^\/shifts\/\d+$/, 'shiftDetails'],
@@ -108,29 +104,6 @@ export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
 }
 
 export function buildBreadcrumbTrail(pathname: string): AppRouteMeta[] {
-  const warehouseBinMatch = pathname.match(/^\/warehouses\/(\d+)\/zones\/(\d+)\/bins\/(\d+)$/);
-  if (warehouseBinMatch) {
-    const [, warehouseId, zoneId, binId] = warehouseBinMatch;
-    return [
-      routeMeta.dashboard as AppRouteMeta,
-      routeMeta.warehouses as AppRouteMeta,
-      { ...routeMeta.warehouseDetails, path: `/warehouses/${warehouseId}`, breadcrumb: `Warehouse #${warehouseId}` },
-      { ...routeMeta.warehouseZoneDetails, path: `/warehouses/${warehouseId}/zones/${zoneId}`, breadcrumb: `Zone #${zoneId}` },
-      { ...routeMeta.warehouseBinDetails, path: pathname, breadcrumb: `Bin #${binId}` },
-    ];
-  }
-
-  const warehouseZoneMatch = pathname.match(/^\/warehouses\/(\d+)\/zones\/(\d+)$/);
-  if (warehouseZoneMatch) {
-    const [, warehouseId, zoneId] = warehouseZoneMatch;
-    return [
-      routeMeta.dashboard as AppRouteMeta,
-      routeMeta.warehouses as AppRouteMeta,
-      { ...routeMeta.warehouseDetails, path: `/warehouses/${warehouseId}`, breadcrumb: `Warehouse #${warehouseId}` },
-      { ...routeMeta.warehouseZoneDetails, path: pathname, breadcrumb: `Zone #${zoneId}` },
-    ];
-  }
-
   const warehouseZonesMatch = pathname.match(/^\/warehouses\/(\d+)\/zones$/);
   if (warehouseZonesMatch) {
     const [, warehouseId] = warehouseZonesMatch;

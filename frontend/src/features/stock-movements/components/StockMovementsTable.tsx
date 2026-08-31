@@ -51,7 +51,7 @@ export default function StockMovementsTable({
   onSortChange,
 }: Props) {
   const navigate = useNavigate();
-  const columns: DataTableColumn<StockMovementResponse>[] = [
+  const allColumns: DataTableColumn<StockMovementResponse>[] = [
     {
       id: 'movement',
       header: 'Movement',
@@ -208,6 +208,7 @@ export default function StockMovementsTable({
       ),
     },
   ];
+  const columns = allColumns.filter((column) => column.id !== 'bins');
 
   return (
     <DataTable<StockMovementResponse>

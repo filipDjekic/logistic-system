@@ -19,6 +19,7 @@ public class WarehouseInventoryResponse {
 
     private Long productId;
     private String productName;
+    private String productSku;
     private Long productCompanyId;
 
     private BigDecimal quantity;
@@ -36,6 +37,7 @@ public class WarehouseInventoryResponse {
             Long warehouseCompanyId,
             Long productId,
             String productName,
+            String productSku,
             Long productCompanyId,
             BigDecimal quantity,
             BigDecimal reservedQuantity,
@@ -51,6 +53,7 @@ public class WarehouseInventoryResponse {
         this.warehouseCompanyId = warehouseCompanyId;
         this.productId = productId;
         this.productName = productName;
+        this.productSku = productSku;
         this.productCompanyId = productCompanyId;
         this.quantity = quantity;
         this.reservedQuantity = reservedQuantity;

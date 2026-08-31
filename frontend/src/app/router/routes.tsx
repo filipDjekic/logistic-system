@@ -41,16 +41,12 @@ const WarehousesPage = lazy(() => import('../../features/warehouses/pages/Wareho
 const WarehouseCreatePage = lazy(() => import('../../features/warehouses/pages/WarehouseCreatePage'));
 const WarehouseEditPage = lazy(() => import('../../features/warehouses/pages/WarehouseEditPage'));
 const WarehouseDetailsPage = lazy(() => import('../../features/warehouses/pages/WarehouseDetailsPage'));
-const ZoneDetailsPage = lazy(() => import('../../features/warehouse-locations/pages/ZoneDetailsPage'));
-const BinDetailsPage = lazy(() => import('../../features/warehouse-locations/pages/BinDetailsPage'));
 const ProductsPage = lazy(() => import('../../features/product/pages/ProductsPage'));
 const ProductDetailsPage = lazy(() => import('../../features/product/pages/ProductDetailsPage'));
 const InventoryPage = lazy(() => import('../../features/inventory/pages/InventoryPage'));
 const InventoryCreatePage = lazy(() => import('../../features/inventory/pages/InventoryCreatePage'));
 const InventoryEditPage = lazy(() => import('../../features/inventory/pages/InventoryEditPage'));
 const InventoryDetailsPage = lazy(() => import('../../features/inventory/pages/InventoryDetailsPage'));
-const InventoryCountsPage = lazy(() => import('../../features/inventory-counts/pages/InventoryCountsPage'));
-const InventoryCountDetailsPage = lazy(() => import('../../features/inventory-counts/pages/InventoryCountDetailsPage'));
 const StockMovementsPage = lazy(() => import('../../features/stock-movements/pages/StockMovementsPage'));
 const StockMovementDetailsPage = lazy(() => import('../../features/stock-movements/pages/StockMovementDetailsPage'));
 const StockOperationPage = lazy(() => import('../../features/stock-movements/pages/StockOperationPage'));
@@ -257,8 +253,8 @@ export const routes = [
         children: [
           { path: '/warehouse-locations', element: <Navigate to="/warehouses" replace /> },
           { path: '/warehouses/:warehouseId/zones', element: <Navigate to="/warehouses" replace /> },
-          { path: '/warehouses/:warehouseId/zones/:zoneId', element: lazyPage(<ZoneDetailsPage />) },
-          { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', element: lazyPage(<BinDetailsPage />) },
+          { path: '/warehouses/:warehouseId/zones/:zoneId', element: <Navigate to="/warehouses" replace /> },
+          { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', element: <Navigate to="/warehouses" replace /> },
         ],
       },
     ],
@@ -354,8 +350,8 @@ export const routes = [
       {
         element: lazyPage(<AppLayout />),
         children: [
-          { path: '/inventory-counts', element: lazyPage(<InventoryCountsPage />) },
-          { path: '/inventory-counts/:id', element: lazyPage(<InventoryCountDetailsPage />) },
+          { path: '/inventory-counts', element: <Navigate to="/inventory" replace /> },
+          { path: '/inventory-counts/:id', element: <Navigate to="/inventory" replace /> },
         ],
       },
     ],
