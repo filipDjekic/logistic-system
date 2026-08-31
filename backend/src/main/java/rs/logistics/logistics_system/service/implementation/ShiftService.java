@@ -819,9 +819,20 @@ public class ShiftService implements ShiftServiceDefinition {
                     .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"))
                     : warehouseRepository.findByIdAndCompany_Id(requestedWarehouseId, authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow())
                     .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found"));
+            domainScopeValidator.ensureOperationalWarehouseForAssignment(warehouse, "Shift warehouse must be active");
+            if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+                warehouseAccessGuard.ensureCanMutateWarehouse(warehouse);
+            }
             return warehouse;
         }
-        return employee != null ? employee.getPrimaryWarehouse() : null;
+        Warehouse primaryWarehouse = employee != null ? employee.getPrimaryWarehouse() : null;
+        if (primaryWarehouse != null) {
+            domainScopeValidator.ensureOperationalWarehouseForAssignment(primaryWarehouse, "Shift warehouse must be active");
+            if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+                warehouseAccessGuard.ensureCanMutateWarehouse(primaryWarehouse);
+            }
+        }
+        return primaryWarehouse;
     }
 
     private void validateEmployeeWarehouseCompatibility(Employee employee, Warehouse warehouse) {

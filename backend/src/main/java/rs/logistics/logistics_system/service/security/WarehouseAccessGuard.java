@@ -67,9 +67,13 @@ public class WarehouseAccessGuard {
             return false;
         }
 
-        if (authenticatedUserProvider.isCompanyAdmin()
-                || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+        if (authenticatedUserProvider.isCompanyAdmin()) {
             return belongsToAuthenticatedCompany(warehouse);
+        }
+
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return belongsToAuthenticatedCompany(warehouse)
+                    && managedWarehouseIdsForCurrentUser().contains(warehouse.getId());
         }
 
         if (authenticatedUserProvider.hasRole("WORKER")) {
@@ -166,9 +170,12 @@ public class WarehouseAccessGuard {
             return List.of();
         }
 
-        if (authenticatedUserProvider.isCompanyAdmin()
-                || authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+        if (authenticatedUserProvider.isCompanyAdmin()) {
             return null;
+        }
+
+        if (authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            return managedWarehouseIdsForCurrentUser();
         }
 
         Optional<Employee> employee = employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId());

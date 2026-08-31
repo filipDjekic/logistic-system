@@ -21,6 +21,7 @@ export type EntityLookupFieldProps = {
   searchPlaceholder?: string;
   pageSize?: number;
   disabledOptionIds?: number[];
+  excludedOptionIds?: number[];
   sort?: string;
   activeOnly?: boolean;
   warehouseId?: number | string | null;
@@ -42,6 +43,7 @@ export function EntityLookupField({
   searchPlaceholder,
   pageSize,
   disabledOptionIds,
+  excludedOptionIds,
   sort,
   activeOnly,
   warehouseId,
@@ -163,6 +165,7 @@ export function EntityLookupField({
         searchPlaceholder={searchPlaceholder}
         pageSize={pageSize}
         disabledOptionIds={disabledOptionIds}
+        excludedOptionIds={excludedOptionIds}
         sort={sort}
         activeOnly={activeOnly}
         warehouseId={warehouseId}

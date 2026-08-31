@@ -147,6 +147,7 @@ export default function InventoryFormDialog({
                   <EntityLookupField
                     label="Warehouse"
                     entityType="warehouses"
+                    accessMode="mutate"
                     required
                     disabled={mode === 'edit'}
                     value={field.value ? {

@@ -45,6 +45,7 @@ export type EntityLookupDialogProps = {
   searchPlaceholder?: string;
   pageSize?: number;
   disabledOptionIds?: number[];
+  excludedOptionIds?: number[];
   sort?: string;
   activeOnly?: boolean;
   warehouseId?: number | string | null;
@@ -62,6 +63,7 @@ export function EntityLookupDialog({
   searchPlaceholder = 'Search...',
   pageSize = 10,
   disabledOptionIds = [],
+  excludedOptionIds = [],
   sort,
   activeOnly,
   warehouseId,
@@ -87,7 +89,9 @@ export function EntityLookupDialog({
     open,
   );
 
-  const options = lookupQuery.data?.content ?? [];
+  const options = (lookupQuery.data?.content ?? []).filter(
+    (option) => !excludedOptionIds.includes(option.id),
+  );
   const totalPages = lookupQuery.data?.totalPages ?? 0;
 
   const handleSearchChange = (nextSearch: string) => {

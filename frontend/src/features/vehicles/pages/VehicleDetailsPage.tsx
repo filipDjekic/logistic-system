@@ -79,6 +79,7 @@ export default function VehicleDetailsPage() {
 
   const isDriver = auth.user?.role === ROLES.DRIVER;
   const canManage = canManageVehicles(auth.user?.role);
+  const canManageMaintenance = canManage || auth.user?.role === ROLES.DISPATCHER;
   const canReadLifecycleTransitions = canReadVehicleStatusTransitions(auth.user?.role);
 
   const vehicleQuery = useVehicle(validVehicleId);
@@ -427,7 +428,7 @@ export default function VehicleDetailsPage() {
             id: vehicle.id,
             label: vehicle.registrationNumber,
           }}
-          canManage={canManage}
+          canManage={canManageMaintenance}
         />
       ) : null}
 

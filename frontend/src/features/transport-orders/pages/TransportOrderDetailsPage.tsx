@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Alert, Button, Grid, Stack } from "@mui/material";
+import { Alert, Button, Grid, Stack, TextField } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
@@ -227,6 +227,7 @@ export default function TransportOrderDetailsPage() {
       });
 
       await invalidateTransportOrderState(queryClient, transportOrderId);
+      await queryClient.invalidateQueries({ queryKey: ["lookup", "products"] });
     },
     onError: (error) => {
       showSnackbar({
@@ -256,6 +257,7 @@ export default function TransportOrderDetailsPage() {
       });
 
       await invalidateTransportOrderState(queryClient, transportOrderId);
+      await queryClient.invalidateQueries({ queryKey: ["lookup", "products"] });
     },
     onError: (error) => {
       showSnackbar({
@@ -274,6 +276,7 @@ export default function TransportOrderDetailsPage() {
       });
 
       await invalidateTransportOrderState(queryClient, transportOrderId);
+      await queryClient.invalidateQueries({ queryKey: ["lookup", "products"] });
     },
     onError: (error) => {
       showSnackbar({
@@ -334,6 +337,7 @@ export default function TransportOrderDetailsPage() {
   const itemForm = useForm<TransportOrderItemSchemaValues>({
     resolver: zodResolver(transportOrderItemSchema),
     defaultValues: itemDefaultValues,
+    mode: "onChange",
   });
 
   useEffect(() => {
@@ -652,7 +656,9 @@ export default function TransportOrderDetailsPage() {
                               "Products are dynamic records, so use lookup instead of a fixed dropdown."
                             }
                             searchPlaceholder="Search products by name or SKU..."
-                            disabledOptionIds={disabledProductIds}
+                            excludedOptionIds={disabledProductIds}
+                            warehouseId={transportOrder.sourceWarehouseId}
+                            lookupParams={{ mode: "AVAILABLE_STOCK" }}
                           />
                         );
                       }}
@@ -660,29 +666,50 @@ export default function TransportOrderDetailsPage() {
                   </Grid>
 
                   <Grid size={{ xs: 12, md: 4 }}>
-                    <FormTextField
+                    <Controller
                       name="quantity"
                       control={itemForm.control}
-                      label="Quantity"
-                      type="number"
-                      required
-                      slotProps={{
-                        htmlInput: {
-                          min: 0.000001,
-                          step: "any",
-                        },
-                      }}
+                      render={({ field, fieldState }) => (
+                        <TextField
+                          {...field}
+                          label="Quantity"
+                          type="number"
+                          required
+                          fullWidth
+                          value={field.value ?? ""}
+                          error={Boolean(fieldState.error)}
+                          helperText={fieldState.error?.message}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            field.onChange(value === "" ? "" : Number(value));
+                          }}
+                          slotProps={{ htmlInput: { min: 0.000001, step: "any" } }}
+                        />
+                      )}
                     />
                   </Grid>
 
                   <Grid size={{ xs: 12, md: 4 }}>
-                    <FormTextField
+                    <Controller
                       name="movementUnitCost"
                       control={itemForm.control}
-                      label="Movement unit cost"
-                      type="number"
-                      required
-                      slotProps={{ htmlInput: { min: 0, step: 0.0001 } }}
+                      render={({ field, fieldState }) => (
+                        <TextField
+                          {...field}
+                          label="Movement unit cost"
+                          type="number"
+                          required
+                          fullWidth
+                          value={field.value ?? ""}
+                          error={Boolean(fieldState.error)}
+                          helperText={fieldState.error?.message}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            field.onChange(value === "" ? "" : Number(value));
+                          }}
+                          slotProps={{ htmlInput: { min: 0, step: 0.0001 } }}
+                        />
+                      )}
                     />
                   </Grid>
 

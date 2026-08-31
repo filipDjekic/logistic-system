@@ -192,9 +192,22 @@ public class LookupService implements LookupServiceDefinition {
         String normalizedSearch = normalize(search);
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
 
-        Page<Employee> page = employeeRepository.searchEmployees(
-                currentCompanyScope(), normalizedSearch, searchId, position, active, linkedUser,
-                availableFrom, availableTo, safePageable);
+        Page<Employee> page;
+        if (mode == EmployeeLookupMode.MANAGED_WAREHOUSE
+                && authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
+            Long managerEmployeeId = employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
+                    .map(Employee::getId)
+                    .orElse(null);
+            page = managerEmployeeId == null
+                    ? Page.empty(safePageable)
+                    : employeeRepository.searchEmployeesForManagedWarehouses(
+                            currentCompanyScope(), managerEmployeeId, normalizedSearch, searchId,
+                            position, active, linkedUser, availableFrom, availableTo, safePageable);
+        } else {
+            page = employeeRepository.searchEmployees(
+                    currentCompanyScope(), normalizedSearch, searchId, position, active, linkedUser,
+                    availableFrom, availableTo, safePageable);
+        }
 
         return PageResponse.fromContent(page.getContent().stream()
                 .map(employee -> employeeOption(

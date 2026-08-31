@@ -21,6 +21,8 @@ import { timezonesApi } from '../../timezones/api/timezonesApi';
 import { shiftSchema, type ShiftSchemaValues } from '../validation/shiftSchema';
 import { EntityLookupField } from '../../lookup';
 import type { LookupOption } from '../../lookup';
+import { useAuthStore } from '../../../core/auth/authStore';
+import { ROLES } from '../../../core/constants/roles';
 
 type ShiftFormDialogProps = {
   open: boolean;
@@ -52,6 +54,9 @@ export default function ShiftFormDialog({
   onClose,
   onSubmit,
 }: ShiftFormDialogProps) {
+  const auth = useAuthStore();
+  const role = auth.user?.role;
+  const isWarehouseManager = role === ROLES.WAREHOUSE_MANAGER;
   const [selectedEmployee, setSelectedEmployee] = useState<LookupOption | null>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState<LookupOption | null>(null);
   const [timezones, setTimezones] = useState([] as { id: number; name: string; displayName: string }[]);
@@ -154,7 +159,7 @@ export default function ShiftFormDialog({
           <EntityLookupField
             label="Employee"
             entityType="employees"
-            lookupParams={{ mode: 'MANAGED_WAREHOUSE' }}
+            lookupParams={{ mode: isWarehouseManager ? 'MANAGED_WAREHOUSE' : 'COMPANY' }}
             value={selectedEmployee}
             onChange={(option) => {
               setSelectedEmployee(option);
@@ -182,6 +187,7 @@ export default function ShiftFormDialog({
           <EntityLookupField
             label="Warehouse"
             entityType="warehouses"
+            accessMode={isWarehouseManager ? 'mutate' : 'select'}
             value={selectedWarehouse}
             onChange={(option) => {
               setSelectedWarehouse(option);

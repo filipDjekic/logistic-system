@@ -488,6 +488,7 @@ export default function StockOperationPage() {
               <EntityLookupField
                 label={isTransfer ? 'Source warehouse' : 'Warehouse'}
                 entityType="warehouses"
+                accessMode="mutate"
                 value={values.warehouse}
                 required
                 disabledOptionIds={values.destinationWarehouse ? [values.destinationWarehouse.id] : []}
@@ -513,6 +514,7 @@ export default function StockOperationPage() {
                 <EntityLookupField
                   label="Destination warehouse"
                   entityType="warehouses"
+                  accessMode="mutate"
                   value={values.destinationWarehouse}
                   required
                   disabledOptionIds={values.warehouse ? [values.warehouse.id] : []}
