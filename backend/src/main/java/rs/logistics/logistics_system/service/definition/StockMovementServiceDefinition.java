@@ -51,6 +51,8 @@ public interface StockMovementServiceDefinition {
 
     StockMovementResponse execute(Long id);
 
+    StockMovementResponse executeFromTask(Long id);
+
     StockMovementResponse cancel(Long id);
 
     StockMovementResponse approve(Long id);

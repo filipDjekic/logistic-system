@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 import rs.logistics.logistics_system.dto.create.TaskCreate;
 import rs.logistics.logistics_system.dto.response.AllowedStatusTransitionsResponse;
@@ -47,6 +48,7 @@ import rs.logistics.logistics_system.service.definition.AuditFacadeDefinition;
 import rs.logistics.logistics_system.service.definition.NotificationServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TaskServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
+import rs.logistics.logistics_system.service.definition.StockMovementServiceDefinition;
 import rs.logistics.logistics_system.service.security.OperationalEntityAccessValidator;
 import rs.logistics.logistics_system.enums.OperationalEntityType;
 
@@ -77,6 +79,7 @@ public class TaskService implements TaskServiceDefinition {
     private final OperationalEntityAccessValidator operationalEntityAccessValidator;
     private final LifecycleTransitionEngine lifecycleTransitionEngine;
     private final LifecycleNotificationService lifecycleNotificationService;
+    private final ObjectProvider<StockMovementServiceDefinition> stockMovementServiceProvider;
 
     @Override
     @Transactional
@@ -728,6 +731,13 @@ public class TaskService implements TaskServiceDefinition {
         }
 
         if (newStatus != TaskStatus.COMPLETED) {
+            return;
+        }
+
+        if (task.getTaskType() == TaskType.STOCK_MOVEMENT && task.getStockMovement() != null) {
+            if (task.getStockMovement().getStatus() != rs.logistics.logistics_system.enums.StockMovementStatus.EXECUTED) {
+                stockMovementServiceProvider.getObject().executeFromTask(task.getStockMovement().getId());
+            }
             return;
         }
 

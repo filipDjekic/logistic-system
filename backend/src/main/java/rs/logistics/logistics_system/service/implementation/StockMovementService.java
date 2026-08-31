@@ -39,6 +39,9 @@ import rs.logistics.logistics_system.enums.StockMovementReferenceType;
 import rs.logistics.logistics_system.enums.StockMovementStatus;
 import rs.logistics.logistics_system.enums.StockMovementType;
 import rs.logistics.logistics_system.enums.TaskPriority;
+import rs.logistics.logistics_system.enums.TaskType;
+import rs.logistics.logistics_system.enums.EmployeePosition;
+import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
@@ -48,6 +51,7 @@ import rs.logistics.logistics_system.mapper.StockMovementMapper;
 import rs.logistics.logistics_system.repository.BinInventoryRepository;
 import rs.logistics.logistics_system.repository.BinLocationRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
+import rs.logistics.logistics_system.repository.EmployeeWarehouseAssignmentRepository;
 import rs.logistics.logistics_system.repository.InventoryCountSessionRepository;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
@@ -89,6 +93,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
     private final BinLocationRepository binLocationRepository;
     private final TransportOrderRepository transportOrderRepository;
     private final EmployeeRepository employeeRepository;
+    private final EmployeeWarehouseAssignmentRepository employeeWarehouseAssignmentRepository;
     private final AuditFacadeDefinition auditFacade;
     private final DomainEventServiceDefinition domainEventService;
     private final TaskServiceDefinition taskService;
@@ -428,7 +433,8 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 false
         );
 
-        return executeCreatedMovement(saved);
+        createOperationalTaskForStockMovement(saved);
+        return toResponseWithLifecycle(saved);
     }
 
 
@@ -1300,6 +1306,12 @@ public class StockMovementService implements StockMovementServiceDefinition {
         return executeInternal(id, false);
     }
 
+    @Override
+    @Transactional
+    public StockMovementResponse executeFromTask(Long id) {
+        return executeInternal(id, true);
+    }
+
     private StockMovementResponse executeInternal(Long id, boolean systemTransition) {
         StockMovement movement = getAccessibleStockMovementForInventoryUpdate(id);
         enforceWarehouseScopeForCurrentRole(movement.getWarehouse(), true);
@@ -1332,7 +1344,6 @@ public class StockMovementService implements StockMovementServiceDefinition {
         auditFacade.recordFieldChange("STOCK_MOVEMENT", saved.getId(), stockMovementIdentifier(saved), "status", context.fromStatus(), context.toStatus());
         lifecycleTransitionEngine.afterTransition(context, StockMovementStatus.class);
         recordStockMovementDomainEvent(saved, saved.getWarehouse(), saved.getProduct(), executedMovementBin(saved));
-        createOperationalTaskForStockMovement(saved);
         return toResponseWithLifecycle(saved);
     }
 
@@ -2154,14 +2165,14 @@ public class StockMovementService implements StockMovementServiceDefinition {
 
         Employee assignee = resolveTaskAssignee(stockMovement);
         if (assignee == null) {
-            return;
+            throw new BadRequestException("Destination warehouse has no active warehouse manager available for stock receipt task.");
         }
 
         String reference = stockMovement.getReferenceNumber() != null && !stockMovement.getReferenceNumber().isBlank()
                 ? stockMovement.getReferenceNumber()
                 : "#" + stockMovement.getId();
 
-        taskService.create(new TaskCreate(
+        TaskCreate taskCreate = new TaskCreate(
                 "Stock movement " + reference,
                 "Operational task generated automatically for stock movement " + reference + ".",
                 timeService.nowForWarehouse(stockMovement.getWarehouse()).plusHours(1),
@@ -2169,7 +2180,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 assignee.getId(),
                 stockMovement.getTransportOrder() != null ? stockMovement.getTransportOrder().getId() : null,
                 stockMovement.getId()
-        ));
+        );
+        taskCreate.setTaskType(TaskType.STOCK_MOVEMENT);
+        taskService.create(taskCreate);
     }
 
     private boolean shouldCreateOperationalTask(StockMovement stockMovement) {
@@ -2181,24 +2194,38 @@ public class StockMovementService implements StockMovementServiceDefinition {
         StockMovementReasonCode reasonCode = stockMovement.getReasonCode();
         StockMovementType movementType = stockMovement.getMovementType();
 
-        return (movementType == StockMovementType.OUTBOUND
-                    || movementType == StockMovementType.INBOUND
-                    || movementType == StockMovementType.TRANSFER_OUT
-                    || movementType == StockMovementType.TRANSFER_IN)
-                && (reasonCode == StockMovementReasonCode.TRANSPORT_DISPATCH
-                    || reasonCode == StockMovementReasonCode.TRANSPORT_RECEIPT);
+        return movementType == StockMovementType.TRANSFER_IN
+                && reasonCode == StockMovementReasonCode.TRANSPORT_RECEIPT;
     }
 
     private Employee resolveTaskAssignee(StockMovement stockMovement) {
-        if (stockMovement.getTransportOrder() != null && stockMovement.getTransportOrder().getAssignedEmployee() != null) {
-            return stockMovement.getTransportOrder().getAssignedEmployee();
+        Warehouse warehouse = stockMovement.getWarehouse();
+        if (warehouse == null) {
+            return null;
         }
 
-        if (stockMovement.getWarehouse() != null && stockMovement.getWarehouse().getManager() != null) {
-            return stockMovement.getWarehouse().getManager();
+        Employee directManager = warehouse.getManager();
+        if (isActiveWarehouseManager(directManager)) {
+            return directManager;
         }
 
-        return null;
+        LocalDate today = LocalDate.now();
+        return employeeWarehouseAssignmentRepository.findByWarehouseOrdered(warehouse.getId()).stream()
+                .filter(assignment -> Boolean.TRUE.equals(assignment.getActive()))
+                .filter(assignment -> assignment.getAccessType() == EmployeeWarehouseAccessType.MANAGER
+                        || assignment.getAccessType() == EmployeeWarehouseAccessType.PRIMARY)
+                .filter(assignment -> assignment.getValidFrom() == null || !assignment.getValidFrom().isAfter(today))
+                .filter(assignment -> assignment.getValidTo() == null || !assignment.getValidTo().isBefore(today))
+                .map(assignment -> assignment.getEmployee())
+                .filter(this::isActiveWarehouseManager)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isActiveWarehouseManager(Employee employee) {
+        return employee != null
+                && Boolean.TRUE.equals(employee.getActive())
+                && employee.getPosition() == EmployeePosition.WAREHOUSE_MANAGER;
     }
 
     private BinLocation getAccessibleBinLocation(Long binLocationId) {

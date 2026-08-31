@@ -588,6 +588,7 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                 throw new BadRequestException("Vehicle must be IN_USE before transport can be delivered");
             }
 
+            taskService.closeTransportTasks(transportOrder.getId(), TaskStatus.COMPLETED);
             transportInventoryCoordinator.receive(transportOrder);
             transportOrder.setActualArrivalTime(nowForTransportDestination(transportOrder));
 
@@ -612,7 +613,6 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
                         NotificationType.INFO
                 );
             }
-            taskService.closeTransportTasks(transportOrder.getId(), TaskStatus.COMPLETED);
         }
 
         if (status == TransportOrderStatus.FAILED) {
@@ -1143,11 +1143,11 @@ public class TransportOrderService implements TransportOrderServiceDefinition {
     }
 
     private void assertNoOpenTransportTasks(TransportOrder transportOrder, String message) {
-        long openTasks = taskRepository.countTransportTasksByStatusIn(
+        boolean hasBlockingOpenTasks = taskRepository.findOpenTasksByTransportOrderId(
                 transportOrder.getId(),
                 List.of(TaskStatus.NEW, TaskStatus.OPEN, TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED)
-        );
-        if (openTasks > 0) {
+        ).stream().anyMatch(task -> task.getTaskType() != TaskType.STOCK_MOVEMENT);
+        if (hasBlockingOpenTasks) {
             throw new BadRequestException("Transport workflow integrity check failed: " + message);
         }
     }
