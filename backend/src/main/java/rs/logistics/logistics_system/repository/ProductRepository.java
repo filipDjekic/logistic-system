@@ -96,15 +96,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     long countByCompany_Id(Long companyId);
 
     @Query("""
-    select distinct p
-    from WarehouseInventory wi
-    join wi.product p
-    join wi.warehouse w
-    left join p.company c
-    where (:companyId is null or (c.id = :companyId and w.company.id = :companyId))
-    and w.id = :warehouseId
-    and w.company.id = c.id
+    select p
+    from Product p
+    join p.company c
+    where (:companyId is null or c.id = :companyId)
     and (:active is null or p.active = :active)
+    and exists (
+        select 1
+        from WarehouseInventory wi
+        join wi.warehouse w
+        where wi.product = p
+        and w.id = :warehouseId
+        and w.company.id = c.id
+    )
     and (
         :search is null
         or lower(p.name) like lower(concat('%', :search, '%'))
@@ -123,16 +127,20 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     );
 
     @Query("""
-    select distinct p
-    from WarehouseInventory wi
-    join wi.product p
-    join wi.warehouse w
-    left join p.company c
-    where (:companyId is null or (c.id = :companyId and w.company.id = :companyId))
-    and w.id = :warehouseId
-    and w.company.id = c.id
-    and (wi.quantity - wi.reservedQuantity) > 0
+    select p
+    from Product p
+    join p.company c
+    where (:companyId is null or c.id = :companyId)
     and (:active is null or p.active = :active)
+    and exists (
+        select 1
+        from WarehouseInventory wi
+        join wi.warehouse w
+        where wi.product = p
+        and w.id = :warehouseId
+        and w.company.id = c.id
+        and wi.quantity > wi.reservedQuantity
+    )
     and (
         :search is null
         or lower(p.name) like lower(concat('%', :search, '%'))
