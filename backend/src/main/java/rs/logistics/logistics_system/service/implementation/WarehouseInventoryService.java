@@ -72,6 +72,10 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
 
         WarehouseInventory warehouseInventory = createInventory(dto, warehouse, product);
+        if (Boolean.TRUE.equals(warehouse.getBinTrackingEnabled())
+                && warehouseInventory.getSafeQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            throw new BadRequestException("Initial quantity must be zero for a bin-tracked warehouse; add stock through a bin-scoped stock movement");
+        }
         validateWarehouseCapacity(warehouse, BigDecimal.ZERO, warehouseInventory.getSafeQuantity());
 
         WarehouseInventory saved = warehouseInventoryRepository.saveAndFlush(warehouseInventory);
