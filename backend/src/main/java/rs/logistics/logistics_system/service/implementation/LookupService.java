@@ -179,6 +179,7 @@ public class LookupService implements LookupServiceDefinition {
     @Override
     public PageResponse<LookupOptionResponse> employees(
             String search,
+            Long warehouseId,
             EmployeePosition position,
             Boolean active,
             String linkedUser,
@@ -192,8 +193,13 @@ public class LookupService implements LookupServiceDefinition {
         String normalizedSearch = normalize(search);
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);
 
+        if (warehouseId != null && !warehouseAccessGuard.canReadWarehouse(warehouseId)) {
+            throw new ResourceNotFoundException("Warehouse not found");
+        }
+
         Page<Employee> page;
-        if (mode == EmployeeLookupMode.MANAGED_WAREHOUSE
+        if (warehouseId == null
+                && mode == EmployeeLookupMode.MANAGED_WAREHOUSE
                 && authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER")) {
             Long managerEmployeeId = employeeRepository.findByUser_Id(authenticatedUserProvider.getAuthenticatedUserId())
                     .map(Employee::getId)
@@ -205,7 +211,7 @@ public class LookupService implements LookupServiceDefinition {
                             position, active, linkedUser, availableFrom, availableTo, safePageable);
         } else {
             page = employeeRepository.searchEmployees(
-                    currentCompanyScope(), normalizedSearch, searchId, position, active, linkedUser,
+                    currentCompanyScope(), warehouseId, normalizedSearch, searchId, position, active, linkedUser,
                     availableFrom, availableTo, safePageable);
         }
 

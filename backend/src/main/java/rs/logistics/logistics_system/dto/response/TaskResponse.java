@@ -34,6 +34,8 @@ public class TaskResponse {
     private Long assignedEmployeeId;
     private Long transportOrderId;
     private Long stockMovementId;
+    private Long operationalWarehouseId;
+    private String operationalWarehouseName;
 
     public TaskResponse(Long id, String title, String description, LocalDateTime dueDate, TaskPriority priority, TaskStatus status, Long assignedEmployeeId, Long transportOrderId, Long stockMovementId) {
         this.id = id;

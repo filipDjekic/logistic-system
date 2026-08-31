@@ -27,6 +27,8 @@ export type TaskResponse = {
   assignedEmployeeId: number;
   transportOrderId: number | null;
   stockMovementId: number | null;
+  operationalWarehouseId: number | null;
+  operationalWarehouseName: string | null;
 };
 
 export type TaskCreateRequest = {

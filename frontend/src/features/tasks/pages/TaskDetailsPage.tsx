@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import { Button, Grid, Stack, Typography } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Stack, Typography } from '@mui/material';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { queryKeys } from '../../../core/constants/queryKeys';
@@ -20,6 +20,8 @@ import { tasksApi } from '../api/tasksApi';
 import { useUpdateTaskStatus } from '../hooks/useUpdateTaskStatus';
 import { normalizeApiError } from '../../../core/api/apiError';
 import type { TaskStatus } from '../types/task.types';
+import { EntityLookupField } from '../../lookup';
+import type { LookupOption } from '../../lookup/types/lookup.types';
 
 type TaskDetailsTab = 'overview' | 'lifecycle' | 'linkedProcess' | 'attachments' | 'comments' | 'audit' | 'history';
 
@@ -31,14 +33,28 @@ function formatDateTime(value: string) {
 export default function TaskDetailsPage() {
   const params = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const auth = useAuthStore();
   const taskId = Number(params.id);
   const isValidTaskId = Number.isInteger(taskId) && taskId > 0;
   const [activeTab, setActiveTab] = useState<TaskDetailsTab>('overview');
   const [transitionTarget, setTransitionTarget] = useState<TaskStatus | null>(null);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<LookupOption | null>(null);
 
   const taskQuery = useTask(isValidTaskId ? taskId : null);
   const updateTaskStatusMutation = useUpdateTaskStatus();
+  const reassignMutation = useMutation({
+    mutationFn: (employeeId: number) => tasksApi.assignTask(taskId, employeeId),
+    onSuccess: async () => {
+      setReassignOpen(false);
+      setSelectedEmployee(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.myTasks() }),
+      ]);
+    },
+  });
 
   const canViewHistory = auth.user?.role !== ROLES.DRIVER && auth.user?.role !== ROLES.WORKER;
   const canResolveEmployee = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.DISPATCHER;
@@ -120,6 +136,9 @@ export default function TaskDetailsPage() {
   }
 
   const task = taskQuery.data;
+  const canReassignWarehouseTask = auth.user?.role === ROLES.WAREHOUSE_MANAGER
+    && task.operationalWarehouseId != null
+    && !['IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(task.status);
   const allowedStatuses = resolveBackendAllowedStatuses(allowedTransitionsQuery.data?.allowedStatuses);
   const taskLifecycleStatuses: TaskStatus[] = task.status === 'CANCELLED'
     ? ['NEW', 'OPEN', 'CANCELLED']
@@ -155,6 +174,9 @@ export default function TaskDetailsPage() {
       onTabChange={(value) => setActiveTab(value as TaskDetailsTab)}
       actions={
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {canReassignWarehouseTask ? (
+            <Button variant="contained" onClick={() => setReassignOpen(true)}>Reassign task</Button>
+          ) : null}
           <Button variant="outlined" onClick={() => navigate('/tasks')}>Back to list</Button>
         </Stack>
       }
@@ -290,6 +312,42 @@ export default function TaskDetailsPage() {
           );
         }}
       />
+
+      <Dialog open={reassignOpen} onClose={() => !reassignMutation.isPending && setReassignOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Reassign task</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Choose an active Worker assigned to {task.operationalWarehouseName ?? `warehouse #${task.operationalWarehouseId}`}.
+            </Typography>
+            <EntityLookupField
+              label="Worker"
+              entityType="employees"
+              value={selectedEmployee}
+              onChange={setSelectedEmployee}
+              warehouseId={task.operationalWarehouseId}
+              activeOnly
+              excludedOptionIds={[task.assignedEmployeeId]}
+              lookupParams={{ position: 'WORKER', mode: 'COMPANY' }}
+              disabled={reassignMutation.isPending}
+              required
+            />
+            {reassignMutation.isError ? (
+              <Alert severity="error">{normalizeApiError(reassignMutation.error, 'Task reassignment failed.').message}</Alert>
+            ) : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReassignOpen(false)} disabled={reassignMutation.isPending}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!selectedEmployee || reassignMutation.isPending}
+            onClick={() => selectedEmployee && reassignMutation.mutate(selectedEmployee.id)}
+          >
+            Reassign
+          </Button>
+        </DialogActions>
+      </Dialog>
     </EntityDetailsLayout>
   );
 }

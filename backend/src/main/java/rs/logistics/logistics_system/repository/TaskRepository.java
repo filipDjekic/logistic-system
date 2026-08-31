@@ -180,8 +180,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 movementWarehouse.id in :warehouseIds
                 or (
                     transportOrder is not null
-                    and t.taskType <> rs.logistics.logistics_system.enums.TaskType.DRIVING
-                    and (sourceWarehouse.id in :warehouseIds or destinationWarehouse.id in :warehouseIds)
+                    and (
+                        (t.taskType in (rs.logistics.logistics_system.enums.TaskType.PICKING, rs.logistics.logistics_system.enums.TaskType.PACKING, rs.logistics.logistics_system.enums.TaskType.LOADING)
+                            and sourceWarehouse.id in :warehouseIds)
+                        or (t.taskType = rs.logistics.logistics_system.enums.TaskType.UNLOADING
+                            and destinationWarehouse.id in :warehouseIds)
+                    )
                 )
             )
             """)
@@ -263,8 +267,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 movementWarehouse.id in :warehouseIds
                 or (
                     transportOrder is not null
-                    and t.taskType <> rs.logistics.logistics_system.enums.TaskType.DRIVING
-                    and (sourceWarehouse.id in :warehouseIds or destinationWarehouse.id in :warehouseIds)
+                    and (
+                        (t.taskType in (rs.logistics.logistics_system.enums.TaskType.PICKING, rs.logistics.logistics_system.enums.TaskType.PACKING, rs.logistics.logistics_system.enums.TaskType.LOADING)
+                            and sourceWarehouse.id in :warehouseIds)
+                        or (t.taskType = rs.logistics.logistics_system.enums.TaskType.UNLOADING
+                            and destinationWarehouse.id in :warehouseIds)
+                    )
                 )
             )
             and (
@@ -393,8 +401,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 movementWarehouse.id in :warehouseIds
                 or (
                     transportOrder is not null
-                    and t.taskType <> rs.logistics.logistics_system.enums.TaskType.DRIVING
-                    and (sourceWarehouse.id in :warehouseIds or destinationWarehouse.id in :warehouseIds)
+                    and (
+                        (t.taskType in (rs.logistics.logistics_system.enums.TaskType.PICKING, rs.logistics.logistics_system.enums.TaskType.PACKING, rs.logistics.logistics_system.enums.TaskType.LOADING)
+                            and sourceWarehouse.id in :warehouseIds)
+                        or (t.taskType = rs.logistics.logistics_system.enums.TaskType.UNLOADING
+                            and destinationWarehouse.id in :warehouseIds)
+                    )
                 )
             )
             """)
@@ -420,8 +432,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 or stockMovement.warehouse.id in :managedWarehouseIds
                 or (
                     transportOrder is not null
-                    and t.taskType <> rs.logistics.logistics_system.enums.TaskType.DRIVING
-                    and (transportOrder.sourceWarehouse.id in :managedWarehouseIds or transportOrder.destinationWarehouse.id in :managedWarehouseIds)
+                    and (
+                        (t.taskType in (rs.logistics.logistics_system.enums.TaskType.PICKING, rs.logistics.logistics_system.enums.TaskType.PACKING, rs.logistics.logistics_system.enums.TaskType.LOADING)
+                            and transportOrder.sourceWarehouse.id in :managedWarehouseIds)
+                        or (t.taskType = rs.logistics.logistics_system.enums.TaskType.UNLOADING
+                            and transportOrder.destinationWarehouse.id in :managedWarehouseIds)
+                    )
                 )
             )
             and (
@@ -518,8 +534,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 or stockMovement.warehouse.id in :managedWarehouseIds
                 or (
                     transportOrder is not null
-                    and t.taskType <> rs.logistics.logistics_system.enums.TaskType.DRIVING
-                    and (transportOrder.sourceWarehouse.id in :managedWarehouseIds or transportOrder.destinationWarehouse.id in :managedWarehouseIds)
+                    and (
+                        (t.taskType in (rs.logistics.logistics_system.enums.TaskType.PICKING, rs.logistics.logistics_system.enums.TaskType.PACKING, rs.logistics.logistics_system.enums.TaskType.LOADING)
+                            and transportOrder.sourceWarehouse.id in :managedWarehouseIds)
+                        or (t.taskType = rs.logistics.logistics_system.enums.TaskType.UNLOADING
+                            and transportOrder.destinationWarehouse.id in :managedWarehouseIds)
+                    )
                 )
             )
             and (
@@ -564,8 +584,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
                 movementWarehouse.id in :warehouseIds
                 or (
                     transportOrder is not null
-                    and t.taskType <> rs.logistics.logistics_system.enums.TaskType.DRIVING
-                    and (sourceWarehouse.id in :warehouseIds or destinationWarehouse.id in :warehouseIds)
+                    and (
+                        (t.taskType in (rs.logistics.logistics_system.enums.TaskType.PICKING, rs.logistics.logistics_system.enums.TaskType.PACKING, rs.logistics.logistics_system.enums.TaskType.LOADING)
+                            and sourceWarehouse.id in :warehouseIds)
+                        or (t.taskType = rs.logistics.logistics_system.enums.TaskType.UNLOADING
+                            and destinationWarehouse.id in :warehouseIds)
+                    )
                 )
             )
             """)

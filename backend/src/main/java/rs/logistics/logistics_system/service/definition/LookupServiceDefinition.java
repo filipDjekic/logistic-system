@@ -30,6 +30,7 @@ public interface LookupServiceDefinition {
 
     PageResponse<LookupOptionResponse> employees(
         String search,
+        Long warehouseId,
         EmployeePosition position,
         Boolean active,
         String linkedUser,

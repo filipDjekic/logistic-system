@@ -19,6 +19,7 @@ import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.User;
 import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.enums.NotificationType;
 import rs.logistics.logistics_system.enums.TaskPriority;
 import rs.logistics.logistics_system.enums.TaskStatus;
@@ -87,7 +88,7 @@ public class TaskService implements TaskServiceDefinition {
         validateTaskCompanyContext(employee, transportOrder, stockMovement);
         validateLinkedProcessContext(transportOrder, stockMovement);
         validateAssigneeRole(employee, transportOrder, stockMovement, dto.getTaskType());
-        validateAssigneeOperationalScope(employee, stockMovement);
+        validateAssigneeOperationalScope(employee, transportOrder, stockMovement, dto.getTaskType());
         validateEmployeeAvailabilityForTask(employee, dto.getDueDate());
         validateWarehouseManagerMutationScope(transportOrder, dto.getTaskType());
 
@@ -126,7 +127,7 @@ public class TaskService implements TaskServiceDefinition {
         validateTaskCompanyContext(employee, transportOrder, stockMovement);
         validateLinkedProcessContext(transportOrder, stockMovement);
         validateAssigneeRole(employee, transportOrder, stockMovement, dto.getTaskType());
-        validateAssigneeOperationalScope(employee, stockMovement);
+        validateAssigneeOperationalScope(employee, transportOrder, stockMovement, dto.getTaskType());
         validateEmployeeAvailabilityForTask(employee, dto.getDueDate());
         validateWarehouseManagerMutationScope(transportOrder, dto.getTaskType());
 
@@ -397,16 +398,14 @@ public class TaskService implements TaskServiceDefinition {
         }
     }
 
-    private void validateAssigneeOperationalScope(Employee employee, StockMovement stockMovement) {
-        if (stockMovement == null || stockMovement.getWarehouse() == null || employee == null) {
+    private void validateAssigneeOperationalScope(Employee employee, TransportOrder transportOrder, StockMovement stockMovement, TaskType taskType) {
+        var operationalWarehouse = resolveOperationalWarehouse(transportOrder, stockMovement, taskType);
+        if (operationalWarehouse == null || employee == null) {
             return;
         }
 
         if (employee.getPosition() == EmployeePosition.WORKER) {
-            if (employee.getPrimaryWarehouse() == null) {
-                throw new BadRequestException("WORKER must have primary warehouse before warehouse task assignment");
-            }
-            if (!domainScopeValidator.hasWarehouseAccess(employee, stockMovement.getWarehouse(), EmployeeWarehouseAccessType.WORKER, EmployeeWarehouseAccessType.PRIMARY)) {
+            if (!domainScopeValidator.hasWarehouseAccess(employee, operationalWarehouse, EmployeeWarehouseAccessType.WORKER, EmployeeWarehouseAccessType.PRIMARY)) {
                 throw new ForbiddenException("WORKER can be assigned only to tasks in primary or assigned warehouse");
             }
         }
@@ -458,7 +457,7 @@ public class TaskService implements TaskServiceDefinition {
                 priority,
                 transportOrderId,
                 stockMovementId,
-                authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER"),
+                false,
                 false,
                 managedWarehouseIds,
                 normalizeLinkedProcessType(linkedProcessType),
@@ -536,7 +535,7 @@ public class TaskService implements TaskServiceDefinition {
                         priority,
                         transportOrderId,
                         stockMovementId,
-                        authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER"),
+                        false,
                         false,
                         authenticatedUserProvider.hasRole("WAREHOUSE_MANAGER"),
                         managedWarehouseIds,
@@ -646,7 +645,7 @@ public class TaskService implements TaskServiceDefinition {
         Employee oldEmployee = task.getAssignedEmployee();
         Employee employee = getActiveEmployee(employeeId);
         validateAssigneeRole(employee, task.getTransportOrder(), task.getStockMovement(), task.getTaskType());
-        validateAssigneeOperationalScope(employee, task.getStockMovement());
+        validateAssigneeOperationalScope(employee, task.getTransportOrder(), task.getStockMovement(), task.getTaskType());
         validateEmployeeAvailabilityForTask(employee, task.getDueDate());
         validateReassign(task, employee);
 
@@ -926,11 +925,8 @@ public class TaskService implements TaskServiceDefinition {
         }
 
         if (task.getTransportOrder() != null) {
-            return isWarehouseSideTransportTask(task)
-                    && (
-                    task.getTransportOrder().getSourceWarehouse() != null && managedWarehouseIds.contains(task.getTransportOrder().getSourceWarehouse().getId())
-                            || task.getTransportOrder().getDestinationWarehouse() != null && managedWarehouseIds.contains(task.getTransportOrder().getDestinationWarehouse().getId())
-            );
+            var operationalWarehouse = resolveOperationalWarehouse(task.getTransportOrder(), null, task.getTaskType());
+            return operationalWarehouse != null && managedWarehouseIds.contains(operationalWarehouse.getId());
         }
 
         return false;
@@ -962,8 +958,8 @@ public class TaskService implements TaskServiceDefinition {
         }
 
         Set<Long> managedWarehouseIds = resolveManagedWarehouseIdsForWarehouseManager();
-        boolean touchesManagedWarehouse = (transportOrder.getSourceWarehouse() != null && managedWarehouseIds.contains(transportOrder.getSourceWarehouse().getId()))
-                || (transportOrder.getDestinationWarehouse() != null && managedWarehouseIds.contains(transportOrder.getDestinationWarehouse().getId()));
+        var operationalWarehouse = resolveOperationalWarehouse(transportOrder, null, taskType);
+        boolean touchesManagedWarehouse = operationalWarehouse != null && managedWarehouseIds.contains(operationalWarehouse.getId());
 
         if (!touchesManagedWarehouse) {
             throw new ForbiddenException("WAREHOUSE_MANAGER can create or modify only warehouse-side transport tasks for managed warehouses");
@@ -975,6 +971,26 @@ public class TaskService implements TaskServiceDefinition {
                 || task.getTaskType() == TaskType.PACKING
                 || task.getTaskType() == TaskType.LOADING
                 || task.getTaskType() == TaskType.UNLOADING);
+    }
+
+    private Warehouse resolveOperationalWarehouse(
+            TransportOrder transportOrder,
+            StockMovement stockMovement,
+            TaskType taskType
+    ) {
+        if (stockMovement != null) {
+            return stockMovement.getWarehouse();
+        }
+        if (transportOrder == null || taskType == null) {
+            return null;
+        }
+        if (taskType == TaskType.PICKING || taskType == TaskType.PACKING || taskType == TaskType.LOADING) {
+            return transportOrder.getSourceWarehouse();
+        }
+        if (taskType == TaskType.UNLOADING) {
+            return transportOrder.getDestinationWarehouse();
+        }
+        return null;
     }
 
     private Employee getActiveEmployee(Long employeeId) {

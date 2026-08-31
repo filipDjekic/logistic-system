@@ -8,6 +8,8 @@ import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.StockMovement;
 import rs.logistics.logistics_system.entity.Task;
 import rs.logistics.logistics_system.entity.TransportOrder;
+import rs.logistics.logistics_system.entity.Warehouse;
+import rs.logistics.logistics_system.enums.TaskType;
 import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 
 import java.time.ZoneId;
@@ -57,6 +59,9 @@ public class TaskMapper {
         );
         taskResponse.setVersion(task.getVersion());
         taskResponse.setTaskType(task.getTaskType());
+        Warehouse operationalWarehouse = resolveOperationalWarehouse(task);
+        taskResponse.setOperationalWarehouseId(operationalWarehouse != null ? operationalWarehouse.getId() : null);
+        taskResponse.setOperationalWarehouseName(operationalWarehouse != null ? operationalWarehouse.getName() : null);
         taskResponse.setStartedAt(task.getStartedAt());
         taskResponse.setCompletedAt(task.getCompletedAt());
         taskResponse.setCancelledAt(task.getCancelledAt());
@@ -79,5 +84,23 @@ public class TaskMapper {
             ));
         }
         return taskResponse;
+    }
+
+    private static Warehouse resolveOperationalWarehouse(Task task) {
+        if (task.getStockMovement() != null) {
+            return task.getStockMovement().getWarehouse();
+        }
+        if (task.getTransportOrder() == null || task.getTaskType() == null) {
+            return null;
+        }
+        if (task.getTaskType() == TaskType.PICKING
+                || task.getTaskType() == TaskType.PACKING
+                || task.getTaskType() == TaskType.LOADING) {
+            return task.getTransportOrder().getSourceWarehouse();
+        }
+        if (task.getTaskType() == TaskType.UNLOADING) {
+            return task.getTransportOrder().getDestinationWarehouse();
+        }
+        return null;
     }
 }

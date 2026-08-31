@@ -75,6 +75,7 @@ public class LookupController {
     @GetMapping("/employees/lookup")
     public ResponseEntity<PageResponse<LookupOptionResponse>> employees(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) EmployeePosition position,
             @RequestParam(required = false) Boolean activeOnly,
             @RequestParam(required = false, name = "active") Boolean legacyActive,
@@ -86,6 +87,7 @@ public class LookupController {
     ) {
         return ResponseEntity.ok(lookupService.employees(
                 search,
+                warehouseId,
                 position,
                 activeOnly != null ? activeOnly : legacyActive,
                 linkedUser,

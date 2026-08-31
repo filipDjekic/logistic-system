@@ -91,6 +91,22 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             left join e.user u
             left join u.role r
             where (:companyId is null or e.company.id = :companyId)
+            and (
+                :warehouseId is null
+                or e.primaryWarehouse.id = :warehouseId
+                or exists (
+                    select 1 from EmployeeWarehouseAssignment warehouseAssignment
+                    where warehouseAssignment.employee = e
+                    and warehouseAssignment.warehouse.id = :warehouseId
+                    and warehouseAssignment.active = true
+                    and warehouseAssignment.accessType in (
+                        rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType.WORKER,
+                        rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType.PRIMARY
+                    )
+                    and (warehouseAssignment.validFrom is null or warehouseAssignment.validFrom <= current_date)
+                    and (warehouseAssignment.validTo is null or warehouseAssignment.validTo >= current_date)
+                )
+            )
             and (:position is null or e.position = :position)
             and (:active is null or e.active = :active)
             and (
@@ -143,6 +159,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             """)
     Page<Employee> searchEmployees(
             @Param("companyId") Long companyId,
+            @Param("warehouseId") Long warehouseId,
             @Param("search") String search,
             @Param("searchId") Long searchId,
             @Param("position") EmployeePosition position,
