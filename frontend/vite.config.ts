@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 
+const hmrClientPort = Number(process.env.VITE_HMR_CLIENT_PORT ?? 5173);
+
 export default defineConfig({
   plugins: [react()],
 
@@ -9,6 +11,11 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
     strictPort: true,
+    hmr: {
+      host: process.env.VITE_HMR_HOST ?? "localhost",
+      clientPort: Number.isInteger(hmrClientPort) ? hmrClientPort : 5173,
+      protocol: process.env.VITE_HMR_PROTOCOL === "wss" ? "wss" : "ws",
+    },
 
     proxy: {
       "/api": {
@@ -30,20 +37,6 @@ export default defineConfig({
       "@tanstack/react-query",
       "react-router",
       "react-router-dom",
-    ],
-  },
-
-  optimizeDeps: {
-    include: [
-      "react",
-      "react-dom",
-      "react-dom/client",
-      "react-router",
-      "react-router-dom",
-      "@emotion/react",
-      "@emotion/styled",
-      "@mui/material",
-      "@tanstack/react-query",
     ],
   },
 });

@@ -73,6 +73,9 @@ services:
       VITE_APP_NAME: ${VITE_APP_NAME:-Logistics management system}
       VITE_API_BASE_URL: /
       VITE_PROXY_TARGET: http://backend:8080
+      VITE_HMR_HOST: ${VITE_HMR_HOST:-localhost}
+      VITE_HMR_CLIENT_PORT: ${FRONTEND_PORT:-5173}
+      VITE_HMR_PROTOCOL: ${VITE_HMR_PROTOCOL:-ws}
       CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
