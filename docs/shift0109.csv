@@ -1,0 +1,9 @@
+employeeId,startTime,endTime,timezoneId,warehouseId,notes
+115,2026-09-04T08:00,2026-09-04T16:00,1,,HR daily shift
+116,2026-09-04T08:00,2026-09-04T16:00,1,,Dispatch operations
+117,2026-09-04T08:00,2026-09-04T16:00,1,17,Warehouse management shift
+118,2026-09-04T08:00,2026-09-04T16:00,1,18,Warehouse management shift
+119,2026-09-01T08:00,2026-09-01T16:00,1,,Driver transport coverage
+120,2026-09-01T08:00,2026-09-01T16:00,1,,Driver transport coverage
+121,2026-09-01T08:00,2026-09-01T16:00,1,17,Picking and warehouse operations
+122,2026-09-01T08:00,2026-09-01T16:00,1,18,Receiving and warehouse operations
