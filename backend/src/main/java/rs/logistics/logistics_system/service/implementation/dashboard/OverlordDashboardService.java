@@ -61,6 +61,7 @@ public class OverlordDashboardService implements OverlordDashboardServiceDefinit
         Map<String, Long> tasksByStatus = countTasksByStatus();
         Map<String, Long> vehiclesByStatus = countVehiclesByStatus();
         long lowStockRowsTotal = warehouseInventoryRepository.countLowStockRows();
+        long activityLogsTotal = activityLogRepository.count();
 
         return new OverlordDashboardResponse(
                 companyRepository.count(),
@@ -83,7 +84,7 @@ public class OverlordDashboardService implements OverlordDashboardServiceDefinit
                 safeBigDecimal(warehouseInventoryRepository.sumAvailableQuantity()),
                 safeBigDecimal(warehouseInventoryRepository.sumTotalValue()),
                 stockMovementRepository.count(),
-                activityLogRepository.count(),
+                activityLogsTotal,
                 changeHistoryRepository.count(),
                 recentActivities(),
                 List.of(
@@ -94,7 +95,7 @@ public class OverlordDashboardService implements OverlordDashboardServiceDefinit
                 ),
                 List.of(
                         DashboardResponseFactory.lowStockAlert(lowStockRowsTotal),
-                        DashboardResponseFactory.alert("INFO", "SYSTEM_ACTIVITY", "Activity logs", "System-wide activity log rows available for audit review.", activityLogRepository.count())
+                        DashboardResponseFactory.alert("INFO", "SYSTEM_ACTIVITY", "Activity logs", "System-wide activity log rows available for audit review.", activityLogsTotal)
                 )
         );
     }

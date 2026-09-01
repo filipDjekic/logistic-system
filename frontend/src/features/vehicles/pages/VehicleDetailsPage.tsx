@@ -154,18 +154,22 @@ export default function VehicleDetailsPage() {
     },
   });
 
+  const vehicleStatus = vehicle?.status;
+  const refetchVehicle = vehicleQuery.refetch;
+  const refetchAllowedTransitions = allowedTransitionsQuery.refetch;
+
   useEffect(() => {
-    if (!vehicle || ["AVAILABLE", "OUT_OF_SERVICE"].includes(vehicle.status)) {
+    if (!vehicleStatus || ["AVAILABLE", "OUT_OF_SERVICE"].includes(vehicleStatus)) {
       return undefined;
     }
 
     const intervalId = window.setInterval(() => {
-      void vehicleQuery.refetch();
-      void allowedTransitionsQuery.refetch();
+      void refetchVehicle();
+      void refetchAllowedTransitions();
     }, 30000);
 
     return () => window.clearInterval(intervalId);
-  }, [vehicle, vehicleQuery, allowedTransitionsQuery]);
+  }, [refetchAllowedTransitions, refetchVehicle, vehicleStatus]);
 
   if (validVehicleId == null) {
     return (

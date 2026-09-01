@@ -375,26 +375,31 @@ export default function TransportOrderDetailsPage() {
     onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: "error" }),
   });
 
+  const transportOrderStatus = transportOrder?.status;
+  const refetchTransportOrder = transportOrderQuery.refetch;
+  const refetchRelatedTasks = relatedTasksQuery.refetch;
+  const refetchRelatedStockMovements = relatedStockMovementsQuery.refetch;
+
   useEffect(() => {
     if (
-      !transportOrder ||
-      ["DELIVERED", "FAILED", "CANCELLED"].includes(transportOrder.status)
+      !transportOrderStatus ||
+      ["DELIVERED", "FAILED", "CANCELLED"].includes(transportOrderStatus)
     ) {
       return undefined;
     }
 
     const intervalId = window.setInterval(() => {
-      void transportOrderQuery.refetch();
-      void relatedTasksQuery.refetch();
-      void relatedStockMovementsQuery.refetch();
+      void refetchTransportOrder();
+      void refetchRelatedTasks();
+      void refetchRelatedStockMovements();
     }, 30000);
 
     return () => window.clearInterval(intervalId);
   }, [
-    transportOrder,
-    transportOrderQuery,
-    relatedTasksQuery,
-    relatedStockMovementsQuery,
+    refetchRelatedStockMovements,
+    refetchRelatedTasks,
+    refetchTransportOrder,
+    transportOrderStatus,
   ]);
 
   const nextStatuses = resolveBackendAllowedStatuses(allowedTransitionsQuery.data?.allowedStatuses);

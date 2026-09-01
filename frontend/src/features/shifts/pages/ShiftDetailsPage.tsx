@@ -57,11 +57,13 @@ export default function ShiftDetailsPage() {
     refetchOnWindowFocus: false,
   });
 
+  const shiftStatus = shiftQuery.data?.status;
+
   useEffect(() => {
-    if (!shiftQuery.data || ['FINISHED', 'CANCELLED'].includes(shiftQuery.data.status)) return undefined;
+    if (!shiftStatus || ['FINISHED', 'CANCELLED'].includes(shiftStatus)) return undefined;
     const intervalId = window.setInterval(() => { void invalidateShiftState(queryClient, shiftId); }, 30000);
     return () => window.clearInterval(intervalId);
-  }, [queryClient, shiftId, shiftQuery.data]);
+  }, [queryClient, shiftId, shiftStatus]);
 
   if (!isValidShiftId) return <ErrorState title="Invalid shift" description="The shift ID in the route must be a positive integer." />;
 

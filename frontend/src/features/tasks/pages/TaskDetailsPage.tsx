@@ -96,18 +96,20 @@ export default function TaskDetailsPage() {
   const assignedEmployee = employeesQuery.data ?? null;
   const transportOrder = transportOrdersQuery.data ?? null;
   const stockMovement = stockMovementsQuery.data ?? null;
+  const taskStatus = taskQuery.data?.status;
+  const refetchTask = taskQuery.refetch;
 
   useEffect(() => {
-    if (!taskQuery.data || ['COMPLETED', 'CANCELLED'].includes(taskQuery.data.status)) {
+    if (!taskStatus || ['COMPLETED', 'CANCELLED'].includes(taskStatus)) {
       return undefined;
     }
 
     const intervalId = window.setInterval(() => {
-      void taskQuery.refetch();
+      void refetchTask();
     }, 30000);
 
     return () => window.clearInterval(intervalId);
-  }, [taskQuery]);
+  }, [refetchTask, taskStatus]);
 
   if (!isValidTaskId) {
     return <ErrorState title="Invalid task" description="The task ID in the route must be a positive integer." />;

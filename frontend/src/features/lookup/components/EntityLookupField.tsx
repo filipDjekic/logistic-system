@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { EntityLookupDialog } from './EntityLookupDialog';
 import type { LookupEntityType, LookupOption, LookupParams } from '../types/lookup.types';
 import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-import { useEntityLookup } from '../hooks/useEntityLookup';
 
 export type EntityLookupFieldProps = {
   label: string;
@@ -51,21 +50,7 @@ export function EntityLookupField({
   lookupParams,
 }: EntityLookupFieldProps) {
   const [open, setOpen] = useState(false);
-  const resolvedValueQuery = useEntityLookup(
-    entityType,
-    {
-      search: value ? String(value.id) : undefined,
-      page: 0,
-      size: 10,
-      ...(warehouseId ? { warehouseId } : {}),
-      ...(accessMode ? { accessMode } : {}),
-      ...(lookupParams ?? {}),
-    },
-    Boolean(value?.id),
-  );
-  const resolvedValue = value
-    ? resolvedValueQuery.data?.content.find((option) => option.id === value.id) ?? value
-    : null;
+  const resolvedValue = value;
 
   return (
     <Box>
