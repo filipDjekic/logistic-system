@@ -29,6 +29,9 @@ public class WarehouseResponse {
     private BigDecimal latitude;
     private BigDecimal longitude;
     private BigDecimal capacity;
+    private BigDecimal occupiedCapacity;
+    private BigDecimal availableCapacity;
+    private BigDecimal occupancyPercentage;
     private WarehouseStatus status;
     private Boolean active;
     private Boolean binTrackingEnabled;

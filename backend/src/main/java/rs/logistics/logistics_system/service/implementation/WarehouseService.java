@@ -3,6 +3,7 @@ import rs.logistics.logistics_system.service.support.QueryParameterNormalizer;
 import rs.logistics.logistics_system.service.support.DomainScopeValidator;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -155,7 +156,25 @@ public class WarehouseService implements WarehouseServiceDefinition {
     @Override
     public WarehouseResponse getById(Long id) {
         Warehouse warehouse = getWarehouseOrThrow(id);
-        return WarehouseMapper.toResponse(warehouse);
+        WarehouseResponse response = WarehouseMapper.toResponse(warehouse);
+        BigDecimal occupiedCapacity = zeroIfNull(
+                _warehouseInventoryRepository.sumQuantityByWarehouseId(warehouse.getId())
+        );
+        BigDecimal totalCapacity = warehouse.getCapacity();
+
+        response.setOccupiedCapacity(occupiedCapacity);
+        if (totalCapacity != null) {
+            response.setAvailableCapacity(totalCapacity.subtract(occupiedCapacity));
+            if (totalCapacity.compareTo(BigDecimal.ZERO) > 0) {
+                response.setOccupancyPercentage(
+                        occupiedCapacity
+                                .multiply(BigDecimal.valueOf(100))
+                                .divide(totalCapacity, 1, RoundingMode.HALF_UP)
+                );
+            }
+        }
+
+        return response;
     }
 
     @Override
@@ -379,6 +398,10 @@ public class WarehouseService implements WarehouseServiceDefinition {
                     + ", requested capacity: "
                     + warehouse.getCapacity());
         }
+    }
+
+    private BigDecimal zeroIfNull(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private String normalizeSearch(String search) {

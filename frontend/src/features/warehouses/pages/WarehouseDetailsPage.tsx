@@ -817,6 +817,15 @@ export default function WarehouseDetailsPage() {
     ...buildOperationalTabs({ entityType: 'WAREHOUSE', entityName: 'WAREHOUSE', entityId: warehouse.id, allowCreateAttachments: canManageStorage, allowCreateComments: canManageStorage }),
   ];
 
+  const occupiedCapacity = warehouse.occupiedCapacity ?? 0;
+  const availableCapacity = warehouse.availableCapacity ?? warehouse.capacity - occupiedCapacity;
+  const occupancyPercentage = warehouse.occupancyPercentage;
+  const occupancyProgress = occupancyPercentage == null
+    ? undefined
+    : Math.min(Math.max(occupancyPercentage, 0), 100);
+  const capacityExceeded = occupiedCapacity > warehouse.capacity;
+  const formatCapacity = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
   return (
     <EntityDetailsLayout
       overline="Storage"
@@ -831,7 +840,9 @@ export default function WarehouseDetailsPage() {
         status: warehouse.status,
         lifecycleStatus: warehouse.active ? 'ACTIVE' : 'INACTIVE',
         primaryInfo: [
-          { label: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity },
+          { label: 'Total capacity', value: formatCapacity(warehouse.capacity) },
+          { label: 'Occupied', value: formatCapacity(occupiedCapacity) },
+          { label: 'Available', value: formatCapacity(availableCapacity) },
           { label: 'Company', value: warehouse.companyName ?? '—' },
           { label: 'Manager', value: warehouse.managerName ?? '—' },
         ],
@@ -866,7 +877,10 @@ export default function WarehouseDetailsPage() {
             title="Warehouse statistics"
             description="Fast operational snapshot for this warehouse. Counts are loaded from the related tabs when those tabs are opened."
             statistics={[
-              { key: 'capacity', title: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity, subtitle: 'Configured storage capacity' },
+              { key: 'capacity', title: 'Total capacity', value: formatCapacity(warehouse.capacity), subtitle: 'Configured storage capacity' },
+              { key: 'occupied', title: 'Occupied', value: formatCapacity(occupiedCapacity), subtitle: 'Physical inventory currently stored', accent: capacityExceeded ? 'error' : 'primary' },
+              { key: 'available', title: 'Available', value: formatCapacity(availableCapacity), subtitle: capacityExceeded ? 'Configured capacity exceeded' : 'Remaining physical capacity', accent: capacityExceeded ? 'error' : 'success' },
+              { key: 'occupancy', title: 'Occupancy', value: occupancyPercentage == null ? 'Not available' : `${formatCapacity(occupancyPercentage)}%`, subtitle: occupancyPercentage == null ? 'Total capacity must be greater than zero' : 'Current capacity utilization', progress: occupancyProgress, accent: capacityExceeded ? 'error' : occupancyPercentage != null && occupancyPercentage >= 90 ? 'warning' : 'info' },
               { key: 'status', title: 'Status', value: warehouse.status, subtitle: warehouse.active ? 'Warehouse is active' : 'Warehouse is archived' },
             ]}
           />
@@ -881,7 +895,10 @@ export default function WarehouseDetailsPage() {
               { key: 'postalCode', label: 'Postal code', value: warehouse.postalCode },
               { key: 'country', label: 'Country', value: warehouse.countryName ?? warehouse.countryCode },
               { key: 'timezone', label: 'Timezone', value: warehouse.timezoneDisplayName ?? warehouse.timezoneName ?? warehouse.timezone },
-              { key: 'capacity', label: 'Capacity', value: warehouse.capacity?.toLocaleString?.() ?? warehouse.capacity },
+              { key: 'capacity', label: 'Total capacity', value: formatCapacity(warehouse.capacity) },
+              { key: 'occupiedCapacity', label: 'Occupied capacity', value: formatCapacity(occupiedCapacity) },
+              { key: 'availableCapacity', label: 'Available capacity', value: formatCapacity(availableCapacity) },
+              { key: 'occupancyPercentage', label: 'Occupancy', value: occupancyPercentage == null ? 'Not available' : `${formatCapacity(occupancyPercentage)}%` },
               { key: 'status', label: 'Status', value: <StatusChip value={warehouse.status} /> },
               { key: 'active', label: 'Active', value: <StatusChip value={warehouse.active ? 'ACTIVE' : 'INACTIVE'} /> },
               { key: 'coordinates', label: 'Coordinates', value: warehouse.latitude != null && warehouse.longitude != null ? `${warehouse.latitude}, ${warehouse.longitude}` : '—' },

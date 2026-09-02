@@ -26,6 +26,9 @@ export type WarehouseResponse = WarehouseLocationFields & {
   address: string;
   city: string;
   capacity: number;
+  occupiedCapacity?: number | null;
+  availableCapacity?: number | null;
+  occupancyPercentage?: number | null;
   status: WarehouseStatus;
   active: boolean;
   binTrackingEnabled: boolean;
