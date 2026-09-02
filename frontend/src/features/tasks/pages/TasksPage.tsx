@@ -12,11 +12,8 @@ import FilterPanel from '../../../shared/components/FilterPanel/FilterPanel';
 import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import ServerTablePagination from '../../../shared/components/ServerTablePagination/ServerTablePagination';
-import SetupGuide from '../../../shared/components/SetupGuide/SetupGuide';
 import { EntityLookupField } from '../../lookup';
 import type { LookupOption } from '../../lookup';
-import { stockMovementsApi } from '../../stock-movements/api/stockMovementsApi';
-import { transportOrdersApi } from '../../transport-orders/api/transportOrdersApi';
 import TasksTable from '../components/TasksTable';
 import { useMyTasks } from '../hooks/useMyTasks';
 import { useTasks } from '../hooks/useTasks';
@@ -33,7 +30,6 @@ export default function TasksPage() {
   const currentRole = auth.user?.role;
   const canListManaged = canListManagedTasks(currentRole);
   const canCreateOrAssign = canCreateTasks(currentRole);
-  const isHrManager = currentRole === ROLES.HR_MANAGER;
   const canExecuteTaskStatus =
     currentRole === ROLES.COMPANY_ADMIN ||
     currentRole === ROLES.HR_MANAGER ||
@@ -121,29 +117,6 @@ export default function TasksPage() {
     staleTime: 30_000,
   });
 
-  const employeesQuery = useQuery({
-    queryKey: queryKeys.tasks.employees(),
-    queryFn: transportOrdersApi.getEmployees,
-    enabled: canCreateOrAssign,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
-  });
-
-  const transportOrdersQuery = useQuery({
-    queryKey: queryKeys.tasks.transportOrders(),
-    queryFn: () => transportOrdersApi.getAll({ size: 25, sort: 'createdAt,desc' }),
-    enabled: canCreateOrAssign && currentRole !== ROLES.WAREHOUSE_MANAGER && !isHrManager,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
-  });
-
-  const stockMovementsQuery = useQuery({
-    queryKey: queryKeys.tasks.stockMovements(),
-    queryFn: () => stockMovementsApi.getAll({ size: 25, sort: 'createdAt,desc' }),
-    enabled: canCreateOrAssign && !isHrManager,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
-  });
   const updateTaskStatus = useUpdateTaskStatus();
 
   const managedRows = useMemo(
@@ -159,23 +132,6 @@ export default function TasksPage() {
   );
 
   const rows = managedRows;
-
-  const taskSetupLoading = employeesQuery.isLoading || transportOrdersQuery.isLoading || stockMovementsQuery.isLoading;
-  const setupItems = [
-    {
-      title: 'Create transport orders before transport-linked tasks',
-      description: 'Transport task context is available only after transport orders exist.',
-      done: !canCreateOrAssign || taskSetupLoading || (transportOrdersQuery.data?.content ?? []).length > 0,
-      action: { label: 'Open transport orders', to: '/transport-orders' },
-    },
-    {
-      title: 'Create stock movements before warehouse-linked tasks',
-      description: 'Warehouse task context is clearer when a stock movement exists.',
-      done: !canCreateOrAssign || taskSetupLoading || (stockMovementsQuery.data?.content ?? []).length > 0,
-      action: { label: 'Open stock movements', to: '/stock-movements' },
-    },
-  ];
-
 
   useEffect(() => {
     const status = searchParams.get('status');
@@ -202,7 +158,7 @@ export default function TasksPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1' || !canCreateOrAssign || taskSetupLoading) {
+    if (searchParams.get('create') !== '1' || !canCreateOrAssign) {
       return;
     }
     navigate('/tasks/create');
@@ -210,24 +166,14 @@ export default function TasksPage() {
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete('create');
     setSearchParams(nextSearchParams, { replace: true });
-  }, [canCreateOrAssign, navigate, searchParams, setSearchParams, taskSetupLoading]);
+  }, [canCreateOrAssign, navigate, searchParams, setSearchParams]);
 
   useEffect(() => {
     setPage(0);
   }, [filters.search, filters.status, filters.priority, filters.assignedEmployeeId, filters.linkedProcessType]);
 
   const refreshAll = () => {
-    void Promise.all([
-      tasksQuery.refetch(),
-      taskStatusCountsQuery.refetch(),
-      ...(canCreateOrAssign
-        ? [
-            employeesQuery.refetch(),
-            transportOrdersQuery.refetch(),
-            stockMovementsQuery.refetch(),
-          ]
-        : []),
-    ]);
+    void Promise.all([tasksQuery.refetch(), taskStatusCountsQuery.refetch()]);
   };
 
   const filtersDisabled =
@@ -294,16 +240,7 @@ export default function TasksPage() {
           />
         }
         filters={
-          <>
-            {canCreateOrAssign && !isHrManager && !taskSetupLoading ? (
-              <SetupGuide
-                title="Task setup has missing context"
-                description="Create the required assignment data first. Process links are optional, but they make execution clearer."
-                items={setupItems}
-              />
-            ) : null}
-
-            <FilterPanel>
+          <FilterPanel>
               <TextField
                 select
                 size="small"
@@ -383,8 +320,7 @@ export default function TasksPage() {
                 <MenuItem value="TRANSPORT_ORDER">TRANSPORT_ORDER</MenuItem>
                 <MenuItem value="STOCK_MOVEMENT">STOCK_MOVEMENT</MenuItem>
               </TextField>
-            </FilterPanel>
-          </>
+          </FilterPanel>
         }
         table={
           <TasksTable

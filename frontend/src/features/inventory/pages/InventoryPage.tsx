@@ -316,7 +316,7 @@ export default function InventoryPage() {
       />
 
 
-      <InventoryReservationDialog
+      {reservationTarget ? <InventoryReservationDialog
         open={reservationTarget !== null}
         mode={reservationMode}
         row={reservationTarget}
@@ -342,9 +342,9 @@ export default function InventoryPage() {
             onSuccess: () => setReservationTarget(null),
           });
         }}
-      />
+      /> : null}
 
-      {canImport ? (
+      {canImport && importDialogOpen ? (
         <CsvImportDialog
           open={importDialogOpen}
           type="warehouse-inventory"

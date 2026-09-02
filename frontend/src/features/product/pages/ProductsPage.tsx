@@ -213,7 +213,7 @@ export default function ProductsPage() {
         }
       />
 
-      {canManage ? (
+      {canManage && importDialogOpen ? (
         <CsvImportDialog
           open={importDialogOpen}
           type="products"
@@ -227,7 +227,7 @@ export default function ProductsPage() {
         />
       ) : null}
 
-      {canManage ? (
+      {canManage && open ? (
         <ProductFormDialog
           open={open}
           initialData={selected}

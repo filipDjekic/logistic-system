@@ -46,7 +46,7 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const usersQuery = useUsers({ page, size, sort: buildSortParam(sort) }, true);
-  const rolesQuery = useRoles(canAssignRoles);
+  const rolesQuery = useRoles(canAssignRoles && dialogOpen);
   const companiesQuery = useCompanies(canCreate && dialogOpen && dialogMode === 'create');
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
@@ -118,7 +118,7 @@ export default function UsersPage() {
             searchPlaceholder="Search by name, email, role, company, employee position, JMBG or ID"
             onRefresh={() => {
               void usersQuery.refetch();
-              if (canEdit) void rolesQuery.refetch();
+              if (canEdit && dialogOpen) void rolesQuery.refetch();
               if (canCreate && dialogOpen && dialogMode === 'create') void companiesQuery.refetch();
             }}
             refreshDisabled={usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching}
@@ -175,7 +175,7 @@ export default function UsersPage() {
         }
       />
 
-      {(canCreate || canEdit) && (
+      {(canCreate || canEdit) && dialogOpen && (
         <UserFormDialog
           open={dialogOpen}
           mode={dialogMode}

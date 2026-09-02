@@ -55,7 +55,7 @@ export default function UserDetailsPage() {
   const canEdit = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
 
-  const rolesQuery = useRoles(canAssignRoles);
+  const rolesQuery = useRoles(canAssignRoles && editOpen);
   const companiesQuery = useCompanies(false);
   const updateUserMutation = useUpdateUser();
 
@@ -257,7 +257,7 @@ export default function UserDetailsPage() {
         />
       ) : null}
 
-      {canEdit && (
+      {canEdit && editOpen && (
         <UserFormDialog
           open={editOpen}
           mode="edit"

@@ -191,7 +191,7 @@ export default function ShiftsPage() {
         }
       />
 
-      {canManage ? (
+      {canManage && importDialogOpen ? (
       <ShiftImportDialog
         open={importDialogOpen}
         preview={previewImportMutation.data}
@@ -215,7 +215,7 @@ export default function ShiftsPage() {
       />
       ) : null}
 
-      {canManage ? (
+      {canManage && dialogOpen ? (
       <ShiftFormDialog
         open={dialogOpen}
         mode={dialogMode}

@@ -163,7 +163,7 @@ export default function CompaniesPage() {
         }
       />
 
-      {canManage ? <CompanyFormDialog
+      {canManage && dialogOpen ? <CompanyFormDialog
         open={dialogOpen}
         mode={dialogMode}
         initialData={selectedCompany}

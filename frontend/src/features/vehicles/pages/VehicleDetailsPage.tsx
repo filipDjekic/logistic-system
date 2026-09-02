@@ -445,7 +445,7 @@ export default function VehicleDetailsPage() {
         allowCreateComments={canManage}
       />
 
-      <LifecycleTransitionDialog
+      {transitionTarget ? <LifecycleTransitionDialog
         open={transitionTarget != null}
         entityLabel={`vehicle ${vehicle.registrationNumber}`}
         fromStatus={vehicle.status}
@@ -462,7 +462,7 @@ export default function VehicleDetailsPage() {
             expectedVersion: vehicle.version,
           });
         }}
-      />
+      /> : null}
     </EntityDetailsLayout>
   );
 }

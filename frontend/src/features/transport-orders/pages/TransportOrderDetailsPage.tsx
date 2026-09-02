@@ -902,7 +902,7 @@ export default function TransportOrderDetailsPage() {
         ]}
       />
 
-      <LifecycleTransitionDialog
+      {transitionTarget ? <LifecycleTransitionDialog
         open={transitionTarget != null}
         entityLabel={`transport order ${transportOrder.orderNumber}`}
         fromStatus={transportOrder.status}
@@ -922,9 +922,9 @@ export default function TransportOrderDetailsPage() {
             { onSettled: () => setTransitionTarget(null) },
           );
         }}
-      />
+      /> : null}
 
-      <TransportOrderFormDialog
+      {orderDialogOpen ? <TransportOrderFormDialog
         open={orderDialogOpen}
         initialData={transportOrder}
         warehouses={canResolveWarehouses ? (warehousesQuery.data ?? []) : []}
@@ -964,7 +964,7 @@ export default function TransportOrderDetailsPage() {
             },
           );
         }}
-      />
+      /> : null}
     </EntityDetailsLayout>
   );
 }

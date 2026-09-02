@@ -243,7 +243,7 @@ export default function WarehousesPage() {
         }
       />
 
-      {canManage ? (
+      {canManage && importDialogOpen ? (
         <CsvImportDialog
           open={importDialogOpen}
           type="warehouses"

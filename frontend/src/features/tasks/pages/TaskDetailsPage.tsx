@@ -298,7 +298,7 @@ export default function TaskDetailsPage() {
         ]}
       />
 
-      <LifecycleTransitionDialog
+      {transitionTarget ? <LifecycleTransitionDialog
         open={transitionTarget != null}
         entityLabel={`task #${task.id}`}
         fromStatus={task.status}
@@ -313,7 +313,7 @@ export default function TaskDetailsPage() {
             { onSettled: () => { setTransitionTarget(null); void allowedTransitionsQuery.refetch(); } },
           );
         }}
-      />
+      /> : null}
 
       <Dialog open={reassignOpen} onClose={() => !reassignMutation.isPending && setReassignOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Reassign task</DialogTitle>

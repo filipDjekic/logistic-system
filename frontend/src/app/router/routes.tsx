@@ -89,316 +89,134 @@ export const routes = [
           { path: '/profile', element: lazyPage(<ProfilePage />) },
           { path: '/my-shifts', element: lazyPage(<MyShiftsPage />) },
           { path: '/shifts/:id', element: lazyPage(<ShiftDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/company-registration-requests', element: lazyPage(<CompanyRegistrationRequestsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/companies', element: lazyPage(<CompaniesPage />) },
-          { path: '/companies/:id', element: lazyPage(<CompanyDetailsPage />) },
-          { path: '/activity-logs', element: lazyPage(<ActivityLogsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/roles', element: lazyPage(<RolesPage />) },
-          { path: '/roles/:id', element: lazyPage(<RoleDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/users', element: lazyPage(<UsersPage />) },
-          { path: '/users/:id', element: lazyPage(<UserDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/employee-profile-change-requests', element: lazyPage(<EmployeeProfileChangeRequestsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.SHIFT_READ_ALL)} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/shifts', element: lazyPage(<ShiftsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/employees', element: lazyPage(<EmployeesPage />) },
-          { path: '/employees/:id', element: lazyPage(<EmployeeDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/transport-orders', element: lazyPage(<TransportOrdersPage />) },
-          { path: '/transport-orders/:id', element: lazyPage(<TransportOrderDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.DISPATCHER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/transport-orders/create', element: lazyPage(<TransportOrderCreatePage />) },
-          { path: '/transport-orders/:id/edit', element: lazyPage(<TransportOrderEditPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/tasks', element: lazyPage(<TasksPage />) },
-          { path: '/tasks/:id', element: lazyPage(<TaskDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.TASK_CREATE)} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/tasks/create', element: lazyPage(<TaskCreatePage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.TASK_CREATE)} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/tasks/:id/edit', element: lazyPage(<TaskEditPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/vehicles', element: lazyPage(<VehiclesPage />) },
-          { path: '/vehicles/:id', element: lazyPage(<VehicleDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/warehouse-locations', element: <Navigate to="/warehouses" replace /> },
-          { path: '/warehouses/:warehouseId/zones', element: <Navigate to="/warehouses" replace /> },
-          { path: '/warehouses/:warehouseId/zones/:zoneId', element: <Navigate to="/warehouses" replace /> },
-          { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', element: <Navigate to="/warehouses" replace /> },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/warehouses', element: lazyPage(<WarehousesPage />) },
-          { path: '/warehouses/:id', element: lazyPage(<WarehouseDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/products', element: lazyPage(<ProductsPage />) },
-          { path: '/products/:id', element: lazyPage(<ProductDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/inventory', element: lazyPage(<InventoryPage />) },
-          { path: '/inventory/:warehouseId/:productId', element: lazyPage(<InventoryDetailsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/inventory/create', element: lazyPage(<InventoryCreatePage />) },
-          { path: '/inventory/:warehouseId/:productId/edit', element: lazyPage(<InventoryEditPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/warehouses/create', element: lazyPage(<WarehouseCreatePage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/warehouses/:id/edit', element: lazyPage(<WarehouseEditPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/stock-movements', element: lazyPage(<StockMovementsPage />) },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
-    children: [{ element: lazyPage(<AppLayout />), children: [{ path: '/stock-movements/:id', element: lazyPage(<StockMovementDetailsPage />) }] }],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/inventory-counts', element: <Navigate to="/inventory" replace /> },
-          { path: '/inventory-counts/:id', element: <Navigate to="/inventory" replace /> },
-        ],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.STOCK_MOVEMENT_CREATE)} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [{ path: '/stock-movements/create', element: lazyPage(<StockOperationPage />) }],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [{ path: '/reports/transport', element: lazyPage(<TransportReportPage />) }],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [{ path: '/reports/inventory', element: lazyPage(<InventoryReportPage />) }],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [{ path: '/reports/employee-tasks', element: lazyPage(<EmployeeTaskReportPage />) }],
-      },
-    ],
-  },
-  {
-    element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD]} />,
-    children: [
-      {
-        element: lazyPage(<AppLayout />),
-        children: [
-          { path: '/activity-timeline', element: lazyPage(<ActivityTimelinePage />) },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD]} />,
+            children: [
+              { path: '/company-registration-requests', element: lazyPage(<CompanyRegistrationRequestsPage />) },
+              { path: '/activity-timeline', element: lazyPage(<ActivityTimelinePage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN]} />,
+            children: [
+              { path: '/companies', element: lazyPage(<CompaniesPage />) },
+              { path: '/companies/:id', element: lazyPage(<CompanyDetailsPage />) },
+              { path: '/activity-logs', element: lazyPage(<ActivityLogsPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER]} />,
+            children: [
+              { path: '/roles', element: lazyPage(<RolesPage />) },
+              { path: '/roles/:id', element: lazyPage(<RoleDetailsPage />) },
+              { path: '/users', element: lazyPage(<UsersPage />) },
+              { path: '/users/:id', element: lazyPage(<UserDetailsPage />) },
+              { path: '/employee-profile-change-requests', element: lazyPage(<EmployeeProfileChangeRequestsPage />) },
+              { path: '/reports/employee-tasks', element: lazyPage(<EmployeeTaskReportPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.SHIFT_READ_ALL)} />,
+            children: [{ path: '/shifts', element: lazyPage(<ShiftsPage />) }],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER]} />,
+            children: [
+              { path: '/employees', element: lazyPage(<EmployeesPage />) },
+              { path: '/employees/:id', element: lazyPage(<EmployeeDetailsPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER]} />,
+            children: [
+              { path: '/transport-orders', element: lazyPage(<TransportOrdersPage />) },
+              { path: '/transport-orders/:id', element: lazyPage(<TransportOrderDetailsPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.DISPATCHER]} />,
+            children: [
+              { path: '/transport-orders/create', element: lazyPage(<TransportOrderCreatePage />) },
+              { path: '/transport-orders/:id/edit', element: lazyPage(<TransportOrderEditPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER, ROLES.DRIVER, ROLES.WORKER]} />,
+            children: [
+              { path: '/tasks', element: lazyPage(<TasksPage />) },
+              { path: '/tasks/:id', element: lazyPage(<TaskDetailsPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.TASK_CREATE)} />,
+            children: [
+              { path: '/tasks/create', element: lazyPage(<TaskCreatePage />) },
+              { path: '/tasks/:id/edit', element: lazyPage(<TaskEditPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
+            children: [
+              { path: '/vehicles', element: lazyPage(<VehiclesPage />) },
+              { path: '/vehicles/:id', element: lazyPage(<VehicleDetailsPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
+            children: [
+              { path: '/warehouse-locations', element: <Navigate to="/warehouses" replace /> },
+              { path: '/warehouses/:warehouseId/zones', element: <Navigate to="/warehouses" replace /> },
+              { path: '/warehouses/:warehouseId/zones/:zoneId', element: <Navigate to="/warehouses" replace /> },
+              { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', element: <Navigate to="/warehouses" replace /> },
+              { path: '/warehouses', element: lazyPage(<WarehousesPage />) },
+              { path: '/warehouses/:id', element: lazyPage(<WarehouseDetailsPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER]} />,
+            children: [
+              { path: '/products', element: lazyPage(<ProductsPage />) },
+              { path: '/products/:id', element: lazyPage(<ProductDetailsPage />) },
+              { path: '/inventory', element: lazyPage(<InventoryPage />) },
+              { path: '/inventory/:warehouseId/:productId', element: lazyPage(<InventoryDetailsPage />) },
+              { path: '/stock-movements', element: lazyPage(<StockMovementsPage />) },
+              { path: '/stock-movements/:id', element: lazyPage(<StockMovementDetailsPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER]} />,
+            children: [
+              { path: '/inventory/create', element: lazyPage(<InventoryCreatePage />) },
+              { path: '/inventory/:warehouseId/:productId/edit', element: lazyPage(<InventoryEditPage />) },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN]} />,
+            children: [{ path: '/warehouses/create', element: lazyPage(<WarehouseCreatePage />) }],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
+            children: [{ path: '/warehouses/:id/edit', element: lazyPage(<WarehouseEditPage />) }],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER]} />,
+            children: [
+              { path: '/inventory-counts', element: <Navigate to="/inventory" replace /> },
+              { path: '/inventory-counts/:id', element: <Navigate to="/inventory" replace /> },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.STOCK_MOVEMENT_CREATE)} />,
+            children: [{ path: '/stock-movements/create', element: lazyPage(<StockOperationPage />) }],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER]} />,
+            children: [{ path: '/reports/transport', element: lazyPage(<TransportReportPage />) }],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER]} />,
+            children: [{ path: '/reports/inventory', element: lazyPage(<InventoryReportPage />) }],
+          },
         ],
       },
     ],

@@ -238,7 +238,7 @@ export default function VehiclesPage() {
         }
       />
 
-      {canManage ? (
+      {canManage && dialogOpen ? (
         <VehicleFormDialog
           open={dialogOpen}
           mode={dialogMode}
@@ -285,7 +285,7 @@ export default function VehiclesPage() {
         />
       ) : null}
 
-      {canManage ? (
+      {canManage && importDialogOpen ? (
         <CsvImportDialog
           open={importDialogOpen}
           type="vehicles"

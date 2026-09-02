@@ -101,7 +101,7 @@ export default function EmployeesPage() {
   const rolesQuery = useQuery({
     queryKey: ['roles', 'all'],
     queryFn: employeesApi.getRoles,
-    enabled: canEditEmployees,
+    enabled: canEditEmployees && dialogOpen,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -215,7 +215,7 @@ export default function EmployeesPage() {
   }, [rows]);
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1' || !canCreateEmployees || rolesQuery.isLoading || rolesQuery.isError || dialogOpen) {
+    if (searchParams.get('create') !== '1' || !canCreateEmployees || dialogOpen) {
       return;
     }
 
@@ -226,7 +226,7 @@ export default function EmployeesPage() {
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete('create');
     setSearchParams(nextSearchParams, { replace: true });
-  }, [canCreateEmployees, dialogOpen, rolesQuery.isError, rolesQuery.isLoading, searchParams, setSearchParams]);
+  }, [canCreateEmployees, dialogOpen, searchParams, setSearchParams]);
 
   const handleSubmit = (values: EmployeeFormValues) => {
     const matchedRole = roles.find((role) => role.name === values.position);
@@ -319,7 +319,6 @@ export default function EmployeesPage() {
               </Button>
               <Button
                 variant="contained"
-                disabled={rolesQuery.isLoading || rolesQuery.isError}
                 onClick={() => {
                   setDialogMode('create');
                   setSelectedEmployee(null);
@@ -348,7 +347,8 @@ export default function EmployeesPage() {
             onRefresh={() => {
               void Promise.all([
                 employeesQuery.refetch(),
-                ...(canEditEmployees ? [rolesQuery.refetch(), usersQuery.refetch()] : []),
+                ...(canEditEmployees ? [usersQuery.refetch()] : []),
+                ...(canEditEmployees && dialogOpen ? [rolesQuery.refetch()] : []),
                 ...(isOverlord && dialogOpen && dialogMode === 'create' ? [companiesQuery.refetch()] : []),
               ]);
             }}
@@ -418,12 +418,12 @@ export default function EmployeesPage() {
           <EmployeesTable
             rows={rows}
             usersById={usersById}
-            loading={employeesQuery.isLoading || (canEditEmployees && (usersQuery.isLoading || rolesQuery.isLoading))}
-            error={employeesQuery.isError || (canEditEmployees && (usersQuery.isError || rolesQuery.isError))}
+            loading={employeesQuery.isLoading || (canEditEmployees && usersQuery.isLoading)}
+            error={employeesQuery.isError || (canEditEmployees && usersQuery.isError)}
             onRetry={() => {
               void Promise.all([
                 employeesQuery.refetch(),
-                ...(canEditEmployees ? [rolesQuery.refetch(), usersQuery.refetch()] : []),
+                ...(canEditEmployees ? [usersQuery.refetch()] : []),
               ]);
             }}
             onEdit={(employee) => {
@@ -449,7 +449,7 @@ export default function EmployeesPage() {
         }
       />
 
-      {canCreateEmployees ? (
+      {canCreateEmployees && importDialogOpen ? (
         <CsvImportDialog
           open={importDialogOpen}
           type="employees"
@@ -462,7 +462,7 @@ export default function EmployeesPage() {
         />
       ) : null}
 
-      <EmployeeFormDialog
+      {dialogOpen ? <EmployeeFormDialog
         open={dialogOpen}
         mode={dialogMode}
         initialData={selectedEmployee}
@@ -477,7 +477,7 @@ export default function EmployeesPage() {
         canManageLinkedUserSecurity={dialogMode === 'create' && canManageLinkedUserSecurity}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}
-      />
+      /> : null}
     </Stack>
   );
 }
