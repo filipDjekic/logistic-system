@@ -181,17 +181,17 @@ export default function VehicleFormDialog({
               />
             </Grid>
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <FormSelect
-                name="status"
-                control={form.control}
-                label="Status"
-                options={statusOptions}
-                required
-                disabled={mode === 'edit'}
-                helperText={mode === 'edit' ? 'Use lifecycle actions to change vehicle status.' : undefined}
-              />
-            </Grid>
+            {mode === 'create' ? (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <FormSelect
+                  name="status"
+                  control={form.control}
+                  label="Status"
+                  options={statusOptions}
+                  required
+                />
+              </Grid>
+            ) : null}
 
             {mode === 'create' && showCompanySelect ? (
               <Grid size={{ xs: 12, md: 6 }}>

@@ -66,7 +66,7 @@ public class VehicleService implements VehicleServiceDefinition {
     public VehicleResponse update(Long id, VehicleUpdate dto) {
         Vehicle vehicle = findVehicleById(id);
         OptimisticLockGuard.requireExpectedVersion(dto.getExpectedVersion(), vehicle.getVersion(), "Vehicle");
-        vehiclePolicy.validateUpdate(vehicle, dto.getRegistrationNumber(), dto.getStatus());
+        vehiclePolicy.validateUpdate(vehicle, dto.getRegistrationNumber());
 
         VehicleSnapshot before = vehicleAuditService.snapshot(vehicle);
         VehicleModel vehicleModel = vehicleCatalogService.getRequiredModel(dto.getVehicleModelId());

@@ -11,7 +11,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import rs.logistics.logistics_system.enums.FuelType;
-import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.enums.VehicleType;
 
 @Getter
@@ -54,6 +53,4 @@ public class VehicleUpdate {
     @Min(value = 1990, message = "Year of production must be 1990 or later")
     private Integer yearOfProduction;
 
-    @NotNull(message = "Status is required")
-    private VehicleStatus status;
 }

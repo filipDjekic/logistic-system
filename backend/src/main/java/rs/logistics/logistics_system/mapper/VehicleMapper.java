@@ -33,7 +33,6 @@ public class VehicleMapper {
         vehicle.setMaxItems(dto.getMaxItems());
         vehicle.setFuelType(dto.getFuelType());
         vehicle.setYearOfProduction(dto.getYearOfProduction());
-        vehicle.setStatus(dto.getStatus());
     }
 
     public static VehicleResponse toResponse(Vehicle vehicle) {

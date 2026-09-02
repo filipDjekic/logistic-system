@@ -8,7 +8,6 @@ import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import SyncAltRoundedIcon from '@mui/icons-material/SyncAltRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
-import PlaylistAddCheckRoundedIcon from '@mui/icons-material/PlaylistAddCheckRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
@@ -64,7 +63,6 @@ const navigationItemsByKey: Record<string, NavigationItem> = {
   products: { key: 'products', label: 'Products', to: '/products', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: CategoryRoundedIcon },
   inventory: { key: 'inventory', label: 'Inventory', to: '/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.DRIVER, ROLES.WORKER], icon: Inventory2RoundedIcon },
   'stock-movements': { key: 'stock-movements', label: 'Stock Movements', to: '/stock-movements', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER], icon: SyncAltRoundedIcon },
-  'inventory-counts': { key: 'inventory-counts', label: 'Inventory Counts', to: '/inventory-counts', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER], icon: PlaylistAddCheckRoundedIcon },
 
   'transport-report': { key: 'transport-report', label: 'Transport Report', to: '/reports/transport', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.DISPATCHER, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
   'inventory-report': { key: 'inventory-report', label: 'Inventory Report', to: '/reports/inventory', roles: [ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER], icon: AssessmentRoundedIcon },
@@ -157,10 +155,6 @@ function getNavigationItemForRole(itemKey: string, role?: Role | null): Navigati
 
   if (role === ROLES.WORKER && itemKey === 'stock-movements') {
     return { ...item, label: 'Assigned Stock Movements' };
-  }
-
-  if (role === ROLES.WORKER && itemKey === 'inventory-counts') {
-    return { ...item, label: 'Assigned Warehouse Counts' };
   }
 
   if (role === ROLES.DISPATCHER && itemKey === 'employees') return { ...item, label: 'Drivers & Availability' };

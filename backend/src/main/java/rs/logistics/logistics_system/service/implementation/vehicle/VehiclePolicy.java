@@ -10,9 +10,7 @@ import rs.logistics.logistics_system.entity.Vehicle;
 import rs.logistics.logistics_system.enums.VehicleStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
-import rs.logistics.logistics_system.lifecycle.LifecycleEntityType;
 import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
-import rs.logistics.logistics_system.lifecycle.LifecycleTransitionEngine;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.VehicleMaintenanceRepository;
 import rs.logistics.logistics_system.repository.VehicleRepository;
@@ -24,7 +22,6 @@ public class VehiclePolicy {
     private final VehicleRepository vehicleRepository;
     private final TransportOrderRepository transportOrderRepository;
     private final VehicleMaintenanceRepository vehicleMaintenanceRepository;
-    private final LifecycleTransitionEngine lifecycleTransitionEngine;
     private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     public void validateCreate(String registrationNumber, VehicleStatus status, Company targetCompany) {
@@ -35,18 +32,12 @@ public class VehiclePolicy {
         }
     }
 
-    public void validateUpdate(Vehicle vehicle, String registrationNumber, VehicleStatus newStatus) {
+    public void validateUpdate(Vehicle vehicle, String registrationNumber) {
         validateUniqueRegistrationNumberForUpdate(
                 vehicle.getId(),
                 registrationNumber,
                 vehicle.getCompany() != null ? vehicle.getCompany().getId() : null
         );
-
-        if (newStatus != vehicle.getStatus()) {
-            validateStatusTransition(vehicle.getStatus(), newStatus);
-            validateStatusChangeAgainstActiveTransport(vehicle, newStatus);
-            validateStatusChangeAgainstActiveMaintenance(vehicle, newStatus);
-        }
     }
 
     public void validateDelete(Vehicle vehicle) {
@@ -96,16 +87,6 @@ public class VehiclePolicy {
         return transportOrderRepository.existsByVehicleIdAndStatusIn(
                 vehicleId,
                 lifecycleStatusClassifier.activeTransportStatuses()
-        );
-    }
-
-    private void validateStatusTransition(VehicleStatus currentStatus, VehicleStatus newStatus) {
-        lifecycleTransitionEngine.requireTransitionAllowed(
-                LifecycleEntityType.VEHICLE,
-                VehicleStatus.class,
-                currentStatus,
-                newStatus,
-                "Vehicle status cannot be changed from " + currentStatus + " to " + newStatus
         );
     }
 

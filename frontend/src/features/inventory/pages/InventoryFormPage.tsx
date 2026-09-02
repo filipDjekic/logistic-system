@@ -277,7 +277,7 @@ export default function InventoryFormPage({ mode }: Props) {
         <Stack spacing={2.5}>
           <Typography variant="body2" color="text.secondary">
             {isEdit
-              ? 'Quantity is changed through stock movements or inventory counts. Only the minimum stock level can be edited here.'
+              ? 'Quantity is changed through stock movements. Only the minimum stock level can be edited here.'
               : 'Quantity and minimum stock level must be zero or greater.'}
           </Typography>
 
@@ -296,7 +296,7 @@ export default function InventoryFormPage({ mode }: Props) {
                 error={hasInvalidQuantity}
                 helperText={
                   isEdit
-                    ? 'Use a stock movement or inventory count to change quantity.'
+                    ? 'Use a stock movement to change quantity.'
                     : hasInvalidQuantity
                       ? 'Quantity must be zero or greater.'
                       : undefined

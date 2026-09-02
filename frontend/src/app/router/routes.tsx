@@ -199,13 +199,6 @@ export const routes = [
             children: [{ path: '/warehouses/:id/edit', element: lazyPage(<WarehouseEditPage />) }],
           },
           {
-            element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.WORKER]} />,
-            children: [
-              { path: '/inventory-counts', element: <Navigate to="/inventory" replace /> },
-              { path: '/inventory-counts/:id', element: <Navigate to="/inventory" replace /> },
-            ],
-          },
-          {
             element: <ProtectedRoute allowedRoles={rolesForCapability(CAPABILITIES.STOCK_MOVEMENT_CREATE)} />,
             children: [{ path: '/stock-movements/create', element: lazyPage(<StockOperationPage />) }],
           },

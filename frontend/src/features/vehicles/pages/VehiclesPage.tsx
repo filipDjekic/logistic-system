@@ -258,12 +258,12 @@ export default function VehiclesPage() {
               maxItems: toOptionalNumber(values.maxItems),
               fuelType: values.fuelType,
               yearOfProduction: Number(values.yearOfProduction),
-              status: values.status,
             };
 
             if (dialogMode === 'create') {
               createVehicleMutation.mutate({
                 ...payload,
+                status: values.status,
                 companyId: values.companyId ? Number(values.companyId) : undefined,
               }, {
                 onSuccess: () => {

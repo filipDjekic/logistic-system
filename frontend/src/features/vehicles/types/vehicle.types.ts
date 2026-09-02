@@ -84,7 +84,6 @@ export type VehicleUpdateRequest = {
   maxItems?: number | null;
   fuelType: string;
   yearOfProduction: number;
-  status: VehicleStatus;
 };
 
 export type VehicleFiltersState = {

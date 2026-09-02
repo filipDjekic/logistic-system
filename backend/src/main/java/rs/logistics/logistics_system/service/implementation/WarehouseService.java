@@ -24,11 +24,9 @@ import rs.logistics.logistics_system.entity.City;
 import rs.logistics.logistics_system.entity.Company;
 import rs.logistics.logistics_system.entity.Country;
 import rs.logistics.logistics_system.entity.Employee;
-import rs.logistics.logistics_system.entity.TransportOrder;
 import rs.logistics.logistics_system.entity.Warehouse;
 import rs.logistics.logistics_system.entity.Timezone;
 import rs.logistics.logistics_system.enums.EmployeePosition;
-import rs.logistics.logistics_system.enums.TransportOrderStatus;
 import rs.logistics.logistics_system.enums.WarehouseStatus;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
@@ -37,6 +35,7 @@ import rs.logistics.logistics_system.exception.ResourceNotFoundException;
 import rs.logistics.logistics_system.mapper.TransportOrderMapper;
 import rs.logistics.logistics_system.mapper.WarehouseInventoryMapper;
 import rs.logistics.logistics_system.mapper.WarehouseMapper;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 import rs.logistics.logistics_system.repository.CompanyRepository;
 import rs.logistics.logistics_system.repository.CountryRepository;
 import rs.logistics.logistics_system.repository.EmployeeRepository;
@@ -72,6 +71,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private final CityServiceDefinition cityService;
     private final DomainScopeValidator domainScopeValidator;
     private final WarehouseAccessGuard warehouseAccessGuard;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
     private final WarehouseZoneRepository warehouseZoneRepository;
     private final WarehouseAccessSynchronizationService warehouseAccessSynchronizationService;
 
@@ -448,19 +448,20 @@ public class WarehouseService implements WarehouseServiceDefinition {
             throw new BadRequestException("Warehouse cannot be deactivated while it contains quantity or reserved inventory.");
         }
 
-        boolean hasActiveOutgoingTransport = _transportOrderRepository.findBySourceWarehouseId(warehouse.getId())
-                .stream()
-                .map(TransportOrder::getStatus)
-                .anyMatch(status -> status == TransportOrderStatus.ASSIGNED || status == TransportOrderStatus.IN_TRANSIT);
+        var activeTransportStatuses = lifecycleStatusClassifier.activeTransportStatuses();
+        boolean hasActiveOutgoingTransport = _transportOrderRepository.existsBySourceWarehouseIdAndStatusIn(
+                warehouse.getId(),
+                activeTransportStatuses
+        );
 
         if (hasActiveOutgoingTransport) {
             throw new BadRequestException("Warehouse cannot be deactivated while it is source warehouse for active transport orders.");
         }
 
-        boolean hasActiveIncomingTransport = _transportOrderRepository.findByDestinationWarehouseId(warehouse.getId())
-                .stream()
-                .map(TransportOrder::getStatus)
-                .anyMatch(status -> status == TransportOrderStatus.ASSIGNED || status == TransportOrderStatus.IN_TRANSIT);
+        boolean hasActiveIncomingTransport = _transportOrderRepository.existsByDestinationWarehouseIdAndStatusIn(
+                warehouse.getId(),
+                activeTransportStatuses
+        );
 
         if (hasActiveIncomingTransport) {
             throw new BadRequestException("Warehouse cannot be deactivated while it is destination warehouse for active transport orders.");

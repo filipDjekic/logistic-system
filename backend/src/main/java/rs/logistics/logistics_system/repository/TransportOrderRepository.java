@@ -114,6 +114,10 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     List<TransportOrder> findByDestinationWarehouseIdAndCreatedBy_Company_Id(Long warehouseId, Long companyId);
 
+    boolean existsBySourceWarehouseIdAndStatusIn(Long warehouseId, Collection<TransportOrderStatus> statuses);
+
+    boolean existsByDestinationWarehouseIdAndStatusIn(Long warehouseId, Collection<TransportOrderStatus> statuses);
+
     boolean existsBySourceWarehouseIdOrDestinationWarehouseId(Long sourceWarehouseId, Long destinationWarehouseId);
 
     @Query("""

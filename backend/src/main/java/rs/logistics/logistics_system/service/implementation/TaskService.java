@@ -422,8 +422,8 @@ public class TaskService implements TaskServiceDefinition {
                             employee.getCompany() != null ? employee.getCompany().getId() : null
                     )
                     .stream()
-                    .anyMatch(warehouse -> warehouse.getId().equals(stockMovement.getWarehouse().getId()))
-                    || domainScopeValidator.hasWarehouseAccess(employee, stockMovement.getWarehouse(), EmployeeWarehouseAccessType.MANAGER, EmployeeWarehouseAccessType.PRIMARY);
+                    .anyMatch(warehouse -> warehouse.getId().equals(operationalWarehouse.getId()))
+                    || domainScopeValidator.hasWarehouseAccess(employee, operationalWarehouse, EmployeeWarehouseAccessType.MANAGER, EmployeeWarehouseAccessType.PRIMARY);
 
             if (!managesWarehouse) {
                 throw new ForbiddenException("WAREHOUSE_MANAGER can be assigned only to managed or assigned warehouses");

@@ -29,8 +29,6 @@ export const routeMeta = {
   inventory: { path: '/inventory', title: 'Inventory', breadcrumb: 'Inventory' },
   inventoryDetails: { path: '/inventory/:warehouseId/:productId', title: 'Inventory Details', breadcrumb: 'Inventory Details', parent: 'inventory' },
   stockMovements: { path: '/stock-movements', title: 'Stock Movements', breadcrumb: 'Stock Movements' },
-  inventoryCounts: { path: '/inventory-counts', title: 'Inventory Counts', breadcrumb: 'Inventory Counts' },
-  inventoryCountDetails: { path: '/inventory-counts/:id', title: 'Inventory Count Details', breadcrumb: 'Inventory Count Details', parent: 'inventoryCounts' },
   stockMovementDetails: { path: '/stock-movements/:id', title: 'Stock Movement Details', breadcrumb: 'Stock Movement Details', parent: 'stockMovements' },
   stockInbound: { path: '/stock/inbound', title: 'Inbound Stock', breadcrumb: 'Inbound Stock', parent: 'stockMovements' },
   stockOutbound: { path: '/stock/outbound', title: 'Outbound Stock', breadcrumb: 'Outbound Stock', parent: 'stockMovements' },
@@ -91,7 +89,6 @@ export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
     [/^\/users\/\d+$/, 'userDetails'],
     [/^\/roles\/\d+$/, 'roleDetails'],
     [/^\/stock-movements\/\d+$/, 'stockMovementDetails'],
-    [/^\/inventory-counts\/\d+$/, 'inventoryCountDetails'],
   ];
 
   const dynamicMatch = dynamicMatches.find(([pattern]) => pattern.test(pathname));
