@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
@@ -17,12 +17,12 @@ import { invalidateEmployeeState } from '../../../core/utils/invalidateAppState'
 import { formatSalary } from '../../../core/utils/formatSalary';
 import { parsePositiveIntegerId } from '../../../core/utils/routeParams';
 import { useTransportOrders } from '../../transport-orders/hooks/useTransportOrders';
+import { usersApi } from '../../users/api/usersApi';
 import { employeesApi } from '../api/employeesApi';
 import { useEmployee } from '../hooks/useEmployee';
 import type {
   EmployeeShiftResponse,
   EmployeeTaskResponse,
-  EmployeeUserOption,
 } from '../types/employee.types';
 import type { DataTableColumn } from '../../../shared/types/common.types';
 
@@ -47,6 +47,7 @@ export default function EmployeeDetailsPage() {
   const [activeTab, setActiveTab] = useState<EmployeeDetailsTab>('overview');
 
   const employeeQuery = useEmployee(validEmployeeId);
+  const linkedUserId = employeeQuery.data?.userId ?? null;
 
   const tasksQuery = useQuery({
     queryKey: ['employees', 'details', employeeId, 'tasks'],
@@ -65,9 +66,13 @@ export default function EmployeeDetailsPage() {
   });
 
   const usersQuery = useQuery({
-    queryKey: ['users', 'all'],
-    queryFn: employeesApi.getUsers,
-    enabled: auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER,
+    queryKey: ['users', 'details', linkedUserId],
+    queryFn: () => usersApi.getById(Number(linkedUserId)),
+    enabled:
+      linkedUserId != null &&
+      (auth.user?.role === ROLES.OVERLORD ||
+        auth.user?.role === ROLES.COMPANY_ADMIN ||
+        auth.user?.role === ROLES.HR_MANAGER),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -98,15 +103,6 @@ export default function EmployeeDetailsPage() {
       showSnackbar({ message: getErrorMessage(error), severity: 'error' });
     },
   });
-
-  const usersById = useMemo<Record<number, EmployeeUserOption>>(
-    () =>
-      (usersQuery.data ?? []).reduce<Record<number, EmployeeUserOption>>((acc, user) => {
-        acc[user.id] = user;
-        return acc;
-      }, {}),
-    [usersQuery.data],
-  );
 
   const taskColumns: DataTableColumn<EmployeeTaskResponse>[] = [
     {
@@ -167,7 +163,7 @@ export default function EmployeeDetailsPage() {
   }
 
   const employee = employeeQuery.data;
-  const linkedUser = employee.userId ? usersById[employee.userId] : null;
+  const linkedUser = usersQuery.data ?? null;
   const canArchiveEmployee = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canViewHistory = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canManageOperationalNotes =

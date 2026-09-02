@@ -1,12 +1,14 @@
 import type { PropsWithChildren } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 import { useInitializeAuth } from '../../features/auth/hooks/useMe';
+import { useNotificationLiveUpdates } from '../../features/notifications/hooks/useNotificationLiveUpdates';
 import { useAuthStore } from '../../core/auth/authStore';
 
 export default function AuthBootstrap({ children }: PropsWithChildren) {
   const auth = useAuthStore();
 
   useInitializeAuth();
+  useNotificationLiveUpdates();
 
   const isBootstrapping =
     Boolean(auth.accessToken) &&

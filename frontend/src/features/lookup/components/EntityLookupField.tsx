@@ -50,7 +50,13 @@ export function EntityLookupField({
   lookupParams,
 }: EntityLookupFieldProps) {
   const [open, setOpen] = useState(false);
+  const [hasOpened, setHasOpened] = useState(false);
   const resolvedValue = value;
+
+  const openLookup = () => {
+    setHasOpened(true);
+    setOpen(true);
+  };
 
   return (
     <Box>
@@ -63,7 +69,7 @@ export function EntityLookupField({
         spacing={1}
         alignItems={{ xs: 'stretch', sm: 'center' }}
         onClick={() => {
-          if (!disabled) setOpen(true);
+          if (!disabled) openLookup();
         }}
         role="button"
         tabIndex={disabled ? -1 : 0}
@@ -71,7 +77,7 @@ export function EntityLookupField({
           if (disabled) return;
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            setOpen(true);
+            openLookup();
           }
         }}
         sx={{
@@ -130,7 +136,7 @@ export function EntityLookupField({
             disabled={disabled}
             onClick={(event) => {
               event.stopPropagation();
-              setOpen(true);
+              openLookup();
             }}
           >
             {resolvedValue ? 'Change' : 'Choose'}
@@ -140,23 +146,25 @@ export function EntityLookupField({
 
       {helperText ? <FormHelperText error={error}>{helperText}</FormHelperText> : null}
 
-      <EntityLookupDialog
-        open={open}
-        title={dialogTitle ?? `Choose ${label}`}
-        entityType={entityType}
-        value={resolvedValue}
-        onClose={() => setOpen(false)}
-        onSelect={onChange}
-        searchPlaceholder={searchPlaceholder}
-        pageSize={pageSize}
-        disabledOptionIds={disabledOptionIds}
-        excludedOptionIds={excludedOptionIds}
-        sort={sort}
-        activeOnly={activeOnly}
-        warehouseId={warehouseId}
-        accessMode={accessMode}
-        lookupParams={lookupParams}
-      />
+      {hasOpened ? (
+        <EntityLookupDialog
+          open={open}
+          title={dialogTitle ?? `Choose ${label}`}
+          entityType={entityType}
+          value={resolvedValue}
+          onClose={() => setOpen(false)}
+          onSelect={onChange}
+          searchPlaceholder={searchPlaceholder}
+          pageSize={pageSize}
+          disabledOptionIds={disabledOptionIds}
+          excludedOptionIds={excludedOptionIds}
+          sort={sort}
+          activeOnly={activeOnly}
+          warehouseId={warehouseId}
+          accessMode={accessMode}
+          lookupParams={lookupParams}
+        />
+      ) : null}
     </Box>
   );
 }

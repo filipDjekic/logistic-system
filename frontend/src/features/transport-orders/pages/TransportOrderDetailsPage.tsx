@@ -139,7 +139,7 @@ export default function TransportOrderDetailsPage() {
     queryKey: queryKeys.transportOrders.items(transportOrderId),
     queryFn: () =>
       transportOrdersApi.getItemsByTransportOrderId(transportOrderId),
-    enabled: isValidTransportOrderId && canReadItems,
+    enabled: isValidTransportOrderId && canReadItems && activeTab === "items",
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -158,7 +158,10 @@ export default function TransportOrderDetailsPage() {
         size: 20,
         sort: "createdAt,desc",
       }),
-    enabled: isValidTransportOrderId && canReadItems,
+    enabled:
+      isValidTransportOrderId &&
+      canReadItems &&
+      activeTab === "relatedStockMovements",
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -172,7 +175,7 @@ export default function TransportOrderDetailsPage() {
           sort: "dueDate,desc",
         }
       : undefined,
-    isValidTransportOrderId && canReadItems,
+    isValidTransportOrderId && canReadItems && activeTab === "tasks",
   );
 
   const allowedTransitionsQuery = useQuery({
@@ -211,7 +214,7 @@ export default function TransportOrderDetailsPage() {
   const productsQuery = useQuery({
     queryKey: queryKeys.transportOrders.products(),
     queryFn: transportOrdersApi.getProducts,
-    enabled: canResolveProducts,
+    enabled: canResolveProducts && activeTab === "items",
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -390,12 +393,17 @@ export default function TransportOrderDetailsPage() {
 
     const intervalId = window.setInterval(() => {
       void refetchTransportOrder();
-      void refetchRelatedTasks();
-      void refetchRelatedStockMovements();
+      if (activeTab === "tasks") {
+        void refetchRelatedTasks();
+      }
+      if (activeTab === "relatedStockMovements") {
+        void refetchRelatedStockMovements();
+      }
     }, 30000);
 
     return () => window.clearInterval(intervalId);
   }, [
+    activeTab,
     refetchRelatedStockMovements,
     refetchRelatedTasks,
     refetchTransportOrder,

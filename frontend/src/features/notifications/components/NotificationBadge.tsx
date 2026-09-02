@@ -2,15 +2,12 @@ import NotificationsNoneRoundedIcon from '@mui/icons-material/NotificationsNoneR
 import { Badge, IconButton, Tooltip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
-import { useNotificationLiveUpdates } from '../hooks/useNotificationLiveUpdates';
 
 export default function NotificationBadge() {
   const navigate = useNavigate();
   const unreadCountQuery = useUnreadNotificationsCount();
 
   const unreadCount = unreadCountQuery.data ?? 0;
-
-  useNotificationLiveUpdates();
 
   return (
     <Tooltip title="Notifications">

@@ -232,9 +232,7 @@ export default function TasksPage() {
 
   const filtersDisabled =
     tasksQuery.isFetching ||
-    employeesQuery.isFetching ||
-    transportOrdersQuery.isFetching ||
-    stockMovementsQuery.isFetching;
+    taskStatusCountsQuery.isFetching;
 
   const hasActiveFilters =
     filters.search.trim().length > 0 ||
@@ -391,20 +389,8 @@ export default function TasksPage() {
         table={
           <TasksTable
             rows={rows}
-            loading={
-              tasksQuery.isLoading ||
-              (canCreateOrAssign &&
-                (employeesQuery.isLoading ||
-                  transportOrdersQuery.isLoading ||
-                  stockMovementsQuery.isLoading))
-            }
-            error={
-              tasksQuery.isError ||
-              (canCreateOrAssign &&
-                (employeesQuery.isError ||
-                  transportOrdersQuery.isError ||
-                  stockMovementsQuery.isError))
-            }
+            loading={tasksQuery.isLoading}
+            error={tasksQuery.isError}
             onRetry={refreshAll}
             role={currentRole}
             canMutate={canShowTaskActions}
