@@ -281,10 +281,8 @@ export default function UserDetailsPage() {
                   employee: {
                     jmbg: values.employeeJmbg,
                     phoneNumber: values.employeePhoneNumber,
-                    position: values.employeePosition,
                     employmentDate: values.employeeEmploymentDate,
                     salary: Number(values.employeeSalary),
-                    active: values.employeeActive,
                   },
                 },
               },

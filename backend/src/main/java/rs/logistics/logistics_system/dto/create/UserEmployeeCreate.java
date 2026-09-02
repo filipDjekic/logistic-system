@@ -28,6 +28,9 @@ public class UserEmployeeCreate {
     @NotNull
     private EmployeePosition position;
 
+    @Positive(message = "Primary warehouse is not valid")
+    private Long primaryWarehouseId;
+
     @NotNull
     private LocalDate employmentDate;
 

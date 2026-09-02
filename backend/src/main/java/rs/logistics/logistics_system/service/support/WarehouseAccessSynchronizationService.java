@@ -46,6 +46,18 @@ public class WarehouseAccessSynchronizationService {
         ensureCanonicalAssignment(newManager, warehouse, EmployeeWarehouseAccessType.MANAGER);
     }
 
+    public void closeAllActiveAssignments(Employee employee) {
+        assignmentRepository.findByEmployee_IdOrderByWarehouse_NameAsc(employee.getId()).stream()
+                .filter(assignment -> Boolean.TRUE.equals(assignment.getActive()))
+                .forEach(assignment -> {
+                    assignment.setActive(false);
+                    assignment.setValidTo(LocalDate.now());
+                    EmployeeWarehouseAssignment saved = assignmentRepository.save(assignment);
+                    auditFacade.log("UPDATE", "EMPLOYEE_WAREHOUSE_ASSIGNMENT", saved.getId(), employee.getEmail() + " -> " + saved.getWarehouse().getName(),
+                            "Warehouse access closed because employee was terminated");
+                });
+    }
+
     private void ensureCanonicalAssignment(Employee employee, Warehouse warehouse, EmployeeWarehouseAccessType canonicalType) {
         EmployeeWarehouseAssignment assignment = assignmentRepository
                 .findByEmployee_IdAndWarehouse_Id(employee.getId(), warehouse.getId())

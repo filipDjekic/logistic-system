@@ -63,6 +63,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByAssignedEmployeeId(Long assignedEmployeeId);
 
+    boolean existsByAssignedEmployeeIdAndStatusIn(Long assignedEmployeeId, Collection<TaskStatus> statuses);
+
     List<Task> findByAssignedEmployeeIdAndAssignedEmployee_Company_Id(Long assignedEmployeeId, Long companyId);
 
     List<Task> findByStatus(TaskStatus status);

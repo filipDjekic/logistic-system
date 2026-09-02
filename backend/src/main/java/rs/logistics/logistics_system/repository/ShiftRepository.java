@@ -10,6 +10,7 @@ import rs.logistics.logistics_system.enums.ShiftStatus;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +21,12 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     List<Shift> findByEmployeeId(Long employeeId);
 
     List<Shift> findByEmployeeIdAndEmployee_Company_Id(Long employeeId, Long companyId);
+
+    boolean existsByEmployeeIdAndStatusInAndEndTimeGreaterThanEqual(
+            Long employeeId,
+            Collection<ShiftStatus> statuses,
+            LocalDateTime moment
+    );
 
     List<Shift> findByStatus(ShiftStatus status);
 

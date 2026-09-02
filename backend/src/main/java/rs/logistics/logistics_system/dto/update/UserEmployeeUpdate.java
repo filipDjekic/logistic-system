@@ -10,7 +10,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import rs.logistics.logistics_system.enums.EmployeePosition;
 
 @Getter
 @Setter
@@ -26,17 +25,11 @@ public class UserEmployeeUpdate {
     private String phoneNumber;
 
     @NotNull
-    private EmployeePosition position;
-
-    @NotNull
     private LocalDate employmentDate;
 
     @NotNull
     @Positive
     private BigDecimal salary;
-
-    @NotNull
-    private Boolean active;
 
     private Boolean applyGeneratedEmailSuggestion;
 }

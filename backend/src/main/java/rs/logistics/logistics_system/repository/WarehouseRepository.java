@@ -39,6 +39,8 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
 
     List<Warehouse> findByManagerId(Long managerId);
 
+    boolean existsByManagerId(Long managerId);
+
     List<Warehouse> findByManagerIdAndCompany_Id(Long managerId, Long companyId);
 
     List<Warehouse> findByStatus(WarehouseStatus status);

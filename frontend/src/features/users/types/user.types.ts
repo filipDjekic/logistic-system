@@ -47,6 +47,7 @@ export type UserEmployeeCreateRequest = {
   jmbg: string;
   phoneNumber: string;
   position: EmployeePosition;
+  primaryWarehouseId?: number | null;
   employmentDate: string;
   salary: number;
 };
@@ -54,10 +55,8 @@ export type UserEmployeeCreateRequest = {
 export type UserEmployeeUpdateRequest = {
   jmbg: string;
   phoneNumber: string;
-  position: EmployeePosition;
   employmentDate: string;
   salary: number;
-  active: boolean;
   applyGeneratedEmailSuggestion?: boolean;
 };
 
@@ -99,6 +98,7 @@ export type CreateUserFormValues = {
   employeeJmbg: string;
   employeePhoneNumber: string;
   employeePosition: EmployeePosition;
+  employeePrimaryWarehouseId: number | null;
   employeeEmploymentDate: string;
   employeeSalary: string;
 };
@@ -112,8 +112,6 @@ export type UpdateUserFormValues = {
   status: UserStatus;
   employeeJmbg: string;
   employeePhoneNumber: string;
-  employeePosition: EmployeePosition;
   employeeEmploymentDate: string;
   employeeSalary: string;
-  employeeActive: boolean;
 };

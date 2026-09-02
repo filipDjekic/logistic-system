@@ -32,6 +32,10 @@ public class DomainScopeValidator {
     }
 
     public void ensureEmployeeCanBelongToPrimaryWarehouse(Employee employee) {
+        ensureEmployeeCanBelongToPrimaryWarehouse(employee, employee != null ? employee.getPosition() : null);
+    }
+
+    public void ensureEmployeeCanBelongToPrimaryWarehouse(Employee employee, EmployeePosition position) {
         if (employee == null) {
             throw new BadRequestException("Employee is required");
         }
@@ -42,7 +46,6 @@ public class DomainScopeValidator {
             ensureOperationalWarehouseForAssignment(warehouse, "Primary warehouse is not operational");
         }
 
-        EmployeePosition position = employee.getPosition();
         if (warehouse != null
                 && position != EmployeePosition.WORKER
                 && position != EmployeePosition.WAREHOUSE_MANAGER) {
@@ -121,5 +124,25 @@ public class DomainScopeValidator {
                 java.util.Arrays.asList(acceptedTypes),
                 java.time.LocalDate.now()
         );
+    }
+
+    public void ensureWarehouseAccessTypeAllowed(EmployeePosition position, EmployeeWarehouseAccessType accessType) {
+        if (accessType == EmployeeWarehouseAccessType.MANAGER && position != EmployeePosition.WAREHOUSE_MANAGER) {
+            throw new BadRequestException("MANAGER warehouse access requires WAREHOUSE_MANAGER position");
+        }
+        if ((accessType == EmployeeWarehouseAccessType.WORKER || accessType == EmployeeWarehouseAccessType.PRIMARY)
+                && position != EmployeePosition.WORKER && position != EmployeePosition.WAREHOUSE_MANAGER) {
+            throw new BadRequestException("Worker warehouse access requires WORKER or WAREHOUSE_MANAGER position");
+        }
+        if (accessType == EmployeeWarehouseAccessType.DISPATCH
+                && position != EmployeePosition.DISPATCHER && position != EmployeePosition.WAREHOUSE_MANAGER) {
+            throw new BadRequestException("DISPATCH warehouse access requires DISPATCHER or WAREHOUSE_MANAGER position");
+        }
+    }
+
+    public void ensureActiveWarehouseAccessCompatibleWithPosition(Employee employee, EmployeePosition position) {
+        employeeWarehouseAssignmentRepository.findByEmployee_IdOrderByWarehouse_NameAsc(employee.getId()).stream()
+                .filter(assignment -> Boolean.TRUE.equals(assignment.getActive()))
+                .forEach(assignment -> ensureWarehouseAccessTypeAllowed(position, assignment.getAccessType()));
     }
 }

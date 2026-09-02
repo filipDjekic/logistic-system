@@ -92,7 +92,7 @@ public interface TransportOrderRepository extends JpaRepository<TransportOrder, 
 
     boolean existsByVehicleIdAndStatusIn(Long vehicleId, List<TransportOrderStatus> status);
 
-    boolean existsByAssignedEmployeeIdAndStatusIn(Long assignedEmployeeId, List<TransportOrderStatus> status);
+    boolean existsByAssignedEmployeeIdAndStatusIn(Long assignedEmployeeId, Collection<TransportOrderStatus> statuses);
 
     boolean existsByVehicleIdAndStatusInAndIdNot(Long vehicleId, List<TransportOrderStatus> status, Long id);
 

@@ -199,6 +199,7 @@ export default function UsersPage() {
                 jmbg: values.employeeJmbg.trim(),
                 phoneNumber: values.employeePhoneNumber.trim(),
                 position: values.employeePosition,
+                primaryWarehouseId: values.employeePrimaryWarehouseId,
                 employmentDate: values.employeeEmploymentDate,
                 salary: Number(values.employeeSalary),
               },
@@ -221,10 +222,8 @@ export default function UsersPage() {
                 employee: {
                   jmbg: values.employeeJmbg.trim(),
                   phoneNumber: values.employeePhoneNumber.trim(),
-                  position: values.employeePosition,
                   employmentDate: values.employeeEmploymentDate,
                   salary: Number(values.employeeSalary),
-                  active: values.employeeActive,
                 },
               },
             });

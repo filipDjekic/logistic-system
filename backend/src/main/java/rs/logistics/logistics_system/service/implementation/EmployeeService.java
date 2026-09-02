@@ -47,6 +47,7 @@ import rs.logistics.logistics_system.repository.EmployeeProfileChangeRequestRepo
 import rs.logistics.logistics_system.repository.RoleRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
+import rs.logistics.logistics_system.repository.TransportOrderRepository;
 import rs.logistics.logistics_system.repository.UserRepository;
 import rs.logistics.logistics_system.security.AuthenticatedUserProvider;
 import rs.logistics.logistics_system.security.RoleCatalog;
@@ -56,8 +57,10 @@ import rs.logistics.logistics_system.service.definition.CityServiceDefinition;
 import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinition;
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
+import rs.logistics.logistics_system.service.definition.TimeServiceDefinition;
 import rs.logistics.logistics_system.service.support.EmployeeEmailGenerator;
 import rs.logistics.logistics_system.service.support.WarehouseAccessSynchronizationService;
+import rs.logistics.logistics_system.lifecycle.LifecycleStatusClassifier;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +70,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     private final EmployeeProfileChangeRequestRepository employeeProfileChangeRequestRepository;
     private final TaskRepository _taskRepository;
     private final ShiftRepository _shiftRepository;
+    private final TransportOrderRepository transportOrderRepository;
     private final UserRepository _userRepository;
     private final RoleRepository _roleRepository;
     private final CompanyRepository _companyRepository;
@@ -75,6 +79,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
 
     private final UserServiceDefinition userService;
     private final TimezoneServiceDefinition timezoneService;
+    private final TimeServiceDefinition timeService;
     private final CityServiceDefinition cityService;
     private final AuditFacadeDefinition auditFacade;
     private final PasswordEncoder passwordEncoder;
@@ -84,6 +89,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     private final RolePositionPolicy rolePositionPolicy;
     private final DomainScopeValidator domainScopeValidator;
     private final WarehouseAccessSynchronizationService warehouseAccessSynchronizationService;
+    private final LifecycleStatusClassifier lifecycleStatusClassifier;
 
     @Override
     @Transactional
@@ -413,9 +419,12 @@ public class EmployeeService implements EmployeeServiceDefinition {
             throw new BadRequestException("Employee is already inactive");
         }
 
+        validateNoActiveOperationalResponsibilities(employee);
+
         Boolean oldActive = employee.getActive();
         employee.setActive(false);
         _employeeRepository.save(employee);
+        warehouseAccessSynchronizationService.closeAllActiveAssignments(employee);
 
         if (employee.getUser() != null && Boolean.TRUE.equals(employee.getUser().getEnabled())) {
             userService.disableUser(employee.getUser().getId());
@@ -445,10 +454,12 @@ public class EmployeeService implements EmployeeServiceDefinition {
             validateUserBelongsToCompany(employee.getUser(), requireEmployeeCompanyId(employee));
             rolePositionPolicy.validatePositionMatchesRole(employee.getPosition(), employee.getUser().getRole());
         }
+        domainScopeValidator.ensureEmployeeCanBelongToPrimaryWarehouse(employee);
 
         Boolean oldActive = employee.getActive();
         employee.setActive(true);
         Employee saved = _employeeRepository.save(employee);
+        warehouseAccessSynchronizationService.synchronizePrimaryWarehouse(saved, null, saved.getPrimaryWarehouse());
 
         if (saved.getUser() != null && !Boolean.TRUE.equals(saved.getUser().getEnabled())) {
             userService.enableUser(saved.getUser().getId());
@@ -470,16 +481,9 @@ public class EmployeeService implements EmployeeServiceDefinition {
     public EmployeeResponse changePosition(Long id, EmployeePositionUpdate dto) {
         Employee employee = getEmployeeOrThrow(id);
         if (employee.getPosition() == dto.getPosition()) return EmployeeMapper.toResponse(employee);
-        boolean activeTasks = employee.getTasks().stream().anyMatch(t -> !Set.of(
-                rs.logistics.logistics_system.enums.TaskStatus.COMPLETED,
-                rs.logistics.logistics_system.enums.TaskStatus.CANCELLED).contains(t.getStatus()));
-        boolean activeShifts = employee.getShifts().stream().anyMatch(s -> Set.of(
-                rs.logistics.logistics_system.enums.ShiftStatus.PLANNED,
-                rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE).contains(s.getStatus()));
-        boolean activeTransports = employee.getTransportOrders().stream().anyMatch(t -> !Set.of(
-                rs.logistics.logistics_system.enums.TransportOrderStatus.DELIVERED,
-                rs.logistics.logistics_system.enums.TransportOrderStatus.FAILED,
-                rs.logistics.logistics_system.enums.TransportOrderStatus.CANCELLED).contains(t.getStatus()));
+        boolean activeTasks = _taskRepository.existsByAssignedEmployeeIdAndStatusIn(employee.getId(), lifecycleStatusClassifier.activeTaskStatuses());
+        boolean activeShifts = hasCurrentOrFutureShift(employee.getId());
+        boolean activeTransports = transportOrderRepository.existsByAssignedEmployeeIdAndStatusIn(employee.getId(), lifecycleStatusClassifier.activeTransportStatuses());
         if (activeTasks || activeShifts || (employee.getPosition() == EmployeePosition.DRIVER && activeTransports)) {
             throw new BadRequestException("Employee position cannot be changed while active operational assignments exist.");
         }
@@ -492,12 +496,37 @@ public class EmployeeService implements EmployeeServiceDefinition {
             throw new BadRequestException("Clear the primary warehouse before changing to this position.");
         }
         if (employee.getUser() != null) rolePositionPolicy.validatePositionMatchesRole(dto.getPosition(), employee.getUser().getRole());
+        domainScopeValidator.ensureEmployeeCanBelongToPrimaryWarehouse(employee, dto.getPosition());
+        domainScopeValidator.ensureActiveWarehouseAccessCompatibleWithPosition(employee, dto.getPosition());
         EmployeePosition old = employee.getPosition();
         employee.setPosition(dto.getPosition());
         Employee saved = _employeeRepository.save(employee);
         auditFacade.recordFieldChange("EMPLOYEE", id, "position", old, saved.getPosition());
         auditFacade.log("POSITION_CHANGE", "EMPLOYEE", id, saved.getEmail(), "Employee position changed");
         return EmployeeMapper.toResponse(saved);
+    }
+
+    private void validateNoActiveOperationalResponsibilities(Employee employee) {
+        if (_taskRepository.existsByAssignedEmployeeIdAndStatusIn(employee.getId(), lifecycleStatusClassifier.activeTaskStatuses())) {
+            throw new BadRequestException("Employee cannot be terminated while assigned to active tasks.");
+        }
+        if (hasCurrentOrFutureShift(employee.getId())) {
+            throw new BadRequestException("Employee cannot be terminated while assigned to current or future shifts.");
+        }
+        if (transportOrderRepository.existsByAssignedEmployeeIdAndStatusIn(employee.getId(), lifecycleStatusClassifier.activeTransportStatuses())) {
+            throw new BadRequestException("Employee cannot be terminated while assigned to active transport orders.");
+        }
+        if (warehouseRepository.existsByManagerId(employee.getId())) {
+            throw new BadRequestException("Employee cannot be terminated while managing a warehouse.");
+        }
+    }
+
+    private boolean hasCurrentOrFutureShift(Long employeeId) {
+        return _shiftRepository.existsByEmployeeIdAndStatusInAndEndTimeGreaterThanEqual(
+                employeeId,
+                List.of(rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE),
+                timeService.nowSystem()
+        );
     }
 
     @Override @Transactional

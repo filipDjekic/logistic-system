@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import FormSelect from '../../../shared/components/Form/FormSelect';
 import { getSalaryCurrencyCode } from '../../../core/utils/formatSalary';
 import type { CompanyResponse } from '../../companies/types/company.types';
 import type { RoleResponse } from '../../roles/types/role.types';
+import { EntityLookupField, type LookupOption } from '../../lookup';
 import type {
   CreateUserFormValues,
   UpdateUserFormValues,
@@ -69,6 +70,7 @@ const createDefaultValues: CreateUserFormValues = {
   employeeJmbg: '',
   employeePhoneNumber: '',
   employeePosition: 'WORKER',
+  employeePrimaryWarehouseId: null,
   employeeEmploymentDate: '',
   employeeSalary: '',
 };
@@ -82,10 +84,8 @@ const updateDefaultValues: UpdateUserFormValues = {
   status: 'ACTIVE',
   employeeJmbg: '',
   employeePhoneNumber: '',
-  employeePosition: 'WORKER',
   employeeEmploymentDate: '',
   employeeSalary: '',
-  employeeActive: true,
 };
 
 export default function UserFormDialog({
@@ -112,6 +112,7 @@ export default function UserFormDialog({
     defaultValues: updateDefaultValues,
     mode: 'onChange',
   });
+  const [selectedPrimaryWarehouse, setSelectedPrimaryWarehouse] = useState<LookupOption | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -120,6 +121,7 @@ export default function UserFormDialog({
 
     if (mode === 'create') {
       createForm.reset(createDefaultValues);
+      setSelectedPrimaryWarehouse(null);
       return;
     }
 
@@ -133,13 +135,11 @@ export default function UserFormDialog({
         status: initialData.status,
         employeeJmbg: initialData.employee?.jmbg ?? '',
         employeePhoneNumber: initialData.employee?.phoneNumber ?? '',
-        employeePosition: initialData.employee?.position ?? 'WORKER',
         employeeEmploymentDate: initialData.employee?.employmentDate ?? '',
         employeeSalary:
           initialData.employee?.salary != null
             ? String(initialData.employee.salary)
             : '',
-        employeeActive: initialData.employee?.active ?? true,
       });
       return;
     }
@@ -166,7 +166,6 @@ export default function UserFormDialog({
 
   const auth = useAuthStore();
   const isOverlord = auth.user?.role === ROLES.OVERLORD;
-  const canAssignRoles = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canManageUserActivation = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
 
   const visibleRoles = useMemo(
@@ -202,6 +201,7 @@ export default function UserFormDialog({
   }));
 
   const selectedCreateCompanyId = useWatch({ control: createForm.control, name: 'companyId' });
+  const selectedCreatePosition = useWatch({ control: createForm.control, name: 'employeePosition' });
   const createSalaryCurrencyCode = useMemo(() => {
     const selectedCompany = companies.find((company) => String(company.id) === String(selectedCreateCompanyId));
     return getSalaryCurrencyCode(selectedCompany?.effectiveCurrencyCode ?? selectedCompany?.currencyCode);
@@ -326,18 +326,6 @@ export default function UserFormDialog({
                   />
                 </Grid>
 
-                {canAssignRoles ? (
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormSelect
-                      name="roleId"
-                      control={updateForm.control}
-                      label="Role"
-                      options={roleOptions}
-                      required
-                    />
-                  </Grid>
-                ) : null}
-
                 <Grid size={{ xs: 12, md: 6 }}>
                   <FormSelect
                     name="status"
@@ -399,6 +387,27 @@ export default function UserFormDialog({
                 </Grid>
 
                 <Grid size={{ xs: 12, md: 6 }}>
+                  <EntityLookupField
+                    label="Primary warehouse"
+                    entityType="warehouses"
+                    value={selectedPrimaryWarehouse}
+                    onChange={(option) => {
+                      setSelectedPrimaryWarehouse(option);
+                      createForm.setValue('employeePrimaryWarehouseId', option?.id ?? null, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }}
+                    required={selectedCreatePosition === 'WORKER'}
+                    error={Boolean(createForm.formState.errors.employeePrimaryWarehouseId)}
+                    helperText={createForm.formState.errors.employeePrimaryWarehouseId?.message ?? (selectedCreatePosition === 'WORKER' ? 'Required for workers' : undefined)}
+                    placeholder="Choose primary warehouse"
+                    searchPlaceholder="Search warehouses..."
+                    activeOnly
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormDatePicker
                     name="employeeEmploymentDate"
                     control={createForm.control}
@@ -449,16 +458,6 @@ export default function UserFormDialog({
                 </Grid>
 
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <FormSelect
-                    name="employeePosition"
-                    control={updateForm.control}
-                    label="Employee position"
-                    options={positionOptions}
-                    required
-                  />
-                </Grid>
-
-                <Grid size={{ xs: 12, md: 6 }}>
                   <FormDatePicker
                     name="employeeEmploymentDate"
                     control={updateForm.control}
@@ -488,13 +487,6 @@ export default function UserFormDialog({
                   />
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 3 }}>
-                  <FormCheckbox
-                    name="employeeActive"
-                    control={updateForm.control}
-                    label="Employee active"
-                  />
-                </Grid>
               </Grid>
             )}
           </Stack>

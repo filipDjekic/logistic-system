@@ -9,7 +9,6 @@ import rs.logistics.logistics_system.dto.update.EmployeeWarehouseAssignmentUpdat
 import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.entity.EmployeeWarehouseAssignment;
 import rs.logistics.logistics_system.entity.Warehouse;
-import rs.logistics.logistics_system.enums.EmployeePosition;
 import rs.logistics.logistics_system.enums.EmployeeWarehouseAccessType;
 import rs.logistics.logistics_system.exception.BadRequestException;
 import rs.logistics.logistics_system.exception.ConflictException;
@@ -238,17 +237,7 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
         domainScopeValidator.ensureOperationalWarehouseForAssignment(warehouse, "Warehouse is not operational");
         validateDateRange(validFrom, validTo);
 
-        EmployeePosition position = employee.getPosition();
-        if (accessType == EmployeeWarehouseAccessType.MANAGER && position != EmployeePosition.WAREHOUSE_MANAGER) {
-            throw new BadRequestException("MANAGER warehouse access requires WAREHOUSE_MANAGER position");
-        }
-        if ((accessType == EmployeeWarehouseAccessType.WORKER || accessType == EmployeeWarehouseAccessType.PRIMARY)
-                && position != EmployeePosition.WORKER && position != EmployeePosition.WAREHOUSE_MANAGER) {
-            throw new BadRequestException("Worker warehouse access requires WORKER or WAREHOUSE_MANAGER position");
-        }
-        if (accessType == EmployeeWarehouseAccessType.DISPATCH && position != EmployeePosition.DISPATCHER && position != EmployeePosition.WAREHOUSE_MANAGER) {
-            throw new BadRequestException("DISPATCH warehouse access requires DISPATCHER or WAREHOUSE_MANAGER position");
-        }
+        domainScopeValidator.ensureWarehouseAccessTypeAllowed(employee.getPosition(), accessType);
     }
 
     private void validateDateRange(LocalDate validFrom, LocalDate validTo) {

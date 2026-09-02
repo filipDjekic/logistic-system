@@ -88,7 +88,16 @@ export const createUserSchema = z.object({
     message: 'Status is required',
   }),
   companyId: companyIdSchema,
+  employeePrimaryWarehouseId: z.coerce.number().positive('Primary warehouse is not valid').optional().nullable(),
   ...employeeBaseSchema,
+}).superRefine((values, ctx) => {
+  if (values.employeePosition === 'WORKER' && !values.employeePrimaryWarehouseId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['employeePrimaryWarehouseId'],
+      message: 'Primary warehouse is required for WORKER',
+    });
+  }
 });
 
 export const updateUserSchema = z.object({
@@ -108,8 +117,10 @@ export const updateUserSchema = z.object({
   status: z.enum(userStatusOptions, {
     message: 'Status is required',
   }),
-  ...employeeBaseSchema,
-  employeeActive: z.boolean(),
+  employeeJmbg: employeeBaseSchema.employeeJmbg,
+  employeePhoneNumber: employeeBaseSchema.employeePhoneNumber,
+  employeeEmploymentDate: employeeBaseSchema.employeeEmploymentDate,
+  employeeSalary: employeeBaseSchema.employeeSalary,
 });
 
 export type CreateUserFormSchemaValues = z.infer<typeof createUserSchema>;
