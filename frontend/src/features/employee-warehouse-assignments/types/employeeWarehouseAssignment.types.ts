@@ -4,7 +4,7 @@ import type { WarehouseStatus } from '../../warehouses/types/warehouse.types';
 export type EmployeeWarehouseAccessType = 'PRIMARY' | 'WORKER' | 'MANAGER' | 'DISPATCH' | 'VIEW_ONLY';
 
 export type EmployeeWarehouseAssignmentResponse = {
-  id: number;
+  id: number | null;
   companyId: number;
   companyName: string | null;
   employeeId: number;
@@ -20,6 +20,7 @@ export type EmployeeWarehouseAssignmentResponse = {
   notes: string | null;
   createdAt: string;
   updatedAt: string | null;
+  derived?: boolean;
 };
 
 export type EmployeeWarehouseAssignmentCreateRequest = {

@@ -57,6 +57,7 @@ import rs.logistics.logistics_system.service.definition.EmployeeServiceDefinitio
 import rs.logistics.logistics_system.service.definition.UserServiceDefinition;
 import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
 import rs.logistics.logistics_system.service.support.EmployeeEmailGenerator;
+import rs.logistics.logistics_system.service.support.WarehouseAccessSynchronizationService;
 
 @Service
 @RequiredArgsConstructor
@@ -82,6 +83,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
     private final AuthenticatedUserProvider authenticatedUserProvider;
     private final RolePositionPolicy rolePositionPolicy;
     private final DomainScopeValidator domainScopeValidator;
+    private final WarehouseAccessSynchronizationService warehouseAccessSynchronizationService;
 
     @Override
     @Transactional
@@ -109,6 +111,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         domainScopeValidator.ensureEmployeeCanBelongToPrimaryWarehouse(employee);
 
         Employee saved = _employeeRepository.save(employee);
+        warehouseAccessSynchronizationService.synchronizePrimaryWarehouse(saved, null, saved.getPrimaryWarehouse());
 
         auditFacade.recordCreate("EMPLOYEE", saved.getId(), saved.getEmail());
         auditFacade.recordFieldChange("EMPLOYEE", saved.getId(), "user_id", null, saved.getUser() != null ? saved.getUser().getId() : null);
@@ -177,6 +180,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         domainScopeValidator.ensureEmployeeCanBelongToPrimaryWarehouse(employee);
 
         Employee savedEmployee = _employeeRepository.save(employee);
+        warehouseAccessSynchronizationService.synchronizePrimaryWarehouse(savedEmployee, null, savedEmployee.getPrimaryWarehouse());
 
         auditFacade.recordCreate("USER", savedUser.getId(), savedUser.getEmail());
         auditFacade.recordFieldChange("USER", savedUser.getId(), "company_id", null, savedUser.getCompany() != null ? savedUser.getCompany().getId() : null);
@@ -482,6 +486,11 @@ public class EmployeeService implements EmployeeServiceDefinition {
         if (employee.getPosition() == EmployeePosition.WAREHOUSE_MANAGER && !employee.getManagedWarehouses().isEmpty()) {
             throw new BadRequestException("Remove warehouse manager responsibilities before changing position.");
         }
+        if (employee.getPrimaryWarehouse() != null
+                && dto.getPosition() != EmployeePosition.WORKER
+                && dto.getPosition() != EmployeePosition.WAREHOUSE_MANAGER) {
+            throw new BadRequestException("Clear the primary warehouse before changing to this position.");
+        }
         if (employee.getUser() != null) rolePositionPolicy.validatePositionMatchesRole(dto.getPosition(), employee.getUser().getRole());
         EmployeePosition old = employee.getPosition();
         employee.setPosition(dto.getPosition());
@@ -496,7 +505,10 @@ public class EmployeeService implements EmployeeServiceDefinition {
         Employee employee = getEmployeeOrThrow(id);
         Warehouse old = employee.getPrimaryWarehouse();
         Long oldId = old != null ? old.getId() : null;
-        if (java.util.Objects.equals(oldId, dto.getWarehouseId())) return EmployeeMapper.toResponse(employee);
+        if (java.util.Objects.equals(oldId, dto.getWarehouseId())) {
+            warehouseAccessSynchronizationService.synchronizePrimaryWarehouse(employee, old, old);
+            return EmployeeMapper.toResponse(employee);
+        }
         boolean conflictingShift = employee.getShifts().stream().anyMatch(s -> s.getWarehouse() != null
                 && java.util.Objects.equals(s.getWarehouse().getId(), oldId)
                 && Set.of(rs.logistics.logistics_system.enums.ShiftStatus.PLANNED, rs.logistics.logistics_system.enums.ShiftStatus.ACTIVE).contains(s.getStatus()));
@@ -511,6 +523,7 @@ public class EmployeeService implements EmployeeServiceDefinition {
         employee.setPrimaryWarehouse(warehouse);
         domainScopeValidator.ensureEmployeeCanBelongToPrimaryWarehouse(employee);
         Employee saved = _employeeRepository.save(employee);
+        warehouseAccessSynchronizationService.synchronizePrimaryWarehouse(saved, old, warehouse);
         auditFacade.recordFieldChange("EMPLOYEE", id, "primary_warehouse_id", oldId, dto.getWarehouseId());
         return EmployeeMapper.toResponse(saved);
     }

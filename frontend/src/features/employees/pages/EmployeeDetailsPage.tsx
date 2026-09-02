@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Stack, Typography } from '@mui/material';
@@ -25,6 +25,8 @@ import type {
   EmployeeTaskResponse,
 } from '../types/employee.types';
 import type { DataTableColumn } from '../../../shared/types/common.types';
+import { EntityLookupField } from '../../lookup';
+import type { LookupOption } from '../../lookup';
 
 type EmployeeDetailsTab = 'overview' | 'tasks' | 'shifts' | 'assignments' | 'transportActivity' | 'attachments' | 'comments' | 'audit' | 'history';
 
@@ -45,6 +47,7 @@ export default function EmployeeDetailsPage() {
   const validEmployeeId = parsePositiveIntegerId(params.id);
   const employeeId = validEmployeeId ?? Number.NaN;
   const [activeTab, setActiveTab] = useState<EmployeeDetailsTab>('overview');
+  const [primaryWarehouse, setPrimaryWarehouse] = useState<LookupOption | null>(null);
 
   const employeeQuery = useEmployee(validEmployeeId);
   const linkedUserId = employeeQuery.data?.userId ?? null;
@@ -102,6 +105,27 @@ export default function EmployeeDetailsPage() {
     onError: (error) => {
       showSnackbar({ message: getErrorMessage(error), severity: 'error' });
     },
+  });
+
+  useEffect(() => {
+    const employee = employeeQuery.data;
+    setPrimaryWarehouse(employee?.primaryWarehouseId ? {
+      id: employee.primaryWarehouseId,
+      label: employee.primaryWarehouseName ?? `Warehouse #${employee.primaryWarehouseId}`,
+    } : null);
+  }, [employeeQuery.data?.id, employeeQuery.data?.primaryWarehouseId, employeeQuery.data?.primaryWarehouseName]);
+
+  const primaryWarehouseMutation = useMutation({
+    mutationFn: (warehouseId: number | null) => employeesApi.changePrimaryWarehouse(employeeId, warehouseId),
+    onSuccess: async (updatedEmployee) => {
+      setPrimaryWarehouse(updatedEmployee.primaryWarehouseId ? {
+        id: updatedEmployee.primaryWarehouseId,
+        label: updatedEmployee.primaryWarehouseName ?? `Warehouse #${updatedEmployee.primaryWarehouseId}`,
+      } : null);
+      showSnackbar({ message: 'Primary warehouse updated successfully.', severity: 'success' });
+      await invalidateEmployeeState(queryClient, employeeId);
+    },
+    onError: (error) => showSnackbar({ message: getErrorMessage(error), severity: 'error' }),
   });
 
   const taskColumns: DataTableColumn<EmployeeTaskResponse>[] = [
@@ -166,6 +190,8 @@ export default function EmployeeDetailsPage() {
   const linkedUser = usersQuery.data ?? null;
   const canArchiveEmployee = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
   const canViewHistory = auth.user?.role === ROLES.OVERLORD || auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.HR_MANAGER;
+  const canChangePrimaryWarehouse = canViewHistory;
+  const canAssignPrimaryWarehouse = employee.position === 'WORKER' || employee.position === 'WAREHOUSE_MANAGER';
   const canManageOperationalNotes =
     auth.user?.role !== ROLES.HR_MANAGER
     && (canViewHistory || auth.user?.role === ROLES.WAREHOUSE_MANAGER);
@@ -236,6 +262,43 @@ export default function EmployeeDetailsPage() {
                 <DetailsField label="User status" value={linkedUser?.status ?? '—'} />
               </Stack>
             </DetailsMetadataCard>
+            {canChangePrimaryWarehouse ? (
+              <SectionCard title="Primary warehouse" description="Assign or change the employee's main operational warehouse." sx={{ mt: 3 }}>
+                <Stack spacing={2}>
+                  <EntityLookupField
+                    label="Primary warehouse"
+                    entityType="warehouses"
+                    value={primaryWarehouse}
+                    onChange={setPrimaryWarehouse}
+                    activeOnly
+                    disabled={!canAssignPrimaryWarehouse || primaryWarehouseMutation.isPending}
+                    placeholder="No primary warehouse"
+                    searchPlaceholder="Search warehouses..."
+                  />
+                  {!canAssignPrimaryWarehouse ? (
+                    <Typography variant="body2" color="text.secondary">Primary warehouses are available to workers and warehouse managers.</Typography>
+                  ) : null}
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="contained"
+                      disabled={!canAssignPrimaryWarehouse || primaryWarehouseMutation.isPending || primaryWarehouse?.id === employee.primaryWarehouseId}
+                      onClick={() => primaryWarehouseMutation.mutate(primaryWarehouse?.id ?? null)}
+                    >
+                      Save primary warehouse
+                    </Button>
+                    {employee.primaryWarehouseId ? (
+                      <Button
+                        variant="outlined"
+                        disabled={primaryWarehouseMutation.isPending || employee.position === 'WORKER'}
+                        onClick={() => primaryWarehouseMutation.mutate(null)}
+                      >
+                        Clear
+                      </Button>
+                    ) : null}
+                  </Stack>
+                </Stack>
+              </SectionCard>
+            ) : null}
           </Grid>
         </Grid>
       ) : null}

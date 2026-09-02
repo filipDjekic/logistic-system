@@ -51,6 +51,7 @@ import rs.logistics.logistics_system.service.definition.WarehouseServiceDefiniti
 import rs.logistics.logistics_system.service.definition.TimezoneServiceDefinition;
 import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 import rs.logistics.logistics_system.service.support.OptimisticLockGuard;
+import rs.logistics.logistics_system.service.support.WarehouseAccessSynchronizationService;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +73,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
     private final DomainScopeValidator domainScopeValidator;
     private final WarehouseAccessGuard warehouseAccessGuard;
     private final WarehouseZoneRepository warehouseZoneRepository;
+    private final WarehouseAccessSynchronizationService warehouseAccessSynchronizationService;
 
     @Override
     @Transactional
@@ -94,7 +96,7 @@ public class WarehouseService implements WarehouseServiceDefinition {
         domainScopeValidator.ensureWarehouseLocationConsistency(warehouse);
         domainScopeValidator.ensureWarehouseManager(employee, warehouse);
         Warehouse saved = _warehouseRepository.save(warehouse);
-        syncManagerPrimaryWarehouse(saved, employee);
+        warehouseAccessSynchronizationService.synchronizeWarehouseManager(saved, null, employee);
 
         auditFacade.recordCreate("WAREHOUSE", saved.getId());
         auditFacade.recordFieldChange("WAREHOUSE", saved.getId(), "company_id", null, saved.getCompany() != null ? saved.getCompany().getId() : null);
@@ -187,10 +189,11 @@ public class WarehouseService implements WarehouseServiceDefinition {
         validateSameCompany(warehouse, employee);
         domainScopeValidator.ensureWarehouseManager(employee, warehouse);
 
-        Long oldManagerId = warehouse.getManager() != null ? warehouse.getManager().getId() : null;
+        Employee oldManager = warehouse.getManager();
+        Long oldManagerId = oldManager != null ? oldManager.getId() : null;
         warehouse.setManager(employee);
         Warehouse saved = _warehouseRepository.save(warehouse);
-        syncManagerPrimaryWarehouse(saved, employee);
+        warehouseAccessSynchronizationService.synchronizeWarehouseManager(saved, oldManager, employee);
 
         auditFacade.recordFieldChange("WAREHOUSE", warehouseId, "manager", oldManagerId, employeeId);
         auditFacade.log(
@@ -410,13 +413,6 @@ public class WarehouseService implements WarehouseServiceDefinition {
         }
 
         return search.trim();
-    }
-
-    private void syncManagerPrimaryWarehouse(Warehouse warehouse, Employee employee) {
-        if (employee != null && employee.getPrimaryWarehouse() == null) {
-            employee.setPrimaryWarehouse(warehouse);
-            _employeeRepository.save(employee);
-        }
     }
 
     private void validateWarehouseManager(Employee employee) {

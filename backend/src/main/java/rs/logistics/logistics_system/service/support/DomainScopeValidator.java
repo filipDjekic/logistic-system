@@ -43,6 +43,11 @@ public class DomainScopeValidator {
         }
 
         EmployeePosition position = employee.getPosition();
+        if (warehouse != null
+                && position != EmployeePosition.WORKER
+                && position != EmployeePosition.WAREHOUSE_MANAGER) {
+            throw new BadRequestException("Primary warehouse requires WORKER or WAREHOUSE_MANAGER position");
+        }
         if (position == EmployeePosition.WORKER && warehouse == null) {
             throw new BadRequestException("WORKER must have primary warehouse");
         }

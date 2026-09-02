@@ -30,4 +30,5 @@ public class EmployeeWarehouseAssignmentResponse {
     private String notes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Boolean derived = false;
 }

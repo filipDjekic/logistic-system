@@ -58,12 +58,14 @@ import { useBinLocations, useInternalWarehouseMovements, useWarehouseZones } fro
 import { warehousesApi } from '../api/warehousesApi';
 import { useWarehouse } from '../hooks/useWarehouse';
 import type { BinLocationResponse, InternalWarehouseMovementResponse, WarehouseZoneResponse, WarehouseZoneType } from '../../warehouse-locations/types/warehouseLocation.types';
-import type { WarehouseStatus } from '../types/warehouse.types';
+import type { WarehouseResponse, WarehouseStatus } from '../types/warehouse.types';
 import { useInventory } from '../../inventory/hooks/useInventory';
 import type { InventoryListRow } from '../../inventory/types/inventory.types';
 import { useStockMovements } from '../../stock-movements/hooks/useStockMovements';
 import type { StockMovementFiltersState, StockMovementResponse } from '../../stock-movements/types/stockMovement.types';
 import { warehouseLocationRoutes } from '../../warehouse-locations/utils/warehouseLocationRoutes';
+import { useEmployee } from '../../employees/hooks/useEmployee';
+import type { EmployeePosition } from '../../employees/types/employee.types';
 
 const warehouseStatusTransitions: Partial<Record<WarehouseStatus, WarehouseStatus[]>> = {
   ACTIVE: ['FULL', 'UNDER_MAINTENANCE', 'INACTIVE'],
@@ -415,7 +417,16 @@ function InternalMovementsTable({ rows }: { rows: InternalWarehouseMovementRespo
   );
 }
 
-const warehouseAccessTypes: EmployeeWarehouseAccessType[] = ['PRIMARY', 'WORKER', 'MANAGER', 'DISPATCH', 'VIEW_ONLY'];
+const assignableAccessTypesByPosition: Record<EmployeePosition, EmployeeWarehouseAccessType[]> = {
+  OVERLORD: ['VIEW_ONLY'],
+  COMPANY_ADMIN: ['VIEW_ONLY'],
+  HR_MANAGER: ['VIEW_ONLY'],
+  DRIVER: ['VIEW_ONLY'],
+  WORKER: ['WORKER', 'VIEW_ONLY'],
+  DISPATCHER: ['DISPATCH', 'VIEW_ONLY'],
+  WAREHOUSE_MANAGER: ['WORKER', 'DISPATCH', 'VIEW_ONLY'],
+};
+const noAssignableAccessTypes: EmployeeWarehouseAccessType[] = [];
 
 const accessTypeDescriptions: Record<EmployeeWarehouseAccessType, string> = {
   PRIMARY: 'Primary warehouse responsibility. Usually one main operational owner for the employee.',
@@ -454,6 +465,7 @@ function WarehouseAccessCard({
   onDelete: (assignment: EmployeeWarehouseAssignmentResponse) => void;
   disabled: boolean;
 }) {
+  const canonicalAccess = assignment.accessType === 'PRIMARY' || assignment.accessType === 'MANAGER' || assignment.derived;
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.5}>
@@ -467,10 +479,10 @@ function WarehouseAccessCard({
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
             <Chip size="small" label={assignment.accessType} color={assignment.active ? 'primary' : 'default'} />
             <StatusChip value={assignment.active ? 'ACTIVE' : 'INACTIVE'} />
-            <Button size="small" variant="outlined" disabled={disabled} onClick={() => onToggle(assignment)}>
+            <Button size="small" variant="outlined" disabled={disabled || canonicalAccess} onClick={() => onToggle(assignment)}>
               {assignment.active ? 'Deactivate' : 'Activate'}
             </Button>
-            <Button size="small" color="error" disabled={disabled} onClick={() => onDelete(assignment)}>
+            <Button size="small" color="error" disabled={disabled || canonicalAccess} onClick={() => onDelete(assignment)}>
               Remove
             </Button>
           </Stack>
@@ -492,16 +504,31 @@ function WarehouseAccessCard({
   );
 }
 
-function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: number; warehouseName: string }) {
+function WarehouseAccessPanel({ warehouse }: { warehouse: WarehouseResponse }) {
+  const warehouseId = warehouse.id;
+  const warehouseName = warehouse.name;
   const [form, setForm] = useState<WarehouseAccessFormState>(initialWarehouseAccessForm);
   const assignmentsQuery = useEmployeeWarehouseAssignmentsByWarehouse(warehouseId);
   const createMutation = useCreateEmployeeWarehouseAssignment();
   const updateMutation = useUpdateEmployeeWarehouseAssignment();
   const deleteMutation = useDeleteEmployeeWarehouseAssignment();
+  const selectedEmployeeQuery = useEmployee(form.employee?.id ?? null);
 
   const assignments = assignmentsQuery.data ?? [];
-  const canSubmit = Boolean(form.employee?.id && form.accessType);
+  const employeePosition = selectedEmployeeQuery.data?.position;
+  const availableAccessTypes = employeePosition ? assignableAccessTypesByPosition[employeePosition] : noAssignableAccessTypes;
+  const canSubmit = Boolean(form.employee?.id && availableAccessTypes.includes(form.accessType));
   const busy = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const managerAssignmentMissing = Boolean(
+    warehouse.employeeId
+    && !assignments.some((assignment) => assignment.employeeId === warehouse.employeeId && assignment.accessType === 'MANAGER'),
+  );
+
+  useEffect(() => {
+    if (availableAccessTypes.length > 0 && !availableAccessTypes.includes(form.accessType)) {
+      setForm((current) => ({ ...current, accessType: availableAccessTypes[0] }));
+    }
+  }, [availableAccessTypes, form.accessType]);
 
   return (
     <Stack spacing={3}>
@@ -526,7 +553,7 @@ function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: num
               <Box>
                 <Typography variant="overline" color="text.secondary">Role</Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
-                  {warehouseAccessTypes.map((type) => (
+                  {availableAccessTypes.map((type) => (
                     <Chip
                       key={type}
                       label={type}
@@ -536,6 +563,8 @@ function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: num
                     />
                   ))}
                 </Stack>
+                {form.employee && selectedEmployeeQuery.isLoading ? <Typography variant="caption" color="text.secondary">Loading available access types...</Typography> : null}
+                {form.employee && !selectedEmployeeQuery.isLoading && availableAccessTypes.length === 0 ? <Alert severity="info">No additional warehouse access types are available for this employee.</Alert> : null}
               </Box>
 
               <Box>
@@ -626,18 +655,29 @@ function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: num
             <Stack spacing={1.5}>
               {assignmentsQuery.isLoading ? <Typography color="text.secondary">Loading warehouse access...</Typography> : null}
               {assignmentsQuery.isError ? <Alert severity="error">Unable to load warehouse access.</Alert> : null}
-              {!assignmentsQuery.isLoading && !assignmentsQuery.isError && assignments.length === 0 ? (
+              {!assignmentsQuery.isLoading && !assignmentsQuery.isError && assignments.length === 0 && !managerAssignmentMissing ? (
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Typography variant="body2" color="text.secondary">No employee has warehouse access assigned for this warehouse.</Typography>
                 </Paper>
               ) : null}
+              {managerAssignmentMissing ? (
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Stack spacing={0.5}>
+                    <Typography fontWeight={900}>{warehouse.managerName ?? `Employee #${warehouse.employeeId}`}</Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip size="small" label="MANAGER" color="primary" />
+                      <Typography variant="caption" color="text.secondary">Effective warehouse manager access</Typography>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              ) : null}
               {assignments.map((assignment) => (
                 <WarehouseAccessCard
-                  key={assignment.id}
+                  key={assignment.id ?? `${assignment.accessType}-${assignment.employeeId}`}
                   assignment={assignment}
                   disabled={busy}
-                  onToggle={(current) => updateMutation.mutate({ id: current.id, payload: { active: !current.active } })}
-                  onDelete={(current) => deleteMutation.mutate(current.id)}
+                  onToggle={(current) => { if (current.id != null) updateMutation.mutate({ id: current.id, payload: { active: !current.active } }); }}
+                  onDelete={(current) => { if (current.id != null) deleteMutation.mutate(current.id); }}
                 />
               ))}
             </Stack>
@@ -1114,7 +1154,7 @@ export default function WarehouseDetailsPage() {
       ) : null}
 
       {activeTab === 'access' && canManageAccess ? (
-        <WarehouseAccessPanel warehouseId={warehouse.id} warehouseName={warehouse.name} />
+        <WarehouseAccessPanel warehouse={warehouse} />
       ) : null}
 
       <OperationalDetailsTabPanels

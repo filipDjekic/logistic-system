@@ -27,6 +27,7 @@ import rs.logistics.logistics_system.service.security.WarehouseAccessGuard;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -49,11 +50,19 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
         ensureWarehouseManagerCanManageEmployee(employee);
         validateAssignment(employee, warehouse, dto.getAccessType(), dto.getValidFrom(), dto.getValidTo());
 
-        assignmentRepository.findByEmployee_IdAndWarehouse_Id(employee.getId(), warehouse.getId()).ifPresent(existing -> {
-            throw new ConflictException("Employee already has warehouse assignment for this warehouse");
-        });
+        rejectCanonicalAccessType(dto.getAccessType());
 
-        EmployeeWarehouseAssignment assignment = new EmployeeWarehouseAssignment();
+        EmployeeWarehouseAssignment existing = assignmentRepository
+                .findByEmployee_IdAndWarehouse_Id(employee.getId(), warehouse.getId())
+                .orElse(null);
+        if (existing != null && isCanonical(existing.getAccessType())) {
+            throw new ConflictException("Canonical warehouse access must be changed through the employee or warehouse action");
+        }
+        if (existing != null && Boolean.TRUE.equals(existing.getActive())) {
+            throw new ConflictException("Employee already has warehouse assignment for this warehouse");
+        }
+
+        EmployeeWarehouseAssignment assignment = existing != null ? existing : new EmployeeWarehouseAssignment();
         assignment.setCompany(employee.getCompany());
         assignment.setEmployee(employee);
         assignment.setWarehouse(warehouse);
@@ -64,7 +73,11 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
         assignment.setNotes(dto.getNotes());
         EmployeeWarehouseAssignment saved = assignmentRepository.save(assignment);
 
-        auditFacade.recordCreate("EMPLOYEE_WAREHOUSE_ASSIGNMENT", saved.getId(), employee.getEmail() + " -> " + warehouse.getName());
+        if (existing == null) {
+            auditFacade.recordCreate("EMPLOYEE_WAREHOUSE_ASSIGNMENT", saved.getId(), employee.getEmail() + " -> " + warehouse.getName());
+        } else {
+            auditFacade.log("UPDATE", "EMPLOYEE_WAREHOUSE_ASSIGNMENT", saved.getId(), employee.getEmail() + " -> " + warehouse.getName(), "Employee warehouse assignment reactivated");
+        }
         return EmployeeWarehouseAssignmentMapper.toResponse(saved);
     }
 
@@ -74,7 +87,11 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
         EmployeeWarehouseAssignment assignment = resolveAssignment(id);
         ensureWarehouseManagerCanManageWarehouse(assignment.getWarehouse());
         ensureWarehouseManagerCanManageEmployee(assignment.getEmployee());
+        if (isCanonical(assignment.getAccessType())) {
+            throw new BadRequestException("Canonical warehouse access must be changed through the employee or warehouse action");
+        }
         if (dto.getAccessType() != null) {
+            rejectCanonicalAccessType(dto.getAccessType());
             validateAssignment(assignment.getEmployee(), assignment.getWarehouse(), dto.getAccessType(), dto.getValidFrom(), dto.getValidTo());
             assignment.setAccessType(dto.getAccessType());
         }
@@ -117,7 +134,23 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
         List<EmployeeWarehouseAssignment> assignments = companyId == null
                 ? assignmentRepository.findByWarehouseOrdered(warehouse.getId())
                 : assignmentRepository.findByWarehouseAndCompanyOrdered(warehouse.getId(), companyId);
-        return assignments.stream().map(EmployeeWarehouseAssignmentMapper::toResponse).toList();
+        List<EmployeeWarehouseAssignmentResponse> responses = new ArrayList<>(assignments.stream()
+                .map(EmployeeWarehouseAssignmentMapper::toResponse)
+                .toList());
+        boolean managerAssignmentExists = warehouse.getManager() != null && assignments.stream().anyMatch(assignment ->
+                assignment.getEmployee().getId().equals(warehouse.getManager().getId())
+                        && assignment.getAccessType() == EmployeeWarehouseAccessType.MANAGER);
+        if (warehouse.getManager() != null && !managerAssignmentExists) {
+            responses.add(derivedResponse(warehouse.getManager(), warehouse, EmployeeWarehouseAccessType.MANAGER));
+        }
+        employeeRepository.findByPrimaryWarehouse_IdOrderByLastNameAscFirstNameAsc(warehouse.getId()).stream()
+                .filter(employee -> warehouse.getManager() == null || !employee.getId().equals(warehouse.getManager().getId()))
+                .filter(employee -> assignments.stream().noneMatch(assignment ->
+                        assignment.getEmployee().getId().equals(employee.getId())
+                                && assignment.getAccessType() == EmployeeWarehouseAccessType.PRIMARY))
+                .map(employee -> derivedResponse(employee, warehouse, EmployeeWarehouseAccessType.PRIMARY))
+                .forEach(responses::add);
+        return responses;
     }
 
     @Override
@@ -141,6 +174,9 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
         EmployeeWarehouseAssignment assignment = resolveAssignment(id);
         ensureWarehouseManagerCanManageWarehouse(assignment.getWarehouse());
         ensureWarehouseManagerCanManageEmployee(assignment.getEmployee());
+        if (isCanonical(assignment.getAccessType())) {
+            throw new BadRequestException("Use the dedicated primary warehouse or warehouse manager action to remove canonical access");
+        }
         auditFacade.recordDelete("EMPLOYEE_WAREHOUSE_ASSIGNMENT", assignment.getId(), assignment.getEmployee().getEmail() + " -> " + assignment.getWarehouse().getName());
         assignmentRepository.delete(assignment);
     }
@@ -219,5 +255,32 @@ public class EmployeeWarehouseAssignmentService implements EmployeeWarehouseAssi
         if (validFrom != null && validTo != null && validTo.isBefore(validFrom)) {
             throw new BadRequestException("validTo cannot be before validFrom");
         }
+    }
+
+    private void rejectCanonicalAccessType(EmployeeWarehouseAccessType accessType) {
+        if (isCanonical(accessType)) {
+            throw new BadRequestException("PRIMARY and MANAGER access are maintained through employee and warehouse actions");
+        }
+    }
+
+    private boolean isCanonical(EmployeeWarehouseAccessType accessType) {
+        return accessType == EmployeeWarehouseAccessType.PRIMARY
+                || accessType == EmployeeWarehouseAccessType.MANAGER;
+    }
+
+    private EmployeeWarehouseAssignmentResponse derivedResponse(Employee employee, Warehouse warehouse, EmployeeWarehouseAccessType accessType) {
+        EmployeeWarehouseAssignmentResponse response = new EmployeeWarehouseAssignmentResponse();
+        response.setCompanyId(employee.getCompany() != null ? employee.getCompany().getId() : null);
+        response.setCompanyName(employee.getCompany() != null ? employee.getCompany().getName() : null);
+        response.setEmployeeId(employee.getId());
+        response.setEmployeeName(employee.getFirstName() + " " + employee.getLastName());
+        response.setEmployeePosition(employee.getPosition());
+        response.setWarehouseId(warehouse.getId());
+        response.setWarehouseName(warehouse.getName());
+        response.setWarehouseStatus(warehouse.getStatus());
+        response.setAccessType(accessType);
+        response.setActive(true);
+        response.setDerived(true);
+        return response;
     }
 }

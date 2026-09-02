@@ -333,6 +333,16 @@ export default function EmployeeFormDialog({
   }, [form, open, selectedCountryId]);
 
   useEffect(() => {
+    if (mode !== 'create' || selectedPosition === 'WORKER' || selectedPosition === 'WAREHOUSE_MANAGER') {
+      return;
+    }
+    setSelectedPrimaryWarehouse(null);
+    if (form.getValues('primaryWarehouseId') !== null) {
+      form.setValue('primaryWarehouseId', null, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [form, mode, selectedPosition]);
+
+  useEffect(() => {
     if (!open || !selectedCity) {
       return;
     }
@@ -482,7 +492,7 @@ export default function EmployeeFormDialog({
                 label="Role"
                 options={positionOptions}
                 required
-                disabled={false}
+                disabled={selectedPosition !== 'WORKER' && selectedPosition !== 'WAREHOUSE_MANAGER'}
               />
             </Grid> : null}
 
@@ -533,7 +543,7 @@ export default function EmployeeFormDialog({
                 required={selectedPosition === 'WORKER'}
                 disabled={false}
                 error={Boolean(form.formState.errors.primaryWarehouseId)}
-                helperText={form.formState.errors.primaryWarehouseId?.message ?? (selectedPosition === 'WORKER' ? 'Required for WORKER operational scope' : 'Optional base/operational warehouse')}
+                helperText={form.formState.errors.primaryWarehouseId?.message ?? (selectedPosition === 'WORKER' ? 'Required for workers' : selectedPosition === 'WAREHOUSE_MANAGER' ? 'Optional for warehouse managers' : 'Available to workers and warehouse managers')}
                 placeholder="Choose primary warehouse"
                 searchPlaceholder="Search warehouses..."
                 sort="name,asc"

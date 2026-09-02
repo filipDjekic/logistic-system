@@ -20,6 +20,7 @@ import rs.logistics.logistics_system.entity.Employee;
 import rs.logistics.logistics_system.enums.EmployeePosition;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+    List<Employee> findByPrimaryWarehouse_IdOrderByLastNameAscFirstNameAsc(Long warehouseId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
