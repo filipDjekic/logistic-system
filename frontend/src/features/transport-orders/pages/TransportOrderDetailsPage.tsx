@@ -422,7 +422,7 @@ export default function TransportOrderDetailsPage() {
     return (
       <ErrorState
         title="Invalid transport order"
-        description="The transport order ID in the route must be a positive integer."
+        description="The requested transport order could not be found."
       />
     );
   }
@@ -571,7 +571,7 @@ export default function TransportOrderDetailsPage() {
       {activeTab === "items" ? (
         <SectionCard
           title="Transport order items"
-          description="Items are loaded from the transport order item API and filtered by transport order ID."
+          description="Review the products and quantities included in this transport order."
         >
           <Stack spacing={3}>
             <TransportOrderItemsTable
@@ -625,7 +625,7 @@ export default function TransportOrderDetailsPage() {
                 description={
                   selectedItem
                     ? `Editing item #${selectedItem.id}.`
-                    : "Uses confirmed item create and update DTO fields only."
+                    : "Add a product and quantity to this transport order."
                 }
               >
                 <Grid container spacing={2}>

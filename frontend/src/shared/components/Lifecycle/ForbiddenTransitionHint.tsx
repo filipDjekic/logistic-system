@@ -5,7 +5,7 @@ type ForbiddenTransitionHintProps = {
   message?: string;
 };
 
-export default function ForbiddenTransitionHint({ visible, message = 'No transition is available. The current role, status, version or operational constraints forbid this lifecycle action.' }: ForbiddenTransitionHintProps) {
+export default function ForbiddenTransitionHint({ visible, message = 'No status change is available for this record.' }: ForbiddenTransitionHintProps) {
   if (!visible) {
     return null;
   }

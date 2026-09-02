@@ -54,7 +54,7 @@ function renderTextBlock(value: ReactNode) {
 
 export default function DetailsLifecycleCard<TStatus extends string = string>({
   title = 'Lifecycle',
-  description = 'Backend-controlled status workflow for this entity.',
+  description = 'Review the current status and available actions.',
   currentStatus,
   statusNode,
   statusDescription,

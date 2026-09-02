@@ -103,7 +103,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
   }
 
   if (!isValidEditRoute) {
-    return <ErrorState title="Invalid transport order edit route" description="Transport order ID must be a positive integer." />;
+    return <ErrorState title="Transport order unavailable" description="The requested transport order could not be opened." />;
   }
 
   if (isEdit && orderQuery.isLoading) {
@@ -309,7 +309,7 @@ export default function TransportOrderFormPage({ mode }: Props) {
         cancelLabel="Cancel"
         submitLabel={isEdit ? 'Update transport order' : 'Create transport order'}
         submittingLabel={isEdit ? 'Updating transport order...' : 'Creating transport order...'}
-        helperText="Route, vehicle, driver and schedule must be valid before saving. Status changes use lifecycle actions."
+        helperText="Confirm the warehouses, vehicle, driver and schedule before saving."
         loading={isSubmitting}
         submitDisabled={disableSubmit && !isSubmitting}
         onCancel={() => navigate('/transport-orders')}

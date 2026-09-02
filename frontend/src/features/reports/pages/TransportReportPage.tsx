@@ -176,7 +176,7 @@ export default function TransportReportPage() {
 
       <TableLayout
         title="Report filters"
-        description="Filters are applied on backend report data."
+        description="Narrow the report by date, company or status."
         filters={
           <FilterPanel>
             <TextField type="date" size="small" label="From date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
@@ -222,9 +222,9 @@ export default function TransportReportPage() {
         isEmpty={!report}
         loadingMessage="Loading transport report..."
         errorTitle="Transport report could not be loaded"
-        errorDescription="Backend report endpoint failed to return data."
+        errorDescription="The transport report could not be loaded."
         emptyTitle="No transport report data"
-        emptyDescription="Adjust filters or retry after backend data is available."
+        emptyDescription="Adjust the filters to find transport activity."
         onRetry={() => void reportQuery.refetch()}
       >
         {report ? (

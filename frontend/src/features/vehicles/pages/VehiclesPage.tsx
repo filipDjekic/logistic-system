@@ -170,7 +170,7 @@ export default function VehiclesPage() {
 
       <TableLayout
         title={isDriver ? 'Assigned vehicle list' : 'Vehicle list'}
-        description={'Only vehicles assigned to your transport work are returned by the backend.'}
+        description={'Only vehicles assigned to your transport work are shown.'}
         toolbar={
           <TableToolbar
             searchValue={filters.search}

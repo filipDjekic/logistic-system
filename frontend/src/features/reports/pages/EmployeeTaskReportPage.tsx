@@ -172,7 +172,7 @@ export default function EmployeeTaskReportPage() {
 
       <TableLayout
         title="Report filters"
-        description="Filters are applied on backend report data."
+        description="Narrow the report by employee, task status or date."
         filters={
           <FilterPanel>
             <TextField type="date" size="small" label="From date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
@@ -218,9 +218,9 @@ export default function EmployeeTaskReportPage() {
         isEmpty={!report}
         loadingMessage="Loading employee/task report..."
         errorTitle="Employee/task report could not be loaded"
-        errorDescription="Backend report endpoint failed to return data."
+        errorDescription="The employee task report could not be loaded."
         emptyTitle="No employee/task report data"
-        emptyDescription="Adjust filters or retry after backend data is available."
+        emptyDescription="Adjust the filters to find employee tasks."
         onRetry={() => void reportQuery.refetch()}
       >
         {report ? (

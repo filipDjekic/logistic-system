@@ -36,7 +36,7 @@ function statusDescription(status: InventoryCountSessionStatus, session: Invento
     case 'CLOSED':
       return 'Session is closed and locked from further operational changes.';
     case 'REJECTED':
-      return 'Review rejected the count results. Session can be corrected or cancelled according to backend rules.';
+      return 'The count results were rejected. Correct the count or cancel it if no further review is needed.';
     case 'CANCELLED':
       return 'Session was cancelled before final close.';
     default:

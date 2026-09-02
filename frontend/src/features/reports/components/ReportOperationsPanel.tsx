@@ -116,7 +116,7 @@ export default function ReportOperationsPanel<TState>({
               ))}
             </Stack>
             <Typography variant="caption" color="text.secondary">
-              Presets apply common operational filters without changing backend report logic.
+              Presets apply commonly used filters to this report.
             </Typography>
           </Stack>
 

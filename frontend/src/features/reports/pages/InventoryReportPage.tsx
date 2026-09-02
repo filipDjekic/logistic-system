@@ -180,7 +180,7 @@ export default function InventoryReportPage() {
 
       <TableLayout
         title="Report filters"
-        description="Filters are applied on backend report data."
+        description="Narrow the report by warehouse, product or stock level."
         filters={
           <FilterPanel>
             <TextField type="date" size="small" label="From date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} InputLabelProps={{ shrink: true }} />
@@ -222,9 +222,9 @@ export default function InventoryReportPage() {
         isEmpty={!report}
         loadingMessage="Loading inventory report..."
         errorTitle="Inventory report could not be loaded"
-        errorDescription="Backend report endpoint failed to return data."
+        errorDescription="The inventory report could not be loaded."
         emptyTitle="No inventory report data"
-        emptyDescription="Adjust filters or retry after backend data is available."
+        emptyDescription="Adjust the filters to find inventory records."
         onRetry={() => void reportQuery.refetch()}
       >
         {report ? (

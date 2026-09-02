@@ -96,7 +96,7 @@ export default function NotificationsPage() {
       <PageHeader
         overline="Workspace"
         title="Notifications"
-        description="Review notification lifecycle: unread items require attention, acknowledged items are accepted for work, and resolved items are closed."
+        description="Unread notifications need attention, acknowledged items are in progress, and resolved items are closed."
         actions={
           <Typography variant="body2" color="text.secondary">
             Unread: {unreadCount} · Critical: {criticalUnreadCount} · Warning: {warningUnreadCount}

@@ -137,7 +137,7 @@ export default function EmployeeDetailsPage() {
   ];
 
   if (validEmployeeId == null) {
-    return <ErrorState title="Invalid employee" description="The employee ID in the route is not valid." />;
+    return <ErrorState title="Employee unavailable" description="The requested employee could not be found." />;
   }
 
   if (employeeQuery.isLoading) {

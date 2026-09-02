@@ -158,7 +158,7 @@ export default function DashboardPage() {
 
   const dashboardCopy = roleDashboardCopy[role] ?? {
     title: 'Dashboard',
-    description: 'Role-based logistics overview.',
+    description: 'Your logistics overview and current priorities.',
   };
 
   const updatedAt = activeQuery?.dataUpdatedAt
@@ -268,7 +268,7 @@ export default function DashboardPage() {
       {!isOverlord && !isCompanyAdmin && !isHrManager && !isWarehouseManager && !isDispatcher && !isDriver && !isWorker ? (
         <ErrorState
           title="Dashboard is not implemented for this role"
-          description={`Dashboard for ${role} will be added as a separate role-specific dashboard.`}
+          description={`No dashboard information is available for ${role}.`}
         />
       ) : null}
     </Stack>

@@ -21,7 +21,7 @@ export default function DomainEventsPanel({ entityType, entityId }: DomainEvents
       onRetry={() => { void query.refetch(); }}
       empty={!query.isLoading && !query.isError && events.length === 0}
       emptyTitle="No domain events"
-      emptyDescription="This entity has no recorded lifecycle domain events yet."
+      emptyDescription="No activity has been recorded yet."
     >
       <AuditTimeline
         items={events.map((event) => ({

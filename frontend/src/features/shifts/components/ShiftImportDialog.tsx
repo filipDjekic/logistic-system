@@ -92,7 +92,7 @@ export default function ShiftImportDialog({
           {error ? <Alert severity="error">{error}</Alert> : null}
 
           <Typography variant="body2" color="text.secondary">
-            CSV import first validates every row and shows preview. Import is confirmed only after all rows pass backend validation.
+            Every row is checked before import. Review the preview, then confirm the valid records.
           </Typography>
 
           <Alert severity="info">

@@ -98,7 +98,7 @@ export default function ProductFormDialog({
       <DialogTitle>{initialData ? 'Edit' : 'Create'} Product</DialogTitle>
 
       <DialogContent>
-        <FormSection title="Product details" description="Keep master data clear. Dynamic relations use lookup elsewhere; enum values stay as dropdowns.">
+        <FormSection title="Product details" description="Enter the product name, SKU, category and handling details.">
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Form name="name" control={control} label="Name" required />

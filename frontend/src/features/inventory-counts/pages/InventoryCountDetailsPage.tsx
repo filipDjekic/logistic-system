@@ -197,7 +197,7 @@ export default function InventoryCountDetailsPage() {
   const countedPercent = session?.lineCount ? Math.round((session.countedLineCount / session.lineCount) * 100) : 0;
   const totalAbsoluteDifference = lines.reduce((sum, line) => sum + Math.abs(Number(line.differenceQuantity ?? 0)), 0);
   const roleHint = canMutateSelectedWarehouse && canManageInventoryCount
-    ? 'Your role can manage this inventory count when backend status rules allow it.'
+    ? 'You can manage this inventory count while its current status allows changes.'
     : canMutateSelectedWarehouse && canCountInventoryLines
       ? 'Your role can enter counted quantities during COUNTING. Review and approval actions stay with warehouse managers/admins.'
       : 'You can view this inventory count, but cannot mutate count lines or lifecycle status for this warehouse.';

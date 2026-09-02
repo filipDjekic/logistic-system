@@ -71,10 +71,10 @@ const heroBenefits = [
 ];
 
 const platformHighlights = [
-  { title: 'JWT security', description: 'Protected access and role permissions for every workspace.', icon: SecurityRoundedIcon },
-  { title: 'Live notifications', description: 'Operational changes are surfaced without manual page hunting.', icon: NotificationsActiveRoundedIcon },
+  { title: 'Secure access', description: 'Role-based permissions keep company work protected.', icon: SecurityRoundedIcon },
+  { title: 'Live notifications', description: 'Stay informed about important operational changes.', icon: NotificationsActiveRoundedIcon },
   { title: 'Audit history', description: 'Important status and stock changes remain traceable.', icon: HistoryRoundedIcon },
-  { title: 'CSV import/export', description: 'Bulk data entry and reporting workflows are supported.', icon: ImportExportRoundedIcon },
+  { title: 'Bulk data tools', description: 'Import records and export reports in CSV format.', icon: ImportExportRoundedIcon },
   { title: 'Operational analytics', description: 'Dashboards summarize fleet, stock, task, and transport activity.', icon: InsightsRoundedIcon },
 ];
 

@@ -28,7 +28,7 @@ export default function DashboardCharts({ charts = [] }: Props) {
         <ChartCard
           key={chart.key}
           title={chart.title}
-          description="Live aggregate dataset for this dashboard scope."
+          description={chart.description}
           data={normalizeChartData(chart.items)}
           kind={resolveChartKind(chart.type)}
         />

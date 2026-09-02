@@ -182,7 +182,7 @@ export default function StockMovementsPage() {
       <PageHeader
         overline={isWorkerView ? "My Work" : "Inventory"}
         title={isWorkerView ? "Assigned Stock Movements" : "Stock Movements"}
-        description={isWorkerView ? "Stock movements connected to your assigned warehouse work." : "Movement history is read-only here. Stock operations are created through one controlled create page."}
+        description={isWorkerView ? "Stock movements connected to your assigned warehouse work." : "Review stock movement history or create a new stock operation."}
         actions={
           canCreate ? (
             <Button variant="contained" onClick={() => navigate('/stock-movements/create')}>
@@ -231,7 +231,7 @@ export default function StockMovementsPage() {
 
       <TableLayout
         title={activeTab === 'internal' ? 'Internal bin movements' : activeTab === 'approvals' ? 'Pending stock movement approvals' : 'Movement history'}
-        description={activeTab === 'internal' ? 'Internal movements are bin-to-bin operations scoped inside a warehouse.' : activeTab === 'approvals' ? 'Write-offs and large adjustments waiting for approval before execution.' : 'Use server-side filters. Warehouse, product and transport filters use search panels instead of loading large dropdown lists.'}
+        description={activeTab === 'internal' ? 'Bin-to-bin movements within the same warehouse.' : activeTab === 'approvals' ? 'Write-offs and large adjustments waiting for approval.' : 'Filter movements by warehouse, product, transport order or other criteria.'}
         toolbar={
           <TableToolbar
             searchValue={filters.search}

@@ -194,7 +194,7 @@ export default function WarehouseFormDialog({
         </Grid>
         </FormSection>
 
-        <FormSection title="Operational setup" description="Status is fixed after creation through lifecycle actions.">
+        <FormSection title="Operational setup" description="Set the warehouse's initial operating status.">
         <Grid container spacing={2}>
           {mode === 'create' && isOverlord ? <Grid size={{ xs: 12, md: 6 }}><FormSelect name="companyId" control={control} label="Company" options={companyOptions} required /></Grid> : null}
           <Grid size={{ xs: 12 }}><FormSelect name="employeeId" control={control} label="Manager" options={visibleManagers.map((manager) => ({ value: manager.id, label: `${manager.firstName} ${manager.lastName}` }))} required disabled={mode === 'edit' || (mode === 'create' && isOverlord && !selectedCompanyId)} helperText={mode === 'create' && isOverlord && !selectedCompanyId ? 'Select company first' : undefined} /></Grid>
@@ -205,7 +205,7 @@ export default function WarehouseFormDialog({
           cancelLabel="Cancel"
           submitLabel={mode === 'create' ? 'Create warehouse' : 'Save warehouse'}
           submittingLabel="Saving..."
-          helperText="Cancel returns without saving. Status changes after creation should use lifecycle actions, not edit form."
+          helperText="Cancel closes the form without saving."
           loading={loading}
           onCancel={onClose}
           submitDisabled={!formState.isValid || (mode === 'create' && isOverlord && !selectedCompanyId)}

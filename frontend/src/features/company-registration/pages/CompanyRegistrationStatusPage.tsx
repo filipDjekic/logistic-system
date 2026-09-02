@@ -40,7 +40,7 @@ export default function CompanyRegistrationStatusPage() {
             {query.data?.status === 'REJECTED' || query.data?.status === 'CANCELLED' ? <CancelOutlinedIcon color="error" sx={{ fontSize: 54 }} /> : null}
             {!query.data || query.data.status === 'PENDING' || query.data.status === 'UNDER_REVIEW' ? <HourglassTopIcon color="warning" sx={{ fontSize: 54 }} /> : null}
             <Typography variant="h4" fontWeight={800}>Company request status</Typography>
-            <Typography color="text.secondary">This private tracking link follows the approval lifecycle.</Typography>
+            <Typography color="text.secondary">Use this private link to check the approval status.</Typography>
           </Stack>
 
           {query.isLoading ? <LinearProgress /> : null}

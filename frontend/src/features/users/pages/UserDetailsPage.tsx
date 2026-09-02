@@ -91,7 +91,7 @@ export default function UserDetailsPage() {
     return (
       <ErrorState
         title="Invalid user"
-        description="The user ID in the route is not valid."
+        description="The requested user could not be found."
       />
     );
   }

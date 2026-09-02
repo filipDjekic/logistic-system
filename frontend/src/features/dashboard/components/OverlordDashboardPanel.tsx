@@ -107,7 +107,7 @@ export default function OverlordDashboardPanel({ data }: Props) {
       >
         <SectionCard
           title="System governance"
-          description="Overlord dashboard is limited to platform ownership, access control and audit health. Operational warehouse and transport metrics remain inside role-specific workspaces."
+          description="Review platform access, company activity and audit health."
         >
           <Stack spacing={1.5}>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>

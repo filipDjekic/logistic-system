@@ -175,7 +175,7 @@ export default function VehicleDetailsPage() {
     return (
       <ErrorState
         title="Invalid vehicle"
-        description="The vehicle ID in the route is not valid."
+        description="The requested vehicle could not be found."
       />
     );
   }

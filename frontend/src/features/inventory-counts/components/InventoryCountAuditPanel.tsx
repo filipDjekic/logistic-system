@@ -81,7 +81,7 @@ export default function InventoryCountAuditPanel({ sessionId, code, allowAttachm
       <LazyAuditSection
         id="lifecycle-history"
         title="Lifecycle history"
-        description="Status transition history. Loaded only after this section is opened."
+        description="Review status changes for this inventory count."
         expandedSection={expandedSection}
         visitedSections={visitedSections}
         onToggle={handleToggle}
@@ -96,7 +96,7 @@ export default function InventoryCountAuditPanel({ sessionId, code, allowAttachm
       <LazyAuditSection
         id="domain-events"
         title="Domain events"
-        description="Operational lifecycle events emitted for this count session. Loaded on demand."
+        description="Review recorded activity for this inventory count."
         expandedSection={expandedSection}
         visitedSections={visitedSections}
         onToggle={handleToggle}
@@ -107,7 +107,7 @@ export default function InventoryCountAuditPanel({ sessionId, code, allowAttachm
       <LazyAuditSection
         id="change-history"
         title="Change history"
-        description="Business audit trail for status changes, review decisions and adjustment creation. Loaded on demand."
+        description="Review status changes, decisions and stock adjustments."
         expandedSection={expandedSection}
         visitedSections={visitedSections}
         onToggle={handleToggle}
@@ -124,7 +124,7 @@ export default function InventoryCountAuditPanel({ sessionId, code, allowAttachm
       <LazyAuditSection
         id="attachments"
         title="Attachments"
-        description="Documents and evidence linked to this inventory count. Loaded on demand."
+        description="Documents and evidence linked to this inventory count."
         expandedSection={expandedSection}
         visitedSections={visitedSections}
         onToggle={handleToggle}

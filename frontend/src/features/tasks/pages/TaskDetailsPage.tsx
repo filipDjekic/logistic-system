@@ -112,7 +112,7 @@ export default function TaskDetailsPage() {
   }, [refetchTask, taskStatus]);
 
   if (!isValidTaskId) {
-    return <ErrorState title="Invalid task" description="The task ID in the route must be a positive integer." />;
+    return <ErrorState title="Task unavailable" description="The requested task could not be found." />;
   }
 
   if (taskQuery.isLoading) {
@@ -124,7 +124,7 @@ export default function TaskDetailsPage() {
   }
 
   if (taskQuery.isError || !taskQuery.data) {
-    const error = normalizeApiError(taskQuery.error, 'The task could not be loaded from the backend.');
+    const error = normalizeApiError(taskQuery.error, 'The task could not be loaded.');
     return (
       <EntityDetailsLayout overline="Operations" title="Task Details" actionItems={[{ key: 'back', label: 'Back to list', to: '/tasks' }]}>
         <ErrorState
@@ -170,7 +170,7 @@ export default function TaskDetailsPage() {
     <EntityDetailsLayout
       overline="Operations"
       title={task.title}
-      description="Review task lifecycle, assignment and linked transport or stock movement context."
+      description="Review the task status, assignment and related transport order or stock movement."
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as TaskDetailsTab)}
@@ -224,7 +224,7 @@ export default function TaskDetailsPage() {
           <Grid size={{ xs: 12, lg: 4 }}>
             <DetailsLifecycleCard
               title="Status actions"
-              description="Allowed transitions follow role and lifecycle guards."
+              description="Choose one of the available status changes."
               currentStatus={task.status}
               statusNode={<TaskStatusChip status={task.status} />}
               statuses={taskLifecycleStatuses}

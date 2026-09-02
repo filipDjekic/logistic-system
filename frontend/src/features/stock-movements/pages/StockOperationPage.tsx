@@ -450,7 +450,7 @@ export default function StockOperationPage() {
 
       <FormProgress steps={stockOperationSteps} activeStep={activeStep} />
 
-      <SectionCard title="1. Choose operation" description="Pick the operational intent first.">
+      <SectionCard title="1. Choose operation" description="Select the type of stock movement.">
         <Grid container spacing={2}>
           {operationOrder.map((item) => {
             const itemConfig = operationConfig[item];
@@ -482,7 +482,7 @@ export default function StockOperationPage() {
 
       {operation && config ? (
         <>
-        <SectionCard title="2. Entities and locations" description="Select the operational entities first. Dynamic references use lookup/search fields; enum values stay as dropdowns.">
+        <SectionCard title="2. Warehouses and product" description="Select the product and the warehouses or bins involved.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <EntityLookupField
@@ -666,7 +666,7 @@ export default function StockOperationPage() {
                     fullWidth
                     value={calculatedCost && movementContext ? `${calculatedCost.totalCost.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ${movementContext.currency}` : ''}
                     placeholder={movementContext ? 'Enter quantity' : 'Select warehouse and product first'}
-                    helperText="Preview: quantity × unit cost; backend stores the authoritative snapshot."
+                    helperText="Estimated total based on quantity and unit cost."
                     slotProps={{ input: { readOnly: true } }}
                   />
                 </Grid>
@@ -698,7 +698,7 @@ export default function StockOperationPage() {
           </Grid>
         </SectionCard>
 
-        <SectionCard title="4. Reference context" description="Attach transport or stock movement context where it belongs. Manual reference number is still allowed for standalone operations.">
+        <SectionCard title="4. Related records" description="Link a transport order or stock movement, or enter a reference number.">
           <Grid container spacing={2}>
             {usesTransportOrder ? (
               <Grid size={{ xs: 12 }}>
@@ -764,7 +764,7 @@ export default function StockOperationPage() {
           </Grid>
         </SectionCard>
 
-        <SectionCard title="5. Review and submit" description="Submit creates the movement and opens its details page, where lifecycle actions are handled explicitly.">
+        <SectionCard title="5. Review and submit" description="Review the information before creating the stock movement.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12 }}>
               <TextField

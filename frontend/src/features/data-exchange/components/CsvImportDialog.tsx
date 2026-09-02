@@ -103,7 +103,7 @@ export default function CsvImportDialog({
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
-            {description ?? 'CSV import uses the same backend validation and role scope as manual entry.'}
+            {description ?? 'Imported records follow the same validation and access rules as manual entries.'}
           </Typography>
 
           <Alert severity="info">
@@ -185,7 +185,7 @@ export default function CsvImportDialog({
           {error ? (
             <ErrorState
               title="Import failed"
-              description={normalizeApiError(error, 'Backend import endpoint failed.').message}
+              description={normalizeApiError(error, 'The file could not be imported.').message}
               details={normalizeApiError(error).fieldErrors}
             />
           ) : null}

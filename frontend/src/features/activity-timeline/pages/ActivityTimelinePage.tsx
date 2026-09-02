@@ -96,7 +96,7 @@ export default function ActivityTimelinePage() {
     >
       <AuditScopeGuide mode="activity-timeline" />
 
-      <SectionCard title="Entity context" description="Use this selector when you need the full operational thread for one concrete entity.">
+      <SectionCard title="Record" description="Select a record to review its complete activity timeline.">
         <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, md: 5 }}>
             <TextField
@@ -131,7 +131,7 @@ export default function ActivityTimelinePage() {
       {activeTab === 'recent' || activeTab === 'entity' ? (
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, lg: 4 }}>
-            <SectionCard title="Activity summary" description="Counts for the currently visible timeline.">
+            <SectionCard title="Activity summary" description="Summary of the activity shown below.">
               {Object.keys(currentCounts).length === 0 ? (
                 <Typography color="text.secondary">No activity summary yet.</Typography>
               ) : (
@@ -146,8 +146,8 @@ export default function ActivityTimelinePage() {
 
           <Grid size={{ xs: 12, lg: 8 }}>
             <RelatedDataSection
-              title={activeTab === 'entity' ? 'Entity operational timeline' : 'Recent domain events'}
-              description={activeTab === 'entity' ? 'Domain events, comments and attachments for the selected entity.' : 'Newest domain events across accessible entities. Raw activity logs are excluded.'}
+              title={activeTab === 'entity' ? 'Record activity timeline' : 'Recent activity'}
+              description={activeTab === 'entity' ? 'Activity, comments and attachments for the selected record.' : 'Latest business activity across the company.'}
               loading={activeTab === 'entity' ? timelineQuery.isLoading : recentQuery.isLoading}
               error={activeTab === 'entity' ? timelineQuery.isError : recentQuery.isError}
               onRetry={() => {

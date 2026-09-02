@@ -314,24 +314,24 @@ function WarehouseCongestionCard({ item }: { item: OperationalWarehouseCongestio
 
 export default function OperationalDashboardPanel({ data, loading, error = false, onRetry }: Props) {
   const navigate = useNavigate();
-  const title = data?.title ?? 'Operational command board';
-  const description = data?.description ?? 'Actionable operational widgets for the current role.';
+  const title = data?.title ?? 'Operations overview';
+  const description = data?.description ?? 'Review work that needs attention.';
   const emptyMessage = data?.emptyMessage ?? 'No active operational exceptions require attention.';
 
   if (loading && !data) {
     return (
-      <SectionCard title="Operational command board" description="Loading operational workflow widgets.">
-        <InlineLoader message="Loading operational data..." lines={4} />
+      <SectionCard title="Operations overview" description="Loading current operations.">
+        <InlineLoader message="Loading operations..." lines={4} />
       </SectionCard>
     );
   }
 
   if (error && !data) {
     return (
-      <SectionCard title="Operational command board" description="Actionable operational widgets for the current role.">
+      <SectionCard title="Operations overview" description="Review work that needs attention.">
         <ErrorState
           title="Operational dashboard could not be loaded"
-          description="Operational widgets, alerts and workflow queues failed to load."
+          description="Current operations could not be loaded."
           onRetry={onRetry}
         />
       </SectionCard>
@@ -340,10 +340,10 @@ export default function OperationalDashboardPanel({ data, loading, error = false
 
   if (!data) {
     return (
-      <SectionCard title="Operational command board" description="Actionable operational widgets for the current role.">
+      <SectionCard title="Operations overview" description="Review work that needs attention.">
         <EmptyState
-          title="No operational dashboard data"
-          description="There is no role-specific operational data available for the current context."
+          title="No operations to show"
+          description="There is no current operational data available."
         />
       </SectionCard>
     );
@@ -359,7 +359,7 @@ export default function OperationalDashboardPanel({ data, loading, error = false
   return (
     <Stack spacing={2}>
       {liveAlerts.length > 0 ? (
-        <SectionCard title="Live operational alerts" description="Newest role-relevant problems that should be handled before routine work.">
+        <SectionCard title="Operational alerts" description="Review urgent issues before continuing routine work.">
           <Stack spacing={1}>
             {liveAlerts.map((alert) => (
               <LiveAlertCard key={alert.key} alert={alert} />
@@ -369,7 +369,7 @@ export default function OperationalDashboardPanel({ data, loading, error = false
       ) : null}
 
       {sla ? (
-        <SectionCard title="SLA / deadline awareness" description="Immediate deadline pressure across tasks and transports.">
+        <SectionCard title="Upcoming deadlines" description="Tasks and transport orders that are overdue or due soon.">
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap" useFlexGap>
             <Chip color={sla.overdueTasks > 0 ? 'error' : 'success'} label={`Overdue tasks ${formatNumber(sla.overdueTasks)}`} variant="outlined" />
             <Chip color={sla.delayedTransports > 0 ? 'error' : 'success'} label={`Delayed transports ${formatNumber(sla.delayedTransports)}`} variant="outlined" />
@@ -380,7 +380,7 @@ export default function OperationalDashboardPanel({ data, loading, error = false
       ) : null}
 
       {incidents.length > 0 ? (
-        <SectionCard title="Grouped incident cards" description="Related operational exceptions grouped into recovery queues.">
+        <SectionCard title="Operational issues" description="Related issues grouped by the action needed.">
           <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
             {incidents.map((incident) => (
               <IncidentCard key={incident.key} incident={incident} />
@@ -390,7 +390,7 @@ export default function OperationalDashboardPanel({ data, loading, error = false
       ) : null}
 
       {workload.length > 0 ? (
-        <SectionCard title="Workload balancing" description="Open, blocked and overdue work visible from the command center.">
+        <SectionCard title="Workload" description="Compare open, blocked and overdue work.">
           <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
             {workload.map((item) => (
               <WorkloadCard key={item.key} item={item} />
@@ -400,7 +400,7 @@ export default function OperationalDashboardPanel({ data, loading, error = false
       ) : null}
 
       {warehouseCongestion.length > 0 ? (
-        <SectionCard title="Warehouse congestion" description="Warehouses above safe capacity usage with direct navigation to details.">
+        <SectionCard title="Warehouse capacity" description="Warehouses approaching or exceeding safe capacity.">
           <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
             {warehouseCongestion.map((item) => (
               <WarehouseCongestionCard key={item.warehouseId} item={item} />
@@ -410,7 +410,7 @@ export default function OperationalDashboardPanel({ data, loading, error = false
       ) : null}
 
       {nextActions.length > 0 ? (
-        <SectionCard title="Next actions" description="Role-specific actions that move work forward from the dashboard.">
+        <SectionCard title="Next actions" description="Continue with the work that needs your attention.">
           <Box
             sx={{
               display: 'grid',
@@ -450,7 +450,7 @@ export default function OperationalDashboardPanel({ data, loading, error = false
         )}
       </SectionCard>
 
-      <SectionCard title="Workflow attention queue" description="Click any row to open the exact workflow/details screen.">
+      <SectionCard title="Items requiring attention" description="Select an item to review its details.">
         <Stack spacing={1.25}>
           {data.flows.length === 0 ? (
             <EmptyState title="No workflow items" description={emptyMessage} />

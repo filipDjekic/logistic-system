@@ -151,7 +151,7 @@ export default function WarehouseFormPage({ mode }: Props) {
       <PageHeader
         overline="Storage"
         title={mode === 'create' ? 'Create warehouse' : 'Edit warehouse'}
-        description="Warehouse form is a full page and manager selection uses searchable employee results."
+        description="Enter warehouse details and assign a warehouse manager."
         actions={
           <Button variant="outlined" onClick={() => navigate('/warehouses')} disabled={isSaving}>
             Back to warehouses
@@ -233,7 +233,7 @@ export default function WarehouseFormPage({ mode }: Props) {
             cancelLabel="Cancel"
             submitLabel={mode === 'create' ? 'Create warehouse' : 'Save changes'}
             submittingLabel={mode === 'create' ? 'Creating warehouse...' : 'Saving changes...'}
-            helperText="Status changes after creation should use lifecycle actions. This form saves master/location data."
+            helperText="Update the warehouse's basic information and location."
             loading={isSaving}
             submitDisabled={!canSubmit}
             onCancel={() => navigate('/warehouses')}

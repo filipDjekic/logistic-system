@@ -32,8 +32,8 @@ export default function LifecycleHistoryTimeline({ entityName, entityId, title =
       error={query.isError}
       onRetry={() => { void query.refetch(); }}
       empty={!query.isLoading && !query.isError && rows.length === 0}
-      emptyTitle="No lifecycle transitions"
-      emptyDescription="No status transitions have been recorded for this entity yet."
+      emptyTitle="No status changes"
+      emptyDescription="No status changes have been recorded yet."
     >
       <Stack spacing={2}>
         <AuditTimeline
@@ -47,7 +47,7 @@ export default function LifecycleHistoryTimeline({ entityName, entityId, title =
           }))}
         />
         <Typography variant="caption" color="text.secondary">
-          Reason text is visible in lifecycle activity/domain events when the backend stores it as operational audit description.
+          Reasons are shown when they were recorded with a status change.
         </Typography>
       </Stack>
     </RelatedDataSection>

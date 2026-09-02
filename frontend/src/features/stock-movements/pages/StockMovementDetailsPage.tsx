@@ -239,7 +239,7 @@ export default function StockMovementDetailsPage() {
     return (
       <ErrorState
         title="Invalid stock movement"
-        description="The stock movement ID in the route is not valid."
+        description="The requested stock movement could not be found."
       />
     );
   }
@@ -353,7 +353,7 @@ export default function StockMovementDetailsPage() {
 
           <DetailsLifecycleCard
             title="Lifecycle workflow"
-            description="Status is controlled by backend actions. Users do not edit status manually."
+            description="Use the available actions to update this stock movement's status."
             currentStatus={currentLifecycleStatus}
             statusNode={<StatusChip value={currentStatus} emphasis="strong" />}
             statuses={stockMovementLifecycleOrder}
@@ -402,7 +402,7 @@ export default function StockMovementDetailsPage() {
 
           <DetailsMetadataCard
             title="Cost and valuation"
-            description="Cost fields captured on the movement and used by backend inventory valuation when available."
+            description="Recorded costs used for inventory valuation."
             fields={[
               { key: 'unitCost', label: 'Unit cost', value: formatMoney(movement.unitCost, movement.currency) },
               { key: 'totalCost', label: 'Total cost', value: formatMoney(movement.totalCost, movement.currency) },

@@ -214,7 +214,7 @@ export default function ProductDetailsPage() {  const params = useParams();
   });
 
   if (validProductId == null) {
-    return <ErrorState title="Invalid product" description="The product ID in the route is not valid." />;
+    return <ErrorState title="Product unavailable" description="The requested product could not be found." />;
   }
 
   if (productQuery.isLoading) {

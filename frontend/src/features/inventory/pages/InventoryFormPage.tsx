@@ -107,8 +107,8 @@ export default function InventoryFormPage({ mode }: Props) {
   if (!isValidEditRoute) {
     return (
       <ErrorState
-        title="Invalid inventory edit route"
-        description="Warehouse ID and product ID must both be positive integers."
+        title="Inventory record unavailable"
+        description="The requested inventory record could not be opened."
       />
     );
   }
@@ -212,7 +212,7 @@ export default function InventoryFormPage({ mode }: Props) {
         }
       />
 
-      <SectionCard title="Inventory identity" description="Pick the related records from searchable result tables.">
+      <SectionCard title="Inventory details" description="Select the warehouse and product for this inventory record.">
         <Stack spacing={2.5}>
           {mode === 'edit' ? (
             <Alert severity="info">

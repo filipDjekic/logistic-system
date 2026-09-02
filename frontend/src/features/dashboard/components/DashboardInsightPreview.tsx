@@ -30,7 +30,7 @@ export default function DashboardInsightPreview({ charts = [] }: Props) {
         <SectionCard
           key={chart.key}
           title={chart.title}
-          description="Prepared dashboard dataset. Visual chart rendering is handled in the next graphics package."
+          description="Summary of the latest dashboard figures."
         >
           <Stack spacing={1}>
             {chart.items.length === 0 ? (

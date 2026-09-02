@@ -106,7 +106,7 @@ export default function CompanyDetailsPage() {
     >
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
-          <DetailsOverviewCard title="Company overview" description="Core company identity, location and scoping data.">
+          <DetailsOverviewCard title="Company overview" description="Company details, location and current status."
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="ID" value={company.id} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Name" value={company.name} /></Grid>
@@ -131,7 +131,7 @@ export default function CompanyDetailsPage() {
             </Grid>
           </DetailsOverviewCard>
 
-          <DetailsMetadataCard title="Bootstrap company admin" description="Generated admin and employee bootstrap references.">
+          <DetailsMetadataCard title="Initial company administrator" description="Administrator and employee records created with the company."
             <Stack spacing={2}>
               <Alert severity="info">
                 This company can be connected with an automatically generated COMPANY_ADMIN account.
@@ -152,7 +152,7 @@ export default function CompanyDetailsPage() {
           <Grid size={{ xs: 12, lg: 4 }}>
             <RelatedDataSection
               title="Warehouses"
-              description="Warehouse records connected with this company scope."
+              description="Warehouses belonging to this company."
               action={<Button variant="outlined" onClick={() => navigate('/warehouses')}>Open warehouses</Button>}
               loading={warehousesQuery.isLoading}
               error={warehousesQuery.isError}

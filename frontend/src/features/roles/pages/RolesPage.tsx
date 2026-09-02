@@ -59,7 +59,7 @@ export default function RolesPage() {
 
       <SectionCard
         title="Role list"
-        description="Roles stay system-defined in the backend. This screen is for inspection, not editing."
+        description="Review the roles available in the system."
       >
         <DataTable<RoleResponse>
           rows={rolesQuery.data ?? []}

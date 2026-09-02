@@ -432,7 +432,7 @@ export default function StockMovementFormDialog({
         <FormActions
           submitLabel="Submit"
           submittingLabel="Submitting movement..."
-          helperText="Product, warehouse and quantity rules must be valid before submitting the movement into lifecycle."
+          helperText="Confirm the product, warehouse and quantity before submitting."
           loading={loading}
           submitDisabled={!form.formState.isValid}
           onCancel={onClose}

@@ -5,7 +5,7 @@ function errorMessage(error: unknown) {
   if (isRouteErrorResponse(error)) {
     return `${error.status} ${error.statusText}`.trim();
   }
-  return error instanceof Error ? error.message : 'Unexpected route rendering error';
+  return error instanceof Error ? error.message : 'This page could not be displayed.';
 }
 
 export default function RouteErrorPage() {

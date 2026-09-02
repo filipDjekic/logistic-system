@@ -23,7 +23,7 @@ export default function RoleDetailsPage() {
   const roleQuery = useRole(validRoleId);
 
   if (validRoleId == null) {
-    return <ErrorState title="Invalid role" description="The role ID in the route is not valid." />;
+    return <ErrorState title="Role unavailable" description="The requested role could not be found." />;
   }
 
   if (roleQuery.isLoading) {
@@ -73,7 +73,7 @@ export default function RoleDetailsPage() {
       onTabChange={(value) => setActiveTab(value as RoleDetailsTab)}
     >
       {activeTab === 'overview' ? (
-        <DetailsOverviewCard title="Role overview" description="Role identity used by authorization guards and access checks.">
+        <DetailsOverviewCard title="Role overview" description="Role name and access summary."
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 4 }}><DetailsField label="ID" value={role.id} /></Grid>
             <Grid size={{ xs: 12, md: 4 }}><DetailsField label="System name" value={role.name} /></Grid>
@@ -84,7 +84,7 @@ export default function RoleDetailsPage() {
       ) : null}
 
       {activeTab === 'permissions' ? (
-        <SectionCard title="Permission model" description="Role is consumed by backend authorization and frontend operation guards.">
+        <SectionCard title="Permissions" description="Review the access granted to this role.">
           <Stack spacing={2}>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Chip label={role.name} />
@@ -93,7 +93,7 @@ export default function RoleDetailsPage() {
               <Chip variant="outlined" label="Warehouse access checks" />
             </Stack>
             <Typography color="text.secondary">
-              Detailed permissions are enforced through role-based guards in API endpoints and page-level UI checks. This tab keeps the role lifecycle consistent with other details pages without duplicating static permission code into the database.
+              Permissions are defined by the selected role and cannot be changed here.
             </Typography>
           </Stack>
         </SectionCard>

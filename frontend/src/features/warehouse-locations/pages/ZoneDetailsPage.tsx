@@ -246,7 +246,7 @@ export default function ZoneDetailsPage() {
   ];
 
   if (!warehouseId || !zoneId) {
-    return <ErrorState title="Invalid warehouse location route" description="The warehouse or zone ID in the route is not valid." />;
+    return <ErrorState title="Warehouse location unavailable" description="The requested warehouse location could not be found." />;
   }
 
   return (

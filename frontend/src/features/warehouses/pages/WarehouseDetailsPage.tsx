@@ -508,7 +508,7 @@ function WarehouseAccessPanel({ warehouseId, warehouseName }: { warehouseId: num
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, lg: 5 }}>
-          <SectionCard title="Assign access" description="Structured warehouse access form with employee lookup, permission scope and validity window.">
+          <SectionCard title="Assign access" description="Choose an employee, access level and validity period.">
             <Stack spacing={2.25}>
               <Box>
                 <EntityLookupField
@@ -774,7 +774,7 @@ export default function WarehouseDetailsPage() {
     return (
       <ErrorState
         title="Invalid warehouse"
-        description="The warehouse ID in the route is not valid."
+        description="The requested warehouse could not be found."
       />
     );
   }
@@ -875,7 +875,7 @@ export default function WarehouseDetailsPage() {
         <Stack spacing={3}>
           <DetailsStatisticsCard
             title="Warehouse statistics"
-            description="Fast operational snapshot for this warehouse. Counts are loaded from the related tabs when those tabs are opened."
+            description="Review key inventory, location and activity totals for this warehouse."
             statistics={[
               { key: 'capacity', title: 'Total capacity', value: formatCapacity(warehouse.capacity), subtitle: 'Configured storage capacity' },
               { key: 'occupied', title: 'Occupied', value: formatCapacity(occupiedCapacity), subtitle: 'Physical inventory currently stored', accent: capacityExceeded ? 'error' : 'primary' },
@@ -908,7 +908,7 @@ export default function WarehouseDetailsPage() {
           {canManage && warehouse.status !== 'ARCHIVED' ? (
             <DetailsMetadataCard
               title="Warehouse status controls"
-              description="Only supported operational status transitions are available. Archiving is a separate terminal lifecycle action."
+              description="Use the available actions to change status or archive this warehouse."
             >
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {availableWarehouseStatusTargets.map((status) => (
@@ -1063,7 +1063,7 @@ export default function WarehouseDetailsPage() {
         <Stack spacing={3}>
           <RelatedDataSection
             title="Warehouse stock movements"
-            description="Inbound, outbound, transfer, adjustment, write-off, return and reservation records scoped to this warehouse."
+            description="Inbound, outbound, transfer, adjustment, write-off, return and reservation records for this warehouse."
             loading={stockMovementQuery.isLoading}
             error={stockMovementQuery.isError}
             onRetry={() => void stockMovementQuery.refetch()}

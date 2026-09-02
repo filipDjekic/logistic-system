@@ -93,7 +93,7 @@ export default function ActivityLogsPage() {
 
   return (
     <Stack spacing={3}>
-      <PageHeader overline="Administration" title="Activity Logs" description="Review backend activity records." />
+      <PageHeader overline="Administration" title="Activity Logs" description="Review recent activity across the company." />
 
       <AuditScopeGuide mode="activity-logs" />
 

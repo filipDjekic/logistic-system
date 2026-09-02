@@ -265,7 +265,7 @@ export default function CompanyFormDialog({
               </Grid>
 
               <Grid size={{ xs: 12, md: 6 }}>
-                <FormTextField name="email" control={form.control} label="Company email" helperText="Created companies use contact@company.countryCode; backend finalizes the generated value." />
+                <FormTextField name="email" control={form.control} label="Company email" helperText="Generated automatically from the company name and country." />
               </Grid>
 
               <Grid size={{ xs: 12, md: 6 }}>

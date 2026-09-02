@@ -204,7 +204,7 @@ export default function InventoryCountsPage() {
                 <Stack spacing={1}>
                   <Typography variant="subtitle2">Location snapshot scope</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    The backend creates one count line for every product/bin inventory row in {selectedWarehouse.label}. Use the details page filters to review by zone and bin after creation.
+                    A count line will be created for each product and bin in {selectedWarehouse.label}. You can filter the count by zone and bin after creation.
                   </Typography>
                   <Divider />
                   <Stack direction="row" spacing={1}>

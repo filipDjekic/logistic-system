@@ -115,10 +115,10 @@ export default function ChangeHistoryPage() {
   if (!isOverlord && !isContextView) {
     return (
       <Stack spacing={3}>
-        <PageHeader overline="Entity context" title="Change History" description="This page is available to non-OVERLORD roles only through entity context." actions={<Button variant="outlined" onClick={() => navigate('/dashboard')}>Back to dashboard</Button>} />
+        <PageHeader overline="Change history" title="Select a record" description="Open change history from a record's details page." actions={<Button variant="outlined" onClick={() => navigate('/dashboard')}>Back to dashboard</Button>} />
 
-        <SectionCard title="Context required" description="Open history from a specific details page so access stays tied to the selected entity.">
-          <EmptyState title="Select history from entity details" description="Use View history from user, employee, vehicle, warehouse, product, task or transport order details." />
+        <SectionCard title="Record required" description="Open the record whose changes you want to review.">
+          <EmptyState title="Select change history from record details" description="Use View history from a user, employee, vehicle, warehouse, product, task or transport order." />
         </SectionCard>
       </Stack>
     );
@@ -126,7 +126,7 @@ export default function ChangeHistoryPage() {
 
   return (
     <Stack spacing={3}>
-      <PageHeader overline={isContextView ? 'Entity context' : 'Audit'} title="Change History" description={isContextView ? 'Review field-level changes for the selected entity context.' : 'Review field-level change records across accessible entities.'} />
+      <PageHeader overline={isContextView ? 'Record history' : 'Audit'} title="Change History" description={isContextView ? 'Review changes made to the selected record.' : 'Review recorded changes across the company.'} />
 
       <AuditScopeGuide mode="change-history" />
 

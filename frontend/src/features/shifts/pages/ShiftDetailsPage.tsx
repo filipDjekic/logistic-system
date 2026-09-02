@@ -65,7 +65,7 @@ export default function ShiftDetailsPage() {
     return () => window.clearInterval(intervalId);
   }, [queryClient, shiftId, shiftStatus]);
 
-  if (!isValidShiftId) return <ErrorState title="Invalid shift" description="The shift ID in the route must be a positive integer." />;
+  if (!isValidShiftId) return <ErrorState title="Shift unavailable" description="The requested shift could not be found." />;
 
   if (shiftQuery.isLoading) {
     return (
@@ -76,7 +76,7 @@ export default function ShiftDetailsPage() {
   }
 
   if (shiftQuery.isError || !shiftQuery.data) {
-    const error = normalizeApiError(shiftQuery.error, 'The shift could not be loaded from the backend.');
+    const error = normalizeApiError(shiftQuery.error, 'The shift could not be loaded.');
     return (
       <EntityDetailsLayout overline="Workforce" title="Shift Details" actionItems={[{ key: 'back', label: 'Back to list', to: '/shifts' }]}>
         <ErrorState title={error.status === 403 ? 'Access denied' : error.status === 404 ? 'Shift not found' : 'Shift could not be loaded'} description={error.message} details={error.fieldErrors} onRetry={() => void shiftQuery.refetch()} />
@@ -146,7 +146,7 @@ export default function ShiftDetailsPage() {
             </DetailsOverviewCard>
           </Grid>
           <Grid size={{ xs: 12, lg: 4 }}><ShiftLifecycleCard shift={shift} /></Grid>
-          {canManageShifts && !canEdit ? <Grid size={{ xs: 12 }}><SectionCard title="Mutation guard" description="Shift edit and cancel actions are available only while the shift is planned."><ForbiddenTransitionHint visible message="This shift is not PLANNED, so the edit and cancel actions are disabled by lifecycle rules." /></SectionCard></Grid> : null}
+          {canManageShifts && !canEdit ? <Grid size={{ xs: 12 }}><SectionCard title="Shift actions" description="A shift can be edited or cancelled only while it is planned."><ForbiddenTransitionHint visible message="This shift is no longer planned, so it cannot be edited or cancelled." /></SectionCard></Grid> : null}
         </Grid>
       ) : null}
 

@@ -331,7 +331,7 @@ export default function BinDetailsPage() {
   ];
 
   if (!warehouseId || !zoneId || !binId) {
-    return <ErrorState title="Invalid bin route" description="The warehouse, zone or bin ID in the route is not valid." />;
+    return <ErrorState title="Bin unavailable" description="The requested bin could not be found." />;
   }
 
   return (

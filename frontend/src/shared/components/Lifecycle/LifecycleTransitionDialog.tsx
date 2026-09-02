@@ -204,7 +204,7 @@ export default function LifecycleTransitionDialog<TStatus extends string>({
 
           {optimisticVersion != null ? (
             <Alert severity="info">
-              Current version: {optimisticVersion}. If another user changed this entity first, the backend will reject this transition.
+              Current version: {optimisticVersion}. If another user has already made a change, you will be asked to refresh and try again.
             </Alert>
           ) : null}
 

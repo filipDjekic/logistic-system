@@ -324,7 +324,7 @@ export default function TaskFormDialog({
         <FormActions
           submitLabel={initialData ? 'Save changes' : 'Create task'}
           submittingLabel={initialData ? 'Saving changes...' : 'Creating task...'}
-          helperText="Task assignment and related workflow fields must be valid before saving."
+          helperText="Confirm the assignment and related records before saving."
           loading={loading}
           submitDisabled={disableSubmit && !loading}
           onCancel={onClose}

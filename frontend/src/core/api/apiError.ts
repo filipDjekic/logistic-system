@@ -78,7 +78,7 @@ function defaultMessageForStatus(status: number | null, fallbackMessage: string)
     case 404:
       return 'The requested record does not exist or is outside your company scope.';
     case 405:
-      return 'This action is not supported by the selected endpoint.';
+      return 'This action is not available.';
     case 409:
       return 'This action conflicts with existing data or current record status.';
     case 422:
@@ -196,7 +196,7 @@ export function normalizeApiError(
       return {
         status: null,
         title: 'Network error',
-        message: 'Backend is not reachable. Check that the server is running and try again.',
+    message: 'The service is temporarily unavailable. Please try again shortly.',
         error: null,
         code: null,
         path: null,

@@ -130,8 +130,8 @@ export default function InventoryDetailsPage() {
   if (!isValidRoute) {
     return (
       <ErrorState
-        title="Invalid inventory route"
-        description="Warehouse ID and product ID must both be positive integers."
+        title="Inventory record unavailable"
+        description="The requested inventory record could not be opened."
       />
     );
   }
