@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Alert, Button, Grid, Stack, TextField } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import {
   EntityDetailsLayout,
   OperationalDetailsTabPanels,
@@ -369,6 +369,31 @@ export default function TransportOrderDetailsPage() {
   }, [createItemMutation.error, itemForm, updateItemMutation.error]);
 
   const transportOrder = transportOrderQuery.data;
+  const selectedProductId = Number(useWatch({ control: itemForm.control, name: "productId" }));
+  const selectedQuantity = Number(useWatch({ control: itemForm.control, name: "quantity" }));
+  const selectedUnitCost = Number(useWatch({ control: itemForm.control, name: "movementUnitCost" }));
+  const selectedCurrency = useWatch({ control: itemForm.control, name: "movementCurrency" });
+  const itemCostContextQuery = useQuery({
+    queryKey: ["stock-movement-context", transportOrder?.sourceWarehouseId, selectedProductId],
+    queryFn: () => stockMovementsApi.context(transportOrder!.sourceWarehouseId, selectedProductId),
+    enabled: Boolean(transportOrder?.sourceWarehouseId && selectedProductId > 0),
+  });
+
+  useEffect(() => {
+    if (!itemCostContextQuery.data) return;
+    const unitCost = Number(itemCostContextQuery.data.unitCost);
+    const currency = itemCostContextQuery.data.currency;
+    if (Number.isFinite(unitCost) && currency) {
+      if (itemForm.getValues("movementUnitCost") !== unitCost) {
+        itemForm.setValue("movementUnitCost", unitCost, { shouldValidate: true });
+      }
+      if (itemForm.getValues("movementCurrency") !== currency) {
+        itemForm.setValue("movementCurrency", currency, { shouldValidate: true });
+      }
+    }
+  }, [itemCostContextQuery.data, itemForm]);
+
+  const itemCostPreview = calculateStockMovementCost(selectedQuantity, selectedUnitCost);
   const reserveMutation = useMutation({
     mutationFn: () => transportOrdersApi.reserve(transportOrderId),
     onSuccess: async () => {
@@ -716,12 +741,8 @@ export default function TransportOrderDetailsPage() {
                           fullWidth
                           value={field.value ?? ""}
                           error={Boolean(fieldState.error)}
-                          helperText={fieldState.error?.message}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            field.onChange(value === "" ? "" : Number(value));
-                          }}
-                          slotProps={{ htmlInput: { min: 0, step: 0.0001 } }}
+                          helperText={fieldState.error?.message ?? "Current source inventory valuation."}
+                          slotProps={{ input: { readOnly: true } }}
                         />
                       )}
                     />
@@ -733,6 +754,16 @@ export default function TransportOrderDetailsPage() {
                       control={itemForm.control}
                       label="Currency"
                       required
+                      slotProps={{ input: { readOnly: true } }}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      label="Movement value"
+                      fullWidth
+                      value={itemCostPreview ? `${itemCostPreview.totalCost.toFixed(4)} ${selectedCurrency}` : ""}
+                      slotProps={{ input: { readOnly: true } }}
                     />
                   </Grid>
 

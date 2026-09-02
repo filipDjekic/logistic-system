@@ -56,8 +56,6 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     public TransportOrderItemResponse create(TransportOrderItemCreate dto) {
 
         validateRequestedQuantity(dto.getQuantity());
-        validateMovementCost(dto.getQuantity(), dto.getMovementUnitCost(), dto.getMovementTotalCost());
-
         TransportOrder transportOrder = getTransportOrderForUpdateOrThrow(dto.getTransportOrderId());
 
         validateTransportOrderEditable(transportOrder);
@@ -73,6 +71,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         }
 
         WarehouseInventory warehouseInventory = getWarehouseInventoryForTransportOrder(transportOrder, product);
+        validateMovementCost(warehouseInventory, dto.getQuantity(), dto.getMovementUnitCost(),
+                dto.getMovementTotalCost(), dto.getMovementCurrency());
 
         validateAvailableQuantity(warehouseInventory, dto.getQuantity());
 
@@ -98,8 +98,6 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
     public TransportOrderItemResponse update(Long id, TransportOrderItemUpdate dto) {
 
         validateRequestedQuantity(dto.getQuantity());
-        validateMovementCost(dto.getQuantity(), dto.getMovementUnitCost(), dto.getMovementTotalCost());
-
         TransportOrderItem transportOrderItem = getTransportOrderItemOrThrow(id);
         Long previousTransportOrderId = transportOrderItem.getTransportOrder().getId();
         Map<Long, TransportOrder> lockedOrders = lockTransportOrders(
@@ -123,6 +121,8 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         validateSharedCompanyContext(previousTransportOrder, transportOrderItem.getProduct());
 
         WarehouseInventory warehouseInventory = getWarehouseInventoryForTransportOrder(transportOrderItemTargetOrder, product);
+        validateMovementCost(warehouseInventory, dto.getQuantity(), dto.getMovementUnitCost(),
+                dto.getMovementTotalCost(), dto.getMovementCurrency());
 
         BigDecimal currentReservedByThisItem = BigDecimal.ZERO;
         if (sameReservationTarget(transportOrderItem, transportOrderItemTargetOrder, product)) {
@@ -510,13 +510,25 @@ public class TransportOrderItemService implements TransportOrderItemServiceDefin
         }
     }
 
-    private void validateMovementCost(BigDecimal quantity, BigDecimal unitCost, BigDecimal totalCost) {
+    private void validateMovementCost(WarehouseInventory inventory, BigDecimal quantity, BigDecimal unitCost,
+                                      BigDecimal totalCost, String currency) {
         if (unitCost == null || totalCost == null || unitCost.signum() < 0 || totalCost.signum() < 0) {
             throw new BadRequestException("Transport item movement cost is required and cannot be negative");
+        }
+        BigDecimal inventoryUnitCost = inventory.getAverageUnitCost();
+        String inventoryCurrency = inventory.getCurrency();
+        if (inventoryUnitCost == null || inventoryUnitCost.signum() < 0
+                || inventoryCurrency == null || inventoryCurrency.isBlank()) {
+            throw new BadRequestException("No valid cost is available for the source inventory");
         }
         BigDecimal expected = unitCost.multiply(quantity).setScale(4, RoundingMode.HALF_UP);
         if (expected.compareTo(totalCost.setScale(4, RoundingMode.HALF_UP)) != 0) {
             throw new BadRequestException("Transport item movement total cost must equal unit cost multiplied by quantity");
+        }
+        if (unitCost.setScale(4, RoundingMode.HALF_UP)
+                .compareTo(inventoryUnitCost.setScale(4, RoundingMode.HALF_UP)) != 0
+                || currency == null || !inventoryCurrency.trim().equalsIgnoreCase(currency.trim())) {
+            throw new BadRequestException("Transport item cost must match the current source inventory valuation");
         }
     }
 }

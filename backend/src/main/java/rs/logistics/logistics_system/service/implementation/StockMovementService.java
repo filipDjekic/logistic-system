@@ -566,6 +566,10 @@ public class StockMovementService implements StockMovementServiceDefinition {
         StockMovement referencedMovement = dto.getReferenceId() != null ? getAccessibleStockMovement(dto.getReferenceId()) : null;
         StockMovementType movementType = resolveReturnMovementType(referencedMovement);
         validateReturnReference(dto, referencedMovement);
+        BigDecimal returnQuantity = dto.getActualQuantity() != null ? dto.getActualQuantity() : dto.getQuantity();
+        StockCostNormalizer.Cost returnCost = referencedMovement != null
+                ? referencedMovementCostSnapshot(referencedMovement, returnQuantity)
+                : null;
         StockMovementReasonCode reasonCode = movementType == StockMovementType.RETURN_OUT
                 ? StockMovementReasonCode.RETURN_OUT
                 : StockMovementReasonCode.RETURN_IN;
@@ -584,9 +588,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 dto.getBatchLotNumber(),
                 dto.getBatchExpirationDate(),
                 dto.getSerialNumbers(),
-                null,
-                null,
-                null,
+                returnCost != null ? returnCost.unitCost() : null,
+                returnCost != null ? returnCost.totalCost() : null,
+                returnCost != null ? returnCost.currency() : null,
                 resolveManualOrStockMovementReferenceType(dto.getReferenceId()),
                 dto.getReferenceId(),
                 dto.getReferenceNumber(),
@@ -858,6 +862,15 @@ public class StockMovementService implements StockMovementServiceDefinition {
             throw new BadRequestException("No valid cost is available for the selected product inventory.");
         }
         return stockCostNormalizer.normalize(unitCost, null, currency, quantity);
+    }
+
+    private StockCostNormalizer.Cost referencedMovementCostSnapshot(StockMovement movement, BigDecimal quantity) {
+        if (movement.getUnitCost() == null && movement.getTotalCost() == null && movement.getCurrency() == null) {
+            throw new BadRequestException("The referenced stock movement does not contain a historical cost snapshot.");
+        }
+        StockCostNormalizer.Cost historical = stockCostNormalizer.normalize(
+                movement.getUnitCost(), movement.getTotalCost(), movement.getCurrency(), movement.getQuantity());
+        return stockCostNormalizer.normalize(historical.unitCost(), null, historical.currency(), quantity);
     }
 
     private void validateOperationalEntities(Warehouse warehouse, Product product) {
@@ -1623,6 +1636,7 @@ public class StockMovementService implements StockMovementServiceDefinition {
         StockMovement original = getAccessibleStockMovementForInventoryUpdate(id);
         enforceWarehouseScopeForCurrentRole(original.getWarehouse(), true);
         validateMovementCanBeReversed(original);
+        StockCostNormalizer.Cost reversalCost = referencedMovementCostSnapshot(original, original.getQuantity());
 
         StockMovementType reversalType = reversalTypeFor(original);
         StockAdjustmentDirection reversalAdjustmentDirection = reversalAdjustmentDirectionFor(original);
@@ -1644,9 +1658,9 @@ public class StockMovementService implements StockMovementServiceDefinition {
                 original.getBatchLotNumber(),
                 original.getBatchExpirationDate(),
                 parseSerialNumbers(original.getSerialNumbers()),
-                original.getUnitCost(),
-                original.getTotalCost(),
-                original.getCurrency(),
+                reversalCost.unitCost(),
+                reversalCost.totalCost(),
+                reversalCost.currency(),
                 StockMovementReferenceType.STOCK_MOVEMENT,
                 original.getId(),
                 "REV-" + original.getId(),

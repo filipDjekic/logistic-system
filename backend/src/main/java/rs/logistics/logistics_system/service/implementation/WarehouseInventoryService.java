@@ -84,6 +84,13 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         }
 
         WarehouseInventory warehouseInventory = createInventory(dto, warehouse, product);
+        String companyCurrency = warehouse.getCompany() != null && warehouse.getCompany().getCountry() != null
+                ? warehouse.getCompany().getCountry().getCurrencyCode()
+                : null;
+        if (companyCurrency == null || companyCurrency.isBlank()) {
+            throw new BadRequestException("No valuation currency is configured for the warehouse company");
+        }
+        warehouseInventory.setCurrency(companyCurrency.trim().toUpperCase());
         BinLocation initialBin = validateInitialBinSelection(dto, warehouse, warehouseInventory.getSafeQuantity());
         validateWarehouseCapacity(warehouse, BigDecimal.ZERO, warehouseInventory.getSafeQuantity());
 
@@ -679,6 +686,14 @@ public class WarehouseInventoryService implements WarehouseInventoryServiceDefin
         movement.setProduct(inventory.getProduct());
         movement.setCreatedBy(currentUser);
         movement.setTransportOrder(null);
+
+        BigDecimal averageUnitCost = inventory.getAverageUnitCost();
+        String currency = inventory.getCurrency();
+        if (averageUnitCost != null && averageUnitCost.signum() >= 0 && currency != null && !currency.isBlank()) {
+            movement.setUnitCost(averageUnitCost.setScale(4, java.math.RoundingMode.HALF_UP));
+            movement.setTotalCost(averageUnitCost.multiply(resolvedMovementQuantity).setScale(4, java.math.RoundingMode.HALF_UP));
+            movement.setCurrency(currency.trim().toUpperCase());
+        }
 
         StockMovement savedMovement = stockMovementRepository.saveAndFlush(movement);
 
