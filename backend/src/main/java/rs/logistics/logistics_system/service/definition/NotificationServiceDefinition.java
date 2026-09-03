@@ -19,10 +19,6 @@ public interface NotificationServiceDefinition {
 
     NotificationResponse markAsRead(Long id);
 
-    NotificationResponse acknowledge(Long id);
-
-    NotificationResponse resolve(Long id);
-
     void markAllAsRead(Long userId);
 
     NotificationPageResponse getByUser(Long userId, int page, int size);

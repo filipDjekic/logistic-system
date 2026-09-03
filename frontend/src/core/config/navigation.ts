@@ -157,7 +157,7 @@ function getNavigationItemForRole(itemKey: string, role?: Role | null): Navigati
     return { ...item, label: 'Assigned Stock Movements' };
   }
 
-  if (role === ROLES.DISPATCHER && itemKey === 'employees') return { ...item, label: 'Drivers & Availability' };
+  if (role === ROLES.DISPATCHER && itemKey === 'employees') return { ...item, label: 'Available drivers' };
 
   if (role === ROLES.WORKER && itemKey === 'warehouses') {
     return { ...item, label: 'Assigned Warehouses' };

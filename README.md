@@ -57,7 +57,7 @@ Transport orders connect source and destination warehouses with products, a vehi
 ### Operational visibility and collaboration
 
 - Role-specific dashboards with summary cards, alerts, trends, and actionable links.
-- In-app notifications with unread counts, acknowledge/resolve actions, and live Server-Sent Events (SSE) updates.
+- In-app notifications with unread counts, read actions, and live Server-Sent Events (SSE) updates.
 - Operational comments and uploaded attachments associated with supported business entities.
 - Activity timeline, activity log, field-level change history, and recorded domain events.
 - Filtered transport, inventory, and employee-task reports with CSV export; audit logs support CSV and XLSX export.

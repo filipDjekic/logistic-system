@@ -40,8 +40,6 @@ public class NotificationMapper {
                 notification.getGroupCount(),
                 notification.getLastGroupedAt(),
                 notification.getEscalatedAt(),
-                notification.getAcknowledgedAt(),
-                notification.getResolvedAt(),
                 notification.getActionLabel(),
                 notification.getActionPath(),
                 notification.getUser().getId(),

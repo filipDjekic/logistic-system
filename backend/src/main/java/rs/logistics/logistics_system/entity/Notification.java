@@ -80,12 +80,6 @@ public class Notification {
     @Column(name = "escalated_at")
     private LocalDateTime escalatedAt;
 
-    @Column(name = "acknowledged_at")
-    private LocalDateTime acknowledgedAt;
-
-    @Column(name = "resolved_at")
-    private LocalDateTime resolvedAt;
-
     @Column(name = "action_label", length = 80)
     private String actionLabel;
 
@@ -151,26 +145,6 @@ public class Notification {
         if (this.escalatedAt == null) {
             this.escalatedAt = LocalDateTime.now();
         }
-    }
-
-    public void acknowledge() {
-        if (this.status == NotificationStatus.RESOLVED) {
-            return;
-        }
-        this.status = NotificationStatus.ACKNOWLEDGED;
-        this.acknowledgedAt = LocalDateTime.now();
-    }
-
-    public void resolve() {
-        this.status = NotificationStatus.RESOLVED;
-        this.resolvedAt = LocalDateTime.now();
-        if (this.acknowledgedAt == null) {
-            this.acknowledgedAt = this.resolvedAt;
-        }
-    }
-
-    public boolean isActionable() {
-        return this.status == NotificationStatus.UNREAD || this.status == NotificationStatus.ACKNOWLEDGED;
     }
 
     public void registerGroupedOccurrence(String latestTitle, String latestMessage) {

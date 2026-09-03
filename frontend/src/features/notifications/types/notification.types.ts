@@ -1,6 +1,6 @@
 import type { ItemsPageResponse } from '../../../shared/types/api.types';
 
-export type NotificationStatus = 'UNREAD' | 'READ' | 'ACKNOWLEDGED' | 'RESOLVED';
+export type NotificationStatus = 'UNREAD' | 'READ';
 
 export type NotificationType = 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS';
 
@@ -25,8 +25,6 @@ export type NotificationResponse = {
   groupCount: number | null;
   lastGroupedAt: string | null;
   escalatedAt: string | null;
-  acknowledgedAt: string | null;
-  resolvedAt: string | null;
   actionLabel: string | null;
   actionPath: string | null;
   createdAt: string;

@@ -31,8 +31,6 @@ public class NotificationResponse {
     private Integer groupCount;
     private LocalDateTime lastGroupedAt;
     private LocalDateTime escalatedAt;
-    private LocalDateTime acknowledgedAt;
-    private LocalDateTime resolvedAt;
     private String actionLabel;
     private String actionPath;
     private LocalDateTime createdAt;
@@ -69,8 +67,6 @@ public class NotificationResponse {
                                 Integer groupCount,
                                 LocalDateTime lastGroupedAt,
                                 LocalDateTime escalatedAt,
-                                LocalDateTime acknowledgedAt,
-                                LocalDateTime resolvedAt,
                                 String actionLabel,
                                 String actionPath,
                                 Long userId,
@@ -89,8 +85,6 @@ public class NotificationResponse {
         this.groupCount = groupCount;
         this.lastGroupedAt = lastGroupedAt;
         this.escalatedAt = escalatedAt;
-        this.acknowledgedAt = acknowledgedAt;
-        this.resolvedAt = resolvedAt;
         this.actionLabel = actionLabel;
         this.actionPath = actionPath;
         this.userId = userId;

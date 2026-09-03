@@ -139,20 +139,6 @@ public class NotificationController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN') or @notificationSecurity.isOwner(#id)")
-    @PatchMapping("/{id}/acknowledge")
-    public ResponseEntity<NotificationResponse> acknowledge(@PathVariable Long id) {
-        NotificationResponse response = notificationService.acknowledge(id);
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
-    @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN') or @notificationSecurity.isOwner(#id)")
-    @PatchMapping("/{id}/resolve")
-    public ResponseEntity<NotificationResponse> resolve(@PathVariable Long id) {
-        NotificationResponse response = notificationService.resolve(id);
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-
     @PreAuthorize("hasAnyRole('OVERLORD','COMPANY_ADMIN')")
     @PatchMapping({"/user/{id}/mark_all_as_read", "/user/{id}/mark-all-as-read"})
     public ResponseEntity<Void> markAllAsRead(@PathVariable Long id) {

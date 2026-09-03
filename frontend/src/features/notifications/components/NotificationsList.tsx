@@ -10,12 +10,8 @@ type NotificationsListProps = {
   isError?: boolean;
   onRetry?: () => void;
   onMarkAsRead?: (id: number) => void;
-  onAcknowledge?: (id: number) => void;
-  onResolve?: (id: number) => void;
   onOpenSource?: (notification: NotificationResponse) => void;
   markingNotificationId?: number | null;
-  acknowledgingNotificationId?: number | null;
-  resolvingNotificationId?: number | null;
 };
 
 function NotificationsList({
@@ -24,12 +20,8 @@ function NotificationsList({
   isError = false,
   onRetry,
   onMarkAsRead,
-  onAcknowledge,
-  onResolve,
   onOpenSource,
   markingNotificationId = null,
-  acknowledgingNotificationId = null,
-  resolvingNotificationId = null,
 }: NotificationsListProps) {
   return (
     <QueryStateBoundary
@@ -49,12 +41,8 @@ function NotificationsList({
             key={notification.id}
             notification={notification}
             onMarkAsRead={onMarkAsRead}
-            onAcknowledge={onAcknowledge}
-            onResolve={onResolve}
             onOpenSource={onOpenSource}
             isMarking={markingNotificationId === notification.id}
-            isAcknowledging={acknowledgingNotificationId === notification.id}
-            isResolving={resolvingNotificationId === notification.id}
           />
         ))}
       </Stack>

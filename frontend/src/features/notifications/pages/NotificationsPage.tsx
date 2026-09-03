@@ -9,8 +9,6 @@ import ServerTablePagination from '../../../shared/components/ServerTablePaginat
 import { useNotifications } from '../hooks/useNotifications';
 import { useMarkNotificationAsRead } from '../hooks/useMarkNotificationAsRead';
 import { useMarkAllNotificationsAsRead } from '../hooks/useMarkAllNotificationsAsRead';
-import { useAcknowledgeNotification } from '../hooks/useAcknowledgeNotification';
-import { useResolveNotification } from '../hooks/useResolveNotification';
 import NotificationsList from '../components/NotificationsList';
 import type { NotificationCategory, NotificationSeverity, NotificationStatus, NotificationType } from '../types/notification.types';
 
@@ -18,8 +16,6 @@ const statusOptions: Array<{ label: string; value: NotificationStatus | '' }> = 
   { label: 'All statuses', value: '' },
   { label: 'Unread', value: 'UNREAD' },
   { label: 'Read', value: 'READ' },
-  { label: 'Acknowledged', value: 'ACKNOWLEDGED' },
-  { label: 'Resolved', value: 'RESOLVED' },
 ];
 
 const severityOptions: Array<{ label: string; value: NotificationSeverity | '' }> = [
@@ -64,8 +60,6 @@ export default function NotificationsPage() {
 
   const notificationsQuery = useNotifications({ page, size, status, type, severity, category });
   const markAsReadMutation = useMarkNotificationAsRead();
-  const acknowledgeMutation = useAcknowledgeNotification();
-  const resolveMutation = useResolveNotification();
   const markAllAsReadMutation = useMarkAllNotificationsAsRead();
 
   const notifications = notificationsQuery.data?.items ?? [];
@@ -96,7 +90,7 @@ export default function NotificationsPage() {
       <PageHeader
         overline="Workspace"
         title="Notifications"
-        description="Unread notifications need attention, acknowledged items are in progress, and resolved items are closed."
+        description="Review notifications and mark them as read when they have been seen."
         actions={
           <Typography variant="body2" color="text.secondary">
             Unread: {unreadCount} · Critical: {criticalUnreadCount} · Warning: {warningUnreadCount}
@@ -180,12 +174,6 @@ export default function NotificationsPage() {
             onMarkAsRead={(id) => {
               markAsReadMutation.mutate(id);
             }}
-            onAcknowledge={(id) => {
-              acknowledgeMutation.mutate(id);
-            }}
-            onResolve={(id) => {
-              resolveMutation.mutate(id);
-            }}
             onOpenSource={(notification) => {
               const path = notification.actionPath || getEntityDetailsPath({ sourceType: notification.sourceType, sourceId: notification.sourceId });
               if (!path) {
@@ -199,8 +187,6 @@ export default function NotificationsPage() {
               navigate(path);
             }}
             markingNotificationId={markAsReadMutation.variables ?? null}
-            acknowledgingNotificationId={acknowledgeMutation.variables ?? null}
-            resolvingNotificationId={resolveMutation.variables ?? null}
           />
 
           <ServerTablePagination

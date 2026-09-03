@@ -91,28 +91,6 @@ public class NotificationService implements NotificationServiceDefinition {
 
     @Override
     @Transactional
-    public NotificationResponse acknowledge(Long id) {
-        Notification notification = getAccessibleNotification(id);
-        notification.acknowledge();
-        Notification saved = _notificationRepository.save(notification);
-        NotificationResponse response = NotificationMapper.toResponse(saved);
-        publishAfterCommit(() -> notificationSseService.publishUpdated(notification.getUser().getId(), response));
-        return response;
-    }
-
-    @Override
-    @Transactional
-    public NotificationResponse resolve(Long id) {
-        Notification notification = getAccessibleNotification(id);
-        notification.resolve();
-        Notification saved = _notificationRepository.save(notification);
-        NotificationResponse response = NotificationMapper.toResponse(saved);
-        publishAfterCommit(() -> notificationSseService.publishUpdated(notification.getUser().getId(), response));
-        return response;
-    }
-
-    @Override
-    @Transactional
     public void markAllAsRead(Long userId) {
         validateUserAccess(userId);
         _notificationRepository.markAllAsRead(userId, NotificationStatus.READ);

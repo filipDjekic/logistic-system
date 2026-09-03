@@ -5,12 +5,8 @@ import StatusChip from '../../../shared/components/StatusChip/StatusChip';
 type NotificationItemProps = {
   notification: NotificationResponse;
   onMarkAsRead?: (id: number) => void;
-  onAcknowledge?: (id: number) => void;
-  onResolve?: (id: number) => void;
   onOpenSource?: (notification: NotificationResponse) => void;
   isMarking?: boolean;
-  isAcknowledging?: boolean;
-  isResolving?: boolean;
 };
 
 function formatNotificationDate(value: string) {
@@ -29,16 +25,10 @@ function formatNotificationDate(value: string) {
 export default function NotificationItem({
   notification,
   onMarkAsRead,
-  onAcknowledge,
-  onResolve,
   onOpenSource,
   isMarking = false,
-  isAcknowledging = false,
-  isResolving = false,
 }: NotificationItemProps) {
   const isUnread = notification.status === 'UNREAD';
-  const isAcknowledged = notification.status === 'ACKNOWLEDGED';
-  const isResolved = notification.status === 'RESOLVED';
   const hasSource = Boolean(notification.actionPath || (notification.sourceType && notification.sourceId && notification.sourceType !== 'SYSTEM'));
   const groupCount = notification.groupCount ?? 1;
   const activityDate = notification.lastGroupedAt || notification.createdAt;
@@ -91,23 +81,13 @@ export default function NotificationItem({
 
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.25}>
           <Typography variant="caption" color="text.secondary">
-            {formatNotificationDate(activityDate)}{groupCount > 1 ? ' · grouped' : ''}{isAcknowledged && notification.acknowledgedAt ? ` · acknowledged ${formatNotificationDate(notification.acknowledgedAt)}` : ''}{isResolved && notification.resolvedAt ? ` · resolved ${formatNotificationDate(notification.resolvedAt)}` : ''}{notification.sourceType ? ` · ${notification.sourceType}${notification.sourceId ? ` #${notification.sourceId}` : ''}` : ''}
+            {formatNotificationDate(activityDate)}{groupCount > 1 ? ' · grouped' : ''}{notification.sourceType ? ` · ${notification.sourceType}${notification.sourceId ? ` #${notification.sourceId}` : ''}` : ''}
           </Typography>
 
           <Stack direction="row" spacing={1}>
             {isUnread ? (
               <Button size="small" variant="outlined" onClick={() => onMarkAsRead?.(notification.id)} disabled={isMarking}>
                 Mark read
-              </Button>
-            ) : null}
-            {isUnread ? (
-              <Button size="small" variant="outlined" color="warning" onClick={() => onAcknowledge?.(notification.id)} disabled={isAcknowledging || isMarking}>
-                Acknowledge
-              </Button>
-            ) : null}
-            {!isResolved ? (
-              <Button size="small" variant="outlined" color="success" onClick={() => onResolve?.(notification.id)} disabled={isResolving}>
-                Resolve
               </Button>
             ) : null}
             {hasSource ? (

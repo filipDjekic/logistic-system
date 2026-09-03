@@ -155,7 +155,7 @@ public class OperationalDashboardService implements OperationalDashboardServiceD
             alerts.add(liveAlert(
                     "critical-notifications",
                     "Critical unread notifications",
-                    criticalNotifications + " critical notification(s) require acknowledgement.",
+                    criticalNotifications + " critical notification(s) require review.",
                     "error",
                     "/notifications?status=UNREAD&severity=CRITICAL",
                     "Open notifications",
