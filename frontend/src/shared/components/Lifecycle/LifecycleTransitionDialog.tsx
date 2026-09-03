@@ -90,7 +90,7 @@ function getDefaultConsequences(entityLabel: string, fromStatus: string, toStatu
       ACTIVE: ['The warehouse can be used for normal inventory and transport operations.'],
       INACTIVE: ['The warehouse should not be used for new operational work.', 'Existing inventory, tasks and transport references should be reviewed.'],
       FULL: ['The warehouse should be treated as capacity constrained.', 'Inbound receiving and destination planning should be reviewed.'],
-      UNDER_MAINTENANCE: ['The warehouse should be restricted for normal operations.', 'Open tasks, bin activity and transport plans should be checked before confirming.'],
+      UNDER_MAINTENANCE: ['The warehouse should be restricted for normal operations.', 'Open tasks, inventory and transport plans should be checked before confirming.'],
     };
     return map[toStatus] ?? [`Warehouse changes from ${humanizeStatus(fromStatus)} to ${humanizeStatus(toStatus)}.`];
   }
@@ -110,7 +110,7 @@ function getDefaultWarnings(entityLabel: string, toStatus: string | null) {
   }
 
   if (label.includes('warehouse') && ['INACTIVE', 'UNDER_MAINTENANCE', 'FULL'].includes(toStatus)) {
-    return ['This status can affect future inventory, bin and transport operations.'];
+    return ['This status can affect future inventory and transport operations.'];
   }
 
   if (label.includes('vehicle') && ['MAINTENANCE', 'OUT_OF_SERVICE'].includes(toStatus)) {

@@ -101,16 +101,6 @@ export function getRouteMetaByPath(pathname: string): AppRouteMeta | null {
 }
 
 export function buildBreadcrumbTrail(pathname: string): AppRouteMeta[] {
-  const warehouseZonesMatch = pathname.match(/^\/warehouses\/(\d+)\/zones$/);
-  if (warehouseZonesMatch) {
-    const [, warehouseId] = warehouseZonesMatch;
-    return [
-      routeMeta.dashboard as AppRouteMeta,
-      routeMeta.warehouses as AppRouteMeta,
-      { ...routeMeta.warehouseDetails, path: `/warehouses/${warehouseId}`, breadcrumb: `Warehouse #${warehouseId}` },
-    ];
-  }
-
   const currentMeta = getRouteMetaByPath(pathname);
   if (!currentMeta) {
     return [];

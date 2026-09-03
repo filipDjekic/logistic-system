@@ -194,12 +194,6 @@ export default function TaskDetailsPage() {
                   <Typography>{task.priority}</Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                    <TaskStatusChip status={task.status} />
-                  </Stack>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary">Assigned employee</Typography>
                   {task.assignedEmployeeId ? (
                     <Button component={RouterLink} to={`/employees/${task.assignedEmployeeId}`} size="small" sx={{ px: 0, minWidth: 0 }}>

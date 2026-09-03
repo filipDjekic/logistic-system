@@ -210,17 +210,6 @@ export default function EmployeeDetailsPage() {
     <EntityDetailsLayout
       title={`${employee.firstName} ${employee.lastName}`}
       breadcrumbs={[{ label: 'Employees', to: '/employees' }, { label: `${employee.firstName} ${employee.lastName}` }]}
-      hero={{
-        overline: 'Workforce',
-        title: `${employee.firstName} ${employee.lastName}`,
-        subtitle: `${employee.position} • ${employee.companyName ?? 'No company'}`,
-        status: employee.active ? 'ACTIVE' : 'INACTIVE',
-        primaryInfo: [
-          { label: 'Email', value: employee.email },
-          { label: 'Phone', value: `${employee.phoneCode ?? ''} ${employee.phoneNumber}`.trim() },
-          { label: 'Primary warehouse', value: employee.primaryWarehouseName ?? (employee.primaryWarehouseId ? `Warehouse #${employee.primaryWarehouseId}` : '—') },
-        ],
-      }}
       actionItems={[
         { key: 'back', label: 'Back to list', to: '/employees' },
         ...(canArchiveEmployee && employee.active ? [{ key: 'terminate', label: 'Terminate employee', color: 'warning' as const, variant: 'contained' as const, disabled: archiveMutation.isPending, onClick: () => archiveMutation.mutate(employee.id) }] : []),
@@ -237,8 +226,6 @@ export default function EmployeeDetailsPage() {
           <Grid size={{ xs: 12, lg: 7 }}>
             <DetailsOverviewCard title="Employee overview" description="Employment, contact and assignment data.">
               <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="First name" value={employee.firstName} /></Grid>
-                <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Last name" value={employee.lastName} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Email" value={employee.email} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}><DetailsField label="Phone number" value={`${employee.phoneCode ?? ''} ${employee.phoneNumber}`.trim()} /></Grid>
                 <Grid size={{ xs: 12, md: 6 }}><DetailsField label="JMBG" value={employee.jmbg} /></Grid>

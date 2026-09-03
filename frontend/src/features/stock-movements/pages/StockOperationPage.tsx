@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, CardActionArea, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import PageHeader from '../../../shared/components/PageHeader/PageHeader';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
 import BusinessRuleWarnings, { type BusinessRuleWarning } from '../../../shared/components/BusinessRuleWarnings';
@@ -11,8 +11,6 @@ import FormGlobalError from '../../../shared/components/Form/FormGlobalError';
 import { EntityLookupField, type LookupOption } from '../../lookup';
 import type { StockOperationType } from '../types/stockMovement.types';
 import { useCreateStockOperation } from '../hooks/useStockMovements';
-import { warehouseLocationsApi } from '../../warehouse-locations/api/warehouseLocationsApi';
-import { useAppSnackbar } from '../../../app/providers/useSnackbar';
 import { getErrorMessage } from '../../../core/utils/getErrorMessage';
 import { calculateStockMovementCost } from '../utils/stockMovementCost';
 import { stockMovementsApi } from '../api/stockMovementsApi';
@@ -22,8 +20,6 @@ type StockOperationFormValues = {
   warehouse: LookupOption | null;
   destinationWarehouse: LookupOption | null;
   product: LookupOption | null;
-  binLocation: LookupOption | null;
-  destinationBinLocation: LookupOption | null;
   transportOrder: LookupOption | null;
   stockMovementReference: LookupOption | null;
   adjustmentDirection: 'INCREASE' | 'DECREASE';
@@ -56,11 +52,6 @@ const operationConfig: Record<StockOperationType, OperationConfig> = {
     description: 'Moves product quantity from source warehouse to destination warehouse. Transport order can be selected when transfer follows transport flow.',
     submitLabel: 'Submit transfer movements',
   },
-  internal: {
-    title: 'Internal bin movement',
-    description: 'Moves product quantity from one bin to another bin inside the same warehouse. This creates an internal warehouse movement, not a separate transport flow.',
-    submitLabel: 'Create internal movement',
-  },
   adjustment: {
     title: 'Adjust stock',
     description: 'Creates an adjustment request. Large adjustments can be routed to approval before execution.',
@@ -86,8 +77,6 @@ const initialValues: StockOperationFormValues = {
   warehouse: null,
   destinationWarehouse: null,
   product: null,
-  binLocation: null,
-  destinationBinLocation: null,
   transportOrder: null,
   stockMovementReference: null,
   adjustmentDirection: 'INCREASE',
@@ -151,40 +140,26 @@ function resolvedReferenceNumber(
 export default function StockOperationPage() {
   const navigate = useNavigate();
   const mutation = useCreateStockOperation();
-  const internalMovementMutation = useMutation({
-    mutationFn: warehouseLocationsApi.moveInternal,
-    onSuccess: () => {
-      showSnackbar({ message: 'Internal movement completed successfully.', severity: 'success' });
-      navigate('/stock-movements?tab=internal');
-    },
-    onError: (error) => {
-      showSnackbar({ message: getErrorMessage(error), severity: 'error' });
-    },
-  });
-  const { showSnackbar } = useAppSnackbar();
   const [operation, setOperation] = useState<StockOperationType | null>(null);
   const [values, setValues] = useState<StockOperationFormValues>(initialValues);
   const [errors, setErrors] = useState<FieldErrors>({});
 
   const config = operation ? operationConfig[operation] : null;
   const isTransfer = operation === 'transfer';
-  const isInternal = operation === 'internal';
   const isAdjustment = operation === 'adjustment';
   const requiresExistingStock = operation === 'outbound'
     || operation === 'transfer'
-    || operation === 'internal'
     || operation === 'write-off'
     || (operation === 'adjustment' && values.adjustmentDirection === 'DECREASE')
     || (operation === 'return' && returnRequiresAvailableStock(values.stockMovementReference));
   const usesTransportOrder = operation === 'transfer';
   const allowsStockMovementReference = operation === 'outbound' || operation === 'write-off' || operation === 'return';
-  const submitDisabled = mutation.isPending || internalMovementMutation.isPending;
-  const supportsBinSelection = false;
+  const submitDisabled = mutation.isPending;
   const quantityValue = Number(values.quantity);
   const contextQuery = useQuery({
-    queryKey: ['stock-movement-context', values.warehouse?.id, values.product?.id, values.binLocation?.id],
-    queryFn: () => stockMovementsApi.context(values.warehouse!.id, values.product!.id, values.binLocation?.id),
-    enabled: !isInternal && Boolean(values.warehouse && values.product),
+    queryKey: ['stock-movement-context', values.warehouse?.id, values.product?.id],
+    queryFn: () => stockMovementsApi.context(values.warehouse!.id, values.product!.id),
+    enabled: Boolean(values.warehouse && values.product),
   });
   const movementContext = contextQuery.data;
   const calculatedCost = movementContext
@@ -197,11 +172,11 @@ export default function StockOperationPage() {
 
   const activeStep = useMemo(() => {
     if (!operation) return 0;
-    if (!values.warehouse || !values.product || (isTransfer && !values.destinationWarehouse) || (isInternal && (!values.binLocation || !values.destinationBinLocation))) return 1;
+    if (!values.warehouse || !values.product || (isTransfer && !values.destinationWarehouse)) return 1;
     if (!Number.isFinite(quantityValue) || quantityValue <= 0) return 2;
     if (values.transportOrder || values.stockMovementReference || values.referenceNumber.trim()) return 4;
     return 3;
-  }, [isInternal, isTransfer, operation, quantityValue, values.binLocation, values.destinationBinLocation, values.destinationWarehouse, values.product, values.referenceNumber, values.stockMovementReference, values.transportOrder, values.warehouse]);
+  }, [isTransfer, operation, quantityValue, values.destinationWarehouse, values.product, values.referenceNumber, values.stockMovementReference, values.transportOrder, values.warehouse]);
 
   const pageDescription = useMemo(() => {
     if (!operation || !config) {
@@ -230,7 +205,7 @@ export default function StockOperationPage() {
       nextErrors.quantity = 'Quantity must be greater than 0';
     }
 
-    if (!isInternal && !movementContext) {
+    if (!movementContext) {
       nextErrors.product = contextQuery.isError ? getErrorMessage(contextQuery.error) : 'Wait for inventory availability and cost data';
     }
 
@@ -259,32 +234,6 @@ export default function StockOperationPage() {
       nextErrors.product = 'Product is required';
     }
 
-    if (isInternal && !values.binLocation) {
-      nextErrors.binLocation = 'Source bin is required';
-    }
-
-    if (isInternal && !values.destinationBinLocation) {
-      nextErrors.destinationBinLocation = 'Destination bin is required';
-    }
-
-    if (
-      isTransfer &&
-      (values.binLocation || values.destinationBinLocation) &&
-      (!values.binLocation || !values.destinationBinLocation)
-    ) {
-      if (!values.binLocation) {
-        nextErrors.binLocation = 'Source bin is required when destination bin is selected';
-      }
-
-      if (!values.destinationBinLocation) {
-        nextErrors.destinationBinLocation = 'Destination bin is required when source bin is selected';
-      }
-    }
-
-    if (isInternal && values.binLocation && values.destinationBinLocation && values.binLocation.id === values.destinationBinLocation.id) {
-      nextErrors.destinationBinLocation = 'Destination bin must be different from source bin';
-    }
-
     if (hasBlockingBusinessWarning) {
       nextErrors.referenceNote = nextErrors.referenceNote ?? 'Resolve blocking business warnings before submit';
     }
@@ -306,7 +255,7 @@ export default function StockOperationPage() {
   }
 
   function handleSubmit() {
-    if (!operation || !validate() || !values.warehouse || !values.product || (!isInternal && !calculatedCost)) {
+    if (!operation || !validate() || !values.warehouse || !values.product || !calculatedCost) {
       return;
     }
 
@@ -334,19 +283,6 @@ export default function StockOperationPage() {
     };
 
 
-    if (operation === 'internal') {
-      if (!values.binLocation || !values.destinationBinLocation) return;
-
-      internalMovementMutation.mutate({
-        sourceBinId: values.binLocation.id,
-        destinationBinId: values.destinationBinLocation.id,
-        productId: values.product.id,
-        quantity: Number(values.quantity),
-        note: optionalText(values.referenceNote) ?? optionalText(values.reasonDescription) ?? null,
-      });
-      return;
-    }
-
     if (operation === 'transfer') {
       if (!values.destinationWarehouse) return;
 
@@ -359,8 +295,6 @@ export default function StockOperationPage() {
             sourceWarehouseId: values.warehouse.id,
             destinationWarehouseId: values.destinationWarehouse.id,
             productId: values.product.id,
-            sourceBinLocationId: values.binLocation?.id,
-            destinationBinLocationId: values.destinationBinLocation?.id,
           },
         },
         { onSuccess: afterSuccess },
@@ -377,7 +311,6 @@ export default function StockOperationPage() {
             direction: values.adjustmentDirection,
             warehouseId: values.warehouse.id,
             productId: values.product.id,
-            binLocationId: values.binLocation?.id,
           },
         },
         { onSuccess: afterSuccess },
@@ -394,7 +327,6 @@ export default function StockOperationPage() {
             referenceId: selectedReferenceId,
             warehouseId: values.warehouse.id,
             productId: values.product.id,
-            binLocationId: values.binLocation?.id,
           },
         },
         { onSuccess: afterSuccess },
@@ -411,7 +343,6 @@ export default function StockOperationPage() {
             referenceId: selectedReferenceId,
             warehouseId: values.warehouse.id,
             productId: values.product.id,
-            binLocationId: values.binLocation?.id,
           },
         },
         { onSuccess: afterSuccess },
@@ -428,7 +359,6 @@ export default function StockOperationPage() {
           transportOrderId: values.transportOrder?.id,
           warehouseId: values.warehouse.id,
           productId: values.product.id,
-          binLocationId: values.binLocation?.id,
         },
       },
       { onSuccess: afterSuccess },
@@ -482,7 +412,7 @@ export default function StockOperationPage() {
 
       {operation && config ? (
         <>
-        <SectionCard title="2. Warehouses and product" description="Select the product and the warehouses or bins involved.">
+        <SectionCard title="2. Warehouses and product" description="Select the product and applicable warehouses.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
               <EntityLookupField
@@ -499,11 +429,9 @@ export default function StockOperationPage() {
                     ...prev,
                     warehouse,
                     product: null,
-                    binLocation: null,
-                    destinationBinLocation: isInternal ? null : prev.destinationBinLocation,
                     transportOrder: isTransfer ? null : prev.transportOrder,
                   }));
-                  setErrors((prev) => ({ ...prev, warehouse: undefined, product: undefined, binLocation: undefined, quantity: undefined }));
+                  setErrors((prev) => ({ ...prev, warehouse: undefined, product: undefined, quantity: undefined }));
                 }}
               />
               {errors.warehouse ? <Typography variant="caption" color="error">{errors.warehouse}</Typography> : null}
@@ -521,7 +449,7 @@ export default function StockOperationPage() {
                   activeOnly
                   searchPlaceholder="Search destination warehouses..."
                   onChange={(destinationWarehouse) => {
-                    setValues((prev) => ({ ...prev, destinationWarehouse, destinationBinLocation: null }));
+                    setValues((prev) => ({ ...prev, destinationWarehouse }));
                     setErrors((prev) => ({ ...prev, destinationWarehouse: undefined }));
                   }}
                 />
@@ -542,66 +470,12 @@ export default function StockOperationPage() {
                 placeholder={!values.warehouse ? 'Choose warehouse first' : 'Not selected'}
                 searchPlaceholder="Search products by name or SKU..."
                 onChange={(product) => {
-                  setValues((prev) => ({ ...prev, product, binLocation: null }));
-                  setErrors((prev) => ({ ...prev, product: undefined, binLocation: undefined, quantity: undefined }));
+                  setValues((prev) => ({ ...prev, product }));
+                  setErrors((prev) => ({ ...prev, product: undefined, quantity: undefined }));
                 }}
               />
               {errors.product ? <Typography variant="caption" color="error">{errors.product}</Typography> : null}
             </Grid>
-
-            {supportsBinSelection ? (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <EntityLookupField
-                  label={isTransfer || isInternal ? 'Source bin location' : 'Bin location'}
-                  entityType="bin-locations"
-                  value={values.binLocation}
-                  disabled={submitDisabled || !values.warehouse}
-                  error={Boolean(errors.binLocation)}
-                  helperText={
-                    errors.binLocation ??
-                    (isInternal
-                      ? 'Required for internal movement.'
-                      : 'Optional. Select when moving stock from a specific source bin.')
-                  }
-                  placeholder={values.warehouse ? 'No bin selected' : 'Choose warehouse first'}
-                  searchPlaceholder="Search bins by code, name, zone or warehouse..."
-                  warehouseId={values.warehouse?.id}
-                  activeOnly
-                  sort="code,asc"
-                  onChange={(binLocation) => {
-                    setValues((prev) => ({ ...prev, binLocation }));
-                    setErrors((prev) => ({ ...prev, binLocation: undefined, quantity: undefined }));
-                  }}
-                />
-              </Grid>
-            ) : null}
-
-            {(isTransfer || isInternal) ? (
-              <Grid size={{ xs: 12, md: 6 }}>
-                <EntityLookupField
-                  label="Destination bin location"
-                  entityType="bin-locations"
-                  value={values.destinationBinLocation}
-                  disabled={submitDisabled || (isTransfer ? !values.destinationWarehouse : !values.warehouse)}
-                  error={Boolean(errors.destinationBinLocation)}
-                  helperText={
-                    errors.destinationBinLocation ??
-                    (isInternal
-                      ? 'Required. Internal movement destination stays inside the same warehouse.'
-                      : 'Optional. Select when receiving stock into a specific destination bin.')
-                  }
-                  placeholder={(isTransfer ? values.destinationWarehouse : values.warehouse) ? 'No destination bin selected' : 'Choose warehouse first'}
-                  searchPlaceholder="Search destination bins by code, name, zone or warehouse..."
-                  warehouseId={(isTransfer ? values.destinationWarehouse : values.warehouse)?.id}
-                  activeOnly
-                  sort="code,asc"
-                  onChange={(destinationBinLocation) => {
-                    setValues((prev) => ({ ...prev, destinationBinLocation }));
-                    setErrors((prev) => ({ ...prev, destinationBinLocation: undefined }));
-                  }}
-                />
-              </Grid>
-            ) : null}
 
             <Grid size={{ xs: 12 }}>
               <BusinessRuleWarnings warnings={businessWarnings} />
@@ -628,15 +502,14 @@ export default function StockOperationPage() {
               />
             </Grid>
 
-            {!isInternal ? (
-              <>
+            <>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
                     label="Available quantity"
                     fullWidth
                     value={movementContext?.availableQuantity ?? ''}
                     placeholder={values.warehouse && values.product ? 'Loading inventory data...' : 'Select warehouse and product first'}
-                    helperText={values.binLocation ? 'Available in the selected bin after warehouse reservations.' : 'Warehouse on-hand quantity minus reserved quantity.'}
+                    helperText="Warehouse on-hand quantity minus reserved quantity."
                     slotProps={{ input: { readOnly: true } }}
                   />
                 </Grid>
@@ -670,8 +543,7 @@ export default function StockOperationPage() {
                     slotProps={{ input: { readOnly: true } }}
                   />
                 </Grid>
-              </>
-            ) : null}
+            </>
 
             {isAdjustment ? (
               <Grid size={{ xs: 12, md: 6 }}>
@@ -799,7 +671,7 @@ export default function StockOperationPage() {
             </Grid>
 
             <Grid size={{ xs: 12 }}>
-              <FormGlobalError error={mutation.error ?? internalMovementMutation.error} fallbackMessage="Stock operation could not be submitted." />
+              <FormGlobalError error={mutation.error} fallbackMessage="Stock operation could not be submitted." />
             </Grid>
 
             <Grid size={{ xs: 12 }}>

@@ -3,7 +3,6 @@ export type OperationalEntityType =
   | 'TASK'
   | 'WAREHOUSE'
   | 'WAREHOUSE_INVENTORY'
-  | 'INVENTORY_COUNT'
   | 'STOCK_MOVEMENT'
   | 'SHIFT'
   | 'EMPLOYEE'

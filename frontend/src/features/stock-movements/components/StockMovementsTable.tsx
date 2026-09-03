@@ -33,14 +33,6 @@ function formatMoney(value: number | null | undefined, currency: string | null |
   return currency ? `${value} ${currency}` : String(value);
 }
 
-function binDetailsPath(warehouseId: number, zoneId: number | null | undefined, binId: number | null | undefined) {
-  if (!zoneId || !binId) {
-    return `/warehouses/${warehouseId}/zones`;
-  }
-
-  return `/warehouses/${warehouseId}/zones/${zoneId}/bins/${binId}`;
-}
-
 export default function StockMovementsTable({
   rows,
   loading,
@@ -61,7 +53,6 @@ export default function StockMovementsTable({
         <Stack spacing={0.25}>
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
             <StatusChip value={row.movementType} />
-            {row.status ? <StatusChip value={row.status} variant="outlined" /> : null}
           </Stack>
           <Typography variant="caption" color="text.secondary">
             #{row.id}{row.adjustmentDirection ? ` · ${row.adjustmentDirection}` : ''}
@@ -81,29 +72,6 @@ export default function StockMovementsTable({
           <Button component={RouterLink} to={`/products/${row.productId}`} size="small" sx={{ px: 0, minWidth: 0 }}>
             {row.productName}
           </Button>
-        </Stack>
-      ),
-    },
-    {
-      id: 'bins',
-      header: 'Bins',
-      minWidth: 240,
-      render: (row) => (
-        <Stack spacing={0.25} alignItems="flex-start">
-          {row.sourceBinId ? (
-            <Button component={RouterLink} to={binDetailsPath(row.warehouseId, row.sourceBinZoneId, row.sourceBinId)} size="small" sx={{ px: 0, minWidth: 0 }}>
-              Source: {row.sourceBinCode ?? `#${row.sourceBinId}`}
-            </Button>
-          ) : (
-            <Typography variant="caption" color="text.secondary">Source: —</Typography>
-          )}
-          {row.destinationBinId ? (
-            <Button component={RouterLink} to={binDetailsPath(row.warehouseId, row.destinationBinZoneId, row.destinationBinId)} size="small" sx={{ px: 0, minWidth: 0 }}>
-              Destination: {row.destinationBinCode ?? `#${row.destinationBinId}`}
-            </Button>
-          ) : (
-            <Typography variant="caption" color="text.secondary">Destination: —</Typography>
-          )}
         </Stack>
       ),
     },
@@ -208,8 +176,6 @@ export default function StockMovementsTable({
       ),
     },
   ];
-  const columns = allColumns.filter((column) => column.id !== 'bins');
-
   return (
     <DataTable<StockMovementResponse>
       rows={rows}
@@ -217,7 +183,7 @@ export default function StockMovementsTable({
       error={error}
       onRetry={onRetry}
       getRowId={(row) => row.id}
-      columns={columns}
+      columns={allColumns}
       pagination={pagination}
       sort={sort}
       onSortChange={onSortChange}

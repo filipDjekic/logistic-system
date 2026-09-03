@@ -527,34 +527,6 @@ export default function TransportOrderDetailsPage() {
         { label: "Transport orders", to: "/transport-orders" },
         { label: transportOrder.orderNumber },
       ]}
-      hero={{
-        overline: "Operations",
-        title: `Transport Order ${transportOrder.orderNumber}`,
-        subtitle: transportOrder.description,
-        description: `Transport order #${transportOrder.id} connects warehouse movement, assigned vehicle, driver and related operational tasks.`,
-        avatar: transportOrder.orderNumber.slice(0, 2).toUpperCase(),
-        statusNode: <TransportOrderStatusChip status={transportOrder.status} />,
-        lifecycleStatus: transportOrder.status,
-        primaryInfo: [
-          { label: "Priority", value: transportOrder.priority },
-          {
-            label: "Total weight",
-            value: formatWeight(transportOrder.totalWeight),
-          },
-          {
-            label: "Vehicle",
-            value: vehicle
-              ? `${vehicle.brand} ${vehicle.model}`
-              : `Vehicle #${transportOrder.vehicleId}`,
-          },
-          {
-            label: "Driver",
-            value: employee
-              ? `${employee.firstName} ${employee.lastName}`
-              : `Employee #${transportOrder.assignedEmployeeId}`,
-          },
-        ],
-      }}
       actionItems={[
         ...(isEditableOrder
           ? [

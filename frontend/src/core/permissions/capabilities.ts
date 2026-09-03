@@ -11,7 +11,6 @@ export const CAPABILITIES = {
   TRANSPORT_MANAGE: 'transport.manage',
   VEHICLE_MANAGE: 'vehicle.manage',
   TASK_CREATE: 'task.create',
-  INVENTORY_COUNT_MANAGE: 'inventoryCount.manage',
 } as const;
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES];
@@ -70,7 +69,6 @@ const CAPABILITY_ROLES: Record<Capability, readonly Role[]> = {
   [CAPABILITIES.TRANSPORT_MANAGE]: [ROLES.COMPANY_ADMIN, ROLES.DISPATCHER],
   [CAPABILITIES.VEHICLE_MANAGE]: [ROLES.COMPANY_ADMIN, ROLES.DISPATCHER],
   [CAPABILITIES.TASK_CREATE]: [ROLES.COMPANY_ADMIN, ROLES.HR_MANAGER],
-  [CAPABILITIES.INVENTORY_COUNT_MANAGE]: [ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER],
 };
 
 export function hasCapability(role: Role | null | undefined, capability: Capability): boolean {

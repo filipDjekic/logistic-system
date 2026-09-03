@@ -36,7 +36,6 @@ export const warehouseSchema = z.object({
   capacity: requiredNumber('Capacity is required.', 'Capacity must be greater than 0.'),
   employeeId: requiredNumber('Warehouse manager is required.', 'Warehouse manager is required.'),
   companyId: z.string().trim(),
-  binTrackingEnabled: z.boolean(),
 });
 
 export type WarehouseSchemaValues = z.infer<typeof warehouseSchema>;

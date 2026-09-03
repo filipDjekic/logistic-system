@@ -3,7 +3,6 @@ import type { PageParams, PageResponse } from '../../../core/api/pagination';
 import type { WarehouseInventoryResponse } from '../../inventory/types/inventory.types';
 import type { StockMovementFiltersState, StockMovementResponse } from '../../stock-movements/types/stockMovement.types';
 import type { TransportOrderItemResponse } from '../../transport-orders/types/transportOrder.types';
-import type { BinInventoryResponse } from '../../warehouse-locations/types/warehouseLocation.types';
 import type { ProductCreateRequest, ProductResponse, ProductUpdateRequest } from '../types/product.types';
 
 export type ProductSearchParams = PageParams & {
@@ -24,13 +23,6 @@ export const productsApi = {
 
   getInventoryByWarehouse: async (productId: number) => {
     const res = await apiClient.get<WarehouseInventoryResponse[]>(`/api/warehouse-inventory/product/${productId}`);
-    return res.data;
-  },
-
-  getBinDistribution: async (productId: number) => {
-    const res = await apiClient.get<PageResponse<BinInventoryResponse>>('/api/warehouse-locations/bin-inventory', {
-      params: { productId, page: 0, size: 100, sort: 'warehouse.name,asc' },
-    });
     return res.data;
   },
 

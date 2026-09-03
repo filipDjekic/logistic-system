@@ -12,7 +12,6 @@ import {
   DetailsLifecycleCard,
   DetailsMetadataCard,
   DetailsOverviewCard,
-  DetailsStatisticsCard,
   EntityDetailsLayout,
   OperationalDetailsTabPanels,
   RelatedDataSection,
@@ -233,7 +232,7 @@ export default function VehicleDetailsPage() {
     <EntityDetailsLayout
       overline="Fleet"
       title={`${vehicle.brand} ${vehicle.model}`}
-      description={`Vehicle #${vehicle.id} • ${vehicle.registrationNumber}`}
+      description={vehicle.registrationNumber}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as VehicleDetailsTab)}
@@ -241,20 +240,6 @@ export default function VehicleDetailsPage() {
         { label: isDriver ? "Assigned Vehicles" : "Vehicles", to: "/vehicles" },
         { label: vehicle.registrationNumber },
       ]}
-      hero={{
-        overline: "Fleet",
-        title: `${vehicle.brand} ${vehicle.model}`,
-        subtitle: vehicle.registrationNumber,
-        description: `Vehicle #${vehicle.id} used for transport order execution and fleet operations.`,
-        avatar: vehicle.registrationNumber.slice(0, 2).toUpperCase(),
-        statusNode: <VehicleStatusChip status={vehicle.status} />,
-        primaryInfo: [
-          { label: "Type", value: vehicle.type },
-          { label: "Capacity", value: formatCapacity(vehicle.capacity) },
-          { label: "Fuel", value: vehicle.fuelType },
-          { label: "Company", value: vehicle.companyName ?? "—" },
-        ],
-      }}
       actionItems={[
         ...(canManage && vehicle.status !== "OUT_OF_SERVICE"
           ? [
@@ -286,44 +271,10 @@ export default function VehicleDetailsPage() {
 
       {activeTab === "overview" ? (
         <Stack spacing={3}>
-          <DetailsStatisticsCard
-            title="Fleet snapshot"
-            description="Quick operational indicators for this vehicle."
-            statistics={[
-              {
-                title: "Capacity",
-                value: formatCapacity(vehicle.capacity),
-                subtitle: "Nominal payload capacity",
-              },
-              {
-                title: "Max weight",
-                value: formatOptionalNumber(vehicle.maxWeight, " kg"),
-                subtitle: "Weight constraint",
-              },
-              {
-                title: "Max volume",
-                value: formatOptionalNumber(vehicle.maxVolume),
-                subtitle: "Volume constraint",
-              },
-              {
-                title: "Maintenance",
-                value: vehicle.hasActiveMaintenance ? "Active" : "Clear",
-                subtitle: "Current maintenance state",
-                accent: vehicle.hasActiveMaintenance ? "warning" : "success",
-              },
-            ]}
-          />
-
           <DetailsOverviewCard
             title="Overview"
             description="Most important vehicle information used by dispatch and transport planning."
             fields={[
-              {
-                label: "Registration number",
-                value: vehicle.registrationNumber,
-              },
-              { label: "Brand", value: vehicle.brand },
-              { label: "Model", value: vehicle.model },
               { label: "Type", value: vehicle.type },
               { label: "Fuel type", value: vehicle.fuelType },
               { label: "Year of production", value: vehicle.yearOfProduction },

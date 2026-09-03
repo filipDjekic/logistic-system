@@ -5,8 +5,6 @@ export type LookupEntityType =
   | 'employees'
   | 'transport-orders'
   | 'stock-movements'
-  | 'warehouse-zones'
-  | 'bin-locations'
   | 'companies';
 
 export type LookupOption = {

@@ -299,7 +299,7 @@ export default function StockMovementDetailsPage() {
     <EntityDetailsLayout
       overline="Inventory"
       title={`Stock movement #${movement.id}`}
-      description={`${movement.movementType} • ${currentStatus} • ${movement.warehouseName} • ${movement.productName}`}
+      description="Inventory movement details and lifecycle history."
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(value) => setActiveTab(value as StockMovementDetailsTab)}
@@ -342,7 +342,6 @@ export default function StockMovementDetailsPage() {
             fields={[
               { key: 'movementType', label: 'Movement type', value: <StatusChip value={movement.movementType} /> },
               { key: 'status', label: 'Lifecycle status', value: <StatusChip value={currentStatus} emphasis="strong" /> },
-              { key: 'id', label: 'Movement ID', value: movement.id },
               { key: 'createdAt', label: 'Created at', value: formatDateTime(movement.createdAt) },
               { key: 'warehouse', label: 'Warehouse', value: <Button size="small" component={RouterLink} to={`/warehouses/${movement.warehouseId}`}>{movement.warehouseName}</Button> },
               { key: 'product', label: 'Product', value: <Button size="small" component={RouterLink} to={`/products/${movement.productId}`}>{movement.productName}</Button> },
@@ -405,7 +404,6 @@ export default function StockMovementDetailsPage() {
             description="Recorded costs used for inventory valuation."
             fields={[
               { key: 'unitCost', label: 'Unit cost', value: formatMoney(movement.unitCost, movement.currency) },
-              { key: 'totalCost', label: 'Total cost', value: formatMoney(movement.totalCost, movement.currency) },
               { key: 'currency', label: 'Currency', value: movement.currency ?? '—' },
             ]}
           />

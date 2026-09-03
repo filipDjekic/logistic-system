@@ -25,7 +25,6 @@ export type WarehouseInventoryCreateRequest = {
   productId: number;
   quantity: number;
   minStockLevel: number;
-  initialBinLocationId?: number | null;
 };
 
 export type WarehouseInventoryUpdateRequest = {
@@ -49,7 +48,6 @@ export type InventoryWarehouseOption = {
   city: string;
   capacity: number;
   status: WarehouseStatus;
-  binTrackingEnabled?: boolean;
   employeeId: number | null;
 };
 

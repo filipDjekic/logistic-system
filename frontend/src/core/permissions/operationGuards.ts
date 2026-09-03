@@ -4,7 +4,6 @@ import type { TaskResponse, TaskStatus } from '../../features/tasks/types/task.t
 import type { TransportOrderResponse, TransportOrderStatus } from '../../features/transport-orders/types/transportOrder.types';
 import type { VehicleResponse, VehicleStatus } from '../../features/vehicles/types/vehicle.types';
 import type { StockMovementResponse, StockMovementStatus } from '../../features/stock-movements/types/stockMovement.types';
-import type { InventoryCountSessionStatus } from '../../features/inventory-counts/types/inventoryCount.types';
 import { CAPABILITIES, hasCapability } from './capabilities';
 
 
@@ -225,10 +224,6 @@ export function getAllowedStockMovementLifecycleStatuses(
   return uniqueStatuses([...approvalTargets, ...executionTargets, ...reversalTargets]);
 }
 
-export function canManageInventoryCountLifecycle(role: Role | null | undefined) {
-  return hasCapability(role, CAPABILITIES.INVENTORY_COUNT_MANAGE);
-}
-
 export function canManageShifts(role: Role | null | undefined) {
   return hasCapability(role, CAPABILITIES.SHIFT_MANAGE);
 }
@@ -239,16 +234,4 @@ export function canCancelShiftDueToSickness(role: Role | null | undefined) {
 
 export function canManageVehicles(role: Role | null | undefined) {
   return hasCapability(role, CAPABILITIES.VEHICLE_MANAGE);
-}
-
-export function canCountInventoryCountLines(role: Role | null | undefined) {
-  return canManageInventoryCountLifecycle(role) || role === ROLES.WORKER;
-}
-
-export function getAllowedInventoryCountLifecycleStatuses(role: Role | null | undefined) {
-  if (!canManageInventoryCountLifecycle(role)) {
-    return [] as InventoryCountSessionStatus[];
-  }
-
-  return ['OPEN', 'COUNTING', 'REVIEW', 'APPROVED', 'ADJUSTMENTS_CREATED', 'CLOSED', 'REJECTED', 'CANCELLED'] as InventoryCountSessionStatus[];
 }

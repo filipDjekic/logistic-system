@@ -32,7 +32,6 @@ const defaultValues: WarehouseFormValues = {
   timezoneId: '',
   employeeId: '',
   companyId: '',
-  binTrackingEnabled: false,
 };
 
 type Props = {
@@ -81,7 +80,6 @@ export default function WarehouseFormPage({ mode }: Props) {
       companyId: warehouseQuery.data.companyId != null ? String(warehouseQuery.data.companyId) : '',
       countryId: warehouseQuery.data.countryId ?? null,
       timezoneId: warehouseQuery.data.timezoneId ?? '',
-      binTrackingEnabled: false,
     });
   }, [mode, reset, warehouseQuery.data]);
 
@@ -247,7 +245,6 @@ export default function WarehouseFormPage({ mode }: Props) {
                 capacity: Number(values.capacity),
                 countryId: values.countryId ? Number(values.countryId) : null,
                 timezoneId: Number(values.timezoneId),
-                binTrackingEnabled: false,
               };
 
               if (mode === 'create') {

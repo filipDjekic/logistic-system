@@ -1,6 +1,6 @@
 export type OperationalEntityType =
   | 'TRANSPORT_ORDER' | 'TASK' | 'WAREHOUSE' | 'WAREHOUSE_INVENTORY'
-  | 'INVENTORY_COUNT' | 'STOCK_MOVEMENT' | 'SHIFT' | 'EMPLOYEE' | 'VEHICLE'
+  | 'STOCK_MOVEMENT' | 'SHIFT' | 'EMPLOYEE' | 'VEHICLE'
   | 'VEHICLE_MAINTENANCE' | 'PRODUCT' | 'COMPANY' | 'NOTIFICATION' | 'GENERAL';
 
 export type OperationalAttachmentType =

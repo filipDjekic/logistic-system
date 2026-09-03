@@ -36,17 +36,16 @@ function buildStockMovementParams(filters?: Partial<StockMovementFiltersState> &
     warehouseId: filters.warehouseId === 'ALL' ? undefined : filters.warehouseId,
     productId: filters.productId === 'ALL' ? undefined : filters.productId,
     transportOrderId: filters.transportOrderId === 'ALL' ? undefined : filters.transportOrderId,
-    binLocationId: filters.binLocationId === 'ALL' ? undefined : filters.binLocationId,
     fromDate: filters.fromDate || undefined,
     toDate: filters.toDate || undefined,
   });
 }
 
 export const stockMovementsApi = {
-  context(warehouseId: number, productId: number, binLocationId?: number) {
+  context(warehouseId: number, productId: number) {
     return apiClient
       .get<StockMovementContextResponse>('/api/stock-movements/context', {
-        params: compactParams({ warehouseId, productId, binLocationId }),
+        params: compactParams({ warehouseId, productId }),
       })
       .then((response) => response.data);
   },

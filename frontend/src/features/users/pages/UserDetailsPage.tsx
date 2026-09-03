@@ -134,17 +134,6 @@ export default function UserDetailsPage() {
     <EntityDetailsLayout
       title={`${user.firstName} ${user.lastName}`}
       breadcrumbs={[{ label: 'Users', to: '/users' }, { label: `${user.firstName} ${user.lastName}` }]}
-      hero={{
-        overline: 'Access control',
-        title: `${user.firstName} ${user.lastName}`,
-        subtitle: `User #${user.id}`,
-        status: user.status,
-        primaryInfo: [
-          { label: 'Email', value: user.email },
-          { label: 'Role', value: user.roleName },
-          { label: 'Company', value: user.company?.name ?? '—' },
-        ],
-      }}
       actionItems={[
         { key: 'back', label: 'Back to list', to: '/users' },
         ...(canEdit ? [{ key: 'edit', label: 'Edit user', onClick: () => setEditOpen(true) }] : []),
@@ -157,12 +146,6 @@ export default function UserDetailsPage() {
       {activeTab === 'overview' ? (
         <DetailsOverviewCard title="User overview" description="User, company and linked employee fields.">
           <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <DetailsField label="First name" value={user.firstName} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <DetailsField label="Last name" value={user.lastName} />
-              </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <DetailsField label="Email" value={user.email} />
               </Grid>

@@ -82,12 +82,6 @@ export type StockMovementResponse = {
   productId: number;
   productName: string;
   transportOrderId?: number | null;
-  sourceBinId?: number | null;
-  sourceBinCode?: string | null;
-  sourceBinZoneId?: number | null;
-  destinationBinId?: number | null;
-  destinationBinCode?: string | null;
-  destinationBinZoneId?: number | null;
   quantityBefore: number;
   quantityAfter: number;
   reservedBefore?: number;
@@ -100,7 +94,6 @@ export type StockMovementResponse = {
 export type StockMovementContextResponse = {
   warehouseId: number;
   productId: number;
-  binLocationId?: number | null;
   availableQuantity: number;
   unitCost: number;
   currency: string;
@@ -164,7 +157,6 @@ export type StockMovementFiltersState = {
   warehouseId: number | 'ALL';
   productId: number | 'ALL';
   transportOrderId: number | 'ALL';
-  binLocationId?: number | 'ALL';
   fromDate: string;
   toDate: string;
   reasonCode?: StockMovementReasonCode | 'ALL';
@@ -186,7 +178,6 @@ export type StockInboundRequest = {
   transportOrderId?: number;
   warehouseId: number;
   productId: number;
-  binLocationId?: number;
 };
 
 export type StockOutboundRequest = StockInboundRequest;
@@ -207,8 +198,6 @@ export type StockTransferRequest = {
   sourceWarehouseId: number;
   destinationWarehouseId: number;
   productId: number;
-  sourceBinLocationId?: number;
-  destinationBinLocationId?: number;
 };
 
 export type StockAdjustmentRequest = {
@@ -227,7 +216,6 @@ export type StockAdjustmentRequest = {
   referenceId?: number;
   warehouseId: number;
   productId: number;
-  binLocationId?: number;
 };
 
 export type StockWriteOffRequest = {
@@ -245,12 +233,11 @@ export type StockWriteOffRequest = {
   referenceId?: number;
   warehouseId: number;
   productId: number;
-  binLocationId?: number;
 };
 
 export type StockReturnRequest = StockWriteOffRequest;
 
-export type StockOperationType = 'inbound' | 'outbound' | 'transfer' | 'internal' | 'adjustment' | 'write-off' | 'return';
+export type StockOperationType = 'inbound' | 'outbound' | 'transfer' | 'adjustment' | 'write-off' | 'return';
 
 export type StockOperationFormValues = {
   quantity: number;
@@ -279,8 +266,6 @@ export type StockMovementRequestPayload = {
   warehouseId: number;
   destinationWarehouseId?: number;
   productId: number;
-  binLocationId?: number;
-  destinationBinLocationId?: number;
 };
 
 export type StockMovementRequestResponse = {
@@ -298,8 +283,6 @@ export type StockMovementRequestResponse = {
   destinationWarehouseName?: string | null;
   productId: number;
   productName?: string | null;
-  binLocationId?: number | null;
-  destinationBinLocationId?: number | null;
   requestedById?: number | null;
   reviewedById?: number | null;
   createdMovementId?: number | null;

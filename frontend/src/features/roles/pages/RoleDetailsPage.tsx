@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Chip, Grid, Stack, Typography } from '@mui/material';
+import { Grid, Typography } from '@mui/material';
 import { EntityDetailsLayout, DetailsField, DetailsOverviewCard } from '../../../shared/components/EntityDetails';
 import { ChangeHistoryPanel } from '../../../shared/components/OperationalPanels';
 import SectionCard from '../../../shared/components/SectionCard/SectionCard';
@@ -8,7 +8,7 @@ import ErrorState from '../../../shared/components/ErrorState/ErrorState';
 import { useRole } from '../hooks/useRole';
 import { parsePositiveIntegerId } from '../../../core/utils/routeParams';
 
-type RoleDetailsTab = 'overview' | 'permissions' | 'changeHistory';
+type RoleDetailsTab = 'overview' | 'changeHistory';
 
 function normalizeRoleName(name: string) {
   return name.replace(/^ROLE_/, '').replaceAll('_', ' ');
@@ -47,7 +47,6 @@ export default function RoleDetailsPage() {
   const role = roleQuery.data;
   const tabs = [
     { value: 'overview', label: 'Overview' },
-    { value: 'permissions', label: 'Permission model' },
     { value: 'changeHistory', label: 'Change history' },
   ];
 
@@ -55,15 +54,6 @@ export default function RoleDetailsPage() {
     <EntityDetailsLayout
       title={normalizeRoleName(role.name)}
       breadcrumbs={[{ label: 'Roles', to: '/roles' }, { label: normalizeRoleName(role.name) }]}
-      hero={{
-        overline: 'Security',
-        title: normalizeRoleName(role.name),
-        subtitle: `Role #${role.id} • ${role.name}`,
-        primaryInfo: [
-          { label: 'System name', value: role.name },
-          { label: 'Display label', value: normalizeRoleName(role.name) },
-        ],
-      }}
       actionItems={[
         { key: 'history', label: 'View history', onClick: () => setActiveTab('changeHistory') },
         { key: 'back', label: 'Back to list', onClick: () => navigate('/roles') },
@@ -81,22 +71,6 @@ export default function RoleDetailsPage() {
             <Grid size={{ xs: 12 }}><DetailsField label="Description" value={role.description || '—'} /></Grid>
           </Grid>
         </DetailsOverviewCard>
-      ) : null}
-
-      {activeTab === 'permissions' ? (
-        <SectionCard title="Permissions" description="Review the access granted to this role.">
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip label={role.name} />
-              <Chip variant="outlined" label="Navigation access" />
-              <Chip variant="outlined" label="Operation guards" />
-              <Chip variant="outlined" label="Warehouse access checks" />
-            </Stack>
-            <Typography color="text.secondary">
-              Permissions are defined by the selected role and cannot be changed here.
-            </Typography>
-          </Stack>
-        </SectionCard>
       ) : null}
 
       {activeTab === 'changeHistory' ? (

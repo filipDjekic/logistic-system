@@ -81,8 +81,6 @@ export default function StockMovementRequestDialog({ open, onClose }: Props) {
       warehouseId: warehouse.id,
       destinationWarehouseId: movementType === 'TRANSFER_OUT' ? destinationWarehouse?.id : undefined,
       productId: product.id,
-      binLocationId: undefined,
-      destinationBinLocationId: undefined,
     });
   };
 

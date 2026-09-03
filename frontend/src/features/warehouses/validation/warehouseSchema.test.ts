@@ -10,7 +10,6 @@ const validWarehouse = {
   capacity: 100,
   employeeId: 2,
   companyId: '',
-  binTrackingEnabled: false,
 };
 
 describe('warehouseSchema', () => {

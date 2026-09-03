@@ -16,8 +16,4 @@ describe('role navigation contract', () => {
     expect(keysFor(ROLES.COMPANY_ADMIN)).toContain('activity-logs');
   });
 
-  it('keeps inventory counts away from dispatcher and driver', () => {
-    expect(keysFor(ROLES.DISPATCHER)).not.toContain('inventory-counts');
-    expect(keysFor(ROLES.DRIVER)).not.toContain('inventory-counts');
-  });
 });

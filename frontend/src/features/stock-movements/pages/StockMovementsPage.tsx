@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Chip, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
-import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { Button, Chip, MenuItem, Stack, Tab, Tabs, TextField } from '@mui/material';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { DEFAULT_PAGE_SIZE, buildSortParam } from '../../../core/api/pagination';
@@ -13,46 +13,16 @@ import { EntityLookupField, type LookupOption } from '../../lookup';
 import StockMovementsTable from '../components/StockMovementsTable';
 import StockMovementRequestDialog from '../components/StockMovementRequestDialog';
 import { useStockMovements } from '../hooks/useStockMovements';
-import { useInternalWarehouseMovements } from '../../warehouse-locations/hooks/useWarehouseLocations';
 import type { SortState } from '../../../shared/types/common.types';
 import type { StockMovementFiltersState } from '../types/stockMovement.types';
-import type { InternalWarehouseMovementResponse } from '../../warehouse-locations/types/warehouseLocation.types';
 import { stockMovementStatusOptions, stockMovementTypeOptions } from '../validation/stockMovementSchema';
-import { warehouseLocationRoutes } from '../../warehouse-locations/utils/warehouseLocationRoutes';
-import StatusChip from '../../../shared/components/StatusChip/StatusChip';
-
-function InternalMovementsList({ rows }: { rows: InternalWarehouseMovementResponse[] }) {
-  return (
-    <Stack spacing={1.25}>
-      {rows.map((movement) => (
-        <Stack key={movement.id} spacing={0.75} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Typography variant="body2" fontWeight={800}>
-              {movement.sourceBinCode} → {movement.destinationBinCode}
-            </Typography>
-            <StatusChip value={movement.status} variant="outlined" />
-          </Stack>
-          <Typography variant="body2" color="text.secondary">
-            {movement.productName} {movement.sku ? `(${movement.sku})` : ''} · Qty {movement.quantity}
-          </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.warehouseDetails(movement.warehouseId)}>Warehouse</Button>
-            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.productDetails(movement.productId)}>Product</Button>
-            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(movement.warehouseId, movement.sourceBinZoneId, movement.sourceBinId)}>Source bin</Button>
-            <Button size="small" component={RouterLink} to={warehouseLocationRoutes.binDetails(movement.warehouseId, movement.destinationBinZoneId, movement.destinationBinId)}>Destination bin</Button>
-          </Stack>
-        </Stack>
-      ))}
-    </Stack>
-  );
-}
 
 export default function StockMovementsPage() {
   const auth = useAuthStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const activeTab: 'stock' | 'approvals' | 'internal' = tabParam === 'approvals' ? 'approvals' : 'stock';
+  const activeTab: 'stock' | 'approvals' = tabParam === 'approvals' ? 'approvals' : 'stock';
   const isWorkerView = auth.user?.role === ROLES.WORKER;
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
@@ -65,7 +35,6 @@ export default function StockMovementsPage() {
     warehouseId: 'ALL',
     productId: 'ALL',
     transportOrderId: 'ALL',
-    binLocationId: 'ALL',
     fromDate: '',
     toDate: '',
   });
@@ -127,21 +96,7 @@ export default function StockMovementsPage() {
     [activeTab, filters, page, size, sort],
   );
 
-  const internalMovementQueryFilters = useMemo(
-    () => ({
-      page,
-      size,
-      sort: buildSortParam(sort),
-      warehouseId: filters.warehouseId === 'ALL' ? undefined : filters.warehouseId,
-      productId: filters.productId === 'ALL' ? undefined : filters.productId,
-      binLocationId: filters.binLocationId === 'ALL' ? undefined : filters.binLocationId,
-      search: filters.search.trim() || undefined,
-    }),
-    [filters.binLocationId, filters.productId, filters.search, filters.warehouseId, page, size, sort],
-  );
-
-  const stockMovementsQuery = useStockMovements(stockMovementQueryFilters, activeTab === 'stock' || activeTab === 'approvals');
-  const internalMovementsQuery = useInternalWarehouseMovements(internalMovementQueryFilters, activeTab === 'internal');
+  const stockMovementsQuery = useStockMovements(stockMovementQueryFilters);
 
   const updateFilters = (next: Partial<StockMovementFiltersState>) => {
     setPage(0);
@@ -161,7 +116,6 @@ export default function StockMovementsPage() {
       warehouseId: 'ALL',
       productId: 'ALL',
       transportOrderId: 'ALL',
-      binLocationId: 'ALL',
       fromDate: '',
       toDate: '',
     });
@@ -202,9 +156,7 @@ export default function StockMovementsPage() {
           setPage(0);
           setSearchParams((current) => {
             const next = new URLSearchParams(current);
-            if (value === 'internal') {
-              next.set('tab', 'internal');
-            } else if (value === 'approvals') {
+            if (value === 'approvals') {
               next.set('tab', 'approvals');
             } else {
               next.delete('tab');
@@ -230,17 +182,17 @@ export default function StockMovementsPage() {
       ) : null}
 
       <TableLayout
-        title={activeTab === 'internal' ? 'Internal bin movements' : activeTab === 'approvals' ? 'Pending stock movement approvals' : 'Movement history'}
-        description={activeTab === 'internal' ? 'Bin-to-bin movements within the same warehouse.' : activeTab === 'approvals' ? 'Write-offs and large adjustments waiting for approval.' : 'Filter movements by warehouse, product, transport order or other criteria.'}
+        title={activeTab === 'approvals' ? 'Pending stock movement approvals' : 'Movement history'}
+        description={activeTab === 'approvals' ? 'Write-offs and large adjustments waiting for approval.' : 'Filter movements by warehouse, product, transport order or other criteria.'}
         toolbar={
           <TableToolbar
             searchValue={filters.search}
             onSearchChange={(search) => updateFilters({ search })}
             searchPlaceholder="Search by movement, warehouse, product, quantity or ID"
-            onRefresh={() => { void (activeTab === 'internal' ? internalMovementsQuery.refetch() : stockMovementsQuery.refetch()); }}
-            refreshDisabled={activeTab === 'internal' ? internalMovementsQuery.isFetching : stockMovementsQuery.isFetching}
+            onRefresh={() => { void stockMovementsQuery.refetch(); }}
+            refreshDisabled={stockMovementsQuery.isFetching}
             onClearFilters={clearFilters}
-            clearDisabled={(activeTab === 'internal' ? internalMovementsQuery.isFetching : stockMovementsQuery.isFetching) || !hasActiveFilters}
+            clearDisabled={stockMovementsQuery.isFetching || !hasActiveFilters}
           />
         }
         filters={
@@ -325,8 +277,7 @@ export default function StockMovementsPage() {
           </>
         }
         table={
-          activeTab !== 'internal' ? (
-            <StockMovementsTable
+          <StockMovementsTable
               rows={stockMovementsQuery.data?.content ?? []}
               loading={stockMovementsQuery.isLoading}
               error={stockMovementsQuery.isError}
@@ -342,24 +293,6 @@ export default function StockMovementsPage() {
               sort={sort}
               onSortChange={handleSortChange}
             />
-          ) : (
-            <Stack spacing={2}>
-              {internalMovementsQuery.isError ? (
-                <Typography color="error">Internal movements could not be loaded.</Typography>
-              ) : null}
-              {internalMovementsQuery.isLoading ? (
-                <Typography color="text.secondary">Loading internal movements...</Typography>
-              ) : (
-                <InternalMovementsList rows={internalMovementsQuery.data?.content ?? []} />
-              )}
-              <ServerTablePagination
-                page={internalMovementsQuery.data}
-                disabled={internalMovementsQuery.isFetching}
-                onPageChange={setPage}
-                onSizeChange={handleSizeChange}
-              />
-            </Stack>
-          )
         }
       />
       <StockMovementRequestDialog open={requestDialogOpen} onClose={() => setRequestDialogOpen(false)} />

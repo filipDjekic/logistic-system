@@ -101,17 +101,6 @@ export default function ShiftDetailsPage() {
     <EntityDetailsLayout
       title={`Shift #${shift.id}`}
       breadcrumbs={[{ label: 'Shifts', to: '/shifts' }, { label: `Shift #${shift.id}` }]}
-      hero={{
-        overline: 'Workforce',
-        title: `Shift #${shift.id}`,
-        subtitle: 'Review employee shift timing, assignment, warehouse coverage and lifecycle state.',
-        statusNode: <ShiftStatusChip value={shift.status} />,
-        primaryInfo: [
-          { label: 'Employee', value: employee ? `${employee.firstName} ${employee.lastName}` : `Employee #${shift.employeeId}` },
-          { label: 'Warehouse', value: shift.warehouseId ? (warehouse?.name ?? shift.warehouseName ?? `Warehouse #${shift.warehouseId}`) : '—' },
-          { label: 'Timezone', value: shift.timezoneDisplayName ? `${shift.timezoneDisplayName} (${shift.timezoneName ?? shift.timezone ?? 'timezone'})` : shift.timezoneName ?? shift.timezone ?? `Timezone #${shift.timezoneId}` },
-        ],
-      }}
       actionItems={[
         { key: 'back', label: 'Back to list', onClick: () => navigate('/shifts') },
         ...(canManageShifts ? [{ key: 'edit', label: 'Edit', disabled: !canEdit, onClick: () => setEditOpen(true) }] : []),

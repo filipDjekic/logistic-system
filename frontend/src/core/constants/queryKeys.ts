@@ -55,12 +55,6 @@ export const queryKeys = {
     shifts: (id: number) => ['employees', 'details', id, 'shifts'] as const,
   },
 
-  inventoryCounts: {
-    root: () => ['inventory-counts'] as const,
-    list: (params?: unknown) => ['inventory-counts', 'list', params ?? {}] as const,
-    detail: (id: number) => ['inventory-counts', 'details', id] as const,
-  },
-
   inventory: {
     root: () => ['inventory'] as const,
     list: (filters: unknown) => ['inventory', 'list', filters] as const,

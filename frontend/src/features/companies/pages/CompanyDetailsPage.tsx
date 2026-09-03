@@ -86,17 +86,6 @@ export default function CompanyDetailsPage() {
     <EntityDetailsLayout
       title={company.name}
       breadcrumbs={[{ label: 'Companies', to: '/companies' }, { label: company.name }]}
-      hero={{
-        overline: 'Organization',
-        title: company.name,
-        subtitle: `Company #${company.id} • ${company.countryName ?? company.countryCode ?? 'No country'}`,
-        status: company.active ? 'ACTIVE' : 'INACTIVE',
-        primaryInfo: [
-          { label: 'Country', value: `${company.countryName ?? '—'}${company.countryCode ? ` (${company.countryCode})` : ''}` },
-          { label: 'Currency', value: company.effectiveCurrencyCode ?? company.currencyCode ?? '—' },
-          { label: 'Timezone', value: company.effectiveTimezone ?? company.timezoneDisplayName ?? company.timezone ?? '—' },
-        ],
-      }}
       actionItems={[
         { key: 'back', label: 'Back to list', onClick: () => navigate('/companies') },
       ]}
@@ -109,7 +98,6 @@ export default function CompanyDetailsPage() {
           <DetailsOverviewCard title="Company overview" description="Company details, location and current status."
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="ID" value={company.id} /></Grid>
-              <Grid size={{ xs: 12, md: 4 }}><DetailsField label="Name" value={company.name} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <Stack spacing={0.5} alignItems="flex-start">
                   <Typography variant="caption" color="text.secondary">Status</Typography>

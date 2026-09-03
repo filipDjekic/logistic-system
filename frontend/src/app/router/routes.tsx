@@ -164,10 +164,6 @@ export const routes = [
           {
             element: <ProtectedRoute allowedRoles={[ROLES.OVERLORD, ROLES.COMPANY_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.DISPATCHER, ROLES.WORKER]} />,
             children: [
-              { path: '/warehouse-locations', element: <Navigate to="/warehouses" replace /> },
-              { path: '/warehouses/:warehouseId/zones', element: <Navigate to="/warehouses" replace /> },
-              { path: '/warehouses/:warehouseId/zones/:zoneId', element: <Navigate to="/warehouses" replace /> },
-              { path: '/warehouses/:warehouseId/zones/:zoneId/bins/:binId', element: <Navigate to="/warehouses" replace /> },
               { path: '/warehouses', element: lazyPage(<WarehousesPage />) },
               { path: '/warehouses/:id', element: lazyPage(<WarehouseDetailsPage />) },
             ],

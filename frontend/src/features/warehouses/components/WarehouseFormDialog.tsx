@@ -45,7 +45,6 @@ const defaultValues: WarehouseFormValues = {
   capacity: '',
   employeeId: '',
   companyId: '',
-  binTrackingEnabled: false,
 };
 
 export default function WarehouseFormDialog({
@@ -87,7 +86,6 @@ export default function WarehouseFormDialog({
         capacity: initialData.capacity,
         employeeId: initialData.employeeId ?? '',
         companyId: initialData.companyId != null ? String(initialData.companyId) : '',
-        binTrackingEnabled: false,
       });
       return;
     }
@@ -209,7 +207,7 @@ export default function WarehouseFormDialog({
           loading={loading}
           onCancel={onClose}
           submitDisabled={!formState.isValid || (mode === 'create' && isOverlord && !selectedCompanyId)}
-          onSubmit={handleSubmit((values) => onSubmit({ ...values, binTrackingEnabled: false }))}
+          onSubmit={handleSubmit(onSubmit)}
         />
         </Stack>
       </DialogContent>

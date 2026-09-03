@@ -9,8 +9,6 @@ const LOOKUP_PATHS: Record<LookupEntityType, string> = {
   employees: '/api/employees/lookup',
   'transport-orders': '/api/transport-orders/lookup',
   'stock-movements': '/api/stock-movements/lookup',
-  'warehouse-zones': '/api/warehouse-zones/lookup',
-  'bin-locations': '/api/bin-locations/lookup',
   companies: '/api/companies/lookup',
 };
 

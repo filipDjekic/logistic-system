@@ -41,7 +41,6 @@ export const stockMovementDiscrepancyReasonOptions = ['SHORTAGE', 'OVERAGE', 'DA
 export const stockMovementReferenceTypeOptions = [
   'MANUAL',
   'TRANSPORT_ORDER',
-  'INVENTORY_COUNT',
   'PURCHASE_DOCUMENT',
   'RETURN_DOCUMENT',
   'SYSTEM',

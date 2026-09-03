@@ -161,7 +161,6 @@ export default function InventoryFormPage({ mode }: Props) {
           productId: selectedProduct.id,
           quantity: normalizedQuantity,
           minStockLevel: normalizedMinStockLevel,
-          initialBinLocationId: null,
         },
         {
           onSuccess: (record) => {
