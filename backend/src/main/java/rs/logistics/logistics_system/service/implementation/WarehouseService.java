@@ -207,10 +207,10 @@ public class WarehouseService implements WarehouseServiceDefinition {
     }
 
     @Override
-    public PageResponse<WarehouseResponse> getAll(String search, WarehouseStatus status, Boolean active, Long managerId, Pageable pageable) {
+    public PageResponse<WarehouseResponse> getAll(String search, WarehouseStatus status, Boolean active, Long managerId, Long requestedCompanyId, Pageable pageable) {
         String normalizedSearch = QueryParameterNormalizer.trimToNull(search);
         Long companyId = authenticatedUserProvider.isOverlord()
-                ? null
+                ? requestedCompanyId
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
         Long searchId = QueryParameterNormalizer.parseLongOrNull(normalizedSearch);

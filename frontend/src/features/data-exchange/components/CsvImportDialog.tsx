@@ -75,10 +75,10 @@ export default function CsvImportDialog({
   const [selectedFileError, setSelectedFileError] = useState<string | null>(null);
   type ImportError = ImportResultResponse['errors'][number];
   const errorColumns: DataTableColumn<ImportError>[] = [
-    { id: 'line', header: 'Line', accessor: 'line' },
-    { id: 'field', header: 'Field', accessor: 'field' },
-    { id: 'value', header: 'Value', render: (row) => row.value ?? '-' },
-    { id: 'error', header: 'Error', accessor: 'message' },
+    { id: 'line', header: 'Line', accessor: 'line', nowrap: true },
+    { id: 'field', header: 'Field', accessor: 'field', nowrap: true },
+    { id: 'value', header: 'Value', render: (row) => row.value ?? '-', nowrap: true },
+    { id: 'error', header: 'Error', accessor: 'message', nowrap: true },
   ];
 
   const resetLocalState = () => {
@@ -197,7 +197,7 @@ export default function CsvImportDialog({
                   Mode: {result.transactionMode}. Imported {result.importedRows} of {result.totalRows} rows. Failed rows: {result.failedRows}.
                 </Typography>
                 {result.errors.length > 0 ? (
-                  <DataTable columns={errorColumns} rows={result.errors} getRowId={(row) => `${row.line}-${row.field}-${row.message}-${row.value ?? ''}`} size="small" maxHeight={280} minWidth={640} enableClientWindowing={false} />
+                  <DataTable columns={errorColumns} rows={result.errors} getRowId={(row) => `${row.line}-${row.field}-${row.message}-${row.value ?? ''}`} size="small" maxHeight={280} minWidth={640} enableClientWindowing fixedRowHeight={44} />
                 ) : null}
               </Stack>
             </Alert>

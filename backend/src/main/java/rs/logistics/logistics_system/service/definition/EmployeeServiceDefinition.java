@@ -27,7 +27,7 @@ public interface EmployeeServiceDefinition {
 
     EmployeeResponse getById(Long id);
 
-    PageResponse<EmployeeResponse> getAll(String search, EmployeePosition position, Boolean active, String linkedUser, LocalDateTime availableFrom, LocalDateTime availableTo, Pageable pageable);
+    PageResponse<EmployeeResponse> getAll(String search, EmployeePosition position, Boolean active, String linkedUser, LocalDateTime availableFrom, LocalDateTime availableTo, Long companyId, Pageable pageable);
 
     void delete(Long id);
 

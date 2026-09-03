@@ -93,7 +93,7 @@ export default function EmployeesPage() {
   const usersQuery = useQuery({
     queryKey: ['users', 'all'],
     queryFn: employeesApi.getUsers,
-    enabled: canEditEmployees,
+    enabled: canEditEmployees && dialogOpen,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -347,14 +347,14 @@ export default function EmployeesPage() {
             onRefresh={() => {
               void Promise.all([
                 employeesQuery.refetch(),
-                ...(canEditEmployees ? [usersQuery.refetch()] : []),
+                ...(canEditEmployees && dialogOpen ? [usersQuery.refetch()] : []),
                 ...(canEditEmployees && dialogOpen ? [rolesQuery.refetch()] : []),
                 ...(isOverlord && dialogOpen && dialogMode === 'create' ? [companiesQuery.refetch()] : []),
               ]);
             }}
-            refreshDisabled={employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching}
+            refreshDisabled={employeesQuery.isFetching}
             onClearFilters={clearFilters}
-            clearDisabled={employeesQuery.isFetching || usersQuery.isFetching || rolesQuery.isFetching || companiesQuery.isFetching || !hasActiveFilters}
+            clearDisabled={employeesQuery.isFetching || !hasActiveFilters}
             activeFilters={activeFilterChips}
           />
         }
@@ -418,12 +418,12 @@ export default function EmployeesPage() {
           <EmployeesTable
             rows={rows}
             usersById={usersById}
-            loading={employeesQuery.isLoading || (canEditEmployees && usersQuery.isLoading)}
-            error={employeesQuery.isError || (canEditEmployees && usersQuery.isError)}
+            loading={employeesQuery.isLoading}
+            error={employeesQuery.isError}
             onRetry={() => {
               void Promise.all([
                 employeesQuery.refetch(),
-                ...(canEditEmployees ? [usersQuery.refetch()] : []),
+                ...(canEditEmployees && dialogOpen ? [usersQuery.refetch()] : []),
               ]);
             }}
             onEdit={(employee) => {

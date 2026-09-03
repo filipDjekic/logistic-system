@@ -111,6 +111,7 @@ export type EmployeeListFilters = {
   linkedUser?: 'LINKED' | 'UNLINKED';
   availableFrom?: string;
   availableTo?: string;
+  companyId?: number;
 };
 
 export type EmployeeUserOption = {

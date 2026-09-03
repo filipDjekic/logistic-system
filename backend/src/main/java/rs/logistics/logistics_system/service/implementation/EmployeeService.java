@@ -298,11 +298,11 @@ public class EmployeeService implements EmployeeServiceDefinition {
     }
 
     @Override
-    public PageResponse<EmployeeResponse> getAll(String search, EmployeePosition position, Boolean active, String linkedUser, LocalDateTime availableFrom, LocalDateTime availableTo, Pageable pageable) {
+    public PageResponse<EmployeeResponse> getAll(String search, EmployeePosition position, Boolean active, String linkedUser, LocalDateTime availableFrom, LocalDateTime availableTo, Long requestedCompanyId, Pageable pageable) {
         String normalizedSearch = QueryParameterNormalizer.trimToNull(search);
         String normalizedLinkedUser = normalizeLinkedUser(linkedUser);
         Long companyId = authenticatedUserProvider.isOverlord()
-                ? null
+                ? requestedCompanyId
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
 
         if (authenticatedUserProvider.hasRole(RoleCatalog.DISPATCHER)

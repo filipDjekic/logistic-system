@@ -20,7 +20,7 @@ public interface VehicleServiceDefinition {
 
     VehicleResponse getById(Long id);
 
-    PageResponse<VehicleResponse> getAll(String search, VehicleStatus status, String type, Boolean available, BigDecimal capacityFrom, BigDecimal capacityTo, Pageable pageable);
+    PageResponse<VehicleResponse> getAll(String search, VehicleStatus status, String type, Boolean available, BigDecimal capacityFrom, BigDecimal capacityTo, Long companyId, Pageable pageable);
 
     void delete(Long id);
 

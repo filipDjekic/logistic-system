@@ -34,6 +34,9 @@ import { getErrorMessage } from "../../../core/utils/getErrorMessage";
 import { invalidateTransportOrderState } from "../../../core/utils/invalidateAppState";
 import { transportOrdersApi } from "../api/transportOrdersApi";
 import { stockMovementsApi } from "../../stock-movements/api/stockMovementsApi";
+import { employeesApi } from "../../employees/api/employeesApi";
+import { vehiclesApi } from "../../vehicles/api/vehiclesApi";
+import { warehousesApi } from "../../warehouses/api/warehousesApi";
 import { calculateStockMovementCost } from "../../stock-movements/utils/stockMovementCost";
 import StockMovementsTable from "../../stock-movements/components/StockMovementsTable";
 import TasksTable from "../../tasks/components/TasksTable";
@@ -190,7 +193,7 @@ export default function TransportOrderDetailsPage() {
   const warehousesQuery = useQuery({
     queryKey: queryKeys.transportOrders.warehouses(),
     queryFn: transportOrdersApi.getWarehouses,
-    enabled: canResolveWarehouses,
+    enabled: canResolveWarehouses && orderDialogOpen,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -198,7 +201,7 @@ export default function TransportOrderDetailsPage() {
   const vehiclesQuery = useQuery({
     queryKey: queryKeys.transportOrders.vehicles(),
     queryFn: transportOrdersApi.getVehicles,
-    enabled: canResolveVehicles,
+    enabled: canResolveVehicles && orderDialogOpen,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -206,7 +209,7 @@ export default function TransportOrderDetailsPage() {
   const employeesQuery = useQuery({
     queryKey: queryKeys.transportOrders.employees(),
     queryFn: transportOrdersApi.getEmployees,
-    enabled: canResolveEmployees,
+    enabled: canResolveEmployees && orderDialogOpen,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -216,6 +219,37 @@ export default function TransportOrderDetailsPage() {
     queryFn: transportOrdersApi.getProducts,
     enabled: canResolveProducts && activeTab === "items",
     staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const transportOrder = transportOrderQuery.data;
+  const overviewReferenceDataEnabled = activeTab === "overview";
+  const sourceWarehouseQuery = useQuery({
+    queryKey: queryKeys.warehouses.detail(transportOrder?.sourceWarehouseId ?? 0),
+    queryFn: () => warehousesApi.getById(Number(transportOrder?.sourceWarehouseId)),
+    enabled: canResolveWarehouses && overviewReferenceDataEnabled && transportOrder?.sourceWarehouseId != null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const destinationWarehouseQuery = useQuery({
+    queryKey: queryKeys.warehouses.detail(transportOrder?.destinationWarehouseId ?? 0),
+    queryFn: () => warehousesApi.getById(Number(transportOrder?.destinationWarehouseId)),
+    enabled: canResolveWarehouses && overviewReferenceDataEnabled && transportOrder?.destinationWarehouseId != null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const vehicleQuery = useQuery({
+    queryKey: queryKeys.vehicles.detail(transportOrder?.vehicleId ?? 0),
+    queryFn: () => vehiclesApi.getById(Number(transportOrder?.vehicleId)),
+    enabled: canResolveVehicles && overviewReferenceDataEnabled && transportOrder?.vehicleId != null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const employeeQuery = useQuery({
+    queryKey: queryKeys.employees.detail(transportOrder?.assignedEmployeeId ?? 0),
+    queryFn: () => employeesApi.getById(Number(transportOrder?.assignedEmployeeId)),
+    enabled: canResolveEmployees && overviewReferenceDataEnabled && transportOrder?.assignedEmployeeId != null,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
@@ -290,42 +324,6 @@ export default function TransportOrderDetailsPage() {
     },
   });
 
-  const warehousesById = useMemo<Record<number, WarehouseOption>>(
-    () =>
-      (warehousesQuery.data ?? []).reduce<Record<number, WarehouseOption>>(
-        (acc, warehouse) => {
-          acc[warehouse.id] = warehouse;
-          return acc;
-        },
-        {},
-      ),
-    [warehousesQuery.data],
-  );
-
-  const vehiclesById = useMemo<Record<number, VehicleOption>>(
-    () =>
-      (vehiclesQuery.data ?? []).reduce<Record<number, VehicleOption>>(
-        (acc, vehicle) => {
-          acc[vehicle.id] = vehicle;
-          return acc;
-        },
-        {},
-      ),
-    [vehiclesQuery.data],
-  );
-
-  const employeesById = useMemo<Record<number, EmployeeOption>>(
-    () =>
-      (employeesQuery.data ?? []).reduce<Record<number, EmployeeOption>>(
-        (acc, employee) => {
-          acc[employee.id] = employee;
-          return acc;
-        },
-        {},
-      ),
-    [employeesQuery.data],
-  );
-
   const productsById = useMemo<Record<number, ProductOption>>(
     () =>
       (productsQuery.data ?? []).reduce<Record<number, ProductOption>>(
@@ -368,7 +366,6 @@ export default function TransportOrderDetailsPage() {
     applyServerFieldErrors(error, itemForm.setError);
   }, [createItemMutation.error, itemForm, updateItemMutation.error]);
 
-  const transportOrder = transportOrderQuery.data;
   const selectedProductId = Number(useWatch({ control: itemForm.control, name: "productId" }));
   const selectedQuantity = Number(useWatch({ control: itemForm.control, name: "quantity" }));
   const selectedUnitCost = Number(useWatch({ control: itemForm.control, name: "movementUnitCost" }));
@@ -493,11 +490,10 @@ export default function TransportOrderDetailsPage() {
     );
   }
 
-  const sourceWarehouse = warehousesById[transportOrder.sourceWarehouseId];
-  const destinationWarehouse =
-    warehousesById[transportOrder.destinationWarehouseId];
-  const vehicle = vehiclesById[transportOrder.vehicleId];
-  const employee = employeesById[transportOrder.assignedEmployeeId];
+  const sourceWarehouse = sourceWarehouseQuery.data as WarehouseOption | undefined;
+  const destinationWarehouse = destinationWarehouseQuery.data as WarehouseOption | undefined;
+  const vehicle = vehicleQuery.data as VehicleOption | undefined;
+  const employee = employeeQuery.data as EmployeeOption | undefined;
 
   const isItemMutationLoading =
     createItemMutation.isPending || updateItemMutation.isPending;

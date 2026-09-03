@@ -72,7 +72,7 @@ export default function TaskDetailsPage() {
   const transportOrdersQuery = useQuery({
     queryKey: queryKeys.tasks.detailTransportOrder(taskQuery.data?.transportOrderId),
     queryFn: () => transportOrdersApi.getById(Number(taskQuery.data?.transportOrderId)),
-    enabled: isValidTaskId && canResolveTransportOrder && taskQuery.data?.transportOrderId != null,
+    enabled: isValidTaskId && canResolveTransportOrder && activeTab === 'linkedProcess' && taskQuery.data?.transportOrderId != null,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -80,7 +80,7 @@ export default function TaskDetailsPage() {
   const stockMovementsQuery = useQuery({
     queryKey: queryKeys.tasks.detailStockMovement(taskQuery.data?.stockMovementId),
     queryFn: () => stockMovementsApi.getById(Number(taskQuery.data?.stockMovementId)),
-    enabled: isValidTaskId && canResolveStockMovement && taskQuery.data?.stockMovementId != null,
+    enabled: isValidTaskId && canResolveStockMovement && activeTab === 'linkedProcess' && taskQuery.data?.stockMovementId != null,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });

@@ -149,7 +149,8 @@ export default function DataTable<T>({
     }
 
     const overscan = 12;
-    const start = Math.max(0, Math.floor(scrollTop / estimatedRowHeight) - overscan);
+    const rawStart = Math.max(0, Math.floor(scrollTop / estimatedRowHeight) - overscan);
+    const start = Math.min(rawStart, Math.max(0, rows.length - maxRenderedRows));
     const end = Math.min(rows.length, start + maxRenderedRows);
     return {
       start,
@@ -398,6 +399,7 @@ export default function DataTable<T>({
                                     : null;
 
                         return {
+                          ...(shouldWindowRows ? { height: estimatedRowHeight } : {}),
                           cursor: rowInteractive ? 'pointer' : 'default',
                           transition: theme.transitions.create(['background-color', 'box-shadow'], { duration: theme.transitions.duration.shortest }),
                           '&:hover': rowInteractive ? {

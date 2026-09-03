@@ -93,12 +93,13 @@ public class VehicleService implements VehicleServiceDefinition {
             Boolean available,
             BigDecimal capacityFrom,
             BigDecimal capacityTo,
+            Long requestedCompanyId,
             Pageable pageable
     ) {
         vehiclePolicy.validateCapacityRange(capacityFrom, capacityTo);
 
         Long companyId = authenticatedUserProvider.isOverlord()
-                ? null
+                ? requestedCompanyId
                 : authenticatedUserProvider.getAuthenticatedCompanyIdOrThrow();
         Long driverUserId = hasRelatedVehicleScope()
                 ? authenticatedUserProvider.getAuthenticatedUserId()

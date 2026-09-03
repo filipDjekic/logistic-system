@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Button, Grid, Typography } from '@mui/material';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../core/auth/authStore';
 import { ROLES } from '../../../core/constants/roles';
 import { canCancelShiftDueToSickness, canManageShifts as hasShiftManagementCapability } from '../../../core/permissions/operationGuards';
-import { invalidateShiftState } from '../../../core/utils/invalidateAppState';
 import { formatTemporalView } from '../../../core/utils/timezoneFormat';
 import { normalizeApiError } from '../../../core/api/apiError';
 import { EntityDetailsLayout, DetailsField, DetailsOverviewCard, OperationalDetailsTabPanels, buildOperationalTabs } from '../../../shared/components/EntityDetails';
@@ -28,7 +27,6 @@ export default function ShiftDetailsPage() {
   const params = useParams();
   const navigate = useNavigate();
   const auth = useAuthStore();
-  const queryClient = useQueryClient();
   const shiftId = Number(params.id);
   const isValidShiftId = Number.isInteger(shiftId) && shiftId > 0;
   const [activeTab, setActiveTab] = useState<ShiftDetailsTab>('overview');
@@ -44,7 +42,7 @@ export default function ShiftDetailsPage() {
   const employeesQuery = useQuery({
     queryKey: ['shifts', shiftId, 'employee', shiftQuery.data?.employeeId],
     queryFn: () => employeesApi.getById(Number(shiftQuery.data?.employeeId)),
-    enabled: isValidShiftId && shiftQuery.data?.employeeId != null,
+    enabled: isValidShiftId && (activeTab === 'overview' || editOpen) && shiftQuery.data?.employeeId != null,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -52,18 +50,19 @@ export default function ShiftDetailsPage() {
   const warehouseQuery = useQuery({
     queryKey: ['shifts', shiftId, 'warehouse', shiftQuery.data?.warehouseId],
     queryFn: () => warehousesApi.getById(Number(shiftQuery.data?.warehouseId)),
-    enabled: isValidShiftId && shiftQuery.data?.warehouseId != null,
+    enabled: isValidShiftId && activeTab === 'overview' && shiftQuery.data?.warehouseId != null,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
   const shiftStatus = shiftQuery.data?.status;
+  const refetchShift = shiftQuery.refetch;
 
   useEffect(() => {
     if (!shiftStatus || ['FINISHED', 'CANCELLED'].includes(shiftStatus)) return undefined;
-    const intervalId = window.setInterval(() => { void invalidateShiftState(queryClient, shiftId); }, 30000);
+    const intervalId = window.setInterval(() => { void refetchShift(); }, 30000);
     return () => window.clearInterval(intervalId);
-  }, [queryClient, shiftId, shiftStatus]);
+  }, [refetchShift, shiftStatus]);
 
   if (!isValidShiftId) return <ErrorState title="Shift unavailable" description="The requested shift could not be found." />;
 

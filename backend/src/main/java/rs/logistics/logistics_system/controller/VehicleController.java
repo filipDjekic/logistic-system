@@ -79,10 +79,11 @@ public class VehicleController {
             @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) BigDecimal capacityFrom,
             @RequestParam(required = false) BigDecimal capacityTo,
+            @RequestParam(required = false) Long companyId,
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return new ResponseEntity<>(
-                vehicleService.getAll(search, status, type, available, capacityFrom, capacityTo, pageable),
+                vehicleService.getAll(search, status, type, available, capacityFrom, capacityTo, companyId, pageable),
                 HttpStatus.OK
         );
     }

@@ -102,6 +102,7 @@ export type VehicleSearchParams = {
   available?: boolean;
   capacityFrom?: number;
   capacityTo?: number;
+  companyId?: number;
 };
 
 export type VehicleFormValues = {

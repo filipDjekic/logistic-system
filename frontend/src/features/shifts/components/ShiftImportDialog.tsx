@@ -61,13 +61,13 @@ export default function ShiftImportDialog({
   const inputRef = useRef<HTMLInputElement | null>(null);
   type PreviewRow = ShiftImportPreviewResponse['rows'][number];
   const previewColumns: DataTableColumn<PreviewRow>[] = [
-    { id: 'line', header: 'Line', accessor: 'rowNumber' },
-    { id: 'status', header: 'Status', render: (row) => <Chip size="small" label={row.valid ? 'Valid' : 'Invalid'} color={row.valid ? 'success' : 'error'} /> },
-    { id: 'employee', header: 'Employee', render: (row) => row.employeeLabel ?? row.employeeId ?? '-' },
-    { id: 'start', header: 'Start', render: (row) => row.startTime ?? '-' },
-    { id: 'end', header: 'End', render: (row) => row.endTime ?? '-' },
-    { id: 'warehouse', header: 'Warehouse', render: (row) => row.warehouseId ?? '-' },
-    { id: 'errors', header: 'Errors', render: (row) => row.errors.length > 0 ? row.errors.join(' | ') : '-' },
+    { id: 'line', header: 'Line', accessor: 'rowNumber', nowrap: true },
+    { id: 'status', header: 'Status', render: (row) => <Chip size="small" label={row.valid ? 'Valid' : 'Invalid'} color={row.valid ? 'success' : 'error'} />, nowrap: true },
+    { id: 'employee', header: 'Employee', render: (row) => row.employeeLabel ?? row.employeeId ?? '-', nowrap: true },
+    { id: 'start', header: 'Start', render: (row) => row.startTime ?? '-', nowrap: true },
+    { id: 'end', header: 'End', render: (row) => row.endTime ?? '-', nowrap: true },
+    { id: 'warehouse', header: 'Warehouse', render: (row) => row.warehouseId ?? '-', nowrap: true },
+    { id: 'errors', header: 'Errors', render: (row) => row.errors.length > 0 ? row.errors.join(' | ') : '-', nowrap: true },
   ];
 
   const resetLocalState = () => {
@@ -175,7 +175,7 @@ export default function ShiftImportDialog({
                 <Chip label={`Valid: ${preview.validRows}`} color="success" />
                 <Chip label={`Invalid: ${preview.invalidRows}`} color={preview.invalidRows > 0 ? 'error' : 'default'} />
               </Stack>
-              <DataTable columns={previewColumns} rows={preview.rows} getRowId={(row) => row.rowNumber} size="small" maxHeight={420} minWidth={900} enableClientWindowing={false} getRowStatus={(row) => row.valid ? 'COMPLETED' : 'FAILED'} />
+              <DataTable columns={previewColumns} rows={preview.rows} getRowId={(row) => row.rowNumber} size="small" maxHeight={420} minWidth={900} enableClientWindowing fixedRowHeight={44} getRowStatus={(row) => row.valid ? 'COMPLETED' : 'FAILED'} />
             </Stack>
           ) : null}
         </Stack>

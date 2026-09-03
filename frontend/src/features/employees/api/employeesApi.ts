@@ -60,6 +60,10 @@ export const employeesApi = {
       params.set('availableTo', filters.availableTo);
     }
 
+    if (filters.companyId != null) {
+      params.set('companyId', String(filters.companyId));
+    }
+
     if (filters.page != null) {
       params.set('page', String(filters.page));
     }

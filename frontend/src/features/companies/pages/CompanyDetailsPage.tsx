@@ -33,9 +33,9 @@ export default function CompanyDetailsPage() {
 
   const companyQuery = useCompany(id, isValidId);
   const resourcesTabEnabled = isValidId && activeTab === 'resources';
-  const warehousesQuery = useWarehouses({ page: 0, size: 12, sort: 'name,asc' }, resourcesTabEnabled);
-  const employeesQuery = useEmployees({ page: 0, size: 12, sort: 'lastName,asc' }, resourcesTabEnabled);
-  const vehiclesQuery = useVehicles({ page: 0, size: 12, sort: 'registrationNumber,asc' }, resourcesTabEnabled);
+  const warehousesQuery = useWarehouses({ companyId: id, page: 0, size: 12, sort: 'name,asc' }, resourcesTabEnabled);
+  const employeesQuery = useEmployees({ companyId: id, page: 0, size: 12, sort: 'lastName,asc' }, resourcesTabEnabled);
+  const vehiclesQuery = useVehicles({ companyId: id, page: 0, size: 12, sort: 'registrationNumber,asc' }, resourcesTabEnabled);
 
   if (!isValidId) {
     return <Navigate to="/companies" replace />;
@@ -72,9 +72,9 @@ export default function CompanyDetailsPage() {
   }
 
   const company = companyQuery.data;
-  const warehouses = (warehousesQuery.data?.content ?? []).filter((warehouse) => warehouse.companyId === company.id || warehouse.companyId == null);
-  const employees = (employeesQuery.data?.content ?? []).filter((employee) => employee.companyId === company.id);
-  const vehicles = (vehiclesQuery.data?.content ?? []).filter((vehicle) => vehicle.companyId === company.id || vehicle.companyId == null);
+  const warehouses = warehousesQuery.data?.content ?? [];
+  const employees = employeesQuery.data?.content ?? [];
+  const vehicles = vehiclesQuery.data?.content ?? [];
 
   const tabs: { value: string; label: ReactNode; disabled?: boolean }[] = [
     { value: 'overview', label: 'Overview' },

@@ -66,7 +66,8 @@ export const queryKeys = {
 
   notifications: {
     root: () => ['notifications'] as const,
-    my: (params: unknown) => ['notifications', 'my', params] as const,
+    myLists: () => ['notifications', 'my', 'list'] as const,
+    my: (params: unknown) => ['notifications', 'my', 'list', params] as const,
     myUnreadCount: () => ['notifications', 'my', 'unread-count'] as const,
   },
 

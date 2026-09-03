@@ -86,6 +86,7 @@ export type WarehouseFilterParams = {
   status?: WarehouseStatus;
   active?: boolean;
   managerId?: number;
+  companyId?: number;
 };
 
 export type WarehouseFormValues = {

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import DataTable from '../../../shared/components/DataTable/DataTable';
 import type { DataTableColumn, RowId } from '../../../shared/types/common.types';
 
@@ -18,15 +19,22 @@ export default function ReportDataTable<T>({
   minWidth = 900,
   emptyDescription = 'There are no rows for the current report filters.',
 }: ReportDataTableProps<T>) {
+  const windowingColumns = useMemo(
+    () => columns.map((column) => ({ ...column, nowrap: true })),
+    [columns],
+  );
+
   return (
     <DataTable
-      columns={columns}
+      columns={windowingColumns}
       rows={rows}
       getRowId={getRowId}
       emptyTitle={`No ${title.toLowerCase()} found`}
       emptyDescription={emptyDescription}
       minWidth={minWidth}
       size="small"
+      enableClientWindowing
+      fixedRowHeight={44}
     />
   );
 }

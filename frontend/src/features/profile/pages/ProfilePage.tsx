@@ -142,17 +142,20 @@ export default function ProfilePage() {
   const canReviewProfileRequests = role === ROLES.COMPANY_ADMIN || role === ROLES.HR_MANAGER;
   const isDriver = profile?.position === 'DRIVER' || role === ROLES.DRIVER;
 
-  const { data: shifts = [], isLoading: shiftsLoading } = useMyShifts(hasEmployee);
-  const { data: tasks, isLoading: tasksLoading } = useMyTasks({ page: 0, size: 5, sort: 'dueDate,asc' }, hasEmployee);
-  const { data: transports, isLoading: transportsLoading } = useTransportOrders(
+  const workTabEnabled = hasEmployee && tab === 1;
+  const changeRequestsTabEnabled = hasEmployee && tab === 2;
+  const { data: shifts = [], isLoading: shiftsLoading, isPending: shiftsPending } = useMyShifts(workTabEnabled);
+  const { data: tasks, isLoading: tasksLoading, isPending: tasksPending } = useMyTasks({ page: 0, size: 5, sort: 'dueDate,asc' }, workTabEnabled);
+  const { data: transports, isLoading: transportsLoading, isPending: transportsPending } = useTransportOrders(
     profile?.employeeId ? { assignedEmployeeId: profile.employeeId, page: 0, size: 5, sort: 'departureTime,asc' } : { page: 0, size: 5 },
-    Boolean(hasEmployee && isDriver),
+    Boolean(workTabEnabled && isDriver),
   );
   const {
     data: profileChangeRequests,
     isLoading: profileChangeRequestsLoading,
+    isPending: profileChangeRequestsPending,
     error: profileChangeRequestsError,
-  } = useMyProfileChangeRequests({ page: 0, size: 20, sort: 'createdAt,desc' }, hasEmployee);
+  } = useMyProfileChangeRequests({ page: 0, size: 20, sort: 'createdAt,desc' }, changeRequestsTabEnabled);
 
   const fullName = useMemo(() => (profile ? fullNameOf(profile) : 'My Profile'), [profile]);
   const initials = useMemo(() => initialsOf(fullName), [fullName]);
@@ -288,7 +291,7 @@ export default function ProfilePage() {
               value={currentShift ? currentShift.status : 'None'}
               description={currentShift ? `${formatDateTime(currentShift.startTime)} • ${display(currentShift.warehouseName)}` : 'No active shift right now.'}
               icon={<ScheduleRoundedIcon />}
-              loading={shiftsLoading}
+              loading={hasEmployee && shiftsPending}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
@@ -297,7 +300,7 @@ export default function ProfilePage() {
               value={upcomingShift ? formatDateTime(upcomingShift.startTime) : 'None'}
               description={upcomingShift ? display(upcomingShift.warehouseName) : 'No planned shift in the loaded schedule.'}
               icon={<CalendarMonthRoundedIcon />}
-              loading={shiftsLoading}
+              loading={hasEmployee && shiftsPending}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
@@ -306,7 +309,7 @@ export default function ProfilePage() {
               value={activeTasks.length}
               description="Open work items from your task queue."
               icon={<AssignmentTurnedInRoundedIcon />}
-              loading={tasksLoading}
+              loading={hasEmployee && tasksPending}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
@@ -315,7 +318,7 @@ export default function ProfilePage() {
               value={isDriver ? transports?.totalElements ?? 0 : pendingRequestsCount}
               description={isDriver ? 'Transport orders currently assigned to you.' : 'Profile changes waiting for review.'}
               icon={isDriver ? <LocalShippingRoundedIcon /> : <PendingActionsRoundedIcon />}
-              loading={isDriver ? transportsLoading : profileChangeRequestsLoading}
+              loading={hasEmployee && (isDriver ? transportsPending : profileChangeRequestsPending)}
             />
           </Grid>
         </Grid>

@@ -22,7 +22,7 @@ public interface WarehouseServiceDefinition {
 
     WarehouseResponse assignEmployee(Long warehouseId, Long employeeId);
 
-    PageResponse<WarehouseResponse> getAll(String search, WarehouseStatus status, Boolean active, Long managerId, Pageable pageable);
+    PageResponse<WarehouseResponse> getAll(String search, WarehouseStatus status, Boolean active, Long managerId, Long companyId, Pageable pageable);
 
     WarehouseResponse changeStatus(Long warehouseId, WarehouseStatus status);
 

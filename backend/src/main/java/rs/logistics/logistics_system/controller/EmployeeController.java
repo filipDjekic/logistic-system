@@ -94,9 +94,10 @@ public class EmployeeController {
             @RequestParam(required = false) String linkedUser,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime availableFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime availableTo,
+            @RequestParam(required = false) Long companyId,
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        PageResponse<EmployeeResponse> response = employeeService.getAll(search, position, active, linkedUser, availableFrom, availableTo, pageable);
+        PageResponse<EmployeeResponse> response = employeeService.getAll(search, position, active, linkedUser, availableFrom, availableTo, companyId, pageable);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

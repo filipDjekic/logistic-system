@@ -61,9 +61,10 @@ public class WarehouseController {
             @RequestParam(required = false) WarehouseStatus status,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) Long managerId,
+            @RequestParam(required = false) Long companyId,
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return new ResponseEntity<>(warehouseService.getAll(search, status, active, managerId, pageable), HttpStatus.OK);
+        return new ResponseEntity<>(warehouseService.getAll(search, status, active, managerId, companyId, pageable), HttpStatus.OK);
     }
 
 

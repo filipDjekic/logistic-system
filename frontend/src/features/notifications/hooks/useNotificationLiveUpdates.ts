@@ -51,23 +51,26 @@ export function useNotificationLiveUpdates() {
       }
     };
 
-    const invalidateNotificationData = () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.root() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.root() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.employeeProfileChangeRequests.root() });
+    const invalidateNotificationLists = () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.myLists() });
     };
 
-    const scheduleInvalidateNotificationData = () => {
+    const scheduleInvalidateNotificationLists = () => {
       if (document.visibilityState !== 'visible') {
         return;
       }
 
       clearRefreshTimeout();
       refreshTimeoutRef.current = window.setTimeout(
-        invalidateNotificationData,
+        invalidateNotificationLists,
         NOTIFICATION_SSE_VISIBLE_REFRESH_DEBOUNCE_MS,
       );
+    };
+
+    const updateUnreadCount = (unreadCount: number | null) => {
+      if (unreadCount !== null) {
+        queryClient.setQueryData(queryKeys.notifications.myUnreadCount(), unreadCount);
+      }
     };
 
     const rememberEventId = (eventId: string | null): boolean => {
@@ -90,16 +93,12 @@ export function useNotificationLiveUpdates() {
 
       const payload = JSON.parse(data) as NotificationStreamEventResponse;
 
-      if (payload.eventType === 'CONNECTED') {
-        scheduleInvalidateNotificationData();
-        return;
-      }
-
       if (payload.eventType === 'HEARTBEAT') {
         return;
       }
 
-      scheduleInvalidateNotificationData();
+      updateUnreadCount(payload.unreadCount);
+      scheduleInvalidateNotificationLists();
 
       if (payload.eventType !== 'CREATED' || !payload.notification) {
         return;
@@ -184,7 +183,7 @@ export function useNotificationLiveUpdates() {
               try {
                 handleStreamEvent(dataLines.join('\n'), eventId);
               } catch {
-                scheduleInvalidateNotificationData();
+                scheduleInvalidateNotificationLists();
               }
             }
             boundary = buffer.indexOf('\n\n');
@@ -204,7 +203,8 @@ export function useNotificationLiveUpdates() {
 
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        invalidateNotificationData();
+        void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.myLists() });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.myUnreadCount(), exact: true });
 
         if (!streamAbortRef.current && !isStopped) {
           void connect();
