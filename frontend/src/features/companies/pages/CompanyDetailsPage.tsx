@@ -95,7 +95,7 @@ export default function CompanyDetailsPage() {
     >
       {activeTab === 'overview' ? (
         <Stack spacing={3}>
-          <DetailsOverviewCard title="Company overview" description="Company details, location and current status."
+          <DetailsOverviewCard title="Company overview" description="Company details, location and current status.">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 4 }}><DetailsField label="ID" value={company.id} /></Grid>
               <Grid size={{ xs: 12, md: 4 }}>
@@ -119,7 +119,7 @@ export default function CompanyDetailsPage() {
             </Grid>
           </DetailsOverviewCard>
 
-          <DetailsMetadataCard title="Initial company administrator" description="Administrator and employee records created with the company."
+          <DetailsMetadataCard title="Initial company administrator" description="Administrator and employee records created with the company.">
             <Stack spacing={2}>
               <Alert severity="info">
                 This company can be connected with an automatically generated COMPANY_ADMIN account.

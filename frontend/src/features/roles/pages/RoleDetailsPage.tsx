@@ -63,7 +63,7 @@ export default function RoleDetailsPage() {
       onTabChange={(value) => setActiveTab(value as RoleDetailsTab)}
     >
       {activeTab === 'overview' ? (
-        <DetailsOverviewCard title="Role overview" description="Role name and access summary."
+        <DetailsOverviewCard title="Role overview" description="Role name and access summary.">
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 4 }}><DetailsField label="ID" value={role.id} /></Grid>
             <Grid size={{ xs: 12, md: 4 }}><DetailsField label="System name" value={role.name} /></Grid>
