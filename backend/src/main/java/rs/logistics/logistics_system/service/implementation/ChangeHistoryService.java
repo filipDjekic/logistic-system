@@ -19,7 +19,6 @@ import rs.logistics.logistics_system.repository.NotificationRepository;
 import rs.logistics.logistics_system.repository.ProductRepository;
 import rs.logistics.logistics_system.repository.ShiftRepository;
 import rs.logistics.logistics_system.repository.StockMovementRepository;
-import rs.logistics.logistics_system.repository.StockMovementRequestRepository;
 import rs.logistics.logistics_system.repository.TaskRepository;
 import rs.logistics.logistics_system.repository.TransportOrderItemRepository;
 import rs.logistics.logistics_system.repository.TransportOrderRepository;
@@ -52,7 +51,6 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
     private final ProductRepository productRepository;
     private final ShiftRepository shiftRepository;
     private final StockMovementRepository stockMovementRepository;
-    private final StockMovementRequestRepository stockMovementRequestRepository;
     private final TaskRepository taskRepository;
     private final TransportOrderRepository transportOrderRepository;
     private final TransportOrderItemRepository transportOrderItemRepository;
@@ -191,10 +189,6 @@ public class ChangeHistoryService implements ChangeHistoryServiceDefinition {
 
             case "STOCK_MOVEMENT" -> stockMovementRepository.findByIdAndWarehouse_Company_Id(entityId, companyId)
                     .map(stockMovement -> canReadWarehouseById(stockMovement.getWarehouse() != null ? stockMovement.getWarehouse().getId() : null))
-                    .orElse(false);
-
-            case "STOCK_MOVEMENT_REQUEST" -> stockMovementRequestRepository.findByIdAndWarehouse_Company_Id(entityId, companyId)
-                    .map(request -> canReadWarehouseById(request.getWarehouse() != null ? request.getWarehouse().getId() : null))
                     .orElse(false);
 
             case "TASK" -> taskRepository.findByIdAndAssignedEmployee_Company_Id(entityId, companyId)

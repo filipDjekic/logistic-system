@@ -11,7 +11,6 @@ import TableLayout from '../../../shared/components/TableLayout/TableLayout';
 import TableToolbar from '../../../shared/components/TableToolbar/TableToolbar';
 import { EntityLookupField, type LookupOption } from '../../lookup';
 import StockMovementsTable from '../components/StockMovementsTable';
-import StockMovementRequestDialog from '../components/StockMovementRequestDialog';
 import { useStockMovements } from '../hooks/useStockMovements';
 import type { SortState } from '../../../shared/types/common.types';
 import type { StockMovementFiltersState } from '../types/stockMovement.types';
@@ -24,7 +23,6 @@ export default function StockMovementsPage() {
   const tabParam = searchParams.get('tab');
   const activeTab: 'stock' | 'approvals' = tabParam === 'approvals' ? 'approvals' : 'stock';
   const isWorkerView = auth.user?.role === ROLES.WORKER;
-  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
   const canCreate = auth.user?.role === ROLES.COMPANY_ADMIN || auth.user?.role === ROLES.WAREHOUSE_MANAGER;
 
@@ -141,10 +139,6 @@ export default function StockMovementsPage() {
           canCreate ? (
             <Button variant="contained" onClick={() => navigate('/stock-movements/create')}>
               Create stock movement
-            </Button>
-          ) : isWorkerView ? (
-            <Button variant="contained" onClick={() => setRequestDialogOpen(true)}>
-              Request movement
             </Button>
           ) : null
         }
@@ -295,7 +289,6 @@ export default function StockMovementsPage() {
             />
         }
       />
-      <StockMovementRequestDialog open={requestDialogOpen} onClose={() => setRequestDialogOpen(false)} />
     </>
   );
 }

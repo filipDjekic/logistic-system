@@ -95,7 +95,7 @@ const navigationTemplatesByRole: Partial<Record<Role, NavigationSectionTemplate[
   ],
   [ROLES.HR_MANAGER]: [
     { key: 'command-center', label: 'Command Center', itemKeys: ['dashboard', 'notifications'] },
-    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles', 'tasks'] },
+    { key: 'workforce', label: 'Workforce', itemKeys: ['employees', 'employee-profile-change-requests', 'shifts', 'users', 'roles'] },
     { key: 'data-reports', label: 'Data & Reports', itemKeys: ['employee-task-report'] },
     { key: 'personal', label: 'Personal', itemKeys: ['profile', 'my-shifts'] },
   ],

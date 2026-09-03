@@ -9,8 +9,6 @@ import type {
   StockMovementProductOption,
   StockMovementResponse,
   StockMovementContextResponse,
-  StockMovementRequestPayload,
-  StockMovementRequestResponse,
   StockMovementTraceResponse,
   StockMovementTransportOrderOption,
   StockMovementWarehouseOption,
@@ -150,12 +148,6 @@ export const stockMovementsApi = {
   returnStock(payload: StockReturnRequest) {
     return apiClient
       .post<StockMovementResponse>('/api/stock-movements/return', payload)
-      .then((response) => response.data);
-  },
-
-  createRequest(payload: StockMovementRequestPayload) {
-    return apiClient
-      .post<StockMovementRequestResponse>('/api/stock-movement-requests', payload)
       .then((response) => response.data);
   },
 

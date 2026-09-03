@@ -374,7 +374,6 @@ The API is grouped by domain rather than exposed as one generic CRUD endpoint se
 /api/products
 /api/inventory-counts
 /api/stock-movements
-/api/stock-movement-requests
 /api/transport-orders
 /api/transport-order-items
 /api/vehicles

@@ -255,38 +255,3 @@ export type StockOperationFormValues = {
   referenceId: string;
   referenceNote: string;
 };
-
-export type StockMovementRequestStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-
-export type StockMovementRequestPayload = {
-  movementType: Exclude<StockMovementType, 'TRANSFER_IN' | 'RESERVATION' | 'RESERVATION_RELEASE'>;
-  quantity: number;
-  adjustmentDirection?: StockAdjustmentDirection;
-  reasonDescription?: string;
-  warehouseId: number;
-  destinationWarehouseId?: number;
-  productId: number;
-};
-
-export type StockMovementRequestResponse = {
-  id: number;
-  movementType: StockMovementType;
-  status: StockMovementRequestStatus;
-  quantity: number;
-  adjustmentDirection?: StockAdjustmentDirection | null;
-  reasonDescription?: string | null;
-  reviewNote?: string | null;
-  version: number;
-  warehouseId: number;
-  warehouseName?: string | null;
-  destinationWarehouseId?: number | null;
-  destinationWarehouseName?: string | null;
-  productId: number;
-  productName?: string | null;
-  requestedById?: number | null;
-  reviewedById?: number | null;
-  createdMovementId?: number | null;
-  createdAt: string;
-  updatedAt?: string | null;
-  reviewedAt?: string | null;
-};
